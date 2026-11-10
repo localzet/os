@@ -46,3 +46,17 @@ The ISO build workflow runs direct-kernel, BIOS GRUB and UEFI GRUB tests on **th
 GRUB tests capture multiple frames and require both serial evidence of an active graphical target and visual evidence of the Localzet desktop. A GDM login greeter is not sufficient.
 
 In this experimental, non-installable Live image, `plymouth-quit-wait.service` is masked to avoid blocking `graphical.target` under slow QEMU software emulation. This is not the final branded boot animation configuration.
+
+## Local graphical VM test (once the image passes CI)
+
+The `scripts/run-live-qemu.sh` helper boots the Live ISO in a disposable graphical QEMU instance without attaching a physical or virtual hard disk. It supports BIOS and UEFI; it uses KVM only when the caller has access to `/dev/kvm`, otherwise TCG. It does **not** install the system.
+
+The script is prepared but **the full BIOS/UEFI boot requirement is still not confirmed**. Do not rely on the image for regular work, installation or recovery.
+
+## Guest session evidence
+
+QEMU must demonstrate a usable guest session and actual desktop pixels; merely detecting `gdm.service`, `graphical.target` or `gnome-shell` in a process list is insufficient. The disposable image sends snapshots of GDM status, loginctl sessions, GNOME processes and user journal messages over a serial device for diagnosis. Serial logs can include system information; review them before publication. Boot diagnostics are for experiments only and should not be included in a production installed system.
+
+The image includes GNOME Settings Daemon and Keyring support, and disables automatic locking only for the passwordless temporary Live account. Normal installed accounts must retain authentication and lock security policies.
+
+A dedicated `build` job uploads an ISO; three independent QEMU jobs then download **that exact artifact** and test direct-kernel, BIOS GRUB and UEFI GRUB startup concurrently. The old retest workflow still uses archival ISO artifacts and is not proof for newer builds.
