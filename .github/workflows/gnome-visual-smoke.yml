@@ -1,0 +1,35 @@
+name: GNOME 50 visual smoke (experimental)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/gnome-visual-smoke.yml'
+      - 'scripts/ci/gnome50-visual-smoke.sh'
+permissions:
+  contents: read
+jobs:
+  gnome-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Boot nested GNOME 50 in Ubuntu 26.04 container
+        timeout-minutes: 30
+        run: |
+          mkdir -p out/gnome-smoke
+          docker run --rm -v "$PWD:/work" -w /work ubuntu:26.04 bash -euc '
+            export DEBIAN_FRONTEND=noninteractive
+            printf "%s\\n" "Types: deb" "URIs: http://archive.ubuntu.com/ubuntu" "Suites: resolute resolute-updates" "Components: main universe" "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" > /etc/apt/sources.list.d/ubuntu.sources
+            apt-get -o Acquire::Retries=3 update -qq
+            apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xvfb dbus-x11 mesa-utils libgl1-mesa-dri imagemagick python3-pil x11-utils ca-certificates
+            gnome-shell --version
+            bash scripts/ci/gnome50-visual-smoke.sh
+          '
+      - name: Upload true runtime diagnostics and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnome50-devkit-screenshot-and-logs
+          path: out/gnome-smoke/
+          if-no-files-found: ignore
+          retention-days: 7
