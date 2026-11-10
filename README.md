@@ -2,7 +2,7 @@
 
 A modular Ubuntu-based desktop distribution with a consistent GNOME interface.
 
-**Status: P0 foundation prototype (not an installable operating system or ISO).**
+**Status: P1 experimental Live ISO construction (boot and installer NOT yet verified).**
 
 ## Target
 
@@ -36,7 +36,7 @@ The shell installer only copies a folder into the current user's home directory;
 
 ## Important boundaries
 
-- **No ISO is produced yet.** The installer, custom package repository, signed updates, privileged module activation and hardware support are future work.
+- The first experimental Live ISO builder is in [docs/LIVE-ISO.md](docs/LIVE-ISO.md). A valid, bootable artifact is **not confirmed** until CI and QEMU tests pass. The installer, custom package repository, signed updates, privileged module activation and hardware support are future work.
 - `plan` is deliberately read-only. It never executes APT or systemd.
 - Ubuntu, GNOME, Microsoft Edge, Steam, Docker, NetBird, Wine and other names belong to their respective owners and retain their own license terms.
 - The upstream project's existing code and history remain at [localzet/localzet-os](https://github.com/localzet/localzet-os). See [migration](docs/MIGRATION.md).
