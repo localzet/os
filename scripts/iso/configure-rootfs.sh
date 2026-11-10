@@ -10,7 +10,9 @@ apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
   xdg-desktop-portal-gnome adwaita-icon-theme fonts-noto-core fonts-dejavu-core \
   dconf-cli gsettings-desktop-schemas plymouth ca-certificates python3
 useradd -m -s /bin/bash -G sudo,audio,video,plugdev localzet
-passwd -l localzet
+# Live session only: empty password allows GDM automatic login; SSH is not installed.
+# Do not copy this account policy into an installed system.
+passwd -d localzet
 # Ephemeral Live account only. Installed systems MUST NOT inherit this sudo rule.
 install -d -m 0755 /etc/sudoers.d
 printf 'localzet ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/90-localzet-live
@@ -37,6 +39,7 @@ dconf update
 systemctl set-default graphical.target
 systemctl enable NetworkManager.service || true
 systemctl enable gdm3.service || true
+systemctl enable localzet-boot-diagnostics.service
 # casper currently requires an initramfs capable of discovering ISO squashfs.
 KERNEL="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*' | sort -V | tail -1)"
 VERSION="${KERNEL##*/vmlinuz-}"
