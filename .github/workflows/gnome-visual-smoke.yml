@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/gnome-visual-smoke.yml'
       - 'scripts/ci/gnome50-visual-smoke.sh'
+      - 'extensions/localzet-shell@localzet.com/**'
 permissions:
   contents: read
 jobs:
