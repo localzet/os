@@ -20,6 +20,16 @@ snapshot() {
     ps -eo user,comm,args | grep -E '[g]nome-shell|[g]dm-session-worker|[g]dm-wayland-session|[g]nome-session|[g]nome-settings-daemon' | head -25 || true
     echo 'Active display session:'
     loginctl show-user localzet -p State -p Sessions -p Display 2>&1 || true
+    echo 'Seat active session:'
+    loginctl show-seat seat0 -p ActiveSession -p Sessions -p CanGraphical 2>&1 || true
+    echo 'Per-session display details:'
+    while read -r session _; do
+      [[ -n "$session" ]] || continue
+      echo "session=$session"
+      loginctl show-session "$session" \
+        -p Name -p User -p Active -p State -p VTNr -p Type -p Service \
+        -p Desktop -p Class 2>&1 || true
+    done < <(loginctl list-sessions --no-legend 2>/dev/null || true)
     echo 'systemd pending jobs:'
     systemctl list-jobs --no-pager 2>&1 | tail -15 || true
     echo 'GDM recent logs:'
