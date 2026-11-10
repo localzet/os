@@ -1,0 +1,6 @@
+id = "developer"
+title = "Разработка"
+description = "Development utilities and language toolchains"
+status = "planned"
+packages = ["git", "build-essential"]
+depends_on = []

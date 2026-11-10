@@ -1,0 +1,6 @@
+id = "virtualization"
+title = "Виртуализация"
+description = "QEMU/KVM and a virtual machine management UI"
+status = "planned"
+packages = []
+depends_on = []

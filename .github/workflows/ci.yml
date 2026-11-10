@@ -1,0 +1,18 @@
+name: P0 source checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python tests and module validation
+        run: make test
+      - name: Validate shell JavaScript syntax
+        run: node --check extensions/localzet-shell@localzet.com/extension.js
+      - name: Validate shell-install script syntax
+        run: bash -n scripts/install-shell-dev.sh

@@ -1,0 +1,17 @@
+{
+  "name": "Localzet Aurora Dark",
+  "status": "draft",
+  "colors": {
+    "background": "#0a1120",
+    "surface": "#13203a",
+    "surfaceElevated": "#1e3154",
+    "accent": "#6c92ed",
+    "textPrimary": "#f1f5ff",
+    "textSecondary": "#aebed9",
+    "success": "#4fc6a8",
+    "warning": "#e6b66b"
+  },
+  "radii": {"sm": 8, "md": 14, "lg": 22},
+  "blur": {"surfacePx": 18},
+  "motion": {"shortMs": 140, "mediumMs": 240}
+}

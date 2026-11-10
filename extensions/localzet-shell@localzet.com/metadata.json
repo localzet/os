@@ -1,0 +1,7 @@
+{
+  "uuid": "localzet-shell@localzet.com",
+  "name": "Localzet Shell",
+  "description": "Early desktop integration: Localzet system menu",
+  "shell-version": ["50"],
+  "version": 1
+}

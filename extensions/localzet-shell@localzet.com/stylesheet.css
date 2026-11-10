@@ -1,0 +1,8 @@
+.localzet-indicator {
+  border-radius: 12px;
+  margin: 2px 4px;
+  color: #e9efff;
+}
+.localzet-indicator:hover {
+  background-color: rgba(99, 139, 228, 0.18);
+}

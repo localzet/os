@@ -1,0 +1,6 @@
+id = "gaming"
+title = "Игры"
+description = "Steam, Proton and Windows game compatibility (sources/licences to be verified)"
+status = "planned"
+packages = []
+depends_on = []

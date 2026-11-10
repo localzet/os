@@ -1,0 +1,6 @@
+id = "containers"
+title = "Контейнеры"
+description = "Docker Engine and a future Localzet Containers UI"
+status = "planned"
+packages = ["docker.io"]
+depends_on = []

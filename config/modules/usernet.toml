@@ -1,0 +1,6 @@
+id = "usernet"
+title = "UserNet"
+description = "System proxy management through mihomo, without bundled binaries yet"
+status = "planned"
+packages = []
+depends_on = []

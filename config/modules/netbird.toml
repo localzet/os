@@ -1,0 +1,6 @@
+id = "netbird"
+title = "Частные сети"
+description = "NetBird VPN, DNS and route coordination with UserNet"
+status = "planned"
+packages = []
+depends_on = ["usernet"]
