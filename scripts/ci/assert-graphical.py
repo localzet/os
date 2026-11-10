@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Check systemd graphical.target evidence in an ANSI-colored QEMU serial log.
+"""Check explicit systemd graphical-target evidence in a QEMU serial log.
 
-This is deliberately narrow: finding the word "graphical.target" anywhere
-(including the queued-start message) is not proof that the target was reached.
+Two supported proofs:
+- Exact systemd 'Reached target graphical.target' status line.
+- A complete Localzet boot-diagnostics block with graphical_target=active
+  and gdm_state=active. The service writes this directly to the guest's
+  serial port, so a status check is possible even if systemd console
+  output is routed to the framebuffer instead.
 """
 from __future__ import annotations
 
@@ -12,11 +16,29 @@ import re
 
 ANSI_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 TARGET = re.compile(r"\bReached target\s+graphical\.target\b", re.IGNORECASE)
+START = "LOCALZET_BOOT_EVIDENCE_BEGIN"
+END = "LOCALZET_BOOT_EVIDENCE_END"
+
+
+def _serial_text(raw: bytes) -> str:
+    return ANSI_CSI.sub("", raw.decode("utf-8", errors="replace"))
 
 
 def reached_graphical(raw: bytes) -> bool:
-    cleaned = ANSI_CSI.sub("", raw.decode("utf-8", errors="replace"))
-    return any(TARGET.search(line) for line in cleaned.splitlines())
+    cleaned = _serial_text(raw)
+    if any(TARGET.search(line) for line in cleaned.splitlines()):
+        return True
+    # Never infer success from an incomplete/truncated block.
+    # Accept a fully delimited health report from the guest itself.
+    for match in re.finditer(
+        re.escape(START) + r"\s*(.*?)\s*" + re.escape(END),
+        cleaned,
+        flags=re.DOTALL,
+    ):
+        lines = {line.strip() for line in match.group(1).splitlines()}
+        if "graphical_target=active" in lines and "gdm_state=active" in lines:
+            return True
+    return False
 
 
 def main() -> int:
@@ -28,7 +50,7 @@ def main() -> int:
     except OSError as error:
         parser.exit(2, f"Cannot read serial log: {error}\n")
     if evidence:
-        print("PASS: systemd reached graphical.target (serial evidence)")
+        print("PASS: graphical.target and GDM active (guest serial evidence)")
         return 0
     return 1
 
