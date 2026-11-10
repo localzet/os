@@ -1,7 +1,21 @@
-/* Aurora Dark components: app-scoped, no fragile global GTK overrides. */
+/* Localzet Aurora Dark, scoped to our application. GTK CSS, not web CSS. */
+@define-color accent_bg_color #6c92ed;
+@define-color accent_fg_color #ffffff;
+@define-color window_bg_color #0a1120;
+@define-color window_fg_color #f1f5ff;
+@define-color card_bg_color #13203a;
+@define-color card_fg_color #f1f5ff;
+
+window.localzet-settings {
+    color: #f1f5ff;
+    background-color: #0a1120;
+}
+window.localzet-settings headerbar {
+    background-color: #101a30;
+}
 window.localzet-settings .localzet-summary {
     border-radius: 14px;
-    background-color: alpha(#6c92ed, 0.06);
+    background-color: alpha(#6c92ed, 0.08);
 }
 window.localzet-settings .heading {
     font-weight: 700;

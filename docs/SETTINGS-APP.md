@@ -22,3 +22,6 @@ Engineering gates:
 This is not the full Localzet Settings suite. An authorized backend must
 be implemented and reviewed before showing installation toggles or writing
 system state. No telemetry, network queries or privileged actions.
+
+The initial Aurora design uses a dark color scheme and explicitly scoped GTK CSS.
+A user-facing light/dark theme switch is planned, not yet implemented.

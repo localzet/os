@@ -20,6 +20,9 @@ def main() -> int:
         print(f"Localzet Settings requires GTK4, libadwaita and python3-gi: {exc}", file=sys.stderr)
         return 2
 
+    # Localzet Aurora is dark-first. Expose a theme switch in a later milestone.
+    Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+
     class SettingsApp(Adw.Application):
         def __init__(self):
             super().__init__(application_id="com.localzet.Settings", flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
