@@ -21,7 +21,7 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             printf "%s\\n" "Types: deb" "URIs: http://archive.ubuntu.com/ubuntu" "Suites: resolute resolute-updates" "Components: main universe" "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" > /etc/apt/sources.list.d/ubuntu.sources
             apt-get -o Acquire::Retries=3 update -qq
-            apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xvfb dbus-x11 mesa-utils libgl1-mesa-dri imagemagick python3-pil x11-utils ca-certificates
+            apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils libgl1-mesa-dri imagemagick python3-pil x11-utils ca-certificates
             gnome-shell --version
             bash scripts/ci/gnome50-visual-smoke.sh
           '
