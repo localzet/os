@@ -4,10 +4,9 @@ After=gdm.service
 ConditionPathExists=/dev/ttyS0
 
 [Service]
-Type=oneshot
-ExecStartPre=/usr/bin/sleep 40
+Type=simple
 ExecStart=/usr/local/bin/localzet-boot-diagnostics
-TimeoutStartSec=120
+TimeoutStartSec=300
 NoNewPrivileges=true
 
 [Install]
