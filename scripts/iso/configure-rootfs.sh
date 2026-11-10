@@ -35,6 +35,11 @@ picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
 picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
 [org/gnome/shell]
 enabled-extensions=['localzet-shell@localzet.com']
+# The temporary Live user has no password. Avoid an unusable locked desktop.
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+[org/gnome/desktop/screensaver]
+lock-enabled=false
 DCONF
 dconf update
 systemctl set-default graphical.target
