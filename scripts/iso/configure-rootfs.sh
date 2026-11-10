@@ -5,7 +5,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get -o Acquire::Retries=3 update
 apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
   linux-image-generic initramfs-tools casper systemd-sysv dbus-user-session \
-  sudo gdm3 gnome-shell gnome-session gnome-control-center nautilus \
+  sudo gdm3 gnome-shell gnome-session gnome-settings-daemon gnome-keyring \
+  gnome-control-center nautilus gvfs gvfs-backends xdg-user-dirs \
   ptyxis network-manager wpasupplicant xwayland pipewire pipewire-pulse wireplumber \
   xdg-desktop-portal-gnome adwaita-icon-theme fonts-noto-core fonts-dejavu-core \
   dconf-cli gsettings-desktop-schemas plymouth ca-certificates python3
