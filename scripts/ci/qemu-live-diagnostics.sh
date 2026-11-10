@@ -34,11 +34,11 @@ if [[ ! "$SECONDS_TO_WAIT" =~ ^[0-9]+$ ]] || ((SECONDS_TO_WAIT < 10 || SECONDS_T
 fi
 for ((i=0;i<SECONDS_TO_WAIT;i+=5)); do
   if ! kill -0 "$PID" 2>/dev/null; then echo "QEMU exited prematurely" >&2; exit 1; fi
-  if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$SERIAL" 2>/dev/null; then break; fi
+  if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1 2>/dev/null; then break; fi
   sleep 5
 done
 # The graphical login may take a few more seconds after systemd reaches graphical.target.
-if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$SERIAL" 2>/dev/null; then
+if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1 2>/dev/null; then
   sleep 20
 fi
 python3 - "$SOCKET" "$OUT/guest-screen.ppm" <<'PY'
@@ -78,7 +78,7 @@ print(f"QEMU screenshot {image.width}x{image.height}, sampled colors: {samples}"
 if samples < 15:
     raise SystemExit("QEMU screenshot looks blank; graphical session not proven")
 PY
-if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$SERIAL"; then
+if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1; then
   echo "PASS: direct-kernel casper boot reached graphical.target with nonblank screenshot."
 else
   echo "QEMU did not reach graphical.target. Inspect serial.log and screenshot." >&2
