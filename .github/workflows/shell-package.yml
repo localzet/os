@@ -1,0 +1,45 @@
+name: GNOME 50 Shell package
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/shell-package.yml'
+      - 'extensions/**'
+      - 'scripts/verify-shell-bundle.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/shell-package.yml'
+      - 'extensions/**'
+      - 'scripts/verify-shell-bundle.py'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package with GNOME 50 tools from Ubuntu 26.04
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work ubuntu:26.04 bash -euc '
+            export DEBIAN_FRONTEND=noninteractive
+            # Use a single archive mirror for this ephemeral packaging container:
+            # the separate security mirror can lag its package indexes.
+            printf "%s\\n" "Types: deb" "URIs: http://archive.ubuntu.com/ubuntu" "Suites: resolute resolute-updates" "Components: main universe" "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg" > /etc/apt/sources.list.d/ubuntu.sources
+            apt-get -o Acquire::Retries=3 update -qq
+            apt-get install -y --no-install-recommends gnome-shell python3 ca-certificates
+            gnome-shell --version | grep -E "^GNOME Shell 50(\\.[0-9]+)*$"
+            mkdir -p dist
+            gnome-extensions pack --force --out-dir dist extensions/localzet-shell@localzet.com
+            shopt -s nullglob
+            packages=(dist/*.zip)
+            test "${#packages[@]}" -eq 1
+            python3 scripts/verify-shell-bundle.py "${packages[0]}"
+          '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: localzet-shell-gnome50-unverified-runtime
+          path: dist/*.zip
+          if-no-files-found: error
+          retention-days: 7

@@ -5,7 +5,8 @@
 - [x] Add minimal GNOME extension source; **runtime unverified**.
 - [x] Add design tokens and original wallpaper.
 - [x] Add read-only module catalog/resolver with tests.
-- [x] Add CI checks (workflow execution not yet verified).
+- [x] Add CI source checks (first run succeeded on 2026-11-10).
+- [ ] Build and validate a GNOME 50 extension ZIP in CI.
 - [ ] Verify shell extension enable/disable in a clean Ubuntu 26.04 GNOME VM.
 - [ ] Capture genuine desktop screenshots and extension logs.
 
