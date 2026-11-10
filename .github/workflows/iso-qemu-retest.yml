@@ -1,0 +1,84 @@
+name: P1 QEMU boot retest from existing ISO
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/iso-qemu-retest.yml'
+      - 'scripts/ci/qemu-grub-boot.sh'
+      - 'scripts/ci/qemu-live-diagnostics.sh'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  boot:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [direct, bios, uefi]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install QEMU tools
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            qemu-system-x86 ovmf xorriso python3-pil unzip
+          gh --version
+      - name: Download latest archived ISO from this PR branch
+        id: restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p out/prebuilt
+          mapfile -t runs < <(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=50&branch=feat/live-iso-foundation" \
+            --jq '.workflow_runs[] | select(.name == "P1 Ubuntu 26.04 Live ISO (experimental)") | .id')
+          test "${#runs[@]}" -gt 0 || { echo 'No ISO builds found.' >&2; exit 1; }
+          restored=0
+          for run_id in "${runs[@]}"; do
+            rm -rf -- out/prebuilt
+            mkdir -p out/prebuilt
+            if gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+              --name localzet-os-p1-experimental-live-iso --dir out/prebuilt; then
+              restored=1
+              echo "Downloaded ISO artifact from run $run_id"
+              break
+            fi
+          done
+          test "$restored" -eq 1 || { echo 'No downloadable ISO artifact found.' >&2; exit 1; }
+          mapfile -t images < <(find out/prebuilt -type f -name '*.iso')
+          test "${#images[@]}" -eq 1 || { echo "Expected 1 ISO, found ${#images[@]}" >&2; exit 1; }
+          echo "iso=${images[0]}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ matrix.mode }}" == direct ]]; then
+            mkdir -p out/previous-diagnostics
+            find out/prebuilt -path '*/qemu-diagnostics/serial.log' -exec cp {} out/previous-diagnostics/serial-prior.log \; || true
+            find out/prebuilt -path '*/qemu-diagnostics/guest-screen.png' -exec cp {} out/previous-diagnostics/screen-prior.png \; || true
+          fi
+      - name: Validate restored ISO checksum and contents
+        run: bash scripts/verify-live-iso.sh "${{ steps.restore.outputs.iso }}"
+      - name: Boot ISO in QEMU (${{ matrix.mode }})
+        timeout-minutes: 12
+        env:
+          LOCALZET_QEMU_BOOT_WAIT_SECONDS: '240'
+          LOCALZET_QEMU_GRUB_WAIT_SECONDS: '240'
+        run: |
+          if [[ "${{ matrix.mode }}" == direct ]]; then
+            bash scripts/ci/qemu-live-diagnostics.sh "${{ steps.restore.outputs.iso }}" out/qemu-direct
+          else
+            bash scripts/ci/qemu-grub-boot.sh "${{ steps.restore.outputs.iso }}" "${{ matrix.mode }}" "out/qemu-${{ matrix.mode }}"
+          fi
+      - name: Upload small-only diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-qemu-${{ matrix.mode }}-diagnostics
+          path: |
+            iso-reports/**
+            out/qemu-direct/**
+            out/qemu-bios/**
+            out/qemu-uefi/**
+            out/previous-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 7
