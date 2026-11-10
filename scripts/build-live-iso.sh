@@ -4,7 +4,7 @@ set -Eeuo pipefail
 if [[ "$EUID" -ne 0 ]]; then echo "Run as root only in a disposable VM/CI builder." >&2; exit 2; fi
 if [[ "$(dpkg --print-architecture)" != amd64 ]]; then echo "amd64 only." >&2; exit 2; fi
 PROJECT="$(cd -- "$(dirname "$0")/.." && pwd -P)"
-OUT="\${LOCALZET_BUILD_DIR:-$PROJECT/out/live}"
+OUT="${LOCALZET_BUILD_DIR:-$PROJECT/out/live}"
 mkdir -p -- "$OUT"
 OUT="$(cd "$OUT" && pwd -P)"
 case "$OUT" in
@@ -23,8 +23,8 @@ done
 MOUNTED=()
 cleanup() {
   local i
-  for ((i=\${#MOUNTED[@]}-1; i>=0; i--)); do
-    umount -R "\${MOUNTED[$i]}" 2>/dev/null || umount "\${MOUNTED[$i]}" 2>/dev/null || true
+  for ((i=${#MOUNTED[@]}-1; i>=0; i--)); do
+    umount -R "${MOUNTED[$i]}" 2>/dev/null || umount "${MOUNTED[$i]}" 2>/dev/null || true
   done
 }
 trap cleanup EXIT
@@ -51,12 +51,12 @@ MOUNTED=()
 rm -f "$ROOT/tmp/localzet-configure-rootfs"
 KERNEL="$(find "$ROOT/boot" -maxdepth 1 -type f -name 'vmlinuz-*' | sort -V | tail -1)"
 if [[ -z "$KERNEL" ]]; then echo "Kernel missing." >&2; exit 1; fi
-VERSION="\${KERNEL##*/vmlinuz-}"
+VERSION="${KERNEL##*/vmlinuz-}"
 INITRD="$ROOT/boot/initrd.img-$VERSION"
 if [[ ! -s "$INITRD" ]]; then echo "Initramfs missing: $INITRD" >&2; exit 1; fi
 cp "$KERNEL" "$ISO_TREE/casper/vmlinuz"
 cp "$INITRD" "$ISO_TREE/casper/initrd"
-chroot "$ROOT" dpkg-query -W -f='\${Package} \${Version}\n' > "$ISO_TREE/casper/filesystem.manifest"
+chroot "$ROOT" dpkg-query -W -f='${Package} ${Version}\n' > "$ISO_TREE/casper/filesystem.manifest"
 du -sb "$ROOT" | awk '{print $1}' > "$ISO_TREE/casper/filesystem.size"
 mksquashfs "$ROOT" "$ISO_TREE/casper/filesystem.squashfs" -comp xz -b 1M -noappend -processors 2
 cat > "$ISO_TREE/boot/grub/grub.cfg" <<'GRUB'
