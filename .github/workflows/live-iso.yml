@@ -39,12 +39,24 @@ jobs:
         run: bash scripts/verify-live-iso.sh out/live/localzet-os-p1-amd64.iso
       - name: Install QEMU for direct-kernel casper smoke test
         run: |
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-system-x86 python3-pil
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-system-x86 ovmf python3-pil
       - name: Boot live image in read-only QEMU (direct kernel, not GRUB)
         timeout-minutes: 12
         env:
           LOCALZET_QEMU_BOOT_WAIT_SECONDS: '240'
         run: bash scripts/ci/qemu-live-diagnostics.sh out/live/localzet-os-p1-amd64.iso
+      - name: Boot through BIOS GRUB in read-only QEMU
+        if: ${{ !cancelled() }}
+        timeout-minutes: 12
+        env:
+          LOCALZET_QEMU_GRUB_WAIT_SECONDS: '420'
+        run: bash scripts/ci/qemu-grub-boot.sh out/live/localzet-os-p1-amd64.iso bios out/qemu-bios
+      - name: Boot through UEFI GRUB in read-only QEMU
+        if: ${{ !cancelled() }}
+        timeout-minutes: 12
+        env:
+          LOCALZET_QEMU_GRUB_WAIT_SECONDS: '420'
+        run: bash scripts/ci/qemu-grub-boot.sh out/live/localzet-os-p1-amd64.iso uefi out/qemu-uefi
       - name: Upload experimental ISO (not a release)
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,5 +76,7 @@ jobs:
           path: |
             iso-reports/**
             qemu-diagnostics/**
+            out/qemu-bios/**
+            out/qemu-uefi/**
           if-no-files-found: warn
           retention-days: 7

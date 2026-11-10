@@ -40,6 +40,10 @@ systemctl set-default graphical.target
 systemctl enable NetworkManager.service || true
 systemctl enable gdm3.service || true
 systemctl enable localzet-boot-diagnostics.service
+# P1 Live ISO only: GDM sometimes leaves Plymouth's quit-wait unit blocking
+# graphical.target during slow software-emulated boots.
+# Revisit splash handover before creating a disk installer.
+systemctl mask plymouth-quit-wait.service
 # casper currently requires an initramfs capable of discovering ISO squashfs.
 KERNEL="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*' | sort -V | tail -1)"
 VERSION="${KERNEL##*/vmlinuz-}"

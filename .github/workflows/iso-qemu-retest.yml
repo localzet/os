@@ -62,7 +62,7 @@ jobs:
         timeout-minutes: 12
         env:
           LOCALZET_QEMU_BOOT_WAIT_SECONDS: '240'
-          LOCALZET_QEMU_GRUB_WAIT_SECONDS: '240'
+          LOCALZET_QEMU_GRUB_WAIT_SECONDS: '420'
         run: |
           if [[ "${{ matrix.mode }}" == direct ]]; then
             bash scripts/ci/qemu-live-diagnostics.sh "${{ steps.restore.outputs.iso }}" out/qemu-direct

@@ -38,3 +38,11 @@ The script refuses to overwrite existing image directories. For another build, s
 7. Safe shutdown and networking checks.
 
 A genuine installer, removable USB support, Secure Boot, signed update feed and redistributable release are later gates. Public redistribution needs a separate trademark/license review. `localzet-os-p1-amd64.iso` is strictly an experimental engineering artifact.
+
+## Automated QEMU boot gates
+
+The ISO build workflow runs direct-kernel, BIOS GRUB and UEFI GRUB tests on **the same newly built ISO**. The separate retest workflow uses an archived image and must not be taken as validation of a newer ISO.
+
+GRUB tests capture multiple frames and require both serial evidence of an active graphical target and visual evidence of the Localzet desktop. A GDM login greeter is not sufficient.
+
+In this experimental, non-installable Live image, `plymouth-quit-wait.service` is masked to avoid blocking `graphical.target` under slow QEMU software emulation. This is not the final branded boot animation configuration.
