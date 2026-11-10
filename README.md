@@ -45,7 +45,7 @@ The shell installer only copies a folder into the current user's home directory;
 
 ```bash
 make test
-make extension-zip
+make extension-zip  # requires the gnome-extensions CLI
 ```
 
-Read [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), [build notes](docs/BUILD.md) and [security](docs/SECURITY.md) before shipping anything.
+Read [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), [build notes](docs/BUILD.md) [GNOME 50 smoke-test instructions](docs/GNOME-50-SMOKE.md) and [security](docs/SECURITY.md) before shipping anything.

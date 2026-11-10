@@ -26,3 +26,7 @@ rm -r -- "${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/localzet-s
 ```
 
 **No `sudo apt`, partitioning, GRUB, UEFI or networking modifications are made by the bootstrap.** The full Ubuntu ISO image-building pipeline needs dedicated VM tests and supply-chain review, and is intentionally not pretended to exist here.
+
+## GNOME extension packaging
+
+Run `make extension-zip` on a system with the GNOME CLI. It uses the official `gnome-extensions pack` format and verifies the archive. A separate GitHub Actions job uses GNOME 50 tooling inside Ubuntu 26.04; packaging is not a substitute for a graphical boot test. See [GNOME 50 smoke test](GNOME-50-SMOKE.md).
