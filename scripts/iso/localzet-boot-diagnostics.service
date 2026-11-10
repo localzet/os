@@ -1,0 +1,14 @@
+[Unit]
+Description=Localzet Live boot evidence (read-only diagnostics)
+After=gdm.service
+ConditionPathExists=/dev/ttyS0
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/sleep 40
+ExecStart=/usr/local/bin/localzet-boot-diagnostics
+TimeoutStartSec=120
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
