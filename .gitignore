@@ -11,3 +11,5 @@ out/
 *.deb
 *.tar.*
 .DS_Store
+/iso-reports/
+/qemu-diagnostics/

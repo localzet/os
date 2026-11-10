@@ -1,0 +1,113 @@
+name: P1 Ubuntu 26.04 Live ISO (experimental)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/live-iso-foundation]
+    paths:
+      - '.github/workflows/live-iso.yml'
+      - 'scripts/build-live-iso.sh'
+      - 'scripts/iso/**'
+      - 'scripts/ci/qemu-*.sh'
+      - 'scripts/ci/assert-*.py'
+      - 'scripts/verify-live-iso.sh'
+      - 'extensions/**'
+      - 'assets/wallpapers/**'
+permissions:
+  contents: read
+concurrency:
+  group: live-iso-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and validate Live ISO
+    runs-on: ubuntu-26.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check build scripts and source tests
+        run: |
+          bash -n scripts/build-live-iso.sh
+          bash -n scripts/iso/configure-rootfs.sh
+          bash -n scripts/iso/localzet-boot-diagnostics.sh
+          bash -n scripts/verify-live-iso.sh
+          bash -n scripts/ci/qemu-live-diagnostics.sh
+          bash -n scripts/ci/qemu-grub-boot.sh
+          make test
+      - name: Install ISO build dependencies
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y \
+            debootstrap squashfs-tools xorriso mtools grub-pc-bin grub-efi-amd64-bin grub-common
+          df -h .
+      - name: Build experimental Ubuntu GNOME Live ISO
+        timeout-minutes: 55
+        run: sudo bash scripts/build-live-iso.sh
+      - name: Validate ISO structure and checksum
+        run: bash scripts/verify-live-iso.sh out/live/localzet-os-p1-amd64.iso
+      - name: Upload newly built ISO for independent QEMU jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-os-p1-experimental-live-iso
+          path: |
+            out/live/localzet-os-p1-amd64.iso
+            out/live/SHA256SUMS
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+      - name: Upload structural reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-os-p1-structural-reports
+          path: iso-reports/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  boot:
+    name: QEMU boot / ${{ matrix.mode }}
+    needs: build
+    runs-on: ubuntu-26.04
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [direct, bios, uefi]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download ISO from this exact workflow run
+        uses: actions/download-artifact@v4
+        with:
+          name: localzet-os-p1-experimental-live-iso
+          path: out/live
+      - name: Install QEMU and verify ISO checksum
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+            qemu-system-x86 ovmf xorriso python3-pil
+          bash scripts/verify-live-iso.sh out/live/localzet-os-p1-amd64.iso
+      - name: Boot and inspect real QEMU framebuffer
+        timeout-minutes: 12
+        env:
+          LOCALZET_QEMU_BOOT_WAIT_SECONDS: '300'
+          LOCALZET_QEMU_GRUB_WAIT_SECONDS: '420'
+        run: |
+          mode="${{ matrix.mode }}"
+          if [[ "$mode" == direct ]]; then
+            bash scripts/ci/qemu-live-diagnostics.sh out/live/localzet-os-p1-amd64.iso out/qemu-direct
+          else
+            bash scripts/ci/qemu-grub-boot.sh out/live/localzet-os-p1-amd64.iso "$mode" "out/qemu-$mode"
+          fi
+      - name: Upload diagnostics including failed boot frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-os-p1-qemu-${{ matrix.mode }}-diagnostics
+          path: |
+            iso-reports/**
+            out/qemu-${{ matrix.mode }}/*.png
+            out/qemu-${{ matrix.mode }}/*.json
+            out/qemu-${{ matrix.mode }}/*.log
+            out/qemu-${{ matrix.mode }}/mode.txt
+          if-no-files-found: warn
+          retention-days: 7

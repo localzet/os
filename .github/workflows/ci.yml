@@ -14,5 +14,14 @@ jobs:
         run: make test
       - name: Validate shell JavaScript syntax
         run: node --check extensions/localzet-shell@localzet.com/extension.js
+      - name: Validate Live ISO and QEMU scripts
+        run: |
+          bash -n scripts/build-live-iso.sh
+          bash -n scripts/iso/configure-rootfs.sh
+          bash -n scripts/verify-live-iso.sh
+          bash -n scripts/ci/qemu-live-diagnostics.sh
+          bash -n scripts/ci/qemu-grub-boot.sh
+      - name: Validate safe local QEMU launcher
+        run: bash -n scripts/run-live-qemu.sh
       - name: Validate shell-install script syntax
         run: bash -n scripts/install-shell-dev.sh

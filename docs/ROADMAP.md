@@ -26,3 +26,9 @@
 - [ ] Implement authorized package transactions with polkit, rollback and removal.
 - [ ] Containers module, network policy module, NetBird, UserNet and Gaming.
 - [ ] Document Wine/Proton compatibility testing; no universal compatibility claims.
+
+### Latest progress (2026-11-10)
+- [x] GNOME 50.1/Mutter devkit session started in CI with Localzet Shell enabled; real diagnostic screenshot captured (not a full OS boot).
+- [ ] Build experimental Ubuntu 26.04 Live ISO in CI (PR #4).
+- [ ] Independently verify BIOS and UEFI startup in QEMU before any USB instructions or release.
+- [ ] Validate GNOME session, Localzet wallpaper, app menu, storage read-only behavior.
