@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Check explicit systemd graphical-target evidence in a QEMU serial log.
 
-Two supported proofs:
+Three supported proofs:
 - Exact systemd 'Reached target graphical.target' status line.
 - A complete Localzet boot-diagnostics block with graphical_target=active
-  and gdm_state=active. The service writes this directly to the guest's
+  and gdm_state=active.
+- A complete guest block confirming GDM active, a localzet seat0 session,
+  and a localzet-owned GNOME Shell process. The service writes this directly to the guest's
   serial port, so a status check is possible even if systemd console
   output is routed to the framebuffer instead.
 """
@@ -45,11 +47,11 @@ def reached_graphical(raw: bytes) -> bool:
         # under the experimental Plymouth/GDM transition.
         body = match.group(1)
         has_localzet_session = re.search(
-            r"(?m)^\\s*\\d+\\s+\\d+\\s+localzet\\s+seat0\\b",
+            r"(?m)^\s*\d+\s+\d+\s+localzet\s+seat0\b",
             body,
         )
         has_gnome_shell = re.search(
-            r"(?m)^localzet\\s+gnome-shell\\s+.*--mode=user\\b",
+            r"(?m)^localzet\s+gnome-shell\s+.*--mode=user\b",
             body,
         )
         if has_localzet_session and has_gnome_shell:
@@ -66,7 +68,7 @@ def main() -> int:
     except OSError as error:
         parser.exit(2, f"Cannot read serial log: {error}\n")
     if evidence:
-        print("PASS: graphical.target and GDM active (guest serial evidence)")
+        print("PASS: graphical target or GNOME user session confirmed by guest serial evidence")
         return 0
     return 1
 
