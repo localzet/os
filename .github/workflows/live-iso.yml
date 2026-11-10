@@ -12,6 +12,12 @@ on:
       - 'scripts/verify-live-iso.sh'
       - 'extensions/**'
       - 'assets/wallpapers/**'
+      - 'Makefile'
+      - 'src/**'
+      - 'config/**'
+      - 'apps/**'
+      - 'packaging/**'
+      - 'tests/**'
 permissions:
   contents: read
 concurrency:
