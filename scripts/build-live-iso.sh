@@ -42,10 +42,19 @@ install -d "$ROOT/usr/share/gnome-shell/extensions" "$ROOT/usr/share/backgrounds
 cp -R "$PROJECT/extensions/localzet-shell@localzet.com" "$ROOT/usr/share/gnome-shell/extensions/"
 install -m644 "$PROJECT/assets/wallpapers/aurora.svg" "$ROOT/usr/share/backgrounds/localzet/aurora.svg"
 install -Dm755 "$PROJECT/scripts/iso/configure-rootfs.sh" "$ROOT/tmp/localzet-configure-rootfs"
+install -d "$ROOT/opt/localzet-os/src" "$ROOT/opt/localzet-os/config"
+cp -R "$PROJECT/src/localzet" "$ROOT/opt/localzet-os/src/"
+cp -R "$PROJECT/config/modules" "$ROOT/opt/localzet-os/config/"
+cat > "$ROOT/usr/local/bin/localzet-modules" <<'MODULES'
+#!/bin/sh
+PYTHONPATH=/opt/localzet-os/src exec /usr/bin/python3 -m localzet.cli "$@"
+MODULES
+chmod 0755 "$ROOT/usr/local/bin/localzet-modules"
 mount --bind /dev "$ROOT/dev"; MOUNTED+=("$ROOT/dev")
 mount -t proc proc "$ROOT/proc"; MOUNTED+=("$ROOT/proc")
 mount --bind /sys "$ROOT/sys"; MOUNTED+=("$ROOT/sys")
 chroot "$ROOT" /usr/bin/env DEBIAN_FRONTEND=noninteractive /bin/bash /tmp/localzet-configure-rootfs
+chroot "$ROOT" /usr/local/bin/localzet-modules validate
 cleanup
 MOUNTED=()
 rm -f "$ROOT/tmp/localzet-configure-rootfs"
