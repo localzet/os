@@ -1,0 +1,6 @@
+# NOT ACTIVE. Validate source location inside real Live ISO.
+---
+unpack:
+  - source: "/cdrom/casper/filesystem.squashfs"
+    sourcefs: "squashfs"
+    destination: ""
