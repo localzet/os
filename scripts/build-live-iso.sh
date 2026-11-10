@@ -73,7 +73,7 @@ set timeout=5
 set default=0
 search --no-floppy --set=root --label LOCALZET_OS
 menuentry "Try Localzet OS (experimental Live)" {
-  linux /casper/vmlinuz boot=casper username=localzet hostname=localzet quiet splash
+  linux /casper/vmlinuz boot=casper username=localzet hostname=localzet quiet splash console=tty0 console=ttyS0,115200n8 systemd.show_status=1 systemd.log_target=console
   initrd /casper/initrd
 }
 menuentry "Try Localzet OS (serial diagnostics)" {
@@ -82,6 +82,9 @@ menuentry "Try Localzet OS (serial diagnostics)" {
 }
 GRUB
 printf 'Localzet OS P1 experimental Live (Ubuntu 26.04)\n' > "$ISO_TREE/.disk/info"
+# casper-md5check verifies hashes during boot. Include every source ISO file
+# present before grub-mkrescue adds its bootloader-generated files.
+(cd "$ISO_TREE" && find . -type f ! -name md5sum.txt -print0 | sort -z | xargs -0 md5sum > md5sum.txt)
 grub-mkrescue -o "$ISO" "$ISO_TREE" -- -volid LOCALZET_OS
 test -s "$ISO"
 (cd "$OUT" && sha256sum "$(basename "$ISO")" > SHA256SUMS)
