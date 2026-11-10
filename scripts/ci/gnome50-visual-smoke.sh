@@ -1,75 +1,73 @@
 #!/usr/bin/env bash
-# Disposable GitHub runner only. Never run against an existing desktop session.
+# Disposable Ubuntu 26.04 GitHub Actions runner only.
 set -Eeuo pipefail
-cd /work
-mkdir -p out/gnome-smoke
-# GNOME Shell accesses accounts/time-limit services via the system D-Bus.
-# Containers do not start a system bus by default.
-mkdir -p /run/dbus
-dbus-daemon --system --fork --nopidfile
-chmod 777 out/gnome-smoke
-
-useradd --create-home --shell /bin/bash localzet-test
-install -d -m 700 -o localzet-test -g localzet-test /tmp/localzet-runtime
-install -d -m 755 -o localzet-test -g localzet-test /home/localzet-test/.local/share/gnome-shell/extensions
-cp -R extensions/localzet-shell@localzet.com /home/localzet-test/.local/share/gnome-shell/extensions/
-chown -R localzet-test:localzet-test /home/localzet-test/.local
-
-Xvfb :99 -screen 0 1440x900x24 -nolisten tcp > out/gnome-smoke/xvfb.log 2>&1 &
+ROOT="$PWD"
+OUT="$ROOT/out/gnome-smoke"
+mkdir -p "$OUT"
+UUID=localzet-shell@localzet.com
+EXT_SOURCE="$ROOT/extensions/$UUID"
+EXT_DEST="$HOME/.local/share/gnome-shell/extensions/$UUID"
+if [[ -e "$EXT_DEST" ]]; then
+  echo "Refusing to overwrite extension: $EXT_DEST" >&2
+  exit 2
+fi
+mkdir -p "$(dirname "$EXT_DEST")"
+cp -R "$EXT_SOURCE" "$EXT_DEST"
+if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "$XDG_RUNTIME_DIR" ]]; then
+  export XDG_RUNTIME_DIR="$(mktemp -d /tmp/localzet-xdg.XXXXXX)"
+  chmod 700 "$XDG_RUNTIME_DIR"
+fi
+export DISPLAY=:99
+export XDG_SESSION_TYPE=wayland
+export LIBGL_ALWAYS_SOFTWARE=1
+export GALLIUM_DRIVER=llvmpipe
+export GDK_BACKEND=x11
+export GTK_A11Y=none
+Xvfb :99 -screen 0 1440x900x24 -nolisten tcp > "$OUT/xvfb.log" 2>&1 &
 xvfb_pid=$!
 trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
-
+export OUT
 set +e
-runuser -u localzet-test -- env \
-  HOME=/home/localzet-test USER=localzet-test \
-  DISPLAY=:99 XDG_RUNTIME_DIR=/tmp/localzet-runtime \
-  XDG_SESSION_TYPE=wayland \
-  LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
-  GDK_BACKEND=x11 \
-  dbus-run-session -- bash -c '
-    set -u
-    gnome-shell --devkit --wayland > /work/out/gnome-smoke/gnome-shell.log 2>&1 &
-    shell_pid=$!
-    trap "kill $shell_pid 2>/dev/null || true" EXIT
-    for i in $(seq 1 36); do
-      if ! kill -0 "$shell_pid" 2>/dev/null; then
-        echo "GNOME Shell exited early" >&2
-        exit 1
-      fi
-      if gnome-extensions list > /work/out/gnome-smoke/extensions.txt 2>&1; then
-        if grep -Fxq "localzet-shell@localzet.com" /work/out/gnome-smoke/extensions.txt; then
-          break
-        fi
-      fi
-      sleep 2
-    done
-    if ! grep -Fxq "localzet-shell@localzet.com" /work/out/gnome-smoke/extensions.txt; then
-      echo "Extension not discoverable inside devkit session" >&2
+dbus-run-session -- bash -c '
+  set -u
+  gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
+  shell_pid=$!
+  trap "kill $shell_pid 2>/dev/null || true" EXIT
+  for i in $(seq 1 30); do
+    if ! kill -0 "$shell_pid" 2>/dev/null; then
+      echo "GNOME Shell exited early" >&2
       exit 1
     fi
-    gnome-extensions enable localzet-shell@localzet.com
-    sleep 15
-    gnome-extensions list --enabled > /work/out/gnome-smoke/enabled.txt
-    grep -Fxq "localzet-shell@localzet.com" /work/out/gnome-smoke/enabled.txt || exit 1
-    echo "Localzet extension enabled in running GNOME Shell devkit" > /work/out/gnome-smoke/result.txt
-    # Capture while GNOME devkit is actually alive, not after termination.
-    DISPLAY=:99 import -window root /work/out/gnome-smoke/gnome-running.png
+    if gnome-extensions list > "$OUT/extensions.txt" 2>&1 && grep -Fxq localzet-shell@localzet.com "$OUT/extensions.txt"; then
+      break
+    fi
     sleep 2
-  '
-result=$?
+  done
+  grep -Fxq localzet-shell@localzet.com "$OUT/extensions.txt" || { echo "Extension undiscoverable" >&2; exit 1; }
+  gnome-extensions enable localzet-shell@localzet.com
+  sleep 16
+  gnome-extensions list --enabled > "$OUT/enabled.txt"
+  grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
+  import -window root "$OUT/gnome-running.png"
+  echo "GNOME Shell devkit running with Localzet Shell enabled" > "$OUT/result.txt"
+'
+rc=$?
 set -e
-# Capture a second diagnostic after exit; only gnome-running.png is runtime evidence.
-DISPLAY=:99 import -window root out/gnome-smoke/after-exit.png || true
-python3 - <<'PY'
+DISPLAY=:99 import -window root "$OUT/after-exit.png" || true
+python3 - "$OUT/gnome-running.png" <<'PY'
+import sys
 from pathlib import Path
 from PIL import Image
-p=Path('out/gnome-smoke/gnome-running.png')
-if p.exists():
-    im=Image.open(p).convert('RGB')
-    samples=set(im.resize((80,50)).getdata())
-    print('Screenshot:', im.size, 'sampled unique colors:', len(samples))
-else:
-    print('No PNG screenshot')
+p=Path(sys.argv[1])
+if not p.exists():
+    print('No live GNOME screenshot')
+    sys.exit(2)
+im=Image.open(p).convert('RGB')
+colors=len(set(im.resize((80,50)).getdata()))
+print('Captured:', im.size, 'downsampled distinct colors:', colors)
+if colors < 15:
+    print('Image appears blank; not visual verification')
+    sys.exit(2)
 PY
-exit "$result"
+exit "$rc"
