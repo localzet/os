@@ -1,0 +1,41 @@
+name: Localzet Settings GTK4 smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/localzet/settings/**'
+      - 'apps/localzet-settings/**'
+      - 'packaging/com.localzet.Settings.desktop'
+      - 'scripts/ci/settings-gtk-smoke.sh'
+      - '.github/workflows/settings-gtk-smoke.yml'
+permissions:
+  contents: read
+concurrency:
+  group: gtk-settings-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gtk-smoke:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native GTK/libadwaita dependencies
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 python3-pil \
+            xvfb xauth dbus-x11 xdotool imagemagick \
+            gnome-control-center nautilus ptyxis
+      - name: Start real Localzet Settings window and capture image
+        run: |
+          bash -n scripts/ci/settings-gtk-smoke.sh
+          xvfb-run -a -s "-screen 0 1280x800x24 -nolisten tcp" \
+            bash scripts/ci/settings-gtk-smoke.sh
+      - name: Upload screenshot and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-settings-gtk-smoke
+          path: out/settings/
+          if-no-files-found: warn
+          retention-days: 7
