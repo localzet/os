@@ -91,6 +91,17 @@ PY
   if python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1; then
     graphical_seen=1
   fi
+  # Diagnostic only: if GDM 50.1 switches to greeter, capture the user
+  # session on tty2. Never count this manually switched frame as a pass.
+  if ((elapsed == 180)); then
+    python3 - "$TMP/monitor.sock" <<'PY'
+import socket, sys
+with socket.socket(socket.AF_UNIX) as s:
+    s.connect(sys.argv[1])
+    s.sendall(b"sendkey ctrl-alt-f2\n")
+PY
+    echo "Diagnostic VT switch requested at 180s (not a release pass)"
+  fi
   if python3 scripts/ci/assert-session-visual.py "$png" --report "$OUT/frame-$(printf '%03d' "$elapsed").json"; then
     visual_seen=1
     cp "$png" "$OUT/screen.png"

@@ -7,6 +7,7 @@ on:
       - 'scripts/ci/qemu-grub-boot.sh'
       - 'scripts/ci/qemu-live-diagnostics.sh'
       - 'scripts/ci/assert-graphical.py'
+      - 'scripts/ci/assert-session-visual.py'
 permissions:
   contents: read
   actions: read
