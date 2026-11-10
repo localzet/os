@@ -1,0 +1,18 @@
+[Unit]
+Description=Localzet Live seat recovery for GDM 50.1 regression (experimental)
+After=display-manager.service systemd-logind.service
+ConditionKernelCommandLine=boot=casper
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=/opt/localzet-os/src
+ExecStart=/usr/bin/python3 -m localzet.live.seatguard
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+RestrictAddressFamilies=AF_UNIX
+TimeoutStartSec=550
+
+[Install]
+WantedBy=multi-user.target

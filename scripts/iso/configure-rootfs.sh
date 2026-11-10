@@ -46,6 +46,7 @@ systemctl set-default graphical.target
 systemctl enable NetworkManager.service || true
 systemctl enable gdm3.service || true
 systemctl enable localzet-boot-diagnostics.service
+systemctl enable localzet-live-seat-guard.service
 # P1 Live ISO only: GDM sometimes leaves Plymouth's quit-wait unit blocking
 # graphical.target during slow software-emulated boots.
 # Revisit splash handover before creating a disk installer.

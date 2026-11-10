@@ -43,6 +43,7 @@ cp -R "$PROJECT/extensions/localzet-shell@localzet.com" "$ROOT/usr/share/gnome-s
 install -m644 "$PROJECT/assets/wallpapers/aurora.svg" "$ROOT/usr/share/backgrounds/localzet/aurora.svg"
 install -Dm755 "$PROJECT/scripts/iso/configure-rootfs.sh" "$ROOT/tmp/localzet-configure-rootfs"
 install -Dm755 "$PROJECT/scripts/iso/localzet-boot-diagnostics.sh" "$ROOT/usr/local/bin/localzet-boot-diagnostics"
+install -Dm644 "$PROJECT/scripts/iso/localzet-live-seat-guard.service" "$ROOT/etc/systemd/system/localzet-live-seat-guard.service"
 install -Dm644 "$PROJECT/scripts/iso/localzet-boot-diagnostics.service" "$ROOT/etc/systemd/system/localzet-boot-diagnostics.service"
 install -d "$ROOT/opt/localzet-os/src" "$ROOT/opt/localzet-os/config"
 # Unprivileged native Localzet Settings front end.
