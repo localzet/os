@@ -1,0 +1,11 @@
+# A staging policy; the installer is not installed into the ISO.
+[release]
+enabled = false
+ready_for_physical_disks = false
+[safety]
+require_explicit_disk_selection = true
+require_persistent_disk_identity = true
+require_destructive_confirmation = true
+require_backup_acknowledgement = true
+require_bootloader_on_target = true
+allow_unattended_erase = false

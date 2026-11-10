@@ -1,0 +1,11 @@
+# NOT ACTIVE. Live user must be removed BEFORE new users are created.
+---
+defaultGroups: [ sudo, audio, video, plugdev ]
+sudoersGroup: sudo
+displayAutologin: false
+doAutologin: false
+allowWeakPasswords: false
+allowWeakPasswordsDefault: false
+passwordRequirements:
+  minLength: 10
+  maxLength: 128
