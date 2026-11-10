@@ -6,6 +6,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {LocalzetDock} from './dock.js';
 
 // Localzet design tokens are mirrored in stylesheet.css. GNOME Shell does
 // not support the full CSS syntax of web browsers (no backdrop-filter).
@@ -91,6 +92,7 @@ export default class LocalzetShell extends Extension {
         });
         this._updateApps('');
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
+        this._dock = new LocalzetDock();
     }
 
     _updateApps(rawQuery) {
@@ -162,6 +164,8 @@ export default class LocalzetShell extends Extension {
     }
 
     disable() {
+        this._dock?.destroy();
+        this._dock = null;
         this._indicator?.destroy();
         this._indicator = null;
         this._appsSection = null;
