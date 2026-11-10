@@ -91,17 +91,6 @@ PY
   if python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1; then
     graphical_seen=1
   fi
-  # Diagnostic only: if GDM 50.1 switches to greeter, capture the user
-  # session on tty2. Never count this manually switched frame as a pass.
-  if ((elapsed == 180)); then
-    python3 - "$TMP/monitor.sock" <<'PY'
-import socket, sys
-with socket.socket(socket.AF_UNIX) as s:
-    s.connect(sys.argv[1])
-    s.sendall(b"sendkey ctrl-alt-f2\n")
-PY
-    echo "Diagnostic VT switch requested at 180s (not a release pass)"
-  fi
   if python3 scripts/ci/assert-session-visual.py "$png" --report "$OUT/frame-$(printf '%03d' "$elapsed").json"; then
     visual_seen=1
     cp "$png" "$OUT/screen.png"
@@ -118,4 +107,32 @@ fi
 if [[ "$visual_seen" -ne 1 ]]; then
   echo "No recognizable Localzet desktop framebuffer. Inspect captured frames." >&2
 fi
+# Diagnostic only: once *automatic* boot has already FAILED, attempt
+# Ctrl+Alt+F2 to find a GNOME user session displaced by the GDM greeter.
+# This capture must NEVER be counted as a successful boot.
+python3 - "$TMP/monitor.sock" "$OUT/manual-vt2.png" <<'PY' || true
+from pathlib import Path
+import socket
+import sys
+import time
+from PIL import Image
+
+monitor, png = sys.argv[1:]
+ppm = str(Path(png).with_suffix(".ppm"))
+with socket.socket(socket.AF_UNIX) as s:
+    s.settimeout(10)
+    s.connect(monitor)
+    s.sendall(b"sendkey ctrl-alt-f2\n")
+time.sleep(5)
+with socket.socket(socket.AF_UNIX) as s:
+    s.settimeout(10)
+    s.connect(monitor)
+    s.sendall(("screendump " + ppm + "\n").encode())
+deadline = time.monotonic() + 10
+while not Path(ppm).is_file() and time.monotonic() < deadline:
+    time.sleep(.25)
+if Path(ppm).is_file():
+    Image.open(ppm).convert("RGB").save(png)
+    print("Saved manual-VT diagnostic ONLY:", png)
+PY
 exit 1
