@@ -6,6 +6,9 @@ on:
       - '.github/workflows/gnome-visual-smoke.yml'
       - 'scripts/ci/gnome50-visual-smoke.sh'
       - 'extensions/localzet-shell@localzet.com/**'
+concurrency:
+  group: gnome-visual-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -16,8 +19,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install GNOME 50 devkit on disposable runner
         run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis
+          installed=0
+          for attempt in 1 2 3; do
+            sudo apt-get -o Acquire::Retries=2 update
+            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis; then
+              installed=1
+              break
+            fi
+            echo "APT archive changed during GNOME devkit setup (attempt $attempt); resyncing"
+            sudo apt-get clean
+          done
+          test "$installed" -eq 1
           gnome-shell --version
       - name: Launch GNOME 50 and capture actual screen
         timeout-minutes: 7
