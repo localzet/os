@@ -67,6 +67,33 @@ class GraphicalEvidenceTests(unittest.TestCase):
             b"some unrelated text gdm_state=active graphical_target=active"
         ))
 
+    def test_real_autologin_with_inactive_graphical_target(self):
+        raw = (b"LOCALZET_BOOT_EVIDENCE_BEGIN\n"
+               b"gdm_state=active\ngraphical_target=inactive\n"
+               b"sessions:\n1 1000 localzet seat0 628 user tty2 no -\n"
+               b"GNOME processes:\n"
+               b"localzet gnome-shell /usr/bin/gnome-shell --mode=user\n"
+               b"LOCALZET_BOOT_EVIDENCE_END\n")
+        self.assertTrue(module.reached_graphical(raw))
+
+    def test_gdm_greeter_without_user_shell_is_not_enough(self):
+        raw = (b"LOCALZET_BOOT_EVIDENCE_BEGIN\n"
+               b"gdm_state=active\ngraphical_target=inactive\n"
+               b"sessions:\n1 1000 localzet seat0 628 user tty2 no -\n"
+               b"GNOME processes:\n"
+               b"gdm gnome-shell /usr/bin/gnome-shell --mode=gdm\n"
+               b"LOCALZET_BOOT_EVIDENCE_END\n")
+        self.assertFalse(module.reached_graphical(raw))
+
+    def test_user_shell_without_real_login_session_fails(self):
+        raw = (b"LOCALZET_BOOT_EVIDENCE_BEGIN\n"
+               b"gdm_state=active\ngraphical_target=inactive\n"
+               b"sessions:\n"
+               b"GNOME processes:\n"
+               b"localzet gnome-shell /usr/bin/gnome-shell --mode=user\n"
+               b"LOCALZET_BOOT_EVIDENCE_END\n")
+        self.assertFalse(module.reached_graphical(raw))
+
     def test_empty_log(self):
         self.assertFalse(module.reached_graphical(b""))
 

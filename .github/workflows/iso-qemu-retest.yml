@@ -6,6 +6,7 @@ on:
       - '.github/workflows/iso-qemu-retest.yml'
       - 'scripts/ci/qemu-grub-boot.sh'
       - 'scripts/ci/qemu-live-diagnostics.sh'
+      - 'scripts/ci/assert-graphical.py'
 permissions:
   contents: read
   actions: read

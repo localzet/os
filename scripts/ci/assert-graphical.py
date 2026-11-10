@@ -36,7 +36,23 @@ def reached_graphical(raw: bytes) -> bool:
         flags=re.DOTALL,
     ):
         lines = {line.strip() for line in match.group(1).splitlines()}
-        if "graphical_target=active" in lines and "gdm_state=active" in lines:
+        if "gdm_state=active" not in lines:
+            continue
+        if "graphical_target=active" in lines:
+            return True
+        # A fully started GNOME session is stronger runtime evidence than
+        # graphical.target on Ubuntu Live: that target may remain inactive
+        # under the experimental Plymouth/GDM transition.
+        body = match.group(1)
+        has_localzet_session = re.search(
+            r"(?m)^\\s*\\d+\\s+\\d+\\s+localzet\\s+seat0\\b",
+            body,
+        )
+        has_gnome_shell = re.search(
+            r"(?m)^localzet\\s+gnome-shell\\s+.*--mode=user\\b",
+            body,
+        )
+        if has_localzet_session and has_gnome_shell:
             return True
     return False
 
