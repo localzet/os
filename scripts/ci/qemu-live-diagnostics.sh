@@ -27,7 +27,7 @@ qemu-system-x86_64 -machine q35 -accel tcg -m 3072 -smp 2 \
   -monitor "unix:$SOCKET,server=on,wait=off" -serial "file:$SERIAL" \
   > "$OUT/qemu.log" 2>&1 &
 PID=$!
-SECONDS_TO_WAIT="${LOCALZET_QEMU_BOOT_WAIT_SECONDS:-150}"
+SECONDS_TO_WAIT="${LOCALZET_QEMU_BOOT_WAIT_SECONDS:-240}"
 if [[ ! "$SECONDS_TO_WAIT" =~ ^[0-9]+$ ]] || ((SECONDS_TO_WAIT < 10 || SECONDS_TO_WAIT > 900)); then
   echo "Invalid QEMU wait value" >&2
   exit 2
@@ -37,6 +37,10 @@ for ((i=0;i<SECONDS_TO_WAIT;i+=5)); do
   if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$SERIAL" 2>/dev/null; then break; fi
   sleep 5
 done
+# The graphical login may take a few more seconds after systemd reaches graphical.target.
+if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$SERIAL" 2>/dev/null; then
+  sleep 20
+fi
 python3 - "$SOCKET" "$OUT/guest-screen.ppm" <<'PY'
 import socket
 import sys
@@ -59,9 +63,24 @@ with socket.socket(socket.AF_UNIX) as sock:
     except TimeoutError:
         pass
 PY
+python3 - "$OUT/guest-screen.ppm" "$OUT/guest-screen.png" <<'PY'
+from PIL import Image
+import sys
+from pathlib import Path
+
+source, destination = map(Path, sys.argv[1:])
+if not source.is_file():
+    raise SystemExit("QEMU screenshot not produced")
+image = Image.open(source).convert("RGB")
+image.save(destination)
+samples = len(set(image.resize((80, 50)).getdata()))
+print(f"QEMU screenshot {image.width}x{image.height}, sampled colors: {samples}")
+if samples < 15:
+    raise SystemExit("QEMU screenshot looks blank; graphical session not proven")
+PY
 if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$SERIAL"; then
-  echo "Direct-kernel casper boot reached graphical.target."
+  echo "PASS: direct-kernel casper boot reached graphical.target with nonblank screenshot."
 else
-  echo "QEMU ran, but graphical.target not confirmed. Inspect logs and screenshot." >&2
+  echo "QEMU did not reach graphical.target. Inspect serial.log and screenshot." >&2
   exit 1
 fi

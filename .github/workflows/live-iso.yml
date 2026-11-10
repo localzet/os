@@ -34,8 +34,16 @@ jobs:
         run: sudo bash scripts/build-live-iso.sh
       - name: Verify artifact structure and checksum
         run: bash scripts/verify-live-iso.sh out/live/localzet-os-p1-amd64.iso
+      - name: Install QEMU for direct-kernel casper smoke test
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-system-x86 python3-pil
+      - name: Boot live image in read-only QEMU (direct kernel, not GRUB)
+        timeout-minutes: 12
+        env:
+          LOCALZET_QEMU_BOOT_WAIT_SECONDS: '240'
+        run: bash scripts/ci/qemu-live-diagnostics.sh out/live/localzet-os-p1-amd64.iso
       - name: Upload ISO and build reports (not a release)
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: localzet-os-p1-experimental-live-iso
@@ -44,6 +52,7 @@ jobs:
             out/live/SHA256SUMS
             iso-reports/boot-report.txt
             iso-reports/casper-files.txt
-          if-no-files-found: error
+            qemu-diagnostics/**
+          if-no-files-found: warn
           compression-level: 0
           retention-days: 3
