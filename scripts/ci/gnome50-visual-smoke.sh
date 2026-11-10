@@ -3,6 +3,10 @@
 set -Eeuo pipefail
 cd /work
 mkdir -p out/gnome-smoke
+# GNOME Shell accesses accounts/time-limit services via the system D-Bus.
+# Containers do not start a system bus by default.
+mkdir -p /run/dbus
+dbus-daemon --system --fork --nopidfile
 chmod 777 out/gnome-smoke
 
 useradd --create-home --shell /bin/bash localzet-test
