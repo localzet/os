@@ -1,0 +1,8 @@
+/* Aurora Dark components: app-scoped, no fragile global GTK overrides. */
+window.localzet-settings .localzet-summary {
+    border-radius: 14px;
+    background-color: alpha(#6c92ed, 0.06);
+}
+window.localzet-settings .heading {
+    font-weight: 700;
+}
