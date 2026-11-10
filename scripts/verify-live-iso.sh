@@ -8,7 +8,7 @@ REPORT_DIR="${LOCALZET_REPORT_DIR:-$(pwd)/iso-reports}"
 mkdir -p -- "$REPORT_DIR"
 for tool in xorriso sha256sum; do command -v "$tool" >/dev/null || exit 2; done
 if [[ -f "$DIR/SHA256SUMS" ]]; then (cd "$DIR" && sha256sum --check SHA256SUMS); fi
-xorriso -indev "$ISO" -find /casper -type f -print > "$REPORT_DIR/casper-files.txt"
+xorriso -indev "$ISO" -find /casper -type f -exec echo -- > "$REPORT_DIR/casper-files.txt"
 grep -qx '/casper/vmlinuz' "$REPORT_DIR/casper-files.txt"
 grep -qx '/casper/initrd' "$REPORT_DIR/casper-files.txt"
 grep -qx '/casper/filesystem.squashfs' "$REPORT_DIR/casper-files.txt"
