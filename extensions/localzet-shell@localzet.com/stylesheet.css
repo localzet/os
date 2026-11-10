@@ -1,34 +1,78 @@
+/* Localzet Aurora Dark: GNOME Shell stylesheet (not browser CSS). */
 .localzet-indicator {
-  border-radius: 11px;
-  margin: 2px 4px;
-  color: #e9efff;
+    border-radius: 12px;
+    margin: 2px 4px;
+    color: #f1f5ff;
 }
-
 .localzet-indicator:hover,
 .localzet-indicator:focus {
-  background-color: rgba(99, 139, 228, 0.18);
+    background-color: rgba(108, 146, 237, 0.20);
 }
-
 .localzet-brand {
-  spacing: 7px;
-  padding: 0 5px;
+    spacing: 8px;
+    padding: 0 6px;
 }
-
 .localzet-brand-icon {
-  color: #9bb9ff;
+    color: #9bb9ff;
 }
-
 .localzet-brand-label {
-  font-weight: 600;
-  font-size: 12px;
-  color: #e9efff;
+    font-weight: 700;
+    font-size: 13px;
+    color: #f1f5ff;
 }
-
-.localzet-menu-title {
-  font-weight: 600;
-  color: #b6caff;
+.localzet-launcher {
+    min-width: 365px;
+    spacing: 4px;
+    padding: 12px;
+    background-color: #111c32;
+    border: 1px solid rgba(153, 179, 230, 0.22);
+    border-radius: 18px;
 }
-
-.localzet-menu-action {
-  border-radius: 7px;
+.localzet-menu-heading {
+    color: #c5d5fb;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 10px;
+}
+.localzet-section-label {
+    color: #aebed9;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 6px 10px;
+}
+.localzet-search-container {
+    padding: 5px 7px;
+}
+.localzet-search {
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 11px;
+    background-color: #1e3154;
+    color: #f1f5ff;
+    border: 1px solid rgba(153, 179, 230, 0.24);
+    selection-background-color: #6c92ed;
+}
+.localzet-search:focus {
+    border: 1px solid #6c92ed;
+}
+.localzet-search-icon {
+    color: #aebed9;
+}
+.localzet-application,
+.localzet-action {
+    min-height: 34px;
+    border-radius: 9px;
+    padding: 4px 9px;
+    color: #f1f5ff;
+}
+.localzet-application:hover,
+.localzet-application:focus,
+.localzet-action:hover,
+.localzet-action:focus {
+    background-color: rgba(108, 146, 237, 0.20);
+}
+.localzet-empty {
+    color: #aebed9;
+    font-style: italic;
+    padding: 10px 14px;
 }
