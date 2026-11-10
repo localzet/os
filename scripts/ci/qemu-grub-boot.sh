@@ -37,24 +37,30 @@ fi
 printf 'QEMU mode: %s (read-only ISO)\n' "$MODE" > "$OUT/mode.txt"
 qemu-system-x86_64 "${ARGS[@]}" > "$OUT/qemu.log" 2>&1 &
 QEMU_PID=$!
-WAIT="${LOCALZET_QEMU_GRUB_WAIT_SECONDS:-240}"
+WAIT="${LOCALZET_QEMU_GRUB_WAIT_SECONDS:-420}"
 [[ "$WAIT" =~ ^[0-9]+$ ]] && ((WAIT >= 60 && WAIT <= 900)) || {
-  echo "Invalid wait: $WAIT" >&2; exit 2;
+  echo "Invalid QEMU wait value: $WAIT" >&2
+  exit 2
 }
-for ((elapsed=0; elapsed<WAIT; elapsed+=5)); do
-  if ! kill -0 "$QEMU_PID" 2>/dev/null; then echo "QEMU died before guest boot" >&2; exit 1; fi
-  if python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1 2>/dev/null; then
-    sleep 20
-    break
+# Poll the actual guest framebuffer, not just a boot status line.
+# Firmware and GDM greeter frames do not match the Localzet wallpaper.
+graphical_seen=0
+visual_seen=0
+for ((elapsed=20; elapsed<=WAIT; elapsed+=20)); do
+  if ! kill -0 "$QEMU_PID" 2>/dev/null; then
+    echo "QEMU exited before desktop validation" >&2
+    exit 1
   fi
-  sleep 5
-done
-python3 - "$TMP/monitor.sock" "$OUT/screen.ppm" "$OUT/screen.png" <<'PY'
+  sleep 20
+  frame="$OUT/frame-$(printf '%03d' "$elapsed").ppm"
+  png="$OUT/frame-$(printf '%03d' "$elapsed").png"
+  python3 - "$TMP/monitor.sock" "$frame" "$png" <<'PY'
 from pathlib import Path
 import socket
 import sys
 import time
 from PIL import Image
+
 monitor, ppm, png = sys.argv[1:]
 with socket.socket(socket.AF_UNIX) as s:
     deadline = time.monotonic() + 15
@@ -69,9 +75,10 @@ with socket.socket(socket.AF_UNIX) as s:
     s.sendall(("screendump " + ppm + "\n").encode())
     s.settimeout(5)
     try:
-        print(s.recv(4096).decode(errors="replace"))
+        s.recv(4096)
     except TimeoutError:
         pass
+
 deadline = time.monotonic() + 10
 while not Path(ppm).is_file() and time.monotonic() < deadline:
     time.sleep(.25)
@@ -79,14 +86,25 @@ if not Path(ppm).is_file():
     raise SystemExit("No QEMU framebuffer screenshot")
 im = Image.open(ppm).convert("RGB")
 im.save(png)
-colors = len(set(im.resize((80, 50)).getdata()))
-print("Screenshot:", im.size, "sample colors:", colors)
-if colors < 15:
-    raise SystemExit("QEMU framebuffer appears blank")
+print("Captured:", im.size)
 PY
-if ! python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1; then
-  echo "Boot unverified: guest did not report reaching graphical.target on serial (check guest screenshot)" >&2
-  exit 1
+  if python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1; then
+    graphical_seen=1
+  fi
+  if python3 scripts/ci/assert-session-visual.py "$png" --report "$OUT/frame-$(printf '%03d' "$elapsed").json"; then
+    visual_seen=1
+    cp "$png" "$OUT/screen.png"
+    cp "$OUT/frame-$(printf '%03d' "$elapsed").json" "$OUT/visual-check.json"
+  fi
+  if [[ "$graphical_seen" -eq 1 && "$visual_seen" -eq 1 ]]; then
+    echo "PASS: $MODE GRUB boot reached graphical target and rendered Localzet desktop after $elapsed seconds."
+    exit 0
+  fi
+done
+if [[ "$graphical_seen" -ne 1 ]]; then
+  echo "No systemd graphical.target evidence from guest serial console." >&2
 fi
-python3 scripts/ci/assert-session-visual.py "$OUT/screen.png" --report "$OUT/visual-check.json"
-echo "PASS: $MODE GRUB boot reached graphical.target with the P1 wallpaper visible."
+if [[ "$visual_seen" -ne 1 ]]; then
+  echo "No recognizable Localzet desktop framebuffer. Inspect captured frames." >&2
+fi
+exit 1
