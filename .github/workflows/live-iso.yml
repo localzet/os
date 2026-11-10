@@ -1,0 +1,49 @@
+name: P1 Ubuntu 26.04 Live ISO (experimental)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/live-iso-foundation]
+    paths:
+      - '.github/workflows/live-iso.yml'
+      - 'scripts/build-live-iso.sh'
+      - 'scripts/iso/**'
+      - 'scripts/verify-live-iso.sh'
+      - 'extensions/**'
+      - 'assets/wallpapers/**'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell script syntax
+        run: |
+          bash -n scripts/build-live-iso.sh
+          bash -n scripts/iso/configure-rootfs.sh
+          bash -n scripts/verify-live-iso.sh
+      - name: Install ISO build dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            debootstrap squashfs-tools xorriso mtools grub-pc-bin grub-efi-amd64-bin grub-common
+          df -h .
+      - name: Build experimental Ubuntu GNOME Live ISO
+        timeout-minutes: 75
+        run: sudo bash scripts/build-live-iso.sh
+      - name: Verify artifact structure and checksum
+        run: bash scripts/verify-live-iso.sh out/live/localzet-os-p1-amd64.iso
+      - name: Upload ISO and build reports (not a release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-os-p1-experimental-live-iso
+          path: |
+            out/live/*.iso
+            out/live/SHA256SUMS
+            out/live/boot-report.txt
+            out/live/casper-files.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
