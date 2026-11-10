@@ -41,11 +41,22 @@ done
 if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1 2>/dev/null; then
   sleep 20
 fi
-python3 - "$SOCKET" "$OUT/guest-screen.ppm" <<'PY'
+# Multiple snapshots avoid accepting an old SeaBIOS frame as a GNOME desktop.
+if ! python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1; then
+  echo "No graphical.target marker in serial log." >&2
+  exit 1
+fi
+passed=0
+for attempt in 1 2 3 4; do
+  FRAME="$OUT/screen-attempt-${attempt}.ppm"
+  PNG="$OUT/screen-attempt-${attempt}.png"
+  python3 - "$SOCKET" "$FRAME" "$PNG" <<'PY'
 import socket
 import sys
 import time
-socket_path, screenshot = sys.argv[1:]
+from pathlib import Path
+from PIL import Image
+socket_path, frame, png = sys.argv[1:]
 with socket.socket(socket.AF_UNIX) as sock:
     deadline = time.monotonic() + 10
     while True:
@@ -53,35 +64,36 @@ with socket.socket(socket.AF_UNIX) as sock:
             sock.connect(socket_path)
             break
         except OSError:
-            if time.monotonic() > deadline:
+            if time.monotonic() >= deadline:
                 raise
-            time.sleep(0.2)
-    sock.sendall(("screendump " + screenshot + "\n").encode("utf-8"))
+            time.sleep(.2)
+    sock.sendall(("screendump " + frame + "\n").encode())
     sock.settimeout(5)
     try:
-        print(sock.recv(4096).decode("utf-8", "replace"))
+        print(sock.recv(4096).decode(errors="replace"))
     except TimeoutError:
         pass
+deadline = time.monotonic() + 10
+while not Path(frame).is_file() and time.monotonic() < deadline:
+    time.sleep(.2)
+if not Path(frame).is_file():
+    raise SystemExit("QEMU screenshot absent")
+image = Image.open(frame).convert("RGB")
+image.save(png)
+print("Captured:", image.size)
 PY
-python3 - "$OUT/guest-screen.ppm" "$OUT/guest-screen.png" <<'PY'
-from PIL import Image
-import sys
-from pathlib import Path
-
-source, destination = map(Path, sys.argv[1:])
-if not source.is_file():
-    raise SystemExit("QEMU screenshot not produced")
-image = Image.open(source).convert("RGB")
-image.save(destination)
-samples = len(set(image.resize((80, 50)).getdata()))
-print(f"QEMU screenshot {image.width}x{image.height}, sampled colors: {samples}")
-if samples < 15:
-    raise SystemExit("QEMU screenshot looks blank; graphical session not proven")
-PY
-if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1; then
-  python3 scripts/ci/assert-session-visual.py "$OUT/guest-screen.png" --report "$OUT/visual-check.json"
-  echo "PASS: direct-kernel casper boot reached graphical.target with the P1 wallpaper visible."
-else
-  echo "QEMU did not reach graphical.target. Inspect serial.log and screenshot." >&2
+  if python3 scripts/ci/assert-session-visual.py "$PNG" --report "$OUT/visual-attempt-${attempt}.json"; then
+    cp "$PNG" "$OUT/guest-screen.png"
+    cp "$OUT/visual-attempt-${attempt}.json" "$OUT/visual-check.json"
+    echo "PASS: graphical.target with Localzet wallpaper visible (attempt $attempt)"
+    passed=1
+    break
+  fi
+  echo "Attempt $attempt: no recognizable Localzet wallpaper yet."
+  sleep 12
+done
+if [[ "$passed" != 1 ]]; then
+  echo "No visually verified frame after four captures; inspect serial and PNGs." >&2
   exit 1
 fi
+
