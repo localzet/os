@@ -49,17 +49,18 @@ runuser -u localzet-test -- env \
     gnome-extensions list --enabled > /work/out/gnome-smoke/enabled.txt
     grep -Fxq "localzet-shell@localzet.com" /work/out/gnome-smoke/enabled.txt || exit 1
     echo "Localzet extension enabled in running GNOME Shell devkit" > /work/out/gnome-smoke/result.txt
-    sleep 8
+    # Capture while GNOME devkit is actually alive, not after termination.
+    DISPLAY=:99 import -window root /work/out/gnome-smoke/gnome-running.png
+    sleep 2
   '
 result=$?
 set -e
-# Screenshot must be taken while Xvfb lives. On success, shell may have exited:
-# such a frame is diagnostic only, not visual proof.
-DISPLAY=:99 import -window root out/gnome-smoke/xvfb-desktop.png || true
+# Capture a second diagnostic after exit; only gnome-running.png is runtime evidence.
+DISPLAY=:99 import -window root out/gnome-smoke/after-exit.png || true
 python3 - <<'PY'
 from pathlib import Path
 from PIL import Image
-p=Path('out/gnome-smoke/xvfb-desktop.png')
+p=Path('out/gnome-smoke/gnome-running.png')
 if p.exists():
     im=Image.open(p).convert('RGB')
     samples=set(im.resize((80,50)).getdata())
