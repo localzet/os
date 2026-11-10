@@ -13,6 +13,8 @@ jobs:
       - name: Python tests and module validation
         run: make test
       - name: Validate shell JavaScript syntax
-        run: node --check extensions/localzet-shell@localzet.com/extension.js
+        run: |
+          node --check extensions/localzet-shell@localzet.com/extension.js
+          node --check extensions/localzet-shell@localzet.com/dock.js
       - name: Validate shell-install script syntax
         run: bash -n scripts/install-shell-dev.sh
