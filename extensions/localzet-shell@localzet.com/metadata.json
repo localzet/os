@@ -1,7 +1,9 @@
 {
   "uuid": "localzet-shell@localzet.com",
   "name": "Localzet Shell",
-  "description": "Early desktop integration: Localzet system menu",
-  "shell-version": ["50"],
-  "version": 1
+  "description": "Localzet OS P1 launcher for GNOME 50",
+  "shell-version": [
+    "50"
+  ],
+  "version": 2
 }
