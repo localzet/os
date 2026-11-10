@@ -37,6 +37,8 @@ export class LocalzetDock {
             trackFullscreen: false,
         });
         this._rebuild();
+        if (Main.overview.visible)
+            this._actor.hide();
     }
 
     _addButton(icon, callback, title) {
