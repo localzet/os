@@ -43,7 +43,7 @@ WAIT="${LOCALZET_QEMU_GRUB_WAIT_SECONDS:-240}"
 }
 for ((elapsed=0; elapsed<WAIT; elapsed+=5)); do
   if ! kill -0 "$QEMU_PID" 2>/dev/null; then echo "QEMU died before guest boot" >&2; exit 1; fi
-  if grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$OUT/serial.log" 2>/dev/null; then
+  if python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1 2>/dev/null; then
     sleep 20
     break
   fi
@@ -79,10 +79,13 @@ if not Path(ppm).is_file():
     raise SystemExit("No QEMU framebuffer screenshot")
 im = Image.open(ppm).convert("RGB")
 im.save(png)
-print("Screenshot:", im.size, "sample colors:", len(set(im.resize((80, 50)).getdata())))
+colors = len(set(im.resize((80, 50)).getdata()))
+print("Screenshot:", im.size, "sample colors:", colors)
+if colors < 15:
+    raise SystemExit("QEMU framebuffer appears blank")
 PY
-if ! grep -Eiq 'Reached target Graphical Interface|Reached target graphical.target' "$OUT/serial.log"; then
-  echo "Boot unverified: guest did not report graphical.target on serial" >&2
+if ! python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1; then
+  echo "Boot unverified: guest did not report reaching graphical.target on serial (check guest screenshot)" >&2
   exit 1
 fi
 echo "PASS: $MODE GRUB boot reached graphical.target"
