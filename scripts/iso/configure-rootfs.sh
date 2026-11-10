@@ -8,7 +8,7 @@ apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
   sudo gdm3 gnome-shell gnome-session gnome-control-center nautilus \
   ptyxis network-manager wpasupplicant xwayland pipewire pipewire-pulse wireplumber \
   xdg-desktop-portal-gnome adwaita-icon-theme fonts-noto-core fonts-dejavu-core \
-  dconf-cli gsettings-desktop-schemas plymouth ca-certificates
+  dconf-cli gsettings-desktop-schemas plymouth ca-certificates python3
 useradd -m -s /bin/bash -G sudo,audio,video,plugdev localzet
 passwd -l localzet
 # Ephemeral Live account only. Installed systems MUST NOT inherit this sudo rule.
@@ -21,6 +21,8 @@ cat > /etc/gdm3/custom.conf <<'GDM'
 AutomaticLoginEnable=True
 AutomaticLogin=localzet
 GDM
+install -d /etc/dconf/profile
+printf 'user-db:user\nsystem-db:localzet\n' > /etc/dconf/profile/user
 install -d /etc/dconf/db/localzet.d
 cat > /etc/dconf/db/localzet.d/00-defaults <<'DCONF'
 [org/gnome/desktop/interface]
