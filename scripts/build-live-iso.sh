@@ -42,6 +42,8 @@ install -d "$ROOT/usr/share/gnome-shell/extensions" "$ROOT/usr/share/backgrounds
 cp -R "$PROJECT/extensions/localzet-shell@localzet.com" "$ROOT/usr/share/gnome-shell/extensions/"
 install -m644 "$PROJECT/assets/wallpapers/aurora.svg" "$ROOT/usr/share/backgrounds/localzet/aurora.svg"
 install -Dm755 "$PROJECT/scripts/iso/configure-rootfs.sh" "$ROOT/tmp/localzet-configure-rootfs"
+install -Dm755 "$PROJECT/scripts/iso/localzet-boot-diagnostics.sh" "$ROOT/usr/local/bin/localzet-boot-diagnostics"
+install -Dm644 "$PROJECT/scripts/iso/localzet-boot-diagnostics.service" "$ROOT/etc/systemd/system/localzet-boot-diagnostics.service"
 install -d "$ROOT/opt/localzet-os/src" "$ROOT/opt/localzet-os/config"
 cp -R "$PROJECT/src/localzet" "$ROOT/opt/localzet-os/src/"
 cp -R "$PROJECT/config/modules" "$ROOT/opt/localzet-os/config/"
