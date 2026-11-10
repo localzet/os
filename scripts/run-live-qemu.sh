@@ -42,4 +42,4 @@ if [[ "$MODE" == uefi ]]; then
 fi
 echo "Localzet OS experimental Live ISO | boot=$MODE | accelerator=$ACCEL"
 echo "No persistent virtual disk is attached. All changes are discarded on shutdown."
-exec qemu-system-x86_64 "${ARGS[@]}"
+qemu-system-x86_64 "${ARGS[@]}"
