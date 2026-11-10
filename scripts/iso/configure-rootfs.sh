@@ -9,7 +9,7 @@ apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
   gnome-control-center nautilus gvfs gvfs-backends xdg-user-dirs \
   ptyxis network-manager wpasupplicant xwayland pipewire pipewire-pulse wireplumber \
   xdg-desktop-portal-gnome adwaita-icon-theme fonts-noto-core fonts-dejavu-core \
-  dconf-cli gsettings-desktop-schemas plymouth ca-certificates python3
+  dconf-cli gsettings-desktop-schemas plymouth ca-certificates python3 python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
 useradd -m -s /bin/bash -G sudo,audio,video,plugdev localzet
 # Live session only: empty password allows GDM automatic login; SSH is not installed.
 # Do not copy this account policy into an installed system.

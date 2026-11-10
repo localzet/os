@@ -45,6 +45,10 @@ install -Dm755 "$PROJECT/scripts/iso/configure-rootfs.sh" "$ROOT/tmp/localzet-co
 install -Dm755 "$PROJECT/scripts/iso/localzet-boot-diagnostics.sh" "$ROOT/usr/local/bin/localzet-boot-diagnostics"
 install -Dm644 "$PROJECT/scripts/iso/localzet-boot-diagnostics.service" "$ROOT/etc/systemd/system/localzet-boot-diagnostics.service"
 install -d "$ROOT/opt/localzet-os/src" "$ROOT/opt/localzet-os/config"
+# Unprivileged native Localzet Settings front end.
+install -Dm755 "$PROJECT/apps/localzet-settings/localzet-settings" "$ROOT/usr/local/bin/localzet-settings"
+install -Dm644 "$PROJECT/apps/localzet-settings/settings.css" "$ROOT/usr/share/localzet/styles/settings.css"
+install -Dm644 "$PROJECT/packaging/com.localzet.Settings.desktop" "$ROOT/usr/share/applications/com.localzet.Settings.desktop"
 cp -R "$PROJECT/src/localzet" "$ROOT/opt/localzet-os/src/"
 cp -R "$PROJECT/config/modules" "$ROOT/opt/localzet-os/config/"
 cat > "$ROOT/usr/local/bin/localzet-modules" <<'MODULES'
