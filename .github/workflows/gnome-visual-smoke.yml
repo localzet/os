@@ -1,0 +1,31 @@
+name: GNOME 50 visual smoke (experimental)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/gnome-visual-smoke.yml'
+      - 'scripts/ci/gnome50-visual-smoke.sh'
+permissions:
+  contents: read
+jobs:
+  gnome-visual:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GNOME 50 devkit on disposable runner
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis
+          gnome-shell --version
+      - name: Launch GNOME 50 and capture actual screen
+        timeout-minutes: 7
+        run: bash scripts/ci/gnome50-visual-smoke.sh
+      - name: Upload screenshot and runtime logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnome50-devkit-screenshot-and-logs
+          path: out/gnome-smoke/
+          if-no-files-found: ignore
+          retention-days: 7
