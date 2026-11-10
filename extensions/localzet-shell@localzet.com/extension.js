@@ -39,18 +39,22 @@ export default class LocalzetShell extends Extension {
         this._indicator.menu.addMenuItem(title);
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        this._addAction('Поиск и приложения', () => Main.overview.show());
-        this._addAction('Файлы', () => this._launch(['nautilus']));
-        this._addAction('Терминал', () => this._launch(['ptyxis']));
+        this._addAction('Поиск и приложения', 'system-search-symbolic',
+            () => Main.overview.show());
+        this._addAction('Файлы', 'folder-symbolic',
+            () => this._launch(['nautilus']));
+        this._addAction('Терминал', 'utilities-terminal-symbolic',
+            () => this._launch(['ptyxis']));
 
         this._indicator.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this._addAction('Настройки системы', () => this._launch(['gnome-control-center']));
+        this._addAction('Настройки системы', 'preferences-system-symbolic',
+            () => this._launch(['gnome-control-center']));
 
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
     }
 
-    _addAction(title, action) {
-        const item = new PopupMenu.PopupMenuItem(title);
+    _addAction(title, icon, action) {
+        const item = new PopupMenu.PopupImageMenuItem(title, icon);
         item.add_style_class_name('localzet-menu-action');
         item.connect('activate', () => {
             try {
