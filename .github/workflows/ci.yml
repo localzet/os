@@ -20,5 +20,6 @@ jobs:
           bash -n scripts/iso/configure-rootfs.sh
           bash -n scripts/verify-live-iso.sh
           bash -n scripts/ci/qemu-live-diagnostics.sh
+          bash -n scripts/ci/qemu-grub-boot.sh
       - name: Validate shell-install script syntax
         run: bash -n scripts/install-shell-dev.sh
