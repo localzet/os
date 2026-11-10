@@ -42,8 +42,8 @@ jobs:
           path: |
             out/live/*.iso
             out/live/SHA256SUMS
-            out/live/boot-report.txt
-            out/live/casper-files.txt
+            iso-reports/boot-report.txt
+            iso-reports/casper-files.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 3
