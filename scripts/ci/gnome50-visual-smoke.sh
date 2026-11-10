@@ -31,6 +31,13 @@ export OUT
 set +e
 dbus-run-session -- bash -c '
   set -u
+  # Mutter devkit displays the nested desktop through PipeWire.
+  pipewire > "$OUT/pipewire.log" 2>&1 &
+  pipewire_pid=$!
+  wireplumber > "$OUT/wireplumber.log" 2>&1 &
+  wireplumber_pid=$!
+  trap "kill $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
+  sleep 3
   gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
   trap "kill $shell_pid 2>/dev/null || true" EXIT
