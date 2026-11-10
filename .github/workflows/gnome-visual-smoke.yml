@@ -16,7 +16,7 @@ jobs:
       - name: Install GNOME 50 devkit on disposable runner
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis
           gnome-shell --version
       - name: Launch GNOME 50 and capture actual screen
         timeout-minutes: 7
