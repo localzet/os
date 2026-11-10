@@ -88,4 +88,5 @@ if ! python3 scripts/ci/assert-graphical.py "$OUT/serial.log" >/dev/null 2>&1; t
   echo "Boot unverified: guest did not report reaching graphical.target on serial (check guest screenshot)" >&2
   exit 1
 fi
-echo "PASS: $MODE GRUB boot reached graphical.target"
+python3 scripts/ci/assert-session-visual.py "$OUT/screen.png" --report "$OUT/visual-check.json"
+echo "PASS: $MODE GRUB boot reached graphical.target with the P1 wallpaper visible."

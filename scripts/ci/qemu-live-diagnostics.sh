@@ -79,7 +79,8 @@ if samples < 15:
     raise SystemExit("QEMU screenshot looks blank; graphical session not proven")
 PY
 if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1; then
-  echo "PASS: direct-kernel casper boot reached graphical.target with nonblank screenshot."
+  python3 scripts/ci/assert-session-visual.py "$OUT/guest-screen.png" --report "$OUT/visual-check.json"
+  echo "PASS: direct-kernel casper boot reached graphical.target with the P1 wallpaper visible."
 else
   echo "QEMU did not reach graphical.target. Inspect serial.log and screenshot." >&2
   exit 1
