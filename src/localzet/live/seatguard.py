@@ -54,6 +54,11 @@ def collect() -> tuple[str, dict[str, dict[str, str]]]:
     return active, sessions
 
 
+def may_recover(activations: int, now: float, last_activation: float,
+                cooldown: float = 25.0) -> bool:
+    return activations < 4 and now - last_activation >= cooldown
+
+
 def main() -> int:
     if "boot=casper" not in Path("/proc/cmdline").read_text().split():
         print("Seat guard: not a Live session; no action", flush=True)
@@ -70,7 +75,7 @@ def main() -> int:
             current, sessions = collect()
             target = candidate_session(sessions, current)
             now = time.monotonic()
-            if target and now - last_activation >= cooldown:
+            if target and may_recover(activations, now, last_activation, cooldown):
                 if activations >= 4:
                     print("Seat guard: intervention limit reached", flush=True)
                     return 0

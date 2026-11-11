@@ -1,6 +1,6 @@
 """Fail-closed selection tests for temporary Live seat recovery."""
 import unittest
-from localzet.live.seatguard import candidate_session
+from localzet.live.seatguard import candidate_session, may_recover
 
 
 def session(name, klass, service, state="online", seat="seat0", kind="wayland"):
@@ -14,6 +14,15 @@ class SeatGuardTests(unittest.TestCase):
             "1": session("localzet", "user", "gdm-autologin"),
             "c1": session("gdm-greeter", "greeter", "gdm-launch-environment"),
         }
+
+    def test_recovery_rate_limit(self):
+        self.assertTrue(may_recover(0, 100.0, 0.0))
+        self.assertFalse(may_recover(1, 120.0, 100.0))
+        self.assertTrue(may_recover(1, 126.0, 100.0))
+
+    def test_max_four_recoveries(self):
+        self.assertFalse(may_recover(4, 300.0, 0.0))
+        self.assertFalse(may_recover(9, 300.0, 0.0))
 
     def test_displaced_session(self):
         self.assertEqual(candidate_session(self.sessions, "c1"), "1")
