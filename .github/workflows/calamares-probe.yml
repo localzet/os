@@ -1,0 +1,36 @@
+name: Calamares Ubuntu 26.04 package probe (no disk writes)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/calamares-probe.yml'
+      - 'scripts/ci/probe-calamares.sh'
+      - 'packaging/calamares/staging/**'
+      - 'config/installer/staging.toml'
+permissions:
+  contents: read
+concurrency:
+  group: calamares-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no-write probe syntax
+        run: bash -n scripts/ci/probe-calamares.sh
+      - name: Install Calamares in disposable runner
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends calamares
+      - name: Inventory exact package and modules
+        run: bash scripts/ci/probe-calamares.sh
+      - name: Upload package inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calamares-ubuntu26-inventory
+          path: out/installer-probe/
+          if-no-files-found: warn
+          retention-days: 7
