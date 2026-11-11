@@ -58,18 +58,33 @@ def main() -> int:
     if "boot=casper" not in Path("/proc/cmdline").read_text().split():
         print("Seat guard: not a Live session; no action", flush=True)
         return 0
+    # GDM 50.1 may reassert its greeter after an apparently successful
+    # recovery. Observe for a bounded window instead of exiting at the
+    # first activation. Rate-limit and cap interventions to avoid flapping.
+    activations = 0
+    last_activation = -30.0
+    cooldown = 25.0
     for _ in range(MAX_POLLS):
         time.sleep(POLL_SECONDS)
         try:
             current, sessions = collect()
             target = candidate_session(sessions, current)
-            if target:
+            now = time.monotonic()
+            if target and now - last_activation >= cooldown:
+                if activations >= 4:
+                    print("Seat guard: intervention limit reached", flush=True)
+                    return 0
                 _call("loginctl", "activate", target)
-                print(f"Seat guard: restored existing Live session {target}", flush=True)
-                return 0
+                activations += 1
+                last_activation = now
+                print(
+                    f"Seat guard: restored existing Live session {target} "
+                    f"(recovery {activations}/4)",
+                    flush=True,
+                )
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             print(f"Seat guard: query failed: {error}", flush=True)
-    print("Seat guard: no eligible regression found", flush=True)
+    print(f"Seat guard: observation complete, {activations} recoveries", flush=True)
     return 0
 
 
