@@ -30,6 +30,23 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(self.check()["safe_to_release"])
         self.assertIs(self.check()["writes_performed"], False)
 
+    def test_live_account_blocked_even_if_locked_without_home(self):
+        self.write("etc/passwd",
+                   "root:x:0:0:root:/root:/bin/bash\n"
+                   "localzet:x:1000:1000::/home/localzet:/bin/bash\n")
+        self.write("etc/shadow",
+                   "root:!:0:0:99999:7:::\n"
+                   "localzet:!:0:0:99999:7:::\n")
+        result = self.check()
+        self.assertFalse(result["safe_to_release"])
+        self.assertTrue(any("Live account" in p for p in result["problems"]))
+
+    def test_live_account_name_only_matches_exact_username(self):
+        self.write("etc/passwd",
+                   "root:x:0:0:root:/root:/bin/bash\n"
+                   "localzet-admin:x:1000:1000::/home/localzet-admin:/bin/bash\n")
+        self.assertTrue(self.check()["safe_to_release"])
+
     def test_live_passwordless_sudo_blocked(self):
         self.write("etc/sudoers.d/90-localzet-live", "localzet ALL=(ALL) NOPASSWD:ALL\n")
         self.assertFalse(self.check()["safe_to_release"])
