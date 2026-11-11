@@ -78,7 +78,7 @@ export default class LocalzetShell extends Extension {
         this._addAction('Терминал', 'utilities-terminal-symbolic',
             () => this._launch(['ptyxis']));
         this._addAction('Настройки', 'preferences-system-symbolic',
-            () => this._launch(['gnome-control-center']));
+            () => this._launch(['localzet-settings']));
 
         this._search.clutter_text.connect('notify::text', () => {
             this._updateApps(this._search.get_text());
