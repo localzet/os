@@ -27,73 +27,65 @@ qemu-system-x86_64 -machine q35 -accel tcg -m 3072 -smp 2 \
   -monitor "unix:$SOCKET,server=on,wait=off" -serial "file:$SERIAL" \
   > "$OUT/qemu.log" 2>&1 &
 PID=$!
-SECONDS_TO_WAIT="${LOCALZET_QEMU_BOOT_WAIT_SECONDS:-240}"
-if [[ ! "$SECONDS_TO_WAIT" =~ ^[0-9]+$ ]] || ((SECONDS_TO_WAIT < 10 || SECONDS_TO_WAIT > 900)); then
+SECONDS_TO_WAIT="${LOCALZET_QEMU_BOOT_WAIT_SECONDS:-300}"
+if [[ ! "$SECONDS_TO_WAIT" =~ ^[0-9]+$ ]] || ((SECONDS_TO_WAIT < 60 || SECONDS_TO_WAIT > 900)); then
   echo "Invalid QEMU wait value" >&2
   exit 2
 fi
-for ((i=0;i<SECONDS_TO_WAIT;i+=5)); do
-  if ! kill -0 "$PID" 2>/dev/null; then echo "QEMU exited prematurely" >&2; exit 1; fi
-  if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1 2>/dev/null; then break; fi
-  sleep 5
-done
-# The graphical login may take a few more seconds after systemd reaches graphical.target.
-if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1 2>/dev/null; then
+# Capture throughout startup. GNOME can appear long after graphical.target.
+graphical_seen=0
+visual_seen=0
+for ((elapsed=20; elapsed<=SECONDS_TO_WAIT; elapsed+=20)); do
   sleep 20
-fi
-# Multiple snapshots avoid accepting an old SeaBIOS frame as a GNOME desktop.
-if ! python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1; then
-  echo "No graphical.target marker in serial log." >&2
-  exit 1
-fi
-passed=0
-for attempt in 1 2 3 4; do
-  FRAME="$OUT/screen-attempt-${attempt}.ppm"
-  PNG="$OUT/screen-attempt-${attempt}.png"
+  if ! kill -0 "$PID" 2>/dev/null; then
+    echo "QEMU exited prematurely" >&2
+    exit 1
+  fi
+  if python3 scripts/ci/assert-graphical.py "$SERIAL" >/dev/null 2>&1; then
+    graphical_seen=1
+  fi
+  FRAME="$OUT/frame-${elapsed}.ppm"
+  PNG="$OUT/frame-${elapsed}.png"
   python3 - "$SOCKET" "$FRAME" "$PNG" <<'PY'
 import socket
 import sys
 import time
 from pathlib import Path
 from PIL import Image
-socket_path, frame, png = sys.argv[1:]
+
+monitor, frame, png = sys.argv[1:]
 with socket.socket(socket.AF_UNIX) as sock:
     deadline = time.monotonic() + 10
     while True:
         try:
-            sock.connect(socket_path)
+            sock.connect(monitor)
             break
         except OSError:
             if time.monotonic() >= deadline:
                 raise
-            time.sleep(.2)
+            time.sleep(.25)
     sock.sendall(("screendump " + frame + "\n").encode())
     sock.settimeout(5)
     try:
-        print(sock.recv(4096).decode(errors="replace"))
+        sock.recv(4096)
     except TimeoutError:
         pass
 deadline = time.monotonic() + 10
 while not Path(frame).is_file() and time.monotonic() < deadline:
-    time.sleep(.2)
+    time.sleep(.25)
 if not Path(frame).is_file():
     raise SystemExit("QEMU screenshot absent")
-image = Image.open(frame).convert("RGB")
-image.save(png)
-print("Captured:", image.size)
+Image.open(frame).convert("RGB").save(png)
 PY
-  if python3 scripts/ci/assert-session-visual.py "$PNG" --report "$OUT/visual-attempt-${attempt}.json"; then
+  if python3 scripts/ci/assert-session-visual.py "$PNG" --report "$OUT/visual-${elapsed}.json"; then
+    visual_seen=1
     cp "$PNG" "$OUT/guest-screen.png"
-    cp "$OUT/visual-attempt-${attempt}.json" "$OUT/visual-check.json"
-    echo "PASS: graphical.target with Localzet wallpaper visible (attempt $attempt)"
-    passed=1
-    break
+    cp "$OUT/visual-${elapsed}.json" "$OUT/visual-check.json"
   fi
-  echo "Attempt $attempt: no recognizable Localzet wallpaper yet."
-  sleep 12
+  if [[ "$graphical_seen" -eq 1 && "$visual_seen" -eq 1 ]]; then
+    echo "PASS: direct-kernel Live boot rendered branded desktop after ${elapsed}s."
+    exit 0
+  fi
 done
-if [[ "$passed" != 1 ]]; then
-  echo "No visually verified frame after four captures; inspect serial and PNGs." >&2
-  exit 1
-fi
-
+echo "Direct-kernel boot not proven: serial=${graphical_seen}, framebuffer=${visual_seen}" >&2
+exit 1
