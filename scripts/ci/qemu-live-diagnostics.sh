@@ -35,6 +35,7 @@ fi
 # Capture throughout startup. GNOME can appear long after graphical.target.
 graphical_seen=0
 visual_seen=0
+visual_streak=0
 for ((elapsed=20; elapsed<=SECONDS_TO_WAIT; elapsed+=20)); do
   sleep 20
   if ! kill -0 "$PID" 2>/dev/null; then
@@ -79,10 +80,13 @@ Image.open(frame).convert("RGB").save(png)
 PY
   if python3 scripts/ci/assert-session-visual.py "$PNG" --report "$OUT/visual-${elapsed}.json"; then
     visual_seen=1
+    visual_streak=$((visual_streak + 1))
     cp "$PNG" "$OUT/guest-screen.png"
     cp "$OUT/visual-${elapsed}.json" "$OUT/visual-check.json"
+  else
+    visual_streak=0
   fi
-  if [[ "$graphical_seen" -eq 1 && "$visual_seen" -eq 1 ]]; then
+  if [[ "$graphical_seen" -eq 1 && "$visual_streak" -ge 3 ]]; then
     echo "PASS: direct-kernel Live boot rendered branded desktop after ${elapsed}s."
     exit 0
   fi

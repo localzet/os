@@ -46,6 +46,7 @@ WAIT="${LOCALZET_QEMU_GRUB_WAIT_SECONDS:-420}"
 # Firmware and GDM greeter frames do not match the Localzet wallpaper.
 graphical_seen=0
 visual_seen=0
+visual_streak=0
 for ((elapsed=20; elapsed<=WAIT; elapsed+=20)); do
   if ! kill -0 "$QEMU_PID" 2>/dev/null; then
     echo "QEMU exited before desktop validation" >&2
@@ -93,10 +94,13 @@ PY
   fi
   if python3 scripts/ci/assert-session-visual.py "$png" --report "$OUT/frame-$(printf '%03d' "$elapsed").json"; then
     visual_seen=1
+    visual_streak=$((visual_streak + 1))
     cp "$png" "$OUT/screen.png"
     cp "$OUT/frame-$(printf '%03d' "$elapsed").json" "$OUT/visual-check.json"
+  else
+    visual_streak=0
   fi
-  if [[ "$graphical_seen" -eq 1 && "$visual_seen" -eq 1 ]]; then
+  if [[ "$graphical_seen" -eq 1 && "$visual_streak" -ge 3 ]]; then
     echo "PASS: $MODE GRUB boot reached graphical target and rendered Localzet desktop after $elapsed seconds."
     exit 0
   fi
