@@ -23,7 +23,7 @@ SERIAL="$OUT/serial.log"
 qemu-system-x86_64 -machine q35 -accel tcg -m 3072 -smp 2 \
   -kernel "$TMP/vmlinuz" -initrd "$TMP/initrd" \
   -append "boot=casper username=localzet hostname=localzet console=tty0 console=ttyS0,115200n8 systemd.show_status=1 systemd.log_target=console loglevel=7" \
-  -cdrom "$ISO" -boot order=d -no-reboot -display none -vga virtio \
+  -cdrom "$ISO" -boot order=d -no-reboot -display none -vga std \
   -monitor "unix:$SOCKET,server=on,wait=off" -serial "file:$SERIAL" \
   > "$OUT/qemu.log" 2>&1 &
 PID=$!
