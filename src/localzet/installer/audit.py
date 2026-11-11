@@ -54,6 +54,15 @@ def audit_installed_root(root: Path) -> dict[str, object]:
         if (root / relative).exists() or (root / relative).is_symlink():
             problems.append(f"Live-only artifact present: {relative}")
 
+    # The temporary Live account must not survive installation even if its
+    # home and sudo rule were removed and its password was locked.
+    passwd = _read(root, "etc/passwd")
+    if passwd is not None:
+        for line in passwd.splitlines():
+            if line.split(":", 1)[0] == "localzet":
+                problems.append("temporary Live account remains in passwd")
+                break
+
     shadow = _read(root, "etc/shadow")
     if shadow is not None:
         for line in shadow.splitlines():
