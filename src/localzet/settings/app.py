@@ -64,7 +64,14 @@ def main() -> int:
             apps = Adw.PreferencesGroup(title="Приложения")
             apps.add(self._row("Файлы", "Папки и накопители", ["nautilus"]))
             apps.add(self._row("Терминал", "Командная строка", ["ptyxis"]))
+            phone = Adw.PreferencesGroup(title="Localzet Connect")
+            client = Gio.DesktopAppInfo.new("nectarlink.desktop")
+            if client:
+                phone.add(self._row("Связь с телефоном", "Android · NectarLink", ["/usr/bin/nectarlink-desktop"]))
+            else:
+                phone.add(self._row("Связь с телефоном", "NectarLink не установлен"))
             page.add(apps)
+            page.add(phone)
             return page
 
         def _modules_page(self):
