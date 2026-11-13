@@ -17,6 +17,9 @@ LIVE_ONLY = (
     "etc/systemd/system/localzet-boot-diagnostics.service",
     "etc/systemd/system/localzet-live-seat-guard.service",
     "usr/local/bin/localzet-boot-diagnostics",
+    "usr/lib/localzet/localzet-live-ready.py",
+    "usr/lib/systemd/system/localzet-live-ready.service",
+    "etc/systemd/system/graphical.target.wants/localzet-live-ready.service",
 )
 
 
