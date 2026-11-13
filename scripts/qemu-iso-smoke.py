@@ -73,7 +73,7 @@ def main():
         cpu = "host" if accel == "kvm" else "max"
         cmd = [qemu, "-machine", "q35", "-accel", accel, "-cpu", cpu,
                "-m", "4096", "-smp", "2", "-nic", "none",
-               "-display", "none", "-monitor", "none",
+               "-vga", "virtio", "-display", "none", "-monitor", "none",
                "-qmp", f"unix:{monitor},server=on,wait=off",
                "-no-reboot", "-boot", "order=d", "-cdrom",
                str(args.iso.resolve()), "-serial", f"file:{serial}"]
