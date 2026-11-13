@@ -1,5 +1,5 @@
 PYTHON ?= python3
-.PHONY: test extension-zip clean
+.PHONY: test extension-zip desktop-deb clean
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v
@@ -10,6 +10,9 @@ extension-zip:
 	mkdir -p dist
 	gnome-extensions pack --force --out-dir dist extensions/localzet-shell@localzet.com
 	$(PYTHON) scripts/verify-shell-bundle.py dist/localzet-shell@localzet.com.shell-extension.zip
+
+desktop-deb:
+	bash scripts/build-desktop-deb.sh dist
 
 clean:
 	rm -rf dist
