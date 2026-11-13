@@ -1,6 +1,6 @@
 # ISO boot smoke testing
 
-The harness tests a supplied x86-64 ISO, not a source checkout. It uses QEMU TCG, no network, no host disk passthrough, and a temporary copy of UEFI NVRAM. It fails if the guest does not emit the exact expected serial line before the timeout.
+The harness tests a supplied x86-64 ISO, not a source checkout. It uses QEMU KVM when accessible, otherwise TCG, no network, no host disk passthrough, and a temporary copy of UEFI NVRAM. It fails if the guest does not emit the exact expected serial line before the timeout.
 
 ## Guest contract
 
@@ -58,3 +58,11 @@ No physical disks are accessed for installation. Secure Boot, graphical
 rendering, localization coverage, actual boot and device installation are
 not proven by successful ISO assembly. Do not publish as a release until the
 firmware smoke tests and licensing/security review pass.
+
+## Boot troubleshooting
+
+The diagnostic boot entries emit kernel logs on ttyS0. The Live readiness probe
+reports the first unmet condition without relaxing the marker requirement.
+QEMU attempts a framebuffer capture next to the serial log (`.ppm`) before
+shutdown, including on timeout; CI uploads it when available. No screenshot is
+proof of successful boot by itself.
