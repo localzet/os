@@ -25,6 +25,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf
           df -h
+          if test -c /dev/kvm && command -v setfacl >/dev/null; then
+            sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          fi
+          ls -l /dev/kvm || true
       - name: Build experimental image
         run: |
           mkdir -p dist
