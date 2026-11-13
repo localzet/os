@@ -27,7 +27,10 @@ def _safe_file(root: Path, relative: str) -> Path | None:
     path = root / relative
     if path.is_symlink():
         return None
-    resolved = path.resolve(strict=False)
+    try:
+        resolved = path.resolve(strict=False)
+    except (OSError, RuntimeError):
+        return None
     if not resolved.is_relative_to(root):
         return None
     return path
@@ -72,12 +75,22 @@ def audit_installed_root(root: Path) -> dict[str, object]:
             fields = line.split(":")
             # We do not reveal hashes. Only reject empty or otherwise
             # passwordless local accounts. Lock markers '!' and '*' allowed.
+            if fields[0] == "localzet":
+                problems.append("temporary Live account remains in shadow")
             if len(fields) >= 2 and fields[1] == "":
                 problems.append(f"empty password for local account: {fields[0]}")
 
-    gdm = _read(root, "etc/gdm3/custom.conf") or ""
-    if re.search(r"(?im)^\s*AutomaticLoginEnable\s*=\s*True\s*$", gdm):
-        problems.append("GDM automatic login still enabled")
+    for relative in ("etc/gdm3/custom.conf", "etc/gdm/custom.conf"):
+        path = root / relative
+        gdm = _read(root, relative)
+        if gdm is None:
+            if path.exists() or path.is_symlink():
+                problems.append(f"GDM configuration unreadable: {relative}")
+            continue
+        if re.search(r"(?im)^\s*AutomaticLoginEnable\s*=\s*(?:true|yes|1)\s*$", gdm):
+            problems.append("GDM automatic login still enabled")
+        if re.search(r"(?im)^\s*TimedLoginEnable\s*=\s*(?:true|yes|1)\s*$", gdm):
+            problems.append("GDM timed login still enabled")
 
     defaults = _read(root, "etc/dconf/db/localzet.d/00-defaults") or ""
     if re.search(r"(?im)^\s*lock-enabled\s*=\s*false\s*$", defaults):
@@ -85,7 +98,7 @@ def audit_installed_root(root: Path) -> dict[str, object]:
     if re.search(r"(?im)^\s*idle-delay\s*=\s*uint32\s+0\s*$", defaults):
         problems.append("Live-only idle timeout disabled globally")
 
-    if (root / "home/localzet").exists():
+    if (root / "home/localzet").exists() or (root / "home/localzet").is_symlink():
         problems.append("Live user's home directory still present")
 
     return {

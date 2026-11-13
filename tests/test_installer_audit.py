@@ -67,6 +67,29 @@ class AuditTests(unittest.TestCase):
         self.write("etc/gdm3/custom.conf", "[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=localzet\n")
         self.assertFalse(self.check()["safe_to_release"])
 
+    def test_timed_login_blocked(self):
+        self.write("etc/gdm3/custom.conf", "[daemon]\nTimedLoginEnable=true\nTimedLogin=alice\n")
+        self.assertFalse(self.check()["safe_to_release"])
+
+    def test_alternate_gdm_config_blocked(self):
+        self.write("etc/gdm/custom.conf", "[daemon]\nAutomaticLoginEnable=TRUE\n")
+        self.assertFalse(self.check()["safe_to_release"])
+
+    def test_gdm_symlink_rejected(self):
+        path = self.root / "etc/gdm3/custom.conf"
+        path.unlink()
+        path.symlink_to("/nonexistent")
+        self.assertFalse(self.check()["safe_to_release"])
+
+    def test_orphan_live_shadow_blocked(self):
+        self.write("etc/shadow", "root:!:0:0:99999:7:::\nlocalzet:!:0:0:99999:7:::\n")
+        self.assertFalse(self.check()["safe_to_release"])
+
+    def test_dangling_live_home_blocked(self):
+        (self.root / "home").mkdir()
+        (self.root / "home/localzet").symlink_to("/nonexistent")
+        self.assertFalse(self.check()["safe_to_release"])
+
     def test_live_lock_settings_blocked(self):
         self.write("etc/dconf/db/localzet.d/00-defaults",
                    "[org/gnome/desktop/screensaver]\nlock-enabled=false\n")
