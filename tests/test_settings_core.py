@@ -23,7 +23,8 @@ class SettingsCoreTests(unittest.TestCase):
     def test_catalog_read_only(self):
         root = Path(__file__).resolve().parents[1]
         modules = load_modules(root / "config/modules")
-        self.assertEqual(len(modules), 6)
+        self.assertEqual(len(modules), 7)
+        self.assertIn('phone', {module.id for module in modules})
         self.assertTrue(all(m.status in ("planned", "prototype", "supported") for m in modules))
 
     def test_status_labels(self):
