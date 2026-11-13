@@ -4,7 +4,7 @@ The harness tests a supplied x86-64 ISO, not a source checkout. It uses QEMU TCG
 
 ## Guest contract
 
-A future Live image must enable serial output on ttyS0 and emit a unique line such as LOCALZET_LIVE_READY only after its boot readiness checks pass. Do not emit this line from the bootloader or unconditionally at service startup. At minimum, check the expected OS identity, Live root filesystem and graphical session readiness. The marker producer is not implemented by this harness.
+A future Live image must enable serial output on ttyS0 and emit a unique line such as LOCALZET_LIVE_READY only after its boot readiness checks pass. Do not emit this line from the bootloader or unconditionally at service startup. At minimum, check the expected OS identity, Live root filesystem and graphical session readiness. A staged producer and systemd unit are provided in `packaging/live/`. The future ISO builder must install the Python file at `/usr/lib/localzet/localzet-live-ready.py`, install the unit in `/usr/lib/systemd/system/`, and enable it only in the Live root. The probe requires `boot=casper`, an overlay root, `ID=localzet`, an active display manager and a local active Wayland GNOME session for `localzet`. It does not verify rendering or the shell extension. Remove the unit, enablement symlink and script from the installed root.
 
 ## Run
 
@@ -23,7 +23,7 @@ Use a disposable output directory. The log is overwritten on each run. An exit c
 
 ## Remaining release gates
 
-- Implement a verified ISO build and the guest marker producer.
+- Implement a verified ISO build and integrate the staged guest marker producer.
 - Run both firmware modes against that exact artifact.
 - Separately exercise installation into disposable virtual disks, reboot from the installed disk, and run the post-install audit.
 - Test graphics and physical hardware before claiming installation readiness.
