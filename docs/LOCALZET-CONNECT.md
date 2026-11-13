@@ -43,3 +43,12 @@ integrating with the OS package manager.
 - [ ] Establish signed package updates and redistribution compliance before ISO inclusion.
 
 iOS is not supported by this Android integration.
+
+## Package verification
+
+Run `python3 scripts/fetch-nectarlink-deb.py --output out/nectarlink` as an
+unprivileged user. It checks the locked release URL, SHA-256, package name,
+version and architecture, then atomically publishes the downloaded file.
+It does not execute the installer or any maintainer script. CI extracts
+control metadata and the file list for review; it does not upload the DEB.
+A matching hash establishes artifact identity, not trust or licensing compliance.
