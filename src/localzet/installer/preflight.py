@@ -14,7 +14,7 @@ from typing import Any
 
 LSBLK_COLUMNS = (
     "NAME,KNAME,PATH,TYPE,SIZE,RO,RM,ROTA,MODEL,SERIAL,WWN,TRAN,"
-    "MOUNTPOINTS,FSTYPE,PTTYPE"
+    "MOUNTPOINTS,FSTYPE,PTTYPE,PARTUUID,UUID,START"
 )
 MIN_SIZE_BYTES = 32 * 1024**3
 PROTECTED_FILESYSTEMS = {
@@ -54,6 +54,8 @@ def inspect_disk(disk: dict[str, Any]) -> dict[str, Any]:
         blockers.append("Not a recognised physical disk device")
     if _flag(disk.get("ro")) is not False:
         blockers.append("Read-only or unknown write-protection state")
+    if str(disk.get("tran") or "").lower() == "usb":
+        blockers.append("USB-attached device; external media excluded")
     if _flag(disk.get("rm")) is not False:
         blockers.append("Removable or unknown removable-media state")
     if _flag(disk.get("rota")) is not False:
