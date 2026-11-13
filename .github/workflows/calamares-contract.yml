@@ -1,0 +1,37 @@
+name: Calamares staging contract
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packaging/calamares/**'
+      - 'scripts/check-calamares-modules.py'
+      - '.github/workflows/calamares-contract.yml'
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download signed-archive package without installing
+        run: |
+          sudo apt-get update
+          mkdir -p out/calamares
+          cd out/calamares
+          apt-get download calamares
+          dpkg-deb --field calamares_*.deb Package Version Architecture > package.txt
+          dpkg-deb --extract calamares_*.deb extracted
+      - name: Compare staged sequence against actual modules
+        run: |
+          set -o pipefail
+          /usr/bin/python3 scripts/check-calamares-modules.py out/calamares/extracted | tee out/calamares/module-contract.json
+      - name: Upload inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: calamares-module-contract
+          path: |
+            out/calamares/package.txt
+            out/calamares/module-contract.json
+          retention-days: 7
