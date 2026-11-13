@@ -18,3 +18,9 @@ jobs:
           node --check extensions/localzet-shell@localzet.com/dock.js
       - name: Validate shell-install script syntax
         run: bash -n scripts/install-shell-dev.sh
+      - name: Build and inspect desktop overlay package
+        run: |
+          bash -n scripts/build-desktop-deb.sh
+          make desktop-deb
+          dpkg-deb --contents dist/localzet-desktop_0.1.0~dev1_all.deb
+          python3 -m py_compile scripts/qemu-iso-smoke.py packaging/live/localzet-live-ready.py
