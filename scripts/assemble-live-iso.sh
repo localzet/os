@@ -58,6 +58,14 @@ printf 'Localzet OS development Live amd64\n' > "$stage/tree/.disk/info"
 dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Package} ${Version}\n' > "$stage/tree/casper/filesystem.manifest"
 mksquashfs "$root" "$stage/tree/casper/filesystem.squashfs" -noappend -comp zstd -one-file-system
 du -sb "$root" | cut -f1 > "$stage/tree/casper/filesystem.size"
+# Casper's media verification reads md5sum.txt. The external SHA-256 remains
+# the distribution integrity check. Hash only files present before GRUB adds
+# its generated boot images.
+(
+    cd "$stage/tree"
+    find . -type f ! -name md5sum.txt -print0 | sort -z | xargs -0 md5sum > md5sum.txt
+    md5sum -c md5sum.txt
+)
 grub-mkrescue -o "$stage/image.iso" "$stage/tree"
 # Publish only after a successful build and boot catalog inspection.
 xorriso -indev "$stage/image.iso" -report_el_torito plain > "$stage/boot-catalog.txt" 2>&1
