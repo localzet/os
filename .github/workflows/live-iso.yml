@@ -47,5 +47,6 @@ jobs:
             dist/localzet-dev.iso
             dist/localzet-dev.iso.sha256
             dist/*.log
+            dist/*.ppm
           if-no-files-found: warn
           retention-days: 3
