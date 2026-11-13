@@ -27,21 +27,32 @@ def readiness():
         return "os-identity-mismatch"
     if run("systemctl", "is-active", "display-manager.service") != "active":
         return "display-manager-inactive"
+    observations = []
+    shell_running = bool(run("pgrep", "-u", "localzet", "-x", "gnome-shell"))
     for row in run("loginctl", "list-sessions", "--no-legend", "--no-pager").splitlines():
         session = row.split()[0] if row.split() else ""
         if not session:
             continue
         props = dict(line.split("=", 1) for line in run(
             "loginctl", "show-session", session, "-p", "Name", "-p", "Active",
-            "-p", "Type", "-p", "Class", "-p", "Remote", "-p", "Desktop"
+            "-p", "Type", "-p", "Class", "-p", "Remote", "-p", "Desktop",
+            "-p", "Seat", "-p", "State"
         ).splitlines() if "=" in line)
+        observations.append({key: props.get(key, "") for key in
+                             ("Name", "Type", "Class", "Seat", "Active", "Desktop", "State", "Remote")})
+        # GNOME Shell is the actual compositor. Desktop is informational:
+        # logind may leave Desktop blank or report a distribution-specific name.
         if (props.get("Name") == "localzet" and props.get("Active") == "yes"
                 and props.get("Type") == "wayland" and props.get("Class") == "user"
-                and props.get("Remote") == "no"
-                and props.get("Desktop", "").lower() in ("gnome", "ubuntu", "localzet")
-                and run("pgrep", "-u", "localzet", "-x", "gnome-shell")):
+                and props.get("Remote") == "no" and props.get("Seat") == "seat0"
+                and shell_running):
             return None
-    return "active-gnome-wayland-session-not-found"
+    import json
+    return "active-gnome-wayland-session-not-found " + json.dumps(
+        {"sessions": observations, "gnome_shell": shell_running},
+        ensure_ascii=True, sort_keys=True, separators=(",", ":")
+    )
+
 
 
 def serial_write(message: bytes) -> bool:
@@ -67,6 +78,9 @@ def main():
             serial_write(f"LOCALZET_LIVE_WAIT {reason}\n".encode())
             previous = reason
         time.sleep(2)
+    for unit in ("gdm.service", "systemd-logind.service"):
+        output = run("journalctl", "-b", "-u", unit, "-n", "40", "--no-pager", "-o", "short-monotonic")
+        serial_write((f"LOCALZET_LIVE_JOURNAL {unit}\n" + output + "\n").encode())
     serial_write(f"LOCALZET_LIVE_TIMEOUT {previous}\n".encode())
     return 1
 
