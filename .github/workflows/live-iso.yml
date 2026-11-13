@@ -1,6 +1,17 @@
 name: Experimental Live ISO
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/live-iso.yml'
+      - 'scripts/build-live-rootfs.sh'
+      - 'scripts/assemble-live-iso.sh'
+      - 'scripts/build-desktop-deb.sh'
+      - 'scripts/qemu-iso-smoke.py'
+      - 'packaging/live/**'
+concurrency:
+  group: live-iso-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
