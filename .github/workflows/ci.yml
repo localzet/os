@@ -26,4 +26,6 @@ jobs:
           python3 -m py_compile scripts/qemu-iso-smoke.py packaging/live/localzet-live-ready.py
       - name: Check Live build scripts
         run: |
-          bash -n scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh
+          for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh; do
+            bash -n "$script"
+          done
