@@ -33,12 +33,30 @@ jobs:
           (cd dist && sha256sum -c localzet-dev.iso.sha256)
       - name: BIOS smoke
         run: python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
+      - name: Publish BIOS diagnostic log
+        if: always()
+        run: |
+          if test -f dist/bios.log; then tail -n 200 dist/bios.log; fi
       - name: UEFI smoke
         if: success() || failure()
         run: |
           test -f dist/localzet-dev.iso
           python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware uefi --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 480 --marker LOCALZET_LIVE_READY --log dist/uefi.log
-      - name: Upload development artifact and logs
+      - name: Publish UEFI diagnostic log
+        if: always()
+        run: |
+          if test -f dist/uefi.log; then tail -n 200 dist/uefi.log; fi
+      - name: Upload diagnostic logs first
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-live-diagnostics
+          path: |
+            dist/*.log
+            dist/*.ppm
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload development ISO
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -46,7 +64,5 @@ jobs:
           path: |
             dist/localzet-dev.iso
             dist/localzet-dev.iso.sha256
-            dist/*.log
-            dist/*.ppm
           if-no-files-found: warn
           retention-days: 3
