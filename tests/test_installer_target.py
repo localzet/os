@@ -1,6 +1,6 @@
 """Dedicated SSD identity and non-target preservation planning."""
 import unittest
-from localzet.installer.target import TargetSelectionError, identity, read_only_target_plan
+from localzet.installer.target import TargetSelectionError, identity, read_only_target_plan, revalidate_target
 
 
 def disk(path, serial, **kwargs):
@@ -80,3 +80,37 @@ class SSDIdentityTests(unittest.TestCase):
     def test_invalid_payload(self):
         with self.assertRaises(TargetSelectionError):
             read_only_target_plan({}, "serial:NEW-SSD")
+
+
+    def test_revalidation_allows_renamed_target(self):
+        original = read_only_target_plan(self.payload, "serial:NEW-SSD")
+        self.payload["blockdevices"][1]["path"] = "/dev/nvme7n1"
+        result = revalidate_target(self.payload, original)
+        self.assertEqual(result["current_device_path_unstable"], "/dev/nvme7n1")
+        self.assertFalse(result["write_operations_available"])
+
+    def test_revalidation_rejects_partition_change(self):
+        original = read_only_target_plan(self.payload, "serial:NEW-SSD")
+        self.payload["blockdevices"][1]["children"] = [
+            {"type": "part", "name": "nvme1n1p1", "size": 1024**3,
+             "fstype": "ext4", "uuid": "new", "start": 2048, "ro": False},
+        ]
+        with self.assertRaisesRegex(TargetSelectionError, "layout_fingerprint"):
+            revalidate_target(self.payload, original)
+
+    def test_revalidation_rejects_hardware_change(self):
+        original = read_only_target_plan(self.payload, "serial:NEW-SSD")
+        self.payload["blockdevices"][1]["size"] += 1024**3
+        with self.assertRaisesRegex(TargetSelectionError, "hardware_fingerprint"):
+            revalidate_target(self.payload, original)
+
+    def test_revalidation_rejects_old_plan_without_layout(self):
+        original = read_only_target_plan(self.payload, "serial:NEW-SSD")
+        del original["layout_fingerprint"]
+        with self.assertRaises(TargetSelectionError):
+            revalidate_target(self.payload, original)
+
+    def test_nonremovable_usb_ssd_is_rejected(self):
+        self.payload["blockdevices"][1]["tran"] = "usb"
+        with self.assertRaises(TargetSelectionError):
+            read_only_target_plan(self.payload, "serial:NEW-SSD")
