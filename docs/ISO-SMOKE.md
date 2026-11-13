@@ -27,3 +27,12 @@ Use a disposable output directory. The log is overwritten on each run. An exit c
 - Run both firmware modes against that exact artifact.
 - Separately exercise installation into disposable virtual disks, reboot from the installed disk, and run the post-install audit.
 - Test graphics and physical hardware before claiming installation readiness.
+
+## Desktop package stage
+
+Run `make desktop-deb` to package the source tree into a rootless build of
+`localzet-desktop_0.1.0~dev1_all.deb`. Inspect with `dpkg-deb --info` and
+`dpkg-deb --contents`. Install only into a disposable Ubuntu 26.04 image.
+It includes the extension, Settings, module manifests and wallpaper, but does
+not enable the extension, configure GDM, build a Live root or install a bootloader.
+Keep the Live readiness service separate from the persistent desktop package.
