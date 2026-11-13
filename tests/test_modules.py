@@ -13,7 +13,7 @@ MODULES = Path(__file__).resolve().parents[1] / "config" / "modules"
 class ModuleTests(unittest.TestCase):
     def test_all_manifests_load(self):
         catalog = load_catalog(MODULES)
-        self.assertEqual(len(catalog), 7)
+        self.assertEqual(len(catalog), 8)
         self.assertEqual(catalog['phone'].status, 'prototype')
         self.assertEqual(catalog['phone'].packages, ('nectarlink',))
         self.assertEqual(catalog["usernet"].status, "planned")
