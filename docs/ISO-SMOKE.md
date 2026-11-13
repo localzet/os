@@ -1,0 +1,29 @@
+# ISO boot smoke testing
+
+The harness tests a supplied x86-64 ISO, not a source checkout. It uses QEMU TCG, no network, no host disk passthrough, and a temporary copy of UEFI NVRAM. It fails if the guest does not emit the exact expected serial line before the timeout.
+
+## Guest contract
+
+A future Live image must enable serial output on ttyS0 and emit a unique line such as LOCALZET_LIVE_READY only after its boot readiness checks pass. Do not emit this line from the bootloader or unconditionally at service startup. At minimum, check the expected OS identity, Live root filesystem and graphical session readiness. The marker producer is not implemented by this harness.
+
+## Run
+
+On a Linux host with qemu-system-x86 and ovmf installed, use the matching OVMF CODE and VARS pair from your distribution (paths below are examples).
+
+```sh
+python3 scripts/qemu-iso-smoke.py dist/localzet.iso \
+  --firmware bios --marker LOCALZET_LIVE_READY --log dist/bios.log
+python3 scripts/qemu-iso-smoke.py dist/localzet.iso \
+  --firmware uefi --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd \
+  --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+  --marker LOCALZET_LIVE_READY --log dist/uefi.log
+```
+
+Use a disposable output directory. The log is overwritten on each run. An exit code of 0 means the marker was observed, not that installation, Secure Boot, networking, graphics performance or hardware compatibility were tested. A timeout or early QEMU exit without the marker fails the test. CI should publish both logs even on failure.
+
+## Remaining release gates
+
+- Implement a verified ISO build and the guest marker producer.
+- Run both firmware modes against that exact artifact.
+- Separately exercise installation into disposable virtual disks, reboot from the installed disk, and run the post-install audit.
+- Test graphics and physical hardware before claiming installation readiness.
