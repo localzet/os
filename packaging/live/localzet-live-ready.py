@@ -17,16 +17,16 @@ def run(*args):
         return ""
 
 
-def ready():
+def readiness():
     if "boot=casper" not in Path("/proc/cmdline").read_text().split():
-        return False
+        return "not-casper"
     if run("findmnt", "-n", "-o", "FSTYPE", "/") != "overlay":
-        return False
+        return "root-not-overlay"
     identity = Path("/etc/os-release").read_text().splitlines()
     if not any(line in ("ID=localzet", 'ID="localzet"') for line in identity):
-        return False
+        return "os-identity-mismatch"
     if run("systemctl", "is-active", "display-manager.service") != "active":
-        return False
+        return "display-manager-inactive"
     for row in run("loginctl", "list-sessions", "--no-legend", "--no-pager").splitlines():
         session = row.split()[0] if row.split() else ""
         if not session:
@@ -40,22 +40,34 @@ def ready():
                 and props.get("Remote") == "no"
                 and props.get("Desktop", "").lower() in ("gnome", "ubuntu", "localzet")
                 and run("pgrep", "-u", "localzet", "-x", "gnome-shell")):
-            return True
-    return False
+            return None
+    return "active-gnome-wayland-session-not-found"
+
+
+def serial_write(message: bytes) -> bool:
+    try:
+        fd = os.open("/dev/ttyS0", os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK)
+        try:
+            return os.write(fd, message) == len(message)
+        finally:
+            os.close(fd)
+    except OSError:
+        return False
 
 
 def main():
     deadline = time.monotonic() + 240
+    previous = None
     while time.monotonic() < deadline:
-        if ready():
-            fd = os.open("/dev/ttyS0", os.O_WRONLY | os.O_NOCTTY | os.O_NONBLOCK)
-            try:
-                if os.write(fd, MARKER) != len(MARKER):
-                    return 1
-            finally:
-                os.close(fd)
-            return 0
+        reason = readiness()
+        if reason is None:
+            return 0 if serial_write(MARKER) else 1
+        if reason != previous:
+            print(f"Live readiness: {reason}", flush=True)
+            serial_write(f"LOCALZET_LIVE_WAIT {reason}\n".encode())
+            previous = reason
         time.sleep(2)
+    serial_write(f"LOCALZET_LIVE_TIMEOUT {previous}\n".encode())
     return 1
 
 
