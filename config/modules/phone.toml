@@ -1,0 +1,6 @@
+id = "phone"
+title = "Связь с телефоном"
+description = "Localzet Connect — Android integration via NectarLink (review required)"
+status = "prototype"
+packages = ["nectarlink"]
+depends_on = []

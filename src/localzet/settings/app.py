@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import os
 from localzet.settings.core import load_modules, status_label, system_info
 
 
@@ -64,7 +65,14 @@ def main() -> int:
             apps = Adw.PreferencesGroup(title="Приложения")
             apps.add(self._row("Файлы", "Папки и накопители", ["nautilus"]))
             apps.add(self._row("Терминал", "Командная строка", ["ptyxis"]))
+            phone = Adw.PreferencesGroup(title="Localzet Connect")
+            client = Path("/usr/bin/nectarlink-desktop")
+            if client.is_file() and os.access(client, os.X_OK):
+                phone.add(self._row("Связь с телефоном", "Android · NectarLink", ["/usr/bin/nectarlink-desktop"]))
+            else:
+                phone.add(self._row("Связь с телефоном", "NectarLink не установлен"))
             page.add(apps)
+            page.add(phone)
             return page
 
         def _modules_page(self):

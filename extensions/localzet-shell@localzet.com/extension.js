@@ -80,12 +80,17 @@ export default class LocalzetShell extends Extension {
         this._addAction('Настройки', 'preferences-system-symbolic',
             () => this._launch(['gnome-control-center']));
 
+        this._phoneAction = this._addAction('Связь с телефоном', 'phone-symbolic',
+            () => Shell.AppSystem.get_default().lookup_app('nectarlink.desktop')?.activate());
+        this._phoneAction.visible = !!Shell.AppSystem.get_default().lookup_app('nectarlink.desktop');
+
         this._search.clutter_text.connect('notify::text', () => {
             this._updateApps(this._search.get_text());
         });
         this._indicator.menu.connect('open-state-changed', (_menu, open) => {
             if (!open)
                 return;
+            this._phoneAction.visible = !!Shell.AppSystem.get_default().lookup_app('nectarlink.desktop');
             this._search.set_text('');
             this._updateApps('');
             global.stage.set_key_focus(this._search.clutter_text);
@@ -156,6 +161,7 @@ export default class LocalzetShell extends Extension {
             }
         });
         this._indicator.menu.addMenuItem(item);
+        return item;
     }
 
     _launch(argv) {
@@ -170,5 +176,6 @@ export default class LocalzetShell extends Extension {
         this._indicator = null;
         this._appsSection = null;
         this._search = null;
+        this._phoneAction = null;
     }
 }

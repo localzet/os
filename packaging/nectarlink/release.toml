@@ -1,0 +1,10 @@
+version = "0.1.5"
+architecture = "amd64"
+package = "nectarlink"
+desktop_id = "nectarlink.desktop"
+source = "https://github.com/thtbee/nectarlink/tree/v0.1.5"
+deb_url = "https://github.com/thtbee/nectarlink/releases/download/v0.1.5/nectarlink_0.1.5_amd64.deb"
+deb_sha256 = "c516907e76e61fa5ad18048e93836a289974a46e7f2a8ff6fade79234ea9be6d"
+android_url = "https://github.com/thtbee/nectarlink/releases/download/v0.1.5/Nectarlink-0.1.5-android.apk"
+android_sha256 = "df48e7fe059569fcfd2a38799b828fa4005af2e53b7c1c76fa81d077922df4b6"
+redistribution_reviewed = false
