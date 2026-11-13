@@ -16,3 +16,12 @@ Release blockers:
 8. Test errors, interruptions, UEFI/BIOS, Secure Boot policies and updates.
 
 No installable ISO is ready until all tests are implemented and passed.
+
+## Module inventory check
+
+The Calamares staging contract workflow downloads the signed-archive Ubuntu
+package, extracts it without installing or running the installer, and checks
+every referenced show/exec module against the packaged module descriptors.
+Missing modules fail the check and the inventory is uploaded for review.
+This checks module presence only, not configuration schemas, execution order,
+partition safety or installability.
