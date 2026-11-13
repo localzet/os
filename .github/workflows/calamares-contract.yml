@@ -17,6 +17,7 @@ jobs:
       - name: Download signed-archive package without installing
         run: |
           sudo apt-get update
+          sudo apt-get install -y python3-yaml
           mkdir -p out/calamares
           cd out/calamares
           apt-get download calamares
