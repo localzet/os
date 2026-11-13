@@ -1,0 +1,18 @@
+[Unit]
+Description=Localzet Live graphical readiness probe
+After=display-manager.service
+ConditionKernelCommandLine=boot=casper
+ConditionPathExists=/dev/ttyS0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/localzet/localzet-live-ready.py
+TimeoutStartSec=270
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX
+
+[Install]
+WantedBy=graphical.target

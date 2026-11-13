@@ -99,6 +99,17 @@ class AuditTests(unittest.TestCase):
         (self.root / "home/localzet").mkdir(parents=True)
         self.assertFalse(self.check()["safe_to_release"])
 
+    def test_live_readiness_artifacts_blocked(self):
+        for relative in (
+            "usr/lib/localzet/localzet-live-ready.py",
+            "usr/lib/systemd/system/localzet-live-ready.service",
+            "etc/systemd/system/graphical.target.wants/localzet-live-ready.service",
+        ):
+            with self.subTest(relative=relative):
+                self.write(relative, "live-only\n")
+                self.assertFalse(self.check()["safe_to_release"])
+                (self.root / relative).unlink()
+
     def test_missing_shadow_rejected(self):
         (self.root / "etc/shadow").unlink()
         self.assertFalse(self.check()["safe_to_release"])
