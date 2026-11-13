@@ -26,9 +26,17 @@ jobs:
           export PYTHONPATH="$PWD/src"
           export XDG_DATA_HOME="$RUNNER_TEMP/localzet-runtime"
           export WINEDLLOVERRIDES="mscoree,mshtml="
-          set +e
-          timeout 180 xvfb-run -a python3 -m localzet.windows_runtime out/runtime/smoke.exe --profile smoke --run
-          result=$?
-          set -e
-          test "$result" -eq 42
-          test -f "$XDG_DATA_HOME/localzet/windows/prefixes/smoke/system.reg"
+          export WINEPREFIX="$XDG_DATA_HOME/localzet/windows/prefixes/smoke"
+          mkdir -p "$WINEPREFIX"
+          timeout 240 xvfb-run -a bash -euo pipefail -c '
+            wineboot --init
+            wineserver -w
+            set +e
+            python3 -m localzet.windows_runtime out/runtime/smoke.exe --profile smoke --run
+            result=$?
+            set -e
+            echo "Windows fixture exit code: $result"
+            wineserver -w
+            test "$result" -eq 42
+            test -s "$WINEPREFIX/system.reg"
+          '
