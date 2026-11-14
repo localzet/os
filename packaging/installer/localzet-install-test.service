@@ -3,7 +3,7 @@ Description=Localzet disposable QEMU installation test
 After=local-fs.target
 ConditionKernelCommandLine=boot=casper
 ConditionKernelCommandLine=localzet.install-test=1
-ConditionVirtualization=kvm
+ConditionVirtualization=vm
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/unshare --mount --propagation private /bin/bash /usr/lib/localzet/vm-install-test.sh
