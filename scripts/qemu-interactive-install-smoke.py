@@ -205,10 +205,26 @@ pgrep -u localzet-test -f /usr/bin/localzet-connect >/dev/null
 [[ -x /usr/lib/localzet/install-nectarlink ]]
 [[ -x /usr/bin/wine ]]
 [[ -f /usr/share/polkit-1/actions/org.localzet.install-nectarlink.policy ]]
-session="$(loginctl list-sessions --no-legend | awk '$3=="localzet-test" && $4=="seat0" {print $1; exit}')"
+# The validation console is a separate authenticated TTY. Find the actual
+# Wayland session, return to its VT, then require it to be active.
+session=""
+while read -r candidate _; do
+    if [[ "$(loginctl show-session "$candidate" -p Name --value)" == localzet-test &&
+          "$(loginctl show-session "$candidate" -p Seat --value)" == seat0 &&
+          "$(loginctl show-session "$candidate" -p Type --value)" == wayland ]]; then
+        session="$candidate"
+        break
+    fi
+done < <(loginctl list-sessions --no-legend)
 [[ -n "$session" ]]
+vt="$(loginctl show-session "$session" -p VTNr --value)"
+[[ "$vt" =~ ^[1-9][0-9]*$ ]]
+chvt "$vt"
+for attempt in $(seq 1 20); do
+    [[ "$(loginctl show-session "$session" -p Active --value)" == yes ]] && break
+    sleep 1
+done
 [[ "$(loginctl show-session "$session" -p Active --value)" == yes ]]
-[[ "$(loginctl show-session "$session" -p Type --value)" == wayland ]]
 uid="$(id -u localzet-test)"
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -224,20 +240,41 @@ cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
-trap 'printf "\nLOCALZET_CANDIDATE_FAILED\n" | sudo -n tee /dev/ttyS0 >/dev/null' ERR
 data="$(mktemp -d)"
 trap 'rm -rf -- "$data"' EXIT
 export XDG_DATA_HOME="$data" WINEDLLOVERRIDES="mscoree,mshtml=" WINEDEBUG=-all
+export WINEPREFIX="$data/localzet/windows/prefixes/ci-smoke"
+mkdir -p "$WINEPREFIX"
+wineboot --init
+server="$(command -v wineserver || true)"
+if [[ -z "$server" ]]; then
+    while IFS= read -r path; do
+        case "$path" in
+            */wineserver|*/wineserver64)
+                if [[ -x "$path" && -f "$path" ]]; then server="$path"; break; fi ;;
+        esac
+    done < <(dpkg -L wine64 libwine wine-common)
+fi
+[[ -x "$server" ]]
+export WINESERVER="$server"
+"$WINESERVER" -w
 set +e
 timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/smoke.exe --profile ci-smoke --run
 status=$?
 set -e
-printf 'Installed Wine fixture exit code: %s\n' "$status" | sudo -n tee /dev/ttyS0 >/dev/null
+printf 'Installed Wine fixture exit code: %s\n' "$status"
+"$WINESERVER" -w
 test "$status" -eq 42
-printf '\nLOCALZET_CANDIDATE_WINE_READY\n' | sudo -n tee /dev/ttyS0 >/dev/null
+test -s "$WINEPREFIX/system.reg"
 USERTEST
 chmod 0755 /run/localzet-candidate-check/run-wine.sh
 printf '\nLOCALZET_CANDIDATE_DESKTOP\n'
+# Use the GNOME user's systemd manager, which inherits the real graphical
+# environment. The fixture remains unprivileged, with no console focus needed.
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /usr/bin/timeout 300 /bin/bash /run/localzet-candidate-check/run-wine.sh
+printf '\nLOCALZET_CANDIDATE_WINE_READY\n'
 """
 
 
@@ -294,31 +331,30 @@ def main():
             installed.launch("localzet-settings")
             installed.launch("localzet-windows")
             installed.launch("localzet-connect")
-            installed.launch("ptyxis")
-            time.sleep(30)
-            installed.capture("terminal-before")
-            # The overview contains four windows; select the terminal thumbnail
-            # in its lower-left quadrant, not the empty workspace center.
-            installed.click(11700, 22500)
-            time.sleep(3)
-            installed.capture("terminal-focused")
-            # Authenticate at the sudo password prompt (no echoed password).
-            installed.text("sudo -k; sudo -v")
+            # Use a real text login instead of typing commands into the GNOME
+            # overview. No autologin, no injected root service, no password in argv.
+            installed.capture("desktop-before-console")
+            installed.key("ctrl-alt-f3")
+            time.sleep(8)
+            installed.capture("tty-login")
+            installed.text("localzet-test")
             installed.key("ret")
-            time.sleep(5)
-            installed.capture("sudo-prompt")
+            time.sleep(3)
             installed.text(password)
             installed.key("ret")
             time.sleep(5)
-            installed.capture("sudo-authenticated")
+            installed.capture("tty-authenticated")
+            installed.text("sudo -k; sudo -v")
+            installed.key("ret")
+            time.sleep(3)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(3)
             installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n bash /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw")
             installed.key("ret")
-            time.sleep(5)
-            installed.capture("audit-command")
             installed.wait(READY, 180)
-            installed.text("bash /run/localzet-candidate-check/run-wine.sh")
-            installed.key("ret")
-            installed.wait(WINE_READY, 300)
+            installed.capture("desktop-verified")
+            installed.wait(WINE_READY, 360)
         finally:
             installed.close()
     return 0
