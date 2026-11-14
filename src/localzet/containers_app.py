@@ -432,7 +432,7 @@ def main() -> int:
             toolbar.add_top_bar(header)
             box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
                           margin_top=12, margin_bottom=12, margin_start=12, margin_end=12)
-            box.append(Gtk.Label(label="JSON-подмножество YAML · services → image (полный локальный SHA-256 ID). Только проверка, без запуска.",
+            box.append(Gtk.Label(label="JSON-подмножество YAML · services → image (полный локальный SHA-256 ID). Проверка и управление собственными проектами.",
                                  wrap=True, xalign=0))
             editor = Gtk.TextView(monospace=True, wrap_mode=Gtk.WrapMode.NONE)
             editor.get_buffer().set_text('{\n  "services": {\n    "app": {\n      "image": "sha256:..."\n    }\n  }\n}')
@@ -451,9 +451,69 @@ def main() -> int:
             header.pack_end(validate)
             toolbar.set_content(box)
             dialog.set_child(toolbar)
-            state = {"closed": False, "revision": 0}
+            state = {"closed": False, "revision": 0, "validated": None}
+            actions = Gtk.Box(spacing=6)
+            buttons = []
+            for action, caption in (("up", "Развернуть"), ("start", "Старт"), ("stop", "Стоп"),
+                                    ("restart", "Рестарт"), ("down", "Down")):
+                button = Gtk.Button(label=caption, sensitive=False)
+                button.connect("clicked", lambda _, action=action: confirm(action))
+                actions.append(button)
+                buttons.append(button)
+            box.append(actions)
+            def enable(value):
+                for button in buttons:
+                    button.set_sensitive(value)
+            def confirm(action):
+                source = state["validated"]
+                if source is None or self.busy or state["closed"]:
+                    return
+                revision = state["revision"]
+                prompt = Adw.AlertDialog(heading="Выполнить Compose " + action + "?",
+                    body="Только проект с отпечатком этой конфигурации. Down удаляет контейнеры и их записываемые слои; тома не удаляются.")
+                prompt.add_response("cancel", "Отмена")
+                prompt.add_response("confirm", "Выполнить")
+                prompt.set_default_response("cancel")
+                prompt.set_close_response("cancel")
+                if action == "down":
+                    prompt.set_response_appearance("confirm", Adw.ResponseAppearance.DESTRUCTIVE)
+                def response(_, choice):
+                    if choice != "confirm" or self.busy or state["closed"] or revision != state["revision"]:
+                        return
+                    self.busy = True
+                    self.generation += 1
+                    generation = self.generation
+                    rootful = self.rootful
+                    self.update_actions()
+                    enable(False)
+                    validate.set_sensitive(False)
+                    editor.set_editable(False)
+                    status.set_label("Выполнение Compose " + action + "…")
+                    future = self.pool.submit(lambda: Engine(rootful=rootful).managed_compose(source, action))
+                    def complete():
+                        if generation != self.generation or not self.window:
+                            return GLib.SOURCE_REMOVE
+                        self.busy = False
+                        self.update_actions()
+                        if not state["closed"]:
+                            enable(True)
+                            validate.set_sensitive(True)
+                            editor.set_editable(True)
+                            try:
+                                project = future.result()
+                                status.set_label(f"Compose {action}: {project}")
+                            except (EngineError, OSError, ValueError) as error:
+                                status.set_label(str(error))
+                            except Exception:
+                                status.set_label("Операция не подтверждена.")
+                        return GLib.SOURCE_REMOVE
+                    future.add_done_callback(lambda _: GLib.idle_add(complete))
+                prompt.connect("response", response)
+                prompt.present(dialog)
             def changed(*_):
                 state["revision"] += 1
+                state["validated"] = None
+                enable(False)
                 preview.get_buffer().set_text("")
                 status.set_label("Конфигурация изменена; требуется повторная проверка.")
             editor.get_buffer().connect("changed", changed)
@@ -473,6 +533,8 @@ def main() -> int:
                 self.update_actions()
                 validate.set_sensitive(False)
                 editor.set_editable(False)
+                state["validated"] = None
+                enable(False)
                 status.set_label("Проверка Docker Compose…")
                 preview.get_buffer().set_text("")
                 future = self.pool.submit(lambda: Engine(rootful=rootful).validate_compose(source))
@@ -489,6 +551,8 @@ def main() -> int:
                         return GLib.SOURCE_REMOVE
                     try:
                         preview.get_buffer().set_text(future.result())
+                        state["validated"] = source
+                        enable(True)
                         status.set_label("Конфигурация принята Docker Compose. Ничего не запущено.")
                     except (EngineError, OSError, ValueError) as error:
                         status.set_label(str(error))
