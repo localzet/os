@@ -81,14 +81,14 @@ print("PASS: real Compose project inventory")
 PY
 
 # Real resource inventory; create only isolated, uniquely named fixtures.
-docker_local volume create "$name" >/dev/null
-docker_local network create --internal "$name" >/dev/null
 python3 - "$name" "$image" "$out" <<'PY'
 import json, sys
 from pathlib import Path
 from localzet.containers import Engine
 name, image, out = sys.argv[1:]
 engine = Engine(rootful=True)
+assert any(row["Name"] == name for row in engine.create_resource("volumes", name))
+assert any(row["Name"] == name for row in engine.create_resource("networks", name))
 for kind, predicate in (
     ("images", lambda row: row["Repository"] + ":" + row["Tag"] == image),
     ("volumes", lambda row: row["Name"] == name),
@@ -97,4 +97,24 @@ for kind, predicate in (
     row = next(row for row in engine.resources(kind) if predicate(row))
     (Path(out) / f"{kind}.json").write_text(json.dumps(row, indent=2))
     print("PASS: real", kind, "inventory")
+PY
+python3 - "$name" <<'PY'
+import sys
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+name = sys.argv[1]
+network = next(row for row in engine.resources("networks") if row["Name"] == name)
+assert not any(row["ID"] == network["ID"] for row in engine.remove_resource("networks", network["ID"]))
+print("PASS: real network removal")
+PY
+# Release only our fixture's image references before testing image removal.
+docker_local compose -p "$name" -f "$work/compose.yaml" down
+docker_local rm "$name"
+python3 - "$image" <<'PY'
+import sys
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == sys.argv[1])
+assert not any(row["ID"] == image["ID"] for row in engine.remove_resource("images", image["ID"]))
+print("PASS: real image removal")
 PY
