@@ -19,7 +19,7 @@ jobs:
       - name: Install native test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-adw-1 gir1.2-gtk-4.0 xvfb xauth dbus-x11 xdotool imagemagick
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-adw-1 gir1.2-gtk-4.0 gsettings-desktop-schemas dconf-gsettings-backend xvfb xauth dbus-x11 xdotool imagemagick
       - name: Open actual app without engine provisioning
         run: bash scripts/ci/containers-gtk-smoke.sh
       - uses: actions/upload-artifact@v4

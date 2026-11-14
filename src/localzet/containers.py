@@ -37,6 +37,32 @@ class Container:
     ports: str
 
 
+@dataclass(frozen=True)
+class Stack:
+    name: str
+    status: str
+    config_files: str
+
+
+def parse_stacks(output: str) -> tuple[Stack, ...]:
+    try:
+        data = json.loads(output)
+        if not isinstance(data, list):
+            raise ValueError("Expected project array")
+        rows = []
+        names = set()
+        for item in data:
+            values = [item[key] for key in ("Name", "Status", "ConfigFiles")]
+            if (not all(isinstance(value, str) for value in values)
+                    or not values[0] or values[0] in names):
+                raise ValueError("Invalid or duplicate Compose project")
+            names.add(values[0])
+            rows.append(Stack(*values))
+        return tuple(rows)
+    except (ValueError, TypeError, KeyError) as exc:
+        raise EngineError("Docker Compose returned an invalid project inventory") from exc
+
+
 def parse_inventory(output: str) -> tuple[Container, ...]:
     rows = []
     seen = set()
@@ -94,6 +120,11 @@ class Engine:
 
     def inventory(self) -> tuple[Container, ...]:
         return parse_inventory(self._run("container", "ls", "--all", "--no-trunc", "--format", "{{json .}}"))
+
+    def stacks(self) -> tuple[Stack, ...]:
+        # List only. Config paths are reported as metadata, never opened or
+        # passed back into Compose automatically; they can be untrusted labels.
+        return parse_stacks(self._run("compose", "ls", "--all", "--format", "json"))
 
     def _lookup(self, container_id: str) -> Container:
         if not isinstance(container_id, str) or not ID.fullmatch(container_id):
@@ -171,14 +202,15 @@ class Engine:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Localzet Containers local engine")
     parser.add_argument("--rootful", action="store_true", help="Explicitly use privileged system Docker socket")
-    parser.add_argument("action", choices=("list", "start", "stop", "restart"))
+    parser.add_argument("action", choices=("list", "stacks", "start", "stop", "restart"))
     parser.add_argument("container_id", nargs="?")
     args = parser.parse_args()
-    if (args.action == "list") != (args.container_id is None):
+    if (args.action in ("list", "stacks")) != (args.container_id is None):
         parser.error("Actions require exactly one full container ID")
     try:
         engine = Engine(rootful=args.rootful)
-        rows = engine.inventory() if args.action == "list" else engine.action(args.action, args.container_id)
+        rows = (engine.inventory() if args.action == "list" else engine.stacks() if args.action == "stacks"
+                else engine.action(args.action, args.container_id))
         print(json.dumps([asdict(row) for row in rows], ensure_ascii=False, indent=2))
     except EngineError as exc:
         parser.exit(2, f"{exc}\n")

@@ -1,7 +1,7 @@
 import json
 import unittest
 from unittest.mock import patch
-from localzet.containers import Engine, EngineError, parse_inventory
+from localzet.containers import Engine, EngineError, parse_inventory, parse_stacks
 
 CID = "a" * 64
 ROW = {"ID": CID, "Names": "fixture", "Image": "fixture:local", "State": "running",
@@ -65,3 +65,19 @@ class ContainersTests(unittest.TestCase):
             with self.assertRaises(EngineError):
                 engine.logs(CID)
             popen.assert_not_called()
+
+    def test_compose_inventory(self):
+        item = {"Name": "demo", "Status": "running(1)", "ConfigFiles": "/tmp/compose.yaml"}
+        self.assertEqual(parse_stacks(json.dumps([item]))[0].name, "demo")
+        self.assertEqual(parse_stacks("[]"), ())
+        for data in ({}, [item, item], [{**item, "Name": 3}], [{}]):
+            with self.assertRaises(EngineError):
+                parse_stacks(json.dumps(data))
+
+    def test_compose_list_never_opens_config_paths(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run", return_value=json.dumps([
+            {"Name": "demo", "Status": "exited(1)", "ConfigFiles": "/untrusted/path"}])) as run:
+            self.assertEqual(engine.stacks()[0].config_files, "/untrusted/path")
+            run.assert_called_once_with("compose", "ls", "--all", "--format", "json")

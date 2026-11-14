@@ -11,6 +11,9 @@ image="$name:fixture"
 # Never honor a remote Docker context in this test.
 docker_local() { /usr/bin/docker --host unix:///var/run/docker.sock "$@"; }
 cleanup() {
+    if [[ -f "$work/compose.yaml" ]]; then
+        docker_local compose -p "$name" -f "$work/compose.yaml" down >/dev/null 2>&1 || true
+    fi
     docker_local rm -f "$name" >/dev/null 2>&1 || true
     docker_local image rm "$image" >/dev/null 2>&1 || true
     rm -rf -- "$work"
@@ -25,6 +28,7 @@ USER 65534:65534
 CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 600"]
 EOF
 docker_local build --network none -t "$image" "$work"
+docker_local compose version > "$out/compose-version.txt"
 cid="$(docker_local create --name "$name" --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image")"
 python3 - "$cid" "$out" <<'PY'
 import json, sys
@@ -50,4 +54,26 @@ assert "localzet-fixture-ready" in logs and not truncated
 print("PASS: original fixture log snapshot")
 verify(engine.action("restart", cid), "running", "restart")
 verify(engine.action("stop", cid), "exited", "stop")
+PY
+# Start an isolated Compose stack using only the locally built image.
+cat > "$work/compose.yaml" <<EOF
+services:
+  fixture:
+    image: $image
+    pull_policy: never
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+EOF
+docker_local compose -p "$name" -f "$work/compose.yaml" up -d --no-build --pull never
+python3 - "$name" "$out" <<'PY'
+import json, sys
+from dataclasses import asdict
+from pathlib import Path
+from localzet.containers import Engine
+stack = next(row for row in Engine(rootful=True).stacks() if row.name == sys.argv[1])
+assert "running" in stack.status, stack
+(Path(sys.argv[2]) / "compose.json").write_text(json.dumps(asdict(stack), indent=2))
+print("PASS: real Compose project inventory")
 PY

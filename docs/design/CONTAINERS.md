@@ -31,3 +31,10 @@ are a one-shot Docker stats snapshot, not live graphs. Logs are explicit
 snapshots (last 100 lines, 256 KiB maximum, 20 seconds), never cached or
 uploaded by the app. The CI uses only its own synthetic fixture message.
 Live streaming and Compose remain subsequent milestones.
+
+Stage 4: read-only Compose project inventory via the official Compose CLI.
+Test creates an isolated project with the locally built fixture image and
+checks real status; no registry pull or host mounts. Config paths returned
+by Docker are metadata only, not trusted paths to execute. Compose editing,
+validation and explicit start/stop/deploy with reviewed project files remain
+later milestones. This is not a complete Compose management interface.
