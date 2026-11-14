@@ -328,6 +328,15 @@ def read_build_tail(proc, timeout: int) -> str:
     return ("[Earlier output omitted]\n" if truncated else "") + tail.decode("utf-8", errors="replace")
 
 
+def registry_tag_key(reference: str) -> str:
+    # Docker CLI omits docker.io and library/ in the local image listing.
+    if reference.startswith("docker.io/"):
+        reference = reference[len("docker.io/"):]
+    if reference.startswith("library/"):
+        reference = reference[len("library/"):]
+    return reference
+
+
 def validate_registry_tag(reference: str, *, qualified: bool = False) -> None:
     pattern = r"(?:[a-z0-9][a-z0-9.-]*(?::[0-9]{1,5})?/)?(?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}"
     if not isinstance(reference, str) or len(reference) > 255 or not re.fullmatch(pattern, reference):
@@ -420,12 +429,12 @@ class Engine:
 
     def tag_image(self, image_id: str, reference: str) -> tuple[dict[str, str], ...]:
         validate_registry_tag(reference)
-        rows = self.resources("images")
         if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
             raise EngineError("Full local image ID required")
+        rows = self.resources("images")
         if not any(row["ID"] == image_id for row in rows):
             raise EngineError("Image no longer exists")
-        if any(row["Repository"] + ":" + row["Tag"] == reference for row in rows):
+        if any(registry_tag_key(row["Repository"] + ":" + row["Tag"]) == registry_tag_key(reference) for row in rows):
             raise EngineError("Destination tag already exists")
         self._run("image", "tag", image_id, reference)
         return self.resources("images")
@@ -437,7 +446,7 @@ class Engine:
         if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
             raise EngineError("Full local image ID required")
         rows = self.resources("images")
-        if not any(row["ID"] == image_id and row["Repository"] + ":" + row["Tag"] == reference for row in rows):
+        if not any(row["ID"] == image_id and registry_tag_key(row["Repository"] + ":" + row["Tag"]) == registry_tag_key(reference) for row in rows):
             raise EngineError("Selected image tag changed or no longer exists")
         self._run("image", "push", reference, timeout=600)
         return self.resources("images")
