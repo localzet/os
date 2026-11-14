@@ -400,17 +400,20 @@ class Engine:
                     "/dev/null", "-p", project, "-f", str(path))
             self._run(*args, "config", "--quiet")
             current = verify()
-            if action == "down":
-                # No Compose down: it may delete project-labelled networks. Stop
-                # and remove only the verified container IDs, never volumes.
+            if action != "up":
+                if not current:
+                    raise EngineError("Managed project disappeared; refresh")
+                # Target exact verified IDs; never expand to other project labels.
                 for cid in current:
-                    self._run("container", "stop", "--time", "10", cid)
-                    self._run("container", "rm", cid)
+                    if action == "down":
+                        self._run("container", "stop", "--time", "10", cid)
+                        self._run("container", "rm", cid)
+                    else:
+                        self._run("container", action, cid)
                 return project
-            commands = {"up": ("up", "-d", "--no-build", "--pull", "never", "--no-recreate"),
-                        "start": ("start",), "stop": ("stop",), "restart": ("restart",),
-                        }
-            self._run(*args, *commands[action], timeout=120)
+            if current:
+                raise EngineError("Project already exists; use Start or Down")
+            self._run(*args, "up", "-d", "--no-build", "--pull", "never", "--no-recreate", timeout=120)
         return project
 
     def _lookup(self, container_id: str) -> Container:
