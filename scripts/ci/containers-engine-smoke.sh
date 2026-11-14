@@ -45,10 +45,19 @@ assert set(json.loads(document)["services"]) == {"app", "worker"}
 assert engine.inventory() == before
 (Path(sys.argv[2]) / "compose-studio.json").write_text(document)
 print("PASS: real Compose config validation without deployment")
+from localzet.containers import StudioStore
+import tempfile
+with tempfile.TemporaryDirectory() as directory:
+    store = StudioStore(Path(directory) / "studio")
+    identity = store.save(source)
+    source = StudioStore(store.root).load(identity)
 project = engine.managed_compose(source, "up")
 try:
     assert any(row.name == project and "running" in row.status for row in engine.stacks())
+    assert len(engine.studio_status(source)) == 2
+    assert all(row.state == "running" for row in engine.studio_status(source))
     assert engine.managed_compose(source, "stop") == project
+    assert all(row.state == "exited" for row in engine.studio_status(source))
     assert engine.managed_compose(source, "start") == project
     assert engine.managed_compose(source, "restart") == project
 finally:
