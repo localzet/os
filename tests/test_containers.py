@@ -399,3 +399,34 @@ class ContainersTests(unittest.TestCase):
                     return popen.return_value
                 popen.side_effect = start
                 self.assertEqual(engine.build_image("fixture:dev", source, path), (row,))
+
+    def test_build_argument_flags(self):
+        from localzet.containers import build_argument_flags
+        self.assertEqual(build_argument_flags(("MODE=dev", "EMPTY=")),
+                         ("--build-arg", "MODE=dev", "--build-arg", "EMPTY="))
+        for values in (("MODE",), ("--help=x",), ("A=1", "A=2"), ("A=bad\nvalue",)):
+            with self.assertRaises(EngineError):
+                build_argument_flags(values)
+
+    def test_build_tail_is_bounded(self):
+        import subprocess
+        import sys
+        from localzet.containers import read_build_tail, LOG_LIMIT
+        with subprocess.Popen([sys.executable, "-c",
+                "import sys; sys.stdout.write('a' * 300000 + 'END')"],
+                stdout=subprocess.PIPE) as proc:
+            tail = read_build_tail(proc, 10)
+            self.assertEqual(proc.wait(timeout=5), 0)
+        self.assertTrue(tail.startswith("[Earlier output omitted]"))
+        self.assertTrue(tail.endswith("END"))
+        self.assertLessEqual(len(tail), LOG_LIMIT + 32)
+
+    def test_image_history_excludes_commands_and_comments(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        identity = "sha256:" + CID
+        raw = json.dumps({"ID": "<missing>", "CreatedSince": "1 hour ago", "Size": "0B",
+                          "CreatedBy": "secret command", "Comment": "secret"})
+        with patch.object(engine, "resources", return_value=({"ID": identity},)), patch.object(engine, "_run", return_value=raw) as run:
+            self.assertEqual(engine.image_history(identity), ({"ID": "<missing>", "CreatedSince": "1 hour ago", "Size": "0B"},))
+            run.assert_called_once_with("image", "history", "--no-trunc", "--format", "{{json .}}", identity)
