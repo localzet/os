@@ -6,12 +6,15 @@ pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
 window=""
 for attempt in $(seq 1 45); do
-    window="$(xdotool search --onlyvisible --name 'ONLYOFFICE|Desktop Editors' 2>/dev/null | head -n1 || true)"
+    window="$(xdotool search --onlyvisible --class '[Dd]esktop[Ee]ditors|[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]' 2>/dev/null | head -n1 || true)"
+    if [[ -z "$window" ]]; then
+        window="$(xdotool search --onlyvisible --name '[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]|Desktop Editors' 2>/dev/null | head -n1 || true)"
+    fi
     [[ -n "$window" ]] && break
     kill -0 "$pid" || { cat "$OUT/office.log"; exit 1; }
     sleep 1
 done
-test -n "$window" || { cat "$OUT/office.log"; exit 1; }
+test -n "$window" || { xwininfo -root -tree > "$OUT/xwindow-tree.txt"; import -window root "$OUT/office-root.png"; cat "$OUT/xwindow-tree.txt" "$OUT/office.log"; exit 1; }
 sleep 5
 xdotool getwindowname "$window" > "$OUT/window-title.txt"
 import -window "$window" "$OUT/office-window.png"
