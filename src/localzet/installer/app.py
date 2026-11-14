@@ -11,7 +11,16 @@ from localzet.installer.preflight import read_lsblk
 from localzet.installer.target import identity
 
 
-def main() -> int:
+def spawn_backend():
+    from gi.repository import Gio
+    return Gio.Subprocess.new(
+        ["/usr/bin/sudo", "-n", "/usr/lib/localzet/installer-backend"],
+        Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE |
+        Gio.SubprocessFlags.STDERR_MERGE,
+    )
+
+
+def create_application():
     import gi
     gi.require_version("Adw", "1")
     gi.require_version("Gtk", "4.0")
@@ -104,6 +113,8 @@ def main() -> int:
             self.window.present()
 
         def refresh(self, *_):
+            if self.running:
+                return
             self.plan = None
             self.confirm.set_text("")
             self.backup.set_active(False)
@@ -132,6 +143,7 @@ def main() -> int:
                 self.phrase.set_label(confirmation_for(self.plan))
                 self.status.set_label("Введите данные учётной записи и подтвердите целевой диск.")
             except Exception as error:
+                self.plan = None
                 self.disk_info.set_title("Установка недоступна")
                 self.disk_info.set_subtitle("")
                 self.phrase.set_label("")
@@ -164,8 +176,15 @@ def main() -> int:
                 self.install.set_sensitive(False)
 
         def start(self, *_):
+            if self.running:
+                return
             try:
                 data = self.request()
+            except ValueError as error:
+                self.status.set_label(str(error))
+                self.update()
+                return
+            try:
                 self.running = True
                 self.install.set_sensitive(False)
                 for widget in (self.refresh_button, self.username, self.password,
@@ -173,11 +192,7 @@ def main() -> int:
                     widget.set_sensitive(False)
                 self.spinner.start()
                 self.status.set_label("Идёт установка. Не выключайте компьютер и не отключайте SSD.")
-                process = Gio.Subprocess.new(
-                    ["/usr/bin/sudo", "-n", "/usr/lib/localzet/installer-backend"],
-                    Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE |
-                    Gio.SubprocessFlags.STDERR_MERGE,
-                )
+                process = spawn_backend()
                 payload = json.dumps(data, ensure_ascii=False)
                 process.communicate_utf8_async(payload, None, self.finished)
                 self.password.set_text("")
@@ -186,7 +201,23 @@ def main() -> int:
                 self.running = False
                 self.spinner.stop()
                 self.status.set_label(f"Не удалось запустить установку: {error}")
-                self.refresh_button.set_sensitive(True)
+                self.reset_review()
+
+        def reset_review(self):
+            # Require a fresh read-only review and clear consent on any
+            # backend attempt, including an exception during launch.
+            self.plan = None
+            self.confirm.set_text("")
+            self.backup.set_active(False)
+            self.password.set_text("")
+            self.repeat.set_text("")
+            self.phrase.set_label("")
+            self.disk_info.set_title("Требуется повторная проверка SSD")
+            self.disk_info.set_subtitle("")
+            self.refresh_button.set_sensitive(True)
+            for widget in (self.username, self.password, self.repeat, self.confirm, self.backup):
+                widget.set_sensitive(True)
+            self.update()
 
         def finished(self, process, result):
             self.running = False
@@ -203,13 +234,13 @@ def main() -> int:
                 self.status.set_label(f"Не удалось получить результат: {error}")
             # Require a new read-only review after any attempt. Never retry
             # automatically on a possibly partially written disk.
-            self.plan = None
-            self.refresh_button.set_sensitive(True)
-            for widget in (self.username, self.password, self.repeat, self.confirm, self.backup):
-                widget.set_sensitive(True)
-            self.update()
+            self.reset_review()
 
-    return Installer().run(sys.argv)
+    return Installer()
+
+
+def main() -> int:
+    return create_application().run(sys.argv)
 
 
 if __name__ == "__main__":
