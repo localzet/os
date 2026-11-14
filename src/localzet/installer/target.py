@@ -31,6 +31,7 @@ def _layout(device: dict[str, Any]) -> dict[str, Any]:
         "fstype": device.get("fstype"),
         "pttype": device.get("pttype"),
         "partuuid": device.get("partuuid"),
+        "parttype": device.get("parttype"),
         "uuid": device.get("uuid"),
         "start": device.get("start"),
         "ro": _flag(device.get("ro")),
