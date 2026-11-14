@@ -1,0 +1,43 @@
+name: Localzet Connect GTK4 smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/localzet/connect_app.py'
+      - 'apps/localzet-connect/**'
+      - 'packaging/com.localzet.Connect.desktop'
+      - 'scripts/ci/connect-gtk-smoke.sh'
+      - '.github/workflows/connect-gtk-smoke.yml'
+permissions:
+  contents: read
+concurrency:
+  group: gtk-connect-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  gtk-smoke:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native GTK/libadwaita dependencies
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+            python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 python3-pil \
+            xvfb xauth dbus-x11 xdotool imagemagick \
+            gnome-control-center nautilus ptyxis
+      - name: Start real Localzet Connect window and capture image
+        run: |
+          bash -n scripts/ci/connect-gtk-smoke.sh
+          bash -n packaging/nectarlink/install-nectarlink
+          python3 -c 'import xml.etree.ElementTree as E; E.parse("packaging/nectarlink/org.localzet.install-nectarlink.policy")'
+          xvfb-run -a -s "-screen 0 1280x800x24 -nolisten tcp" \
+            bash scripts/ci/connect-gtk-smoke.sh
+      - name: Upload screenshot and log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-connect-gtk-smoke
+          path: out/connect/
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,6 +1,6 @@
 # Development and installation
 
-This is a source bootstrap, **not** an ISO builder. No machine provisioning is performed by test commands.
+Source tests and development installs do not provision the host. The separate Live image builder is now implemented and verified in QEMU; see [ISO build and smoke tests](ISO-SMOKE.md).
 
 Test with Python >= 3.11:
 
@@ -17,7 +17,7 @@ bash scripts/install-shell-dev.sh
 # Log out and log back in; enable Localzet Shell in GNOME Extensions.
 ```
 
-The script refuses to overwrite an existing extension directory. GNOME may require a full logout/login for a new extension to be discovered. The extension adds one panel indicator and a menu action; it does not modify the GNOME overview, dock or notifications yet.
+The script refuses to overwrite an existing extension directory. GNOME may require a full logout/login for a new extension to be discovered. The extension provides the Aurora panel launcher and persistent dock.
 
 Disable it in GNOME Extensions, then remove the folder if no longer needed:
 
@@ -25,7 +25,7 @@ Disable it in GNOME Extensions, then remove the folder if no longer needed:
 rm -r -- "${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/localzet-shell@localzet.com"
 ```
 
-**No `sudo apt`, partitioning, GRUB, UEFI or networking modifications are made by the bootstrap.** The full Ubuntu ISO image-building pipeline needs dedicated VM tests and supply-chain review, and is intentionally not pretended to exist here.
+**No `sudo apt`, partitioning, GRUB, UEFI or networking modifications are made by the bootstrap.** The separate ISO builder requires a disposable build VM. It has passed BIOS/UEFI Live boot tests; the VM-only UEFI installation test is documented separately in [UEFI installation test](UEFI-INSTALL-TEST.md). This does not authorize physical disk installation.
 
 ## GNOME extension packaging
 
