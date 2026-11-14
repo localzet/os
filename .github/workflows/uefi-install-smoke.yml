@@ -1,0 +1,53 @@
+name: UEFI installation smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packaging/installer/**'
+      - 'scripts/qemu-install-smoke.py'
+      - '.github/workflows/uefi-install-smoke.yml'
+      - 'scripts/build-live-rootfs.sh'
+      - 'scripts/assemble-live-iso.sh'
+      - 'packaging/live/**'
+permissions:
+  contents: read
+concurrency:
+  group: install-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  install:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate scripts
+        run: |
+          make test
+          for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh packaging/installer/*.sh; do
+            bash -n "$script"
+          done
+          python3 -m py_compile scripts/qemu-install-smoke.py
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
+      - name: Build private test ISO
+        run: |
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALL_TEST=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/install-root"
+          sudo env LOCALZET_INSTALL_TEST=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/install-root" "$PWD/dist/install-test-only.iso"
+      - name: Install and reboot from dedicated virtual SSD
+        run: |
+          python3 scripts/qemu-install-smoke.py dist/install-test-only.iso \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --logs dist/install-logs
+      - name: Upload diagnostic logs (never test ISO or disks)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-install-test-logs
+          path: dist/install-logs/
+          if-no-files-found: warn
+          retention-days: 7

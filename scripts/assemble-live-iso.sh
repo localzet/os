@@ -54,7 +54,14 @@ mkdir -p "$stage/tree/casper" "$stage/tree/boot/grub" "$stage/tree/.disk"
 install -m 0644 "$kernel" "$stage/tree/casper/vmlinuz"
 install -m 0644 "$initrd" "$stage/tree/casper/initrd"
 install -m 0644 "$repo/packaging/live/grub.cfg" "$stage/tree/boot/grub/grub.cfg"
-printf 'Localzet OS development Live amd64\n' > "$stage/tree/.disk/info"
+if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then
+    [[ -f "$root/usr/lib/localzet/vm-install-test.sh" ]]
+    sed -i 's/boot=casper /boot=casper localzet.install-test=1 /g' "$stage/tree/boot/grub/grub.cfg"
+    printf 'Localzet OS VM installation test ONLY\n' > "$stage/tree/.disk/info"
+else
+    [[ ! -e "$root/usr/lib/localzet/vm-install-test.sh" ]]
+    printf 'Localzet OS development Live amd64\n' > "$stage/tree/.disk/info"
+fi
 dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Package} ${Version}\n' > "$stage/tree/casper/filesystem.manifest"
 mksquashfs "$root" "$stage/tree/casper/filesystem.squashfs" -noappend -comp zstd -one-file-system
 du -sb "$root" | cut -f1 > "$stage/tree/casper/filesystem.size"
