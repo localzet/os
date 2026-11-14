@@ -31,8 +31,9 @@ class ProfileTests(unittest.TestCase):
         standard = plan(self.data, "standard")
         self.assertFalse(minimal["browser_choice_pending"])
         self.assertTrue(standard["browser_choice_pending"])
-        self.assertIn("telegram-desktop", standard["ubuntu_package_candidates"])
-        self.assertNotIn("telegram-desktop", minimal["ubuntu_package_candidates"])
+        self.assertIn("telegram", standard["external_or_localzet_pending"])
+        self.assertNotIn("telegram", minimal["external_or_localzet_pending"])
+        self.assertNotIn("telegram-desktop", standard["ubuntu_package_candidates"])
 
     def test_optional_and_exclusive_browser(self):
         result = plan(self.data, "complete", browser="chrome", extras=["discord"])

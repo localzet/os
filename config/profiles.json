@@ -121,11 +121,9 @@
     },
     "telegram": {
       "title": "Telegram Desktop",
-      "source": "ubuntu",
-      "packages": [
-        "telegram-desktop"
-      ],
-      "url": "https://archive.ubuntu.com/ubuntu/",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://desktop.telegram.org/",
       "review": "pending"
     },
     "media": {

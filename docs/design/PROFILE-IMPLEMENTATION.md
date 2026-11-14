@@ -18,3 +18,10 @@ Gaming, Containers, Windows Runtime and UserNet still require their integration
 gates. Discord stays optional and proxy-only readiness is not claimed.
 Next: verified source-specific provisioning, installer selection UI, package
 size/license display, explicit consent and actual installed-profile QA.
+
+Ubuntu 26.04 archive check 43636150161 found no telegram-desktop candidate.
+Telegram remains mandatory in Standard and Complete; select the original
+Telegram Desktop distribution via https://desktop.telegram.org/ as an
+upstream source. Verify artifact identity, installation/update method and
+license before enabling provisioning. No third-party repack or unverified
+download is substituted for it.
