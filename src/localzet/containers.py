@@ -116,6 +116,70 @@ def parse_resources(kind: str, output: str) -> tuple[dict[str, str], ...]:
     return tuple(rows)
 
 
+@dataclass(frozen=True)
+class Deployment:
+    network: str = "none"
+    ports: tuple[str, ...] = ()
+    environment: tuple[str, ...] = ()
+    mounts: tuple[str, ...] = ()
+    memory_mib: int = 512
+    cpus: str = ""
+    restart: str = "no"
+
+
+def deployment_args(options: Deployment) -> tuple[str, ...]:
+    if not isinstance(options, Deployment):
+        raise EngineError("Invalid deployment profile")
+    if options.network not in ("none", "bridge") and not ID.fullmatch(options.network):
+        raise EngineError("Select none, bridge or a full local network ID")
+    if type(options.memory_mib) is not int or not 64 <= options.memory_mib <= 65536:
+        raise EngineError("Memory must be 64–65536 MiB")
+    if options.cpus and not re.fullmatch(r"(?:0\.[1-9]|[1-9][0-9]?(?:\.[0-9])?)", options.cpus):
+        raise EngineError("CPU limit must be 0.1–99.9")
+    if options.restart not in ("no", "on-failure", "unless-stopped", "always"):
+        raise EngineError("Invalid restart policy")
+    args = ["--network", options.network, "--read-only", "--cap-drop", "ALL",
+            "--security-opt", "no-new-privileges", "--user", "65534:65534",
+            "--pids-limit", "256", "--memory", f"{options.memory_mib}m"]
+    if options.cpus:
+        args += ["--cpus", options.cpus]
+    if options.restart != "no":
+        args += ["--restart", options.restart]
+    if len(options.ports) > 32 or len(options.environment) > 64 or len(options.mounts) > 16:
+        raise EngineError("Too many deployment parameters")
+    if options.ports and options.network == "none":
+        raise EngineError("Port mappings require a network")
+    bindings = set()
+    for value in options.ports:
+        match = re.fullmatch(r"([0-9]{1,5}):([0-9]{1,5})/(tcp|udp)", value)
+        if not match or not all(1 <= int(x) <= 65535 for x in match.groups()[:2]):
+            raise EngineError("Ports must be HOST:CONTAINER/tcp or /udp")
+        host, target, protocol = match.groups()
+        key = (int(host), protocol)
+        if key in bindings:
+            raise EngineError("Duplicate host port")
+        bindings.add(key)
+        args += ["--publish", f"127.0.0.1:{int(host)}:{int(target)}/{protocol}"]
+    keys = set()
+    for value in options.environment:
+        key, sep, data = value.partition("=")
+        if not sep or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) or key in keys or len(data) > 4096 or any(x in data for x in ("\x00", "\n", "\r")):
+            raise EngineError("Invalid or duplicate environment variable")
+        keys.add(key)
+        args += ["--env", value]
+    targets = set()
+    for value in options.mounts:
+        match = re.fullmatch(r"([a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}):(/data(?:/[a-zA-Z0-9_-]+)*):(ro|rw)", value)
+        if not match:
+            raise EngineError("Mount must be NAME:/data[/subdir]:ro or :rw")
+        name, target, mode = match.groups()
+        if any(target == old or target.startswith(old + "/") or old.startswith(target + "/") for old in targets):
+            raise EngineError("Overlapping mount targets")
+        targets.add(target)
+        args += ["--mount", f"type=volume,source={name},target={target},volume-nocopy" + (",readonly" if mode == "ro" else "")]
+    return tuple(args)
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -205,21 +269,33 @@ class Engine:
         self._run("image", "pull", reference, timeout=600)
         return self.resources("images")
 
-    def create_container(self, name: str, image_id: str) -> tuple[Container, ...]:
-        # Conservative first deployment profile: no host mounts, network,
-        # published ports, extra privileges or automatic start/pull.
+    def create_container(self, name: str, image_id: str, options: Deployment = Deployment()) -> tuple[Container, ...]:
         if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}", name):
             raise EngineError("Invalid container name (2–63 ASCII characters)")
         if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
             raise EngineError("Full local image ID required")
+        args = deployment_args(options)
         if not any(row["ID"] == image_id for row in self.resources("images")):
             raise EngineError("Image no longer exists")
         if any(row.name == name for row in self.inventory()):
             raise EngineError("Container already exists")
-        self._run("container", "create", "--name", name, "--pull", "never",
-                  "--network", "none", "--read-only", "--cap-drop", "ALL",
-                  "--security-opt", "no-new-privileges", "--user", "65534:65534",
-                  "--pids-limit", "256", "--memory", "512m", image_id)
+        if options.network not in ("none", "bridge"):
+            if not any(row["ID"] == options.network and row["Driver"] == "bridge" and row["Scope"] == "local" for row in self.resources("networks")):
+                raise EngineError("Select an existing local bridge network")
+        if options.mounts:
+            volumes = {row["Name"] for row in self.resources("volumes") if row["Driver"] == "local" and row["Scope"] == "local"}
+            for mount in options.mounts:
+                name_of_volume = mount.split(":", 1)[0]
+                if name_of_volume not in volumes:
+                    raise EngineError("Select an existing local volume")
+                # Local driver options can hide host bind mounts or remote storage.
+                raw = self._run("volume", "inspect", "--format", "{{json .Options}}", name_of_volume)
+                try:
+                    if json.loads(raw) not in (None, {}):
+                        raise ValueError("Non-default volume options")
+                except ValueError as exc:
+                    raise EngineError("Only default local volumes are supported") from exc
+        self._run("container", "create", "--name", name, "--pull", "never", *args, image_id)
         return self.inventory()
 
     def _lookup(self, container_id: str) -> Container:
