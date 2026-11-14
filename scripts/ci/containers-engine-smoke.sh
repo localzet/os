@@ -35,8 +35,14 @@ import sys
 from pathlib import Path
 from localzet.containers import Engine
 tag, context = sys.argv[1], Path(sys.argv[2])
-rows = Engine(rootful=True).build_image(tag, (context / "Dockerfile").read_text(), context)
-assert any(row["Repository"] + ":" + row["Tag"] == tag for row in rows)
+engine = Engine(rootful=True)
+diagnostics = []
+source = (context / "Dockerfile").read_text() + '\nARG LOCALZET_FIXTURE\nLABEL com.localzet.fixture="$LOCALZET_FIXTURE"\n'
+rows = engine.build_image(tag, source, context, build_args=("LOCALZET_FIXTURE=stage15",), output=diagnostics.append)
+row = next(row for row in rows if row["Repository"] + ":" + row["Tag"] == tag)
+assert diagnostics and diagnostics[0]
+assert engine.image_history(row["ID"])
+assert engine._run("image", "inspect", "--format", '{{index .Config.Labels "com.localzet.fixture"}}', row["ID"]).strip() == "stage15"
 print("PASS: real Image Builder using local scratch fixture")
 PY
 docker_local compose version > "$out/compose-version.txt"

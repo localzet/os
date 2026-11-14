@@ -294,6 +294,40 @@ def metric_sample(values: dict[str, str]) -> MetricSample:
     return MetricSample(cpu, memory)
 
 
+def build_argument_flags(values: tuple[str, ...]) -> tuple[str, ...]:
+    if len(values) > 32:
+        raise EngineError("Too many build arguments")
+    result = []
+    seen = set()
+    for value in values:
+        key, sep, data = value.partition("=")
+        if not sep or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) or key in seen or len(data) > 4096 or any(ch in data for ch in ("\x00", "\n", "\r")):
+            raise EngineError("Invalid or duplicate build argument")
+        seen.add(key)
+        result.extend(("--build-arg", value))
+    return tuple(result)
+
+
+def read_build_tail(proc, timeout: int) -> str:
+    deadline = time.monotonic() + timeout
+    tail = bytearray()
+    truncated = False
+    with selectors.DefaultSelector() as selector:
+        selector.register(proc.stdout, selectors.EVENT_READ)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not selector.select(remaining):
+                raise EngineError("Build output timed out; inspect Docker state")
+            chunk = os.read(proc.stdout.fileno(), 65536)
+            if not chunk:
+                break
+            tail.extend(chunk)
+            if len(tail) > LOG_LIMIT:
+                del tail[:-LOG_LIMIT]
+                truncated = True
+    return ("[Earlier output omitted]\n" if truncated else "") + tail.decode("utf-8", errors="replace")
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -383,7 +417,7 @@ class Engine:
         self._run("image", "pull", reference, timeout=600)
         return self.resources("images")
 
-    def build_image(self, tag: str, dockerfile: str, context: Path) -> tuple[dict[str, str], ...]:
+    def build_image(self, tag: str, dockerfile: str, context: Path, *, build_args: tuple[str, ...] = (), output=None) -> tuple[dict[str, str], ...]:
         # Trusted, explicitly selected context only. Pass the reviewed Dockerfile
         # via stdin, not a path that could change between review and execution.
         if not isinstance(tag, str) or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,62}:[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}", tag):
@@ -397,21 +431,25 @@ class Engine:
             raise EngineError("Select a specific project directory, not home or root")
         if any(row["Repository"] + ":" + row["Tag"] == tag for row in self.resources("images")):
             raise EngineError("Tag already exists; choose a new tag")
+        args = build_argument_flags(build_args)
         self._check()
         env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
         import tempfile
-        # Discard build diagnostics in this first implementation; Dockerfile
-        # output may contain sensitive material.
+        # Drain the pipe continuously, retaining only the last 256 KiB.
         with tempfile.TemporaryFile() as source:
             source.write(dockerfile.encode("utf-8"))
             source.seek(0)
             try:
                 with subprocess.Popen([str(DOCKER), "--host", f"unix://{self.socket}",
                         "build", "--network", "none", "--pull=false", "--progress", "plain",
-                        "--tag", tag, "--file", "-", str(context)], stdin=source,
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env) as proc:
+                        "--tag", tag, *args, "--file", "-", str(context)], stdin=source,
+                        stdout=subprocess.PIPE if output is not None else subprocess.DEVNULL,
+                        stderr=subprocess.STDOUT if output is not None else subprocess.DEVNULL, env=env) as proc:
                     try:
-                        if proc.wait(timeout=600):
+                        if output is not None:
+                            tail = read_build_tail(proc, 600)
+                            output(tail)
+                        if proc.wait(timeout=600 if output is None else 5):
                             raise EngineError("Image build failed; inspect Docker state")
                     finally:
                         if proc.poll() is None:
@@ -423,6 +461,24 @@ class Engine:
         if not any(row["Repository"] + ":" + row["Tag"] == tag for row in rows):
             raise EngineError("Build finished but target tag was not found")
         return rows
+
+    def image_history(self, image_id: str) -> tuple[dict[str, str], ...]:
+        if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+            raise EngineError("Full local image ID required")
+        if not any(row["ID"] == image_id for row in self.resources("images")):
+            raise EngineError("Image no longer exists")
+        raw = self._run("image", "history", "--no-trunc", "--format", "{{json .}}", image_id)
+        rows = []
+        try:
+            for line in raw.splitlines()[:256]:
+                item = json.loads(line)
+                row = {key: item[key] for key in ("ID", "CreatedSince", "Size")}
+                if not all(isinstance(value, str) for value in row.values()):
+                    raise ValueError("Invalid history")
+                rows.append(row)
+        except (ValueError, TypeError, KeyError) as exc:
+            raise EngineError("Invalid image history") from exc
+        return tuple(rows)
 
     def create_container(self, name: str, image_id: str, options: Deployment = Deployment()) -> tuple[Container, ...]:
         if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}", name):
