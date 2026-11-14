@@ -27,3 +27,17 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(root.attrib['viewBox'], '0 0 1920 1080')
         self.assertEqual(root.attrib['width'], '3840')
         self.assertEqual(root.attrib['height'], '2160')
+
+    def test_grub_branding(self):
+        theme = (ROOT / "packaging/grub/theme.txt").read_text()
+        self.assertIn('desktop-image: "background.png"', theme)
+        self.assertIn('file = "logo.png"', theme)
+        self.assertIn('selected_item_color = "#ffb46b"', theme)
+        cfg = (ROOT / "packaging/live/grub.cfg").read_text()
+        self.assertIn("if terminal_output gfxterm; then", cfg)
+        self.assertEqual(cfg.count("menuentry "), 3)
+        self.assertIn("diagnostics / recovery", cfg)
+        self.assertIn("set default=0", cfg)
+        self.assertIn("set timeout=5", cfg)
+        svg = ET.parse(ROOT / "assets/brand/grub-background.svg").getroot()
+        self.assertEqual(svg.attrib["viewBox"], "0 0 1024 768")
