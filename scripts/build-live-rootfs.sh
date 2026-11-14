@@ -28,6 +28,9 @@ if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then
     export LOCALZET_INSTALL_TEST
     packages+=",parted,dosfstools,e2fsprogs,squashfs-tools,grub-efi-amd64-bin,grub2-common,sudo"
 fi
+if [[ "${LOCALZET_WINDOWS:-0}" == 1 ]]; then
+    packages+=",wine,wine64,fonts-wine"
+fi
 mmdebstrap --mode=root --variant=apt --format=directory --architectures=amd64 \
     --keyring="$keyring" --include="$packages" \
     --customize-hook='bash "$LOCALZET_REPO/packaging/live/customize-rootfs.sh" "$1"' \
