@@ -399,10 +399,17 @@ class Engine:
             args = ("compose", "--project-directory", directory, "--env-file",
                     "/dev/null", "-p", project, "-f", str(path))
             self._run(*args, "config", "--quiet")
-            verify()
+            current = verify()
+            if action == "down":
+                # No Compose down: it may delete project-labelled networks. Stop
+                # and remove only the verified container IDs, never volumes.
+                for cid in current:
+                    self._run("container", "stop", "--time", "10", cid)
+                    self._run("container", "rm", cid)
+                return project
             commands = {"up": ("up", "-d", "--no-build", "--pull", "never", "--no-recreate"),
                         "start": ("start",), "stop": ("stop",), "restart": ("restart",),
-                        "down": ("down",)}
+                        }
             self._run(*args, *commands[action], timeout=120)
         return project
 
