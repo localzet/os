@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-! grep -qw 'boot=casper' /proc/cmdline
+if grep -qw 'boot=casper' /proc/cmdline; then exit 2; fi
 [[ "$(findmnt -n -o FSTYPE /)" == ext4 ]]
 [[ -d /sys/firmware/efi ]]
 [[ "$(findmnt -n -o FSTYPE /boot/efi)" == vfat ]]
@@ -14,7 +14,7 @@ done
 [[ ! -e /dev/disk/by-id/virtio-LZ_INSTALL_ISO ]]
 getent passwd localzet-test >/dev/null
 [[ "$(passwd -S localzet-test | cut -d ' ' -f2)" == P ]]
-! getent passwd localzet >/dev/null
+if getent passwd localzet >/dev/null; then exit 2; fi
 PYTHONPATH=/opt/localzet-os/src python3 -m localzet.installer.audit /
 for attempt in $(seq 1 90); do
     if systemctl is-active --quiet display-manager.service && pgrep -x gnome-shell >/dev/null; then
