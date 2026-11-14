@@ -166,3 +166,37 @@ class ContainersTests(unittest.TestCase):
         with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=(network,)):
             engine.remove_resource("networks", CID)
             run.assert_called_once_with("network", "rm", CID)
+
+    def test_pull_requires_explicit_reference(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=()):
+            for reference in ("alpine", "--all-tags", "https://registry/image:tag", "user:password@registry/image:tag", "image:tag extra"):
+                with self.assertRaises(EngineError):
+                    engine.pull_image(reference)
+            run.assert_not_called()
+            for reference in ("alpine:3.22", "registry.example:5000/team/image:v1", "docker.io/library/alpine@sha256:" + CID):
+                engine.pull_image(reference)
+                run.assert_called_with("image", "pull", reference, timeout=600)
+
+    def test_create_container_fixed_restricted_profile(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        image = "sha256:" + CID
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=({"ID": image},)), patch.object(engine, "inventory", return_value=()):
+            for name, identity in (("--help", image), ("fixture", "alpine:latest"), ("fixture", "sha256:" + "b" * 64)):
+                with self.assertRaises(EngineError):
+                    engine.create_container(name, identity)
+            run.assert_not_called()
+            engine.create_container("fixture", image)
+            run.assert_called_once_with("container", "create", "--name", "fixture", "--pull", "never",
+                "--network", "none", "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+                "--user", "65534:65534", "--pids-limit", "256", "--memory", "512m", image)
+
+    def test_create_container_rejects_existing_name(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=({"ID": "sha256:" + CID},)), patch.object(engine, "inventory", return_value=parse_inventory(json.dumps(ROW))):
+            with self.assertRaises(EngineError):
+                engine.create_container("fixture", "sha256:" + CID)
+            run.assert_not_called()
