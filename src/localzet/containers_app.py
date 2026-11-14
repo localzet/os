@@ -169,9 +169,9 @@ def main() -> int:
             rootful = self.rootful
             self.update_actions()
             future = self.pool.submit(lambda: Engine(rootful=rootful).resources(kind))
-            future.add_done_callback(lambda f: GLib.idle_add(self.resources_finished, generation, caption, f))
+            future.add_done_callback(lambda f: GLib.idle_add(self.resources_finished, generation, kind, caption, f))
 
-        def resources_finished(self, generation, caption, future):
+        def resources_finished(self, generation, kind, caption, future):
             if generation != self.generation or not self.window:
                 return GLib.SOURCE_REMOVE
             self.busy = False
@@ -187,7 +187,7 @@ def main() -> int:
             dialog.set_child(toolbar)
             try:
                 rows = future.result()
-                summary = f"Ресурсов: {len(rows)} · Только просмотр"
+                summary = f"Ресурсов: {len(rows)}"
             except (EngineError, OSError, ValueError) as error:
                 rows = ()
                 summary = str(error)
@@ -197,6 +197,10 @@ def main() -> int:
             content.append(Gtk.Label(label=summary, xalign=0, wrap=True, selectable=True))
             labels = {"Repository": "Репозиторий", "Tag": "Тег", "ID": "ID",
                       "Size": "Размер", "Name": "Имя", "Driver": "Драйвер", "Scope": "Область"}
+            if kind in ("volumes", "networks"):
+                create = Gtk.Button(label="Создать локальный том" if kind == "volumes" else "Создать изолированную сеть")
+                create.connect("clicked", lambda *_: self.confirm_resource(dialog, kind, caption, None))
+                content.append(create)
             for item in rows:
                 group = Adw.PreferencesGroup()
                 for key, value in item.items():
@@ -205,9 +209,53 @@ def main() -> int:
                                       max_width_chars=64, xalign=1)
                     row.add_suffix(label)
                     group.add(row)
+                if kind in ("images", "networks") and not (kind == "networks" and
+                        (item["Name"] in ("bridge", "host", "none") or item["Scope"] != "local")):
+                    remove = Gtk.Button(label="Удалить", halign=Gtk.Align.END)
+                    remove.add_css_class("destructive-action")
+                    remove.connect("clicked", lambda _, item=item: self.confirm_resource(dialog, kind, caption, item))
+                    group.add(remove)
                 content.append(group)
             dialog.present(self.window)
             return GLib.SOURCE_REMOVE
+
+        def confirm_resource(self, parent, kind, caption, item):
+            if self.busy:
+                return
+            generation = self.generation
+            rootful = self.rootful
+            entry = None
+            if item is None:
+                prompt = Adw.AlertDialog(heading="Создать ресурс?", body="Том: локальный драйвер. Сеть: внутренний bridge без внешнего доступа. Имя: 2–63 ASCII-символа.")
+                entry = Gtk.Entry(placeholder_text="Имя ресурса")
+                prompt.set_extra_child(entry)
+                action = "Создать"
+            else:
+                prompt = Adw.AlertDialog(heading="Удалить ресурс?", body=item["ID"] +
+                    "\nОбраз может потребоваться скачать заново. Сеть удаляется только если Docker разрешит операцию. Без принудительного удаления.")
+                action = "Удалить"
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("confirm", action)
+            prompt.set_close_response("cancel")
+            prompt.set_default_response("cancel")
+            prompt.set_response_appearance("confirm", Adw.ResponseAppearance.DESTRUCTIVE if item else Adw.ResponseAppearance.SUGGESTED)
+
+            def response(_, choice):
+                if choice != "confirm" or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                target = item["ID"] if item else entry.get_text()
+                parent.close()
+                self.busy = True
+                self.generation += 1
+                current = self.generation
+                self.update_actions()
+                def worker():
+                    engine = Engine(rootful=rootful)
+                    return engine.remove_resource(kind, target) if item else engine.create_resource(kind, target)
+                future = self.pool.submit(worker)
+                future.add_done_callback(lambda f: GLib.idle_add(self.resources_finished, current, kind, caption, f))
+            prompt.connect("response", response)
+            prompt.present(parent)
 
         def show_stacks(self, *_):
             if self.busy:
