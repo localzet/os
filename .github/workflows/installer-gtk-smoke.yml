@@ -6,6 +6,7 @@ on:
       - 'src/localzet/installer/**'
       - 'packaging/installer/**'
       - 'scripts/ci/installer-gtk-smoke.sh'
+      - 'scripts/ci/installer-gtk-consent.py'
       - '.github/workflows/installer-gtk-smoke.yml'
 permissions:
   contents: read
@@ -23,6 +24,10 @@ jobs:
         run: |
           bash -n scripts/ci/installer-gtk-smoke.sh
           xvfb-run -a -s "-screen 0 1280x800x24 -nolisten tcp" bash scripts/ci/installer-gtk-smoke.sh
+      - name: Exercise wizard consent without real disks or sudo
+        run: |
+          export PYTHONPATH="$PWD/src" GDK_BACKEND=x11 GSK_RENDERER=cairo
+          xvfb-run -a dbus-run-session -- python3 scripts/ci/installer-gtk-consent.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
