@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
-from localzet.containers import Deployment, Engine, EngineError, deployment_args
+from localzet.containers import Deployment, Engine, EngineError, StudioStore, deployment_args
 
 
 def main() -> int:
@@ -452,6 +452,48 @@ def main() -> int:
             toolbar.set_content(box)
             dialog.set_child(toolbar)
             state = {"closed": False, "revision": 0, "validated": None}
+            store = StudioStore()
+            storage = Gtk.Box(spacing=6)
+            saved = Gtk.DropDown.new_from_strings([])
+            saved.set_hexpand(True)
+            open_saved = Gtk.Button(label="Открыть")
+            save = Gtk.Button(label="Сохранить", sensitive=False)
+            storage.append(saved)
+            storage.append(open_saved)
+            storage.append(save)
+            box.prepend(storage)
+            def refresh_saved():
+                try:
+                    ids = store.projects()
+                    saved.set_model(Gtk.StringList.new(list(ids)))
+                    open_saved.set_sensitive(bool(ids))
+                except (EngineError, OSError) as error:
+                    open_saved.set_sensitive(False)
+                    status.set_label(str(error))
+            def load_saved(*_):
+                if self.busy:
+                    return
+                selected = saved.get_selected_item()
+                if selected is None:
+                    return
+                try:
+                    source = store.load(selected.get_string())
+                    editor.get_buffer().set_text(source)
+                    status.set_label("Проект открыт. Повторите проверку перед развёртыванием.")
+                except (EngineError, OSError, ValueError) as error:
+                    status.set_label(str(error))
+            def save_current(*_):
+                if self.busy or state["validated"] is None:
+                    return
+                try:
+                    identity = store.save(state["validated"])
+                    refresh_saved()
+                    status.set_label("Сохранён проект: " + identity[:16])
+                except (EngineError, OSError, ValueError) as error:
+                    status.set_label(str(error))
+            open_saved.connect("clicked", load_saved)
+            save.connect("clicked", save_current)
+            refresh_saved()
             actions = Gtk.Box(spacing=6)
             buttons = []
             for action, caption in (("up", "Развернуть"), ("start", "Старт"), ("stop", "Стоп"),
@@ -462,6 +504,7 @@ def main() -> int:
                 buttons.append(button)
             box.append(actions)
             def enable(value):
+                save.set_sensitive(value)
                 for button in buttons:
                     button.set_sensitive(value)
             def confirm(action):
