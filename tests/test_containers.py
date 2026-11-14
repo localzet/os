@@ -1,7 +1,7 @@
 import json
 import unittest
 from unittest.mock import patch
-from localzet.containers import Engine, EngineError, parse_inventory, parse_stacks, parse_resources
+from localzet.containers import Deployment, deployment_args, Engine, EngineError, parse_inventory, parse_stacks, parse_resources
 
 CID = "a" * 64
 ROW = {"ID": CID, "Names": "fixture", "Image": "fixture:local", "State": "running",
@@ -200,3 +200,38 @@ class ContainersTests(unittest.TestCase):
             with self.assertRaises(EngineError):
                 engine.create_container("fixture", "sha256:" + CID)
             run.assert_not_called()
+
+    def test_advanced_deployment_arguments(self):
+        options = Deployment(network="bridge", ports=("8080:80/tcp", "5353:53/udp"),
+            environment=("MODE=dev",), mounts=("fixture:/data:ro",), memory_mib=1024,
+            cpus="1.5", restart="unless-stopped")
+        args = deployment_args(options)
+        for value in ("127.0.0.1:8080:80/tcp", "127.0.0.1:5353:53/udp", "MODE=dev",
+                      "type=volume,source=fixture,target=/data,volume-nocopy,readonly",
+                      "1024m", "1.5", "unless-stopped"):
+            self.assertIn(value, args)
+
+    def test_advanced_deployment_rejects_unsafe_options(self):
+        for options in (
+            Deployment(network="host"), Deployment(ports=("8080:80/tcp",)),
+            Deployment(network="bridge", ports=("0:80/tcp",)),
+            Deployment(network="bridge", ports=("8080:80/tcp", "08080:81/tcp")),
+            Deployment(environment=("PATH",)), Deployment(environment=("A=1", "A=2")),
+            Deployment(mounts=("/etc:/data:rw",)), Deployment(mounts=("fixture:/etc:ro",)),
+            Deployment(mounts=("fixture:/data:ro", "other:/data/sub:rw")),
+            Deployment(memory_mib=0), Deployment(cpus="NaN"), Deployment(restart="invalid"),
+        ):
+            with self.subTest(options=options), self.assertRaises(EngineError):
+                deployment_args(options)
+
+    def test_advanced_mount_rejects_driver_options(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        image = "sha256:" + CID
+        with patch.object(engine, "resources", side_effect=[({"ID": image},),
+                ({"Name": "fixture", "Driver": "local", "Scope": "local"},)]), \
+                patch.object(engine, "inventory", return_value=()), \
+                patch.object(engine, "_run", return_value=json.dumps({"device": "/etc", "o": "bind"})) as run:
+            with self.assertRaises(EngineError):
+                engine.create_container("fixture", image, Deployment(mounts=("fixture:/data:ro",)))
+            run.assert_called_once_with("volume", "inspect", "--format", "{{json .Options}}", "fixture")
