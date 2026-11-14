@@ -106,6 +106,34 @@ def stable_device(path: str) -> Path:
     return sorted(candidates, key=lambda p: (not p.name.startswith(("wwn-", "nvme-eui.")), p.name))[0]
 
 
+EFI_GUID = "8be4df61-93ca-11d2-aa0d-00e098032b8c"
+
+
+def efi_flag(directory: Path, name: str) -> int | None:
+    """efivarfs prepends four attribute bytes to firmware variable data."""
+    path = directory / f"{name}-{EFI_GUID}"
+    try:
+        payload = path.read_bytes()[4:]
+    except FileNotFoundError:
+        return None
+    if len(payload) not in (1, 2, 4):
+        raise ValueError(f"Некорректная переменная UEFI {name}.")
+    value = int.from_bytes(payload, "little")
+    if value not in (0, 1):
+        raise ValueError(f"Неизвестное значение UEFI {name}.")
+    return value
+
+
+def secure_boot_disabled(directory: Path) -> bool:
+    secure = efi_flag(directory, "SecureBoot")
+    setup = efi_flag(directory, "SetupMode")
+    # Never treat an enabled or unreadable flag as disabled. Setup Mode
+    # explicitly means no enrolled Platform Key and no enforced Secure Boot.
+    if secure == 1:
+        return False
+    return secure == 0 or (secure is None and setup == 1)
+
+
 def check_environment() -> None:
     if not ENABLED.is_file() or not ENGINE.is_file():
         raise ValueError("Установщик не включён в этот образ.")
@@ -115,8 +143,9 @@ def check_environment() -> None:
     if command("findmnt", "-n", "-o", "FSTYPE", "/") != "overlay":
         raise ValueError("Не обнаружена Live-файловая система.")
     efi = Path("/sys/firmware/efi/efivars")
-    variables = list(efi.glob("SecureBoot-*"))
-    if len(variables) != 1 or variables[0].read_bytes()[4:] != b"\x00":
+    if not efi.is_dir() or command("findmnt", "-n", "-o", "FSTYPE", "--mountpoint", str(efi)) != "efivarfs":
+        raise ValueError("Не удалось прочитать переменные UEFI (efivarfs).")
+    if not secure_boot_disabled(efi):
         raise ValueError("Требуется UEFI с выключенным Secure Boot.")
     if not Path("/cdrom/casper/filesystem.squashfs").is_file():
         raise ValueError("Не найден исходный образ системы.")
