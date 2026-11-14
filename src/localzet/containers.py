@@ -12,11 +12,14 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
+import time
 import stat
 import subprocess
 
 DOCKER = Path("/usr/bin/docker")
 ID = re.compile(r"[0-9a-f]{64}")
+LOG_LIMIT = 256 * 1024
 ACTIONS = frozenset(("start", "stop", "restart"))
 
 
@@ -91,6 +94,68 @@ class Engine:
 
     def inventory(self) -> tuple[Container, ...]:
         return parse_inventory(self._run("container", "ls", "--all", "--no-trunc", "--format", "{{json .}}"))
+
+    def _lookup(self, container_id: str) -> Container:
+        if not isinstance(container_id, str) or not ID.fullmatch(container_id):
+            raise EngineError("Invalid full container ID")
+        row = next((row for row in self.inventory() if row.id == container_id), None)
+        if row is None:
+            raise EngineError("Container no longer exists on the selected engine")
+        return row
+
+    def metrics(self, container_id: str) -> dict[str, str]:
+        if self._lookup(container_id).state != "running":
+            raise EngineError("Container is not running")
+        output = self._run("container", "stats", "--no-stream", "--no-trunc",
+                           "--format", "{{json .}}", container_id)
+        try:
+            row = json.loads(output)
+            if row["ID"] != container_id:
+                raise ValueError("Container ID mismatch")
+            result = {key: row[key] for key in ("CPUPerc", "MemUsage", "NetIO", "BlockIO", "PIDs")}
+            if not all(isinstance(value, str) for value in result.values()):
+                raise ValueError("Invalid metric")
+        except (ValueError, TypeError, KeyError) as exc:
+            raise EngineError("Docker returned invalid metrics") from exc
+        return result
+
+    def logs(self, container_id: str) -> tuple[str, bool]:
+        # Explicit snapshot only. Logs can contain secrets: never cache, upload
+        # or put them into generic error messages. Bound both time and bytes.
+        self._lookup(container_id)
+        self._check()
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
+        deadline = time.monotonic() + 20
+        data = bytearray()
+        truncated = False
+        try:
+            with subprocess.Popen([str(DOCKER), "--host", f"unix://{self.socket}",
+                    "container", "logs", "--tail", "100", "--timestamps", container_id],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env) as proc:
+                try:
+                    with selectors.DefaultSelector() as selector:
+                        selector.register(proc.stdout, selectors.EVENT_READ)
+                        while True:
+                            remaining = deadline - time.monotonic()
+                            if remaining <= 0 or not selector.select(remaining):
+                                raise EngineError("Docker log snapshot timed out")
+                            chunk = os.read(proc.stdout.fileno(), min(65536, LOG_LIMIT + 1 - len(data)))
+                            if not chunk:
+                                break
+                            data.extend(chunk)
+                            if len(data) > LOG_LIMIT:
+                                truncated = True
+                                del data[LOG_LIMIT:]
+                                break
+                    if not truncated and proc.wait(timeout=max(0.1, deadline - time.monotonic())):
+                        raise EngineError("Docker log snapshot failed")
+                finally:
+                    if proc.poll() is None:
+                        proc.kill()  # stops the CLI reader, not the container
+                        proc.wait()
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EngineError("Docker log snapshot failed") from exc
+        return data.decode("utf-8", errors="replace"), truncated
 
     def action(self, action: str, container_id: str) -> tuple[Container, ...]:
         if action not in ACTIONS or not isinstance(container_id, str) or not ID.fullmatch(container_id):

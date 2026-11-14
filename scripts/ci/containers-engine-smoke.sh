@@ -22,7 +22,7 @@ cat > "$work/Dockerfile" <<'EOF'
 FROM scratch
 COPY busybox /busybox
 USER 65534:65534
-CMD ["/busybox", "sleep", "600"]
+CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 600"]
 EOF
 docker_local build --network none -t "$image" "$work"
 cid="$(docker_local create --name "$name" --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image")"
@@ -40,6 +40,14 @@ def verify(rows, expected, label):
     print("PASS:", label, row.state)
 verify(engine.inventory(), "created", "inventory")
 verify(engine.action("start", cid), "running", "start")
+metrics = engine.metrics(cid)
+assert all(metrics[key] for key in ("CPUPerc", "MemUsage", "PIDs")), metrics
+(output / "metrics.json").write_text(json.dumps(metrics, indent=2))
+print("PASS: real container metrics")
+logs, truncated = engine.logs(cid)
+assert "localzet-fixture-ready" in logs and not truncated
+# Only the original CI fixture message, never an arbitrary user's logs.
+print("PASS: original fixture log snapshot")
 verify(engine.action("restart", cid), "running", "restart")
 verify(engine.action("stop", cid), "exited", "stop")
 PY

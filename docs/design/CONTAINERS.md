@@ -23,3 +23,11 @@ engine selection. Errors clear stale inventory rather than showing fabricated
 state. Experimental packaging is opt-in; default ISO remains unchanged.
 The initial GTK test captures actual startup; full GUI action automation,
 rootless validation, design refinement and parity features remain required.
+
+Stage 3 replaces the list with a native column view, scoped Professional dark
+palette (light/high-contrast system styling preserved), real status counts,
+readable connection error states and selected-container diagnostics. Metrics
+are a one-shot Docker stats snapshot, not live graphs. Logs are explicit
+snapshots (last 100 lines, 256 KiB maximum, 20 seconds), never cached or
+uploaded by the app. The CI uses only its own synthetic fixture message.
+Live streaming and Compose remain subsequent milestones.

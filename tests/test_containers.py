@@ -46,3 +46,22 @@ class ContainersTests(unittest.TestCase):
             with self.assertRaisesRegex(EngineError, "no longer exists"):
                 engine.action("start", CID)
             run.assert_called_once()
+
+    def test_metrics_validate_identity_and_shape(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        metrics = {"ID": CID, "CPUPerc": "0.10%", "MemUsage": "1MiB / 1GiB",
+                   "NetIO": "0B / 0B", "BlockIO": "0B / 0B", "PIDs": "1"}
+        with patch.object(engine, "_run", side_effect=[json.dumps(ROW), json.dumps(metrics)]):
+            self.assertEqual(engine.metrics(CID)["CPUPerc"], "0.10%")
+        with patch.object(engine, "_run", side_effect=[json.dumps(ROW), json.dumps({**metrics, "ID": "b" * 64})]):
+            with self.assertRaises(EngineError):
+                engine.metrics(CID)
+
+    def test_logs_reject_stale_id_before_subprocess(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run", return_value=""), patch("localzet.containers.subprocess.Popen") as popen:
+            with self.assertRaises(EngineError):
+                engine.logs(CID)
+            popen.assert_not_called()

@@ -6,6 +6,7 @@ mkdir -p "$OUT"
 # Do not install/start an engine to make this test pass.
 xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -s <<'GTK_TEST'
 set -Eeuo pipefail
+gsettings set org.gnome.desktop.interface color-scheme prefer-dark
 python3 -m localzet.containers_app > "$OUT/app.log" 2>&1 &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
