@@ -1,6 +1,8 @@
 import unittest
+import tempfile
+from pathlib import Path
 
-from localzet.installer.interactive import eligible_plan, confirmation_for, validate_request
+from localzet.installer.interactive import eligible_plan, confirmation_for, validate_request, secure_boot_disabled, EFI_GUID
 
 
 def disk(path="/dev/nvme0n1", serial="TARGET", **kwargs):
@@ -72,3 +74,23 @@ class InteractiveInstallerTests(unittest.TestCase):
                 request[field] = value
                 with self.assertRaises(ValueError):
                     validate_request(request)
+
+
+class SecureBootTests(unittest.TestCase):
+    def test_firmware_flags(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sb = root / f"SecureBoot-{EFI_GUID}"
+            setup = root / f"SetupMode-{EFI_GUID}"
+            self.assertFalse(secure_boot_disabled(root))
+            setup.write_bytes(b"\x06\0\0\0\x01")
+            self.assertTrue(secure_boot_disabled(root))
+            sb.write_bytes(b"\x06\0\0\0\x01")
+            self.assertFalse(secure_boot_disabled(root))
+            sb.write_bytes(b"\x06\0\0\0\x00")
+            self.assertTrue(secure_boot_disabled(root))
+            sb.write_bytes(b"\x06\0\0\0" + (0).to_bytes(4, "little"))
+            self.assertTrue(secure_boot_disabled(root))
+            sb.write_bytes(b"\x06\0\0\0\x02")
+            with self.assertRaises(ValueError):
+                secure_boot_disabled(root)
