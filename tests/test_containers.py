@@ -1,7 +1,7 @@
 import json
 import unittest
 from unittest.mock import patch
-from localzet.containers import Deployment, deployment_args, Engine, EngineError, parse_inventory, parse_stacks, parse_resources
+from localzet.containers import Deployment, deployment_args, compose_document, Engine, EngineError, parse_inventory, parse_stacks, parse_resources
 
 CID = "a" * 64
 ROW = {"ID": CID, "Names": "fixture", "Image": "fixture:local", "State": "running",
@@ -235,3 +235,45 @@ class ContainersTests(unittest.TestCase):
             with self.assertRaises(EngineError):
                 engine.create_container("fixture", image, Deployment(mounts=("fixture:/data:ro",)))
             run.assert_called_once_with("volume", "inspect", "--format", "{{json .Options}}", "fixture")
+
+    def test_compose_studio_generates_restricted_document(self):
+        source = json.dumps({"services": {"app": {"image": "sha256:" + CID}}})
+        document, names = compose_document(source)
+        self.assertEqual(names, ("app",))
+        service = json.loads(document)["services"]["app"]
+        self.assertEqual(service["image"], "sha256:" + CID)
+        self.assertEqual(service["pull_policy"], "never")
+        self.assertEqual(service["network_mode"], "none")
+        self.assertTrue(service["read_only"])
+        self.assertEqual(service["cap_drop"], ["ALL"])
+
+    def test_compose_studio_rejects_unreviewed_features(self):
+        image = "sha256:" + CID
+        for document in (
+            {"services": {}}, {"include": "/etc/private", "services": {"app": {"image": image}}},
+            {"services": {"app": {"image": image, "privileged": True}}},
+            {"services": {"app": {"image": image, "build": "."}}},
+            {"services": {"app": {"image": "alpine:latest"}}},
+            {"services": {"app": {"image": image, "env_file": "/etc/shadow"}}},
+            {"services": {"app": {"image": image, "volumes": ["/:/host"]}}},
+        ):
+            with self.subTest(document=document), self.assertRaises(EngineError):
+                compose_document(json.dumps(document))
+        for source in ('{"services":{},"services":{}}', "services:\n  app: {}", "x" * 65537):
+            with self.assertRaises(EngineError):
+                compose_document(source)
+
+    def test_compose_validation_passes_only_generated_document(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        from pathlib import Path
+        def inspect(*args):
+            self.assertEqual(args[:2], ("compose", "--project-directory"))
+            self.assertEqual(args[3:7], ("--env-file", "/dev/null", "-p", "localzet-validation"))
+            self.assertEqual(args[-2:], ("config", "--quiet"))
+            document = json.loads(Path(args[-3]).read_text())
+            self.assertEqual(document["services"]["app"]["network_mode"], "none")
+            return ""
+        with patch.object(engine, "_run", side_effect=inspect) as run:
+            engine.validate_compose(json.dumps({"services": {"app": {"image": "sha256:" + CID}}}))
+            run.assert_called_once()
