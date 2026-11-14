@@ -25,3 +25,14 @@
 .localzet-dock-button:active {
     background-color: rgba(155, 114, 242, 0.28);
 }
+
+/* Native panel controls retain the upstream input and popup behavior. */
+#panel.localzet-panel {
+    height: 32px;
+    background-color: #10091e;
+    color: #f4eeff;
+}
+#panel.localzet-panel.localzet-panel-glass {
+    /* Only enabled with a real Shell.BlurEffect, never on its own. */
+    background-color: rgba(40, 24, 63, 0.66);
+}

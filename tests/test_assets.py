@@ -16,7 +16,10 @@ class AssetsTests(unittest.TestCase):
 
     def test_design_tokens(self):
         data = json.loads((ROOT / 'assets/design-tokens.json').read_text())
-        self.assertIn('accent', data['colors'])
+        self.assertEqual(data['colors']['accent'], '#FF7E00')
+        self.assertEqual(data['colors']['primary'], '#9B72F2')
+        self.assertEqual(data['density']['panelHeight'], 32)
+        self.assertLessEqual(data['radii']['lg'], 14)
 
     def test_wallpaper_is_svg(self):
         root = ET.parse(ROOT / 'assets/wallpapers/aurora.svg').getroot()

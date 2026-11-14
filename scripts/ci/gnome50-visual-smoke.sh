@@ -38,7 +38,7 @@ dbus-run-session -- bash -c '
   wireplumber_pid=$!
   trap "kill $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   sleep 3
-  gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
+  LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
   trap "kill $shell_pid 2>/dev/null || true" EXIT
   for i in $(seq 1 30); do
@@ -57,6 +57,20 @@ dbus-run-session -- bash -c '
   sleep 16
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
+  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
+  grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-panel-experimental.png" || exit 1
+  # Exercise teardown/re-enable, including the accessibility fallback.
+  gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
+  sleep 2
+  import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
+  gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
+  gnome-extensions disable localzet-shell@localzet.com || exit 1
+  sleep 2
+  gnome-extensions enable localzet-shell@localzet.com || exit 1
+  sleep 3
+  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
+  test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
   gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com || exit 1
   gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
   # The official Qt client registers its own tray menu. Do not create a second

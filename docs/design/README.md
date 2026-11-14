@@ -115,3 +115,16 @@ Owner-approved reference + this specification govern subsequent visual work.
 Track changes to exact design and scope in pull requests. Any change of
 brand colors or major navigation requires owner review. Engineering
 screenshots and automated tests are necessary but not sufficient for release.
+
+### Current glass experiment (not release acceptance)
+
+`panel.js` introduces the rectangular native top bar background effect using
+`Shell.BlurEffect` in BACKGROUND mode. Default remains opaque until real
+pixels, damage/repaint, performance and contrast are verified; only the
+GNOME devkit CI session enables `LOCALZET_EXPERIMENTAL_GLASS=1`. High-contrast
+mode reverts to native GNOME styling. CI captures before the phone test and
+exercises disable/enable. The effect-creation marker is not a visual proof.
+Rounded dock/popovers require a proper mask, not a rectangular blur leaking
+outside rounded corners. No global redraw hacks, no forced transparency on
+third-party windows. See upstream API:
+https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
