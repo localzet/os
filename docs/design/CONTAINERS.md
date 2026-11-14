@@ -113,3 +113,12 @@ document labels. Storage is shared across local engine choices, so actions use
 the explicitly selected engine. No general YAML/highlighting, automatic
 startup, project deletion or migration yet. CI covers storage and real state;
 interactive GTK and rootless acceptance remain outstanding.
+
+Stage 13 adds an explicitly opened monitoring dialog with sequential polling,
+CPU/RAM history (60 samples), latest network/disk/PID readings and a filter
+for the last 100 log lines (256 KiB maximum). Updates are scheduled five
+seconds after each completed sample; pause stops new requests, not an active
+request. Closing clears in-memory history and stops scheduling; bounded active
+CLI requests may finish. Logs are not stored or uploaded. This is polling, not
+Docker log streaming; network and disk charts, interactive GTK and rootless
+acceptance remain pending. CI exercises real metric parsing and existing logs.

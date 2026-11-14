@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
-from localzet.containers import Deployment, Engine, EngineError, StudioStore, deployment_args
+from localzet.containers import Deployment, Engine, EngineError, StudioStore, deployment_args, metric_sample
 
 
 def main() -> int:
@@ -148,6 +148,9 @@ def main() -> int:
             self.logs_button.connect("clicked", lambda *_: self.read_detail("logs"))
             detail_header.append(self.metrics_button)
             detail_header.append(self.logs_button)
+            self.monitor_button = Gtk.Button(label="Мониторинг")
+            self.monitor_button.connect("clicked", self.open_monitor)
+            detail_header.append(self.monitor_button)
             detail_box.append(detail_header)
             self.detail_text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True,
                                            wrap_mode=Gtk.WrapMode.CHAR, top_margin=8, bottom_margin=8,
@@ -742,6 +745,129 @@ def main() -> int:
                 self.table_stack.set_visible_child_name("empty")
             self.update_actions()
 
+        def open_monitor(self, *_):
+            item = self.selected()
+            if self.busy or not item or item.state != "running":
+                return
+            from collections import deque
+            from concurrent.futures import ThreadPoolExecutor
+            from time import monotonic
+            cid, rootful = item.id, self.rootful
+            dialog = Adw.Dialog(title="Мониторинг · " + item.name, content_width=940, content_height=650)
+            toolbar = Adw.ToolbarView()
+            toolbar.add_top_bar(Adw.HeaderBar())
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
+                          margin_top=12, margin_bottom=12, margin_start=12, margin_end=12)
+            status = Gtk.Label(label="Ожидание первой выборки…", xalign=0, wrap=True)
+            box.append(status)
+            history = deque(maxlen=60)
+            plot = Gtk.DrawingArea(content_height=180, hexpand=True)
+            def draw(_, cr, width, height):
+                if width < 20 or height < 20:
+                    return
+                left, top, w, h = 8, 8, width - 16, height - 16
+                cr.set_source_rgba(.5, .5, .5, .4)
+                for ratio in (0, .25, .5, .75, 1):
+                    cr.move_to(left, top + h * ratio)
+                    cr.line_to(left + w, top + h * ratio)
+                cr.stroke()
+                if len(history) < 2:
+                    return
+                scale = max(100, *(sample.cpu for _, sample in history))
+                for color, getter, maximum in (((.25, .65, 1), lambda s: s.cpu, scale),
+                                                ((.95, .55, .25), lambda s: s.memory, 100)):
+                    cr.set_source_rgb(*color)
+                    cr.set_line_width(2)
+                    first, last = history[0][0], history[-1][0]
+                    for i, (stamp, sample) in enumerate(history):
+                        x = left + w * (stamp - first) / max(.001, last - first)
+                        y = top + h * (1 - getter(sample) / maximum)
+                        (cr.move_to if i == 0 else cr.line_to)(x, y)
+                    cr.stroke()
+            plot.set_draw_func(draw)
+            box.append(Gtk.Label(label="CPU — синяя линия (масштаб от 100%); RAM — оранжевая (0–100%). Последние 60 выборок.", xalign=0, wrap=True))
+            box.append(plot)
+            search = Gtk.SearchEntry(placeholder_text="Фильтр строк журнала")
+            box.append(search)
+            logs = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.CHAR)
+            scroll = Gtk.ScrolledWindow(vexpand=True)
+            scroll.set_child(logs)
+            box.append(scroll)
+            controls = Gtk.Box(spacing=8)
+            pause = Gtk.ToggleButton(label="Пауза")
+            controls.append(pause)
+            controls.append(Gtk.Label(label="Обновление каждые 5 секунд после завершения предыдущего запроса", wrap=True))
+            box.append(controls)
+            toolbar.set_content(box)
+            dialog.set_child(toolbar)
+            pool = ThreadPoolExecutor(max_workers=1)
+            state = {"closed": False, "pending": False, "timer": None, "logs": "", "truncated": False}
+            def filter_logs(*_):
+                query = search.get_text().casefold()
+                lines = state["logs"].splitlines()
+                text = "\n".join(line for line in lines if query in line.casefold())
+                if state["truncated"]:
+                    text += "\n[Достигнут лимит 256 КиБ]"
+                logs.get_buffer().set_text(text or "Нет записей.")
+            search.connect("search-changed", filter_logs)
+            def close(*_):
+                if state["closed"]:
+                    return
+                state["closed"] = True
+                if state["timer"] is not None:
+                    GLib.source_remove(state["timer"])
+                    state["timer"] = None
+                state["logs"] = ""
+                history.clear()
+                logs.get_buffer().set_text("")
+                pool.shutdown(wait=False, cancel_futures=True)
+            def tick():
+                state["timer"] = None
+                if state["closed"]:
+                    return GLib.SOURCE_REMOVE
+                current = self.selected()
+                if not self.window or self.rootful != rootful or not current or current.id != cid:
+                    close()
+                    dialog.close()
+                    return GLib.SOURCE_REMOVE
+                if pause.get_active():
+                    state["timer"] = GLib.timeout_add_seconds(5, tick)
+                    return GLib.SOURCE_REMOVE
+                state["pending"] = True
+                def worker():
+                    engine = Engine(rootful=rootful)
+                    values = engine.metrics(cid)
+                    sample = metric_sample(values)
+                    data, truncated = engine.logs(cid)
+                    return values, sample, data, truncated
+                future = pool.submit(worker)
+                def complete():
+                    state["pending"] = False
+                    if state["closed"]:
+                        return GLib.SOURCE_REMOVE
+                    try:
+                        values, sample, data, truncated = future.result()
+                        history.append((monotonic(), sample))
+                        state["logs"], state["truncated"] = data, truncated
+                        filter_logs()
+                        plot.queue_draw()
+                        status.set_label("CPU: " + values["CPUPerc"] + " · RAM: " + values["MemUsage"] +
+                            " · Сеть: " + values["NetIO"] + " · Диск: " + values["BlockIO"] +
+                            " · PID: " + values["PIDs"])
+                    except (EngineError, OSError, ValueError) as error:
+                        status.set_label(str(error) + " · Мониторинг остановлен.")
+                        pause.set_active(True)
+                    except Exception:
+                        status.set_label("Не удалось получить выборку. Мониторинг остановлен.")
+                        pause.set_active(True)
+                    state["timer"] = GLib.timeout_add_seconds(5, tick)
+                    return GLib.SOURCE_REMOVE
+                future.add_done_callback(lambda _: GLib.idle_add(complete))
+                return GLib.SOURCE_REMOVE
+            dialog.connect("closed", close)
+            dialog.present(self.window)
+            tick()
+
         def read_detail(self, kind):
             item = self.selected()
             if self.busy or not item or kind not in ("metrics", "logs"):
@@ -799,6 +925,7 @@ def main() -> int:
             self.stop_button.set_sensitive(not self.busy and running)
             self.restart_button.set_sensitive(not self.busy and running)
             self.metrics_button.set_sensitive(not self.busy and running)
+            self.monitor_button.set_sensitive(not self.busy and running)
             self.logs_button.set_sensitive(not self.busy and bool(item))
             self.detail.set_label(f"{item.name} · {item.id[:12]} · {item.status}\n{item.image} · {item.ports or 'Порты не опубликованы'}"
                                   if item else "Выберите контейнер")
