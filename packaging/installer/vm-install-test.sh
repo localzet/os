@@ -67,7 +67,7 @@ rm -f "$root/usr/lib/localzet/localzet-live-ready.py" \
     "$root/usr/lib/localzet/vm-install-test.sh" \
     "$root/usr/lib/systemd/system/localzet-install-test.service"
 test ! -e "$root/home/localzet"
-! grep -q '^localzet:' "$root/etc/passwd"
+if grep -q '^localzet:' "$root/etc/passwd"; then exit 2; fi
 # The current audit expects a regular os-release file rather than a symlink.
 rm -f "$root/etc/os-release"
 cp "$root/usr/lib/os-release" "$root/etc/os-release"
