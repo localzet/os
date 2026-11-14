@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet Windows Runtime
+Name[ru]=Windows-приложения
+Comment=Launch a trusted Windows EXE or MSI in a Wine profile
+Comment[ru]=Запуск доверенных EXE и MSI в отдельном профиле Wine
+Exec=localzet-windows %f
+Icon=application-x-ms-dos-executable
+Terminal=false
+Categories=Utility;
+MimeType=application/x-ms-dos-executable;application/x-msi;application/vnd.microsoft.portable-executable;
+StartupNotify=true
