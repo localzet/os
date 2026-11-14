@@ -132,10 +132,16 @@ chroot "$root" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
     --bootloader-id=Localzet --removable --no-nvram
 mkdir -p "$root/etc/default/grub.d"
 printf 'GRUB_DISABLE_OS_PROBER=true\nGRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n' > "$root/etc/default/grub.d/90-localzet.cfg"
+# This is the target's own /boot, never an existing foreign EFI volume.
+for file in theme.txt background.png logo.png dejavu-20.pf2 dejavu-24.pf2; do
+    [[ -s "$root/boot/grub/themes/localzet-aurora/$file" ]]
+done
+printf 'GRUB_THEME="/boot/grub/themes/localzet-aurora/theme.txt"\nGRUB_GFXMODE=1024x768,auto\nGRUB_TIMEOUT_STYLE=menu\nGRUB_TIMEOUT=5\n' >> "$root/etc/default/grub.d/90-localzet.cfg"
 if [[ "$mode" == vm ]]; then
     printf '%s\n' 'GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8 systemd.show_status=1 systemd.mask=serial-getty@ttyS0.service"' > "$root/etc/default/grub.d/99-localzet-test.cfg"
 fi
 chroot "$root" update-grub
+chroot "$root" grub-script-check /boot/grub/grub.cfg
 [[ -f "$root/boot/efi/EFI/BOOT/BOOTX64.EFI" ]]
 # Installed boot verification exists only in the VM test image.
 if [[ "$mode" == vm ]]; then

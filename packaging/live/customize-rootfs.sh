@@ -90,6 +90,20 @@ for driver in vmd nvme nvme_core ahci; do
         printf '%s\n' "$driver" >> "$root/etc/initramfs-tools/modules"
     fi
 done
+# Generate a separate boot menu theme from original, packaged artwork.
+# GRUB requires raster PNG assets and PFF2 fonts, not desktop SVGs.
+grub_theme=/boot/grub/themes/localzet-aurora
+mkdir -p "$root$grub_theme"
+install -m 0644 "$LOCALZET_REPO/packaging/grub/theme.txt" "$root$grub_theme/theme.txt"
+install -m 0644 "$LOCALZET_REPO/assets/brand/grub-background.svg" "$root$grub_theme/background.svg"
+chroot "$root" rsvg-convert -w 1024 -h 768 -o "$grub_theme/background.png" "$grub_theme/background.svg"
+chroot "$root" rsvg-convert -w 96 -h 96 -o "$grub_theme/logo.png" /usr/share/localzet/brand/localzet.svg
+for size in 20 24; do
+    chroot "$root" grub-mkfont -s "$size" -o "$grub_theme/dejavu-$size.pf2" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+done
+for file in theme.txt background.png logo.png dejavu-20.pf2 dejavu-24.pf2; do
+    test -s "$root$grub_theme/$file"
+done
 # Keep the upstream two-step renderer and its password/message assets.
 # Create our own theme rather than changing distribution-owned files.
 test -f "$root/usr/share/plymouth/themes/spinner/spinner.plymouth"
