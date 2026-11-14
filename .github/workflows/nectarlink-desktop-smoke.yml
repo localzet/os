@@ -1,0 +1,56 @@
+name: NectarLink desktop smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packaging/nectarlink/**'
+      - 'scripts/fetch-nectarlink-deb.py'
+      - 'scripts/check-nectarlink-control.py'
+      - '.github/workflows/nectarlink-desktop-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify pinned DEB and maintainer scripts
+        run: |
+          python3 scripts/fetch-nectarlink-deb.py --output out/nectarlink
+          python3 scripts/check-nectarlink-control.py out/nectarlink/nectarlink_0.1.5_amd64.deb
+      - name: Install package in disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth dbus-x11 xdotool imagemagick "$PWD/out/nectarlink/nectarlink_0.1.5_amd64.deb"
+          test "$(dpkg-query -W -f='${Version}' nectarlink)" = 0.1.5
+      - name: Launch unprivileged NectarLink desktop
+        run: |
+          mkdir -p out/nectarlink-smoke
+          export QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software LIBGL_ALWAYS_SOFTWARE=1
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/nectarlink-config"
+          export XDG_DATA_HOME="$RUNNER_TEMP/nectarlink-data"
+          export XDG_CACHE_HOME="$RUNNER_TEMP/nectarlink-cache"
+          xvfb-run -a dbus-run-session -- bash -eu -c '
+            /usr/bin/nectarlink-desktop > out/nectarlink-smoke/app.log 2>&1 &
+            pid=$!
+            trap "kill \"$pid\" 2>/dev/null || true" EXIT
+            for attempt in $(seq 1 40); do
+              kill -0 "$pid" || { cat out/nectarlink-smoke/app.log; exit 1; }
+              if xdotool search --name NectarLink > out/nectarlink-smoke/windows.txt 2>/dev/null; then
+                sleep 2
+                import -window root out/nectarlink-smoke/window.png
+                exit 0
+              fi
+              sleep 1
+            done
+            cat out/nectarlink-smoke/app.log
+            exit 1
+          '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nectarlink-desktop-smoke
+          path: out/nectarlink-smoke/
+          if-no-files-found: warn
+          retention-days: 7
