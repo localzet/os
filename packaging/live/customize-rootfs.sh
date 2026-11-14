@@ -13,6 +13,7 @@ ID=localzet
 ID_LIKE="ubuntu debian"
 VERSION_ID="0.1"
 VERSION_CODENAME=aurora
+LOGO=localzet-logo
 UBUNTU_CODENAME=resolute
 HOME_URL="https://github.com/localzet/os"
 EOF
@@ -38,7 +39,29 @@ icon-theme='Papirus-Dark'
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]
 EOF
+# Preserve the distribution's GDM profile; add a separate branding DB.
+# GNOME's supported login-screen.logo key does not replace auth UI.
+gdm_profile="$root/etc/dconf/profile/gdm"
+if [[ ! -f "$gdm_profile" ]]; then
+    if [[ -f "$root/usr/share/dconf/profile/gdm" ]]; then
+        cp -L "$root/usr/share/dconf/profile/gdm" "$gdm_profile"
+    else
+        test -f "$root/usr/share/gdm/greeter-dconf-defaults"
+        printf 'user-db:user\nfile-db:/usr/share/gdm/greeter-dconf-defaults\n' > "$gdm_profile"
+    fi
+fi
+grep -qxF 'user-db:user' "$gdm_profile"
+if ! grep -qxF 'system-db:localzet-gdm' "$gdm_profile"; then
+    sed -i '/^user-db:user$/a system-db:localzet-gdm' "$gdm_profile"
+fi
+mkdir -p "$root/etc/dconf/db/localzet-gdm.d"
+cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
+[org/gnome/login-screen]
+logo='/usr/share/localzet/brand/localzet.svg'
+EOF
 chroot "$root" dconf update
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"
+test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
 systemctl --root="$root" enable localzet-live-ready.service NetworkManager.service
