@@ -1,17 +1,35 @@
 {
-  "name": "Localzet Aurora Dark",
-  "status": "draft",
+  "name": "Localzet Aurora — Violet × Ember",
+  "status": "palette-approved; component design pending reference review",
   "colors": {
-    "background": "#0a1120",
-    "surface": "#13203a",
-    "surfaceElevated": "#1e3154",
-    "accent": "#6c92ed",
-    "textPrimary": "#f1f5ff",
-    "textSecondary": "#aebed9",
+    "background": "#10091E",
+    "surface": "#28183F",
+    "surfaceElevated": "#34234F",
+    "accent": "#FF7E00",
+    "textPrimary": "#F4EEFF",
+    "textSecondary": "#B9A5D5",
     "success": "#4fc6a8",
-    "warning": "#e6b66b"
+    "warning": "#e6b66b",
+    "violetDeep": "#6436B5",
+    "primary": "#9B72F2",
+    "onAccent": "#10091E"
   },
-  "radii": {"sm": 8, "md": 14, "lg": 22},
-  "blur": {"surfacePx": 18},
-  "motion": {"shortMs": 140, "mediumMs": 240}
+  "radii": {
+    "sm": 8,
+    "md": 14,
+    "lg": 22
+  },
+  "blur": {
+    "surfacePx": 18
+  },
+  "motion": {
+    "shortMs": 140,
+    "mediumMs": 240
+  },
+  "glass": {
+    "surfaceOpacity": 0.78,
+    "borderOpacity": 0.22,
+    "opaqueFallback": "#28183F"
+  },
+  "notes": "Purple is the dominant UI hue; orange from the Localzet logo is reserved for key actions. Preserve original third-party brand identities. Exact component geometry and glass effects await visual reference review."
 }
