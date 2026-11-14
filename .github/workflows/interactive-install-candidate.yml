@@ -42,7 +42,7 @@ jobs:
       - name: Install candidate and authenticate installed GNOME desktop
         run: |
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
-            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
             --logs dist/candidate-logs
       - name: Upload diagnostics
