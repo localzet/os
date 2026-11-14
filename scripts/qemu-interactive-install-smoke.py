@@ -37,10 +37,10 @@ class Guest:
         self.accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
         cpu = "host" if self.accel == "kvm" else "max"
         command = [
-            "qemu-system-x86_64", "-machine", "q35,smm=on", "-accel", self.accel,
+            "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
             "-global", "driver=cfi.pflash01,property=secure,value=on",
             "-cpu", cpu, "-m", "5120", "-smp", "2", "-nic", "none",
-            "-vga", "virtio", "-display", "none", "-monitor", "none", "-no-reboot",
+            "-vga", "virtio", "-device", "usb-tablet", "-display", "none", "-monitor", "none", "-no-reboot",
             "-qmp", f"unix:{self.socket},server=on,wait=off",
             "-serial", f"file:{self.serial}",
             "-drive", f"if=pflash,format=raw,readonly=on,file={args.ovmf_code}",
@@ -104,6 +104,15 @@ class Guest:
             else:
                 raise ValueError(f"Unsupported keyboard character {char!r}")
 
+    def click(self, x, y):
+        self.qmp("input-send-event", {"events": [
+            {"type": "abs", "data": {"axis": "x", "value": x}},
+            {"type": "abs", "data": {"axis": "y", "value": y}},
+            {"type": "btn", "data": {"down": True, "button": "left"}},
+            {"type": "btn", "data": {"down": False, "button": "left"}},
+        ]})
+        time.sleep(1)
+
     def launch(self, app):
         self.key("alt-f2")
         time.sleep(1)
@@ -126,9 +135,9 @@ class Guest:
         self.capture()
         raise RuntimeError(f"Missing {marker.decode()}")
 
-    def capture(self):
+    def capture(self, stage=None):
         try:
-            self.qmp("screendump", {"filename": str(self.screen)})
+            self.qmp("screendump", {"filename": str(self.screen.with_name(f"{self.screen.stem}-{stage}.ppm") if stage else self.screen)})
         except (OSError, RuntimeError, ValueError) as error:
             print(f"QMP capture unavailable: {error}", flush=True)
 
@@ -286,15 +295,22 @@ def main():
             installed.launch("localzet-windows")
             installed.launch("localzet-connect")
             installed.launch("ptyxis")
+            time.sleep(30)
+            installed.capture("terminal-before")
+            installed.click(16000, 12000)
             # Authenticate at the sudo password prompt (no echoed password).
             installed.text("sudo -k; sudo -v")
             installed.key("ret")
-            time.sleep(3)
+            time.sleep(5)
+            installed.capture("sudo-prompt")
             installed.text(password)
             installed.key("ret")
-            time.sleep(3)
+            time.sleep(5)
+            installed.capture("sudo-authenticated")
             installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n bash /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw")
             installed.key("ret")
+            time.sleep(5)
+            installed.capture("audit-command")
             installed.wait(READY, 180)
             installed.text("bash /run/localzet-candidate-check/run-wine.sh")
             installed.key("ret")
