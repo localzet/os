@@ -61,10 +61,11 @@ dbus-run-session -- bash -c '
   gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
   # The official Qt client registers its own tray menu. Do not create a second
   # paired identity or fake the connection/battery state.
+  nectar_data="$(mktemp -d)"
   QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software LC_ALL=C.UTF-8 \
-    /usr/bin/nectarlink-desktop --data-dir "$OUT/nectarlink-test-data" > "$OUT/nectarlink.log" 2>&1 &
+    /usr/bin/nectarlink-desktop --data-dir "$nectar_data" > "$OUT/nectarlink.log" 2>&1 &
   nectar_pid=$!
-  trap "kill $nectar_pid $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
+  trap "kill $nectar_pid $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true; rm -rf -- \"$nectar_data\"" EXIT
   if ! python3 "$PWD/scripts/ci/check-nectarlink-tray.py" > "$OUT/nectarlink-tray.txt" 2>&1; then
     cat "$OUT/nectarlink-tray.txt"
     exit 1
@@ -74,7 +75,7 @@ dbus-run-session -- bash -c '
   # Do not upload private node identity even from an ephemeral test.
   kill "$nectar_pid" 2>/dev/null || true
   wait "$nectar_pid" 2>/dev/null || true
-  rm -rf -- "$OUT/nectarlink-test-data"
+  rm -rf -- "$nectar_data"
   echo "GNOME Shell devkit running with Localzet Shell enabled" > "$OUT/result.txt"
 '
 rc=$?
