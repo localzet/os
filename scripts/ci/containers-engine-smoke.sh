@@ -94,6 +94,9 @@ def verify(rows, expected, label):
 verify(engine.inventory(), "created", "inventory")
 verify(engine.action("start", cid), "running", "start")
 metrics = engine.metrics(cid)
+from localzet.containers import metric_sample
+sample = metric_sample(metrics)
+assert sample.cpu >= 0 and 0 <= sample.memory <= 100
 assert all(metrics[key] for key in ("CPUPerc", "MemUsage", "PIDs")), metrics
 (output / "metrics.json").write_text(json.dumps(metrics, indent=2))
 print("PASS: real container metrics")
