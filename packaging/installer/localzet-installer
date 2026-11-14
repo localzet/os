@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+from pathlib import Path
+import sys
+if not Path("/usr/lib/localzet/installer-enabled").is_file():
+    raise SystemExit("Installer not enabled in this image")
+sys.path.insert(0, "/opt/localzet-os/src")
+from localzet.installer.app import main
+raise SystemExit(main())
