@@ -20,6 +20,13 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      - name: Validate source before expensive build
+        run: |
+          make test
+          for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh; do
+            bash -n "$script"
+          done
+          python3 -m py_compile scripts/qemu-iso-smoke.py packaging/live/localzet-live-ready.py
       - name: Install build tools
         run: |
           sudo apt-get update
@@ -40,7 +47,7 @@ jobs:
       - name: Publish BIOS diagnostic log
         if: always()
         run: |
-          if test -f dist/bios.log; then tail -n 200 dist/bios.log; fi
+          if test -f dist/bios.log; then tail -n 300 dist/bios.log; fi
       - name: UEFI smoke
         if: success() || failure()
         run: |
@@ -49,7 +56,7 @@ jobs:
       - name: Publish UEFI diagnostic log
         if: always()
         run: |
-          if test -f dist/uefi.log; then tail -n 200 dist/uefi.log; fi
+          if test -f dist/uefi.log; then tail -n 300 dist/uefi.log; fi
       - name: Upload diagnostic logs first
         if: always()
         uses: actions/upload-artifact@v4

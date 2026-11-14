@@ -66,3 +66,8 @@ reports the first unmet condition without relaxing the marker requirement.
 QEMU attempts a framebuffer capture next to the serial log (`.ppm`) before
 shutdown, including on timeout; CI uploads it when available. No screenshot is
 proof of successful boot by itself.
+
+Early boot debugging also mirrors GRUB output to serial and selects explicit
+QEMU CPU models (host for KVM, max for TCG). The build checks that the generated
+initramfs actually contains the Casper boot script. These checks address
+possible early boot failures; they do not prove the cause of earlier timeouts.

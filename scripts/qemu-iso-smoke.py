@@ -70,9 +70,10 @@ def main():
         monitor = Path(tmp) / "qmp.sock"
         screen = Path(tmp) / "screen.ppm"
         accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
-        cmd = [qemu, "-machine", "q35", "-accel", accel,
+        cpu = "host" if accel == "kvm" else "max"
+        cmd = [qemu, "-machine", "q35", "-accel", accel, "-cpu", cpu,
                "-m", "4096", "-smp", "2", "-nic", "none",
-               "-display", "none", "-monitor", "none",
+               "-vga", "virtio", "-display", "none", "-monitor", "none",
                "-qmp", f"unix:{monitor},server=on,wait=off",
                "-no-reboot", "-boot", "order=d", "-cdrom",
                str(args.iso.resolve()), "-serial", f"file:{serial}"]
@@ -81,6 +82,7 @@ def main():
             shutil.copyfile(args.ovmf_vars, vars_copy)
             cmd += ["-drive", f"if=pflash,format=raw,readonly=on,file={args.ovmf_code.resolve()}",
                     "-drive", f"if=pflash,format=raw,file={vars_copy}"]
+        print(f"QEMU firmware={args.firmware} accel={accel} cpu={cpu}", flush=True)
         with tempfile.TemporaryFile() as errors:
             proc = subprocess.Popen(cmd, stdout=errors, stderr=errors)
             found = False
