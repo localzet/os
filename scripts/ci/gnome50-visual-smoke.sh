@@ -53,10 +53,28 @@ dbus-run-session -- bash -c '
   done
   grep -Fxq localzet-shell@localzet.com "$OUT/extensions.txt" || { echo "Extension undiscoverable" >&2; exit 1; }
   gnome-extensions enable localzet-shell@localzet.com
+  gnome-extensions enable ubuntu-appindicators@ubuntu.com || exit 1
   sleep 16
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
+  gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com || exit 1
+  gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
+  # The official Qt client registers its own tray menu. Do not create a second
+  # paired identity or fake the connection/battery state.
+  QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software LC_ALL=C.UTF-8 \
+    /usr/bin/nectarlink-desktop --data-dir "$OUT/nectarlink-test-data" > "$OUT/nectarlink.log" 2>&1 &
+  nectar_pid=$!
+  trap "kill $nectar_pid $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
+  if ! python3 "$PWD/scripts/ci/check-nectarlink-tray.py" > "$OUT/nectarlink-tray.txt" 2>&1; then
+    cat "$OUT/nectarlink-tray.txt"
+    exit 1
+  fi
+  cat "$OUT/nectarlink-tray.txt"
   import -window root "$OUT/gnome-running.png"
+  # Do not upload private node identity even from an ephemeral test.
+  kill "$nectar_pid" 2>/dev/null || true
+  wait "$nectar_pid" 2>/dev/null || true
+  rm -rf -- "$OUT/nectarlink-test-data"
   echo "GNOME Shell devkit running with Localzet Shell enabled" > "$OUT/result.txt"
 '
 rc=$?

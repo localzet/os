@@ -24,7 +24,7 @@ mkdir -p "$root/etc/dconf/profile" "$root/etc/dconf/db/localzet.d"
 printf 'user-db:user\nsystem-db:localzet\n' > "$root/etc/dconf/profile/user"
 cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
-enabled-extensions=['localzet-shell@localzet.com']
+enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
 
 [org/gnome/desktop/background]
@@ -66,7 +66,11 @@ for driver in vmd nvme nvme_core ahci; do
 done
 # Use the maintained Plymouth spinner rather than diagnostic console output.
 test -f "$root/usr/share/plymouth/themes/spinner/spinner.plymouth"
+# Ubuntu's spinner package may ship the theme without registering this
+# alternatives group. Register the real descriptor before selecting it.
+chroot "$root" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth 100
 chroot "$root" update-alternatives --set default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth
+test -f "$root/usr/share/gnome-shell/extensions/ubuntu-appindicators@ubuntu.com/metadata.json"
 test -f "$root/usr/share/icons/Papirus-Dark/index.theme"
 # Ensure the initramfs contains the Casper hooks installed by apt.
 chroot "$root" update-initramfs -u -k all

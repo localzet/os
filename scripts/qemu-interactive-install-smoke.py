@@ -251,6 +251,13 @@ uid="$(id -u localzet-test)"
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     gnome-extensions list --active | grep -Fx localzet-shell@localzet.com
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher \
+    --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true
 # Stage host-built test data outside the installed image. No credentials
 # or testing service are baked into the distribution.
 install -d -m 0755 /run/localzet-candidate-check
