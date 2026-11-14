@@ -1,6 +1,6 @@
 {
   "name": "Localzet Aurora — Violet × Ember",
-  "status": "palette-approved; component design pending reference review",
+  "status": "owner-approved Professional visual direction; implementation pending",
   "colors": {
     "background": "#10091E",
     "surface": "#28183F",
@@ -15,9 +15,9 @@
     "onAccent": "#10091E"
   },
   "radii": {
-    "sm": 8,
-    "md": 14,
-    "lg": 22
+    "sm": 6,
+    "md": 8,
+    "lg": 14
   },
   "blur": {
     "surfacePx": 18
@@ -37,5 +37,13 @@
     "fallback": "opaque violet surface with equivalent contrast; reduced transparency and motion options",
     "verification": "actual GNOME session captures over light, dark and detailed wallpapers; GPU and software-rendering performance checks"
   },
-  "notes": "Purple is the dominant UI hue; orange from the Localzet logo is reserved for key actions. Preserve original third-party brand identities. Exact component geometry and glass effects await visual reference review."
+  "notes": "Dominant violet and restrained orange. Approved Professional poster and functional scope: docs/design/README.md. Genuine compositor glass and opaque accessibility fallback; no thick outlines.",
+  "density": {
+    "panelHeight": 32,
+    "tableRowMin": 32,
+    "tableRowMax": 36,
+    "dockIcon": 28,
+    "dockHeight": 48,
+    "accessibleScale": true
+  }
 }

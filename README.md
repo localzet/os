@@ -7,9 +7,15 @@ Ubuntu 26.04 LTS, GNOME 50 и Wayland. Русский язык — первый 
 **Статус: проверенный Live Desktop и экспериментальная установка в QEMU.
 Стабильного релиза для физического SSD пока нет.**
 
+## Утверждённое направление
+
+[Актуальная спецификация Aurora Professional](docs/design/README.md) ·
+[Комплектации и ONLYOFFICE](docs/design/PROFILES.md) ·
+[Критерии приёмки](docs/design/ACCEPTANCE.md).
+
 ## Реализовано и проверено
 
-- Aurora Shell: поиск приложений, панель, постоянный dock, оригинальные обои.
+- Aurora Shell: экспериментальный компактный dock, штатный GNOME overview. Финальный стеклянный интерфейс ещё не реализован.
 - Localzet Settings: нативное GTK4/libadwaita приложение.
 - [NectarLink](https://github.com/thtbee/nectarlink) от thtbee: интеграция оригинального клиента и проверка закреплённого DEB
   (сопряжение с Android и включение клиента в образ ещё не проверены).
