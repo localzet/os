@@ -1,0 +1,64 @@
+name: Interactive installation candidate
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packaging/installer/**'
+      - 'src/localzet/installer/**'
+      - 'scripts/qemu-interactive-install-smoke.py'
+      - 'scripts/build-live-rootfs.sh'
+      - 'scripts/assemble-live-iso.sh'
+      - 'packaging/live/**'
+      - '.github/workflows/interactive-install-candidate.yml'
+permissions:
+  contents: read
+concurrency:
+  group: interactive-install-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  candidate:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate source
+        run: |
+          make test
+          for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh packaging/installer/*.sh; do
+            bash -n "$script"
+          done
+          python3 -m py_compile scripts/qemu-interactive-install-smoke.py
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
+      - name: Build exact interactive candidate
+        run: |
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/candidate-root"
+          sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/candidate-root" "$PWD/dist/localzet-uefi-candidate.iso"
+          (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
+      - name: Install candidate and authenticate installed GNOME desktop
+        run: |
+          python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --logs dist/candidate-logs
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-interactive-test-logs
+          path: dist/candidate-logs/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload verified candidate (not a production release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-uefi-install-candidate
+          path: |
+            dist/localzet-uefi-candidate.iso
+            dist/localzet-uefi-candidate.iso.sha256
+          retention-days: 7
