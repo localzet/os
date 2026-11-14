@@ -8,7 +8,7 @@ test:
 extension-zip:
 	@command -v gnome-extensions >/dev/null || { echo "gnome-extensions is required (use Ubuntu 26.04 or CI)" >&2; exit 2; }
 	mkdir -p dist
-	gnome-extensions pack --force --out-dir dist extensions/localzet-shell@localzet.com
+	gnome-extensions pack --force --extra-source=dock.js --extra-source=panel.js --out-dir dist extensions/localzet-shell@localzet.com
 	$(PYTHON) scripts/verify-shell-bundle.py dist/localzet-shell@localzet.com.shell-extension.zip
 
 desktop-deb:
