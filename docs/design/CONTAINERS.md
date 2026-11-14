@@ -70,3 +70,14 @@ network selection remain future work. Unit tests cover pull argument validation;
 real CI creates a local fixture and checks its actual engine configuration,
 without depending on an external registry. Live registry, interactive GTK and
 rootless acceptance remain pending. No profile or installer changes.
+
+Stage 9 adds explicit localhost TCP/UDP mappings, non-secret environment,
+existing default local named volumes under /data, network selection (none,
+bridge or existing local bridge ID), CPU/RAM and restart policy. The restricted
+UID, read-only rootfs and capability settings remain mandatory. A native form
+shows a second confirmation with environment names only. Environment values
+are visible to Docker and may be visible in process arguments; do not use
+for secrets. Volume driver options are rejected, but name-based volume checks
+are not atomic against other clients. No arbitrary bind mounts or host mode.
+CI inspects the actual advanced container configuration, not service reachability.
+Interactive GTK, rootless, live registry and deployment runtime QA remain open.
