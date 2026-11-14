@@ -34,8 +34,14 @@ def candidates(items):
                  "org.freedesktop.DBus", "ListNames", None)[0]
     names = [n for n in names if n.startswith("org.kde.StatusNotifierItem") or n.startswith(":")]
     for item in items:
-        name, sep, suffix = item.partition("/")
-        path = "/" + suffix if sep else "/StatusNotifierItem"
+        # GNOME AppIndicator exports unique-name@/object/path (observed on
+        # GNOME 50); the KDE protocol also permits name/path and bare names.
+        if "@/" in item:
+            name, suffix = item.split("@", 1)
+            path = suffix
+        else:
+            name, sep, suffix = item.partition("/")
+            path = "/" + suffix if sep else "/StatusNotifierItem"
         if name and Gio.dbus_is_name(name):
             yield name, path
         elif item.startswith("/"):
@@ -59,7 +65,8 @@ while time.monotonic() < deadline:
                     print("PASS: upstream NectarLink exported an actual tray menu")
                     print("\n".join(labels))
                     raise SystemExit(0)
-            except (GLib.Error, ValueError, TypeError):
+            except (GLib.Error, ValueError, TypeError) as error:
+                print(f'Cannot read {name}{path}: {error}', flush=True)
                 continue
     except (GLib.Error, ValueError, TypeError) as error:
         print(f"Waiting for tray: {error}", flush=True)

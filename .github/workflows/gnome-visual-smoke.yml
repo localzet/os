@@ -22,7 +22,7 @@ jobs:
           installed=0
           for attempt in 1 2 3; do
             sudo apt-get -o Acquire::Retries=2 update
-            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell gnome-shell-extension-appindicator mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis; then
+            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell gnome-shell-extension-appindicator mutter-dev-bin xdotool xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis; then
               installed=1
               break
             fi
