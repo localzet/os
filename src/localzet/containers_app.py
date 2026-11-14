@@ -208,6 +208,9 @@ def main() -> int:
                 pull = Gtk.Button(label="Загрузить образ")
                 pull.connect("clicked", lambda *_: self.confirm_deployment(dialog, None))
                 content.append(pull)
+                build = Gtk.Button(label="Собрать образ")
+                build.connect("clicked", lambda *_: self.open_builder(dialog))
+                content.append(build)
             for item in rows:
                 group = Adw.PreferencesGroup()
                 for key, value in item.items():
@@ -229,6 +232,75 @@ def main() -> int:
                 content.append(group)
             dialog.present(self.window)
             return GLib.SOURCE_REMOVE
+
+        def open_builder(self, parent):
+            if self.busy:
+                return
+            from pathlib import Path
+            generation, rootful = self.generation, self.rootful
+            prompt = Adw.AlertDialog(heading="Image Builder",
+                body="Используйте только доверенный Dockerfile и каталог проекта. Docker получает контекст целиком с учётом .dockerignore; проверьте секреты. RUN без сети, но базовые образы и frontend могут загружаться.")
+            form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            tag = Gtk.Entry(placeholder_text="my-app:dev")
+            context = Gtk.Entry(placeholder_text="Абсолютный путь к каталогу проекта")
+            choose = Gtk.Button(label="Выбрать каталог")
+            def choose_folder(*_):
+                picker = Gtk.FileDialog(title="Контекст сборки")
+                def chosen(dialog, result):
+                    try:
+                        folder = dialog.select_folder_finish(result)
+                        if folder and folder.get_path():
+                            context.set_text(folder.get_path())
+                    except GLib.Error:
+                        pass
+                picker.select_folder(self.window, None, chosen)
+            choose.connect("clicked", choose_folder)
+            editor = Gtk.TextView(monospace=True, wrap_mode=Gtk.WrapMode.NONE)
+            editor.get_buffer().set_text("FROM scratch\n")
+            scroll = Gtk.ScrolledWindow(min_content_height=180, min_content_width=340)
+            scroll.set_child(editor)
+            for widget in (Gtk.Label(label="Локальный тег", xalign=0), tag,
+                           Gtk.Label(label="Контекст", xalign=0), context, choose,
+                           Gtk.Label(label="Dockerfile", xalign=0), scroll):
+                form.append(widget)
+            prompt.set_extra_child(form)
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("review", "Проверить")
+            prompt.set_default_response("cancel")
+            prompt.set_close_response("cancel")
+            def review(_, choice):
+                if choice != "review" or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                buffer = editor.get_buffer()
+                source = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True)
+                target, directory = tag.get_text(), context.get_text()
+                confirm = Adw.AlertDialog(heading="Подтвердить сборку",
+                    body=f"Тег: {target}\nКаталог: {directory}\nDockerfile: {len(source.encode('utf-8'))} байт. Сборка выполняет команды из Dockerfile; она не является песочницей.")
+                confirm.add_response("cancel", "Отмена")
+                confirm.add_response("build", "Собрать")
+                confirm.set_default_response("cancel")
+                confirm.set_close_response("cancel")
+                def run(_, response):
+                    if response != "build" or self.busy or generation != self.generation or rootful != self.rootful:
+                        return
+                    parent.close()
+                    self.busy = True
+                    self.generation += 1
+                    current = self.generation
+                    self.status.set_label("Сборка образа (до 10 минут)…")
+                    self.update_actions()
+                    future = self.pool.submit(lambda: Engine(rootful=rootful).build_image(target, source, Path(directory)))
+                    def complete():
+                        if current != self.generation or not self.window:
+                            return GLib.SOURCE_REMOVE
+                        self.status.set_label("Сборка завершена; тег найден." if future.exception() is None
+                                              else "Сборка не подтверждена; проверьте образы.")
+                        return self.resources_finished(current, "images", "Образы", future)
+                    future.add_done_callback(lambda _: GLib.idle_add(complete))
+                confirm.connect("response", run)
+                confirm.present(parent)
+            prompt.connect("response", review)
+            prompt.present(parent)
 
         def confirm_deployment(self, parent, item):
             if self.busy:

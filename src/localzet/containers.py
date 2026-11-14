@@ -383,6 +383,47 @@ class Engine:
         self._run("image", "pull", reference, timeout=600)
         return self.resources("images")
 
+    def build_image(self, tag: str, dockerfile: str, context: Path) -> tuple[dict[str, str], ...]:
+        # Trusted, explicitly selected context only. Pass the reviewed Dockerfile
+        # via stdin, not a path that could change between review and execution.
+        if not isinstance(tag, str) or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,62}:[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}", tag):
+            raise EngineError("Use a local image name and explicit tag")
+        if not isinstance(dockerfile, str) or not dockerfile.strip() or len(dockerfile.encode("utf-8")) > 65536 or "\x00" in dockerfile:
+            raise EngineError("Dockerfile must be 1–65536 bytes")
+        if not isinstance(context, Path) or not context.is_absolute() or not context.is_dir():
+            raise EngineError("Select an existing absolute build context")
+        context = context.resolve()
+        if context in (Path("/"), Path.home().resolve()):
+            raise EngineError("Select a specific project directory, not home or root")
+        if any(row["Repository"] + ":" + row["Tag"] == tag for row in self.resources("images")):
+            raise EngineError("Tag already exists; choose a new tag")
+        self._check()
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
+        import tempfile
+        # Discard build diagnostics in this first implementation; Dockerfile
+        # output may contain sensitive material.
+        with tempfile.TemporaryFile() as source:
+            source.write(dockerfile.encode("utf-8"))
+            source.seek(0)
+            try:
+                with subprocess.Popen([str(DOCKER), "--host", f"unix://{self.socket}",
+                        "build", "--network", "none", "--pull=false", "--progress", "plain",
+                        "--tag", tag, "--file", "-", str(context)], stdin=source,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env) as proc:
+                    try:
+                        if proc.wait(timeout=600):
+                            raise EngineError("Image build failed; inspect Docker state")
+                    finally:
+                        if proc.poll() is None:
+                            proc.kill()
+                            proc.wait()
+            except (OSError, subprocess.SubprocessError) as exc:
+                raise EngineError("Image build could not complete; inspect Docker state") from exc
+        rows = self.resources("images")
+        if not any(row["Repository"] + ":" + row["Tag"] == tag for row in rows):
+            raise EngineError("Build finished but target tag was not found")
+        return rows
+
     def create_container(self, name: str, image_id: str, options: Deployment = Deployment()) -> tuple[Container, ...]:
         if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}", name):
             raise EngineError("Invalid container name (2–63 ASCII characters)")

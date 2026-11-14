@@ -360,3 +360,42 @@ class ContainersTests(unittest.TestCase):
         for cpu, memory in (("NaN%", "0%"), ("-1%", "0%"), ("1%", "101%"), ("1%", "none")):
             with self.assertRaises(EngineError):
                 metric_sample({"CPUPerc": cpu, "MemPerc": memory})
+
+    def test_builder_rejects_invalid_input_and_existing_tag(self):
+        from pathlib import Path
+        import tempfile
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            with patch.object(engine, "_check") as check, patch.object(engine, "resources", return_value=({"Repository": "fixture", "Tag": "dev"},)):
+                for tag, source, context in (("--help", "FROM scratch", path),
+                    ("fixture", "FROM scratch", path), ("fixture:dev", "", path),
+                    ("fixture:dev", "FROM scratch", Path("/")),
+                    ("fixture:dev", "FROM scratch", Path("relative")),
+                    ("fixture:dev", "FROM scratch", path)):
+                    with self.assertRaises(EngineError):
+                        engine.build_image(tag, source, context)
+                check.assert_not_called()
+
+    def test_builder_passes_exact_reviewed_source(self):
+        from pathlib import Path
+        import tempfile
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        source = "FROM scratch\nLABEL fixture=localzet\n"
+        row = {"Repository": "fixture", "Tag": "dev"}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            with patch.object(engine, "_check"), patch.object(engine, "resources", side_effect=[(), (row,)]), patch("localzet.containers.subprocess.Popen") as popen:
+                def start(args, **kwargs):
+                    self.assertEqual(kwargs["stdin"].read(), source.encode())
+                    self.assertEqual(args[-3:], ["--file", "-", str(path.resolve())])
+                    self.assertIn("--pull=false", args)
+                    self.assertIn("none", args)
+                    proc = popen.return_value.__enter__.return_value
+                    proc.wait.return_value = 0
+                    proc.poll.return_value = 0
+                    return popen.return_value
+                popen.side_effect = start
+                self.assertEqual(engine.build_image("fixture:dev", source, path), (row,))
