@@ -81,6 +81,41 @@ def parse_inventory(output: str) -> tuple[Container, ...]:
     return tuple(rows)
 
 
+# Fixed field allowlist: never expose labels, mounts, environment or credentials.
+RESOURCE_FIELDS = {
+    "images": ("Repository", "Tag", "ID", "Size"),
+    "volumes": ("Name", "Driver", "Scope"),
+    "networks": ("Name", "ID", "Driver", "Scope"),
+}
+RESOURCE_COMMANDS = {
+    "images": ("image", "ls", "--all", "--no-trunc"),
+    "volumes": ("volume", "ls"),
+    "networks": ("network", "ls", "--no-trunc"),
+}
+
+
+def parse_resources(kind: str, output: str) -> tuple[dict[str, str], ...]:
+    if kind not in RESOURCE_FIELDS:
+        raise EngineError("Unknown resource kind")
+    rows = []
+    try:
+        for line in output.splitlines():
+            if not line.strip():
+                continue
+            item = json.loads(line)
+            row = {key: item[key] for key in RESOURCE_FIELDS[kind]}
+            if not all(isinstance(value, str) for value in row.values()):
+                raise ValueError("Invalid resource field")
+            if kind == "images" and not re.fullmatch(r"sha256:[0-9a-f]{64}", row["ID"]):
+                raise ValueError("Invalid image ID")
+            if kind == "networks" and not ID.fullmatch(row["ID"]):
+                raise ValueError("Invalid network ID")
+            rows.append(row)
+    except (ValueError, TypeError, KeyError) as exc:
+        raise EngineError("Docker returned an invalid resource inventory") from exc
+    return tuple(rows)
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -125,6 +160,11 @@ class Engine:
         # List only. Config paths are reported as metadata, never opened or
         # passed back into Compose automatically; they can be untrusted labels.
         return parse_stacks(self._run("compose", "ls", "--all", "--format", "json"))
+
+    def resources(self, kind: str) -> tuple[dict[str, str], ...]:
+        if kind not in RESOURCE_COMMANDS:
+            raise EngineError("Unknown resource kind")
+        return parse_resources(kind, self._run(*RESOURCE_COMMANDS[kind], "--format", "{{json .}}"))
 
     def _lookup(self, container_id: str) -> Container:
         if not isinstance(container_id, str) or not ID.fullmatch(container_id):
