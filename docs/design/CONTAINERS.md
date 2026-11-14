@@ -51,3 +51,10 @@ and environment variables are not requested for display. No create, remove,
 pull, prune or network changes are exposed. The disposable Docker CI creates
 its own isolated fixtures and checks actual inventory. Interactive resource
 view and rootless acceptance are still required.
+
+Stage 7 adds explicitly confirmed local volume and internal bridge creation,
+plus image and local network removal by full ID without force or prune.
+Built-in networks and multiply referenced images are rejected. Volume removal
+is intentionally absent. Docker remains the authority on in-use resources;
+name checks before creation are not atomic against other clients. GUI and
+rootless acceptance remain required. No profile or installer changes.
