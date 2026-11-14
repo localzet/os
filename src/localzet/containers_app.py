@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
-from localzet.containers import Engine, EngineError
+from localzet.containers import Deployment, Engine, EngineError, deployment_args
 
 
 def main() -> int:
@@ -231,6 +231,7 @@ def main() -> int:
             if self.busy:
                 return
             generation, rootful = self.generation, self.rootful
+            fields = {}
             if item is None:
                 prompt = Adw.AlertDialog(heading="Загрузить образ?",
                     body="Укажите доверенный registry и явный тег или digest. Загрузка обращается к сети и может изменить локальный тег. Образ не запускается.")
@@ -238,10 +239,30 @@ def main() -> int:
                 action = "Загрузить"
             else:
                 prompt = Adw.AlertDialog(heading="Создать контейнер?",
-                    body=item["ID"] + "\nСоздаётся без запуска, без сети, с read-only rootfs, UID 65534, без capabilities, лимитами 512 МиБ и 256 процессов. Используйте только доверенные образы.")
+                    body=item["ID"] + "\nБез автоматического запуска. Read-only rootfs, UID 65534, без capabilities. Порты только localhost; окружение не предназначено для секретов. Используйте доверенный образ.")
                 entry = Gtk.Entry(placeholder_text="Имя контейнера")
-                action = "Создать"
-            prompt.set_extra_child(entry)
+                action = "Проверить"
+                form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+                form.append(entry)
+                for key, label, default in (
+                    ("network", "Сеть: none, bridge или полный ID", "none"),
+                    ("ports", "Порты через пробел: 8080:80/tcp", ""),
+                    ("environment", "Окружение: KEY=value (одна строка на переменную)", ""),
+                    ("mounts", "Тома через пробел: name:/data:ro", ""),
+                    ("memory", "RAM, МиБ", "512"),
+                    ("cpus", "CPU: например 1.5", ""),
+                    ("restart", "Restart: no, on-failure, unless-stopped, always", "no"),
+                ):
+                    form.append(Gtk.Label(label=label, xalign=0, wrap=True))
+                    if key == "environment":
+                        field = Gtk.TextView(wrap_mode=Gtk.WrapMode.CHAR, height_request=60)
+                    else:
+                        field = Gtk.Entry(text=default)
+                    fields[key] = field
+                    form.append(field)
+                scroll = Gtk.ScrolledWindow(min_content_height=380, max_content_height=460, propagate_natural_height=True)
+                scroll.set_child(form)
+            prompt.set_extra_child(entry if item is None else scroll)
             prompt.add_response("cancel", "Отмена")
             prompt.add_response("confirm", action)
             prompt.set_close_response("cancel")
@@ -252,6 +273,38 @@ def main() -> int:
                 if choice != "confirm" or self.busy or generation != self.generation or rootful != self.rootful:
                     return
                 target = entry.get_text()
+                if item is not None:
+                    try:
+                        buffer = fields["environment"].get_buffer()
+                        env = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True)
+                        options = Deployment(
+                            network=fields["network"].get_text(),
+                            ports=tuple(fields["ports"].get_text().split()),
+                            environment=tuple(line for line in env.splitlines() if line),
+                            mounts=tuple(fields["mounts"].get_text().split()),
+                            memory_mib=int(fields["memory"].get_text()),
+                            cpus=fields["cpus"].get_text(),
+                            restart=fields["restart"].get_text())
+                        deployment_args(options)
+                    except (EngineError, ValueError) as error:
+                        invalid = Adw.AlertDialog(heading="Проверьте настройки", body=str(error))
+                        invalid.add_response("ok", "Закрыть")
+                        invalid.present(parent)
+                        return
+                    review = Adw.AlertDialog(heading="Подтвердить конфигурацию",
+                        body=f"Имя: {target}\nОбраз: {item['ID']}\nСеть: {options.network}\nПорты (localhost): {', '.join(options.ports) or '—'}\nПеременные: {', '.join(v.split('=', 1)[0] for v in options.environment) or '—'}\nТома: {', '.join(options.mounts) or '—'}\nRAM: {options.memory_mib} МиБ · CPU: {options.cpus or 'без лимита'}\nRestart: {options.restart}\nКонтейнер не запускается автоматически.")
+                    review.add_response("cancel", "Отмена")
+                    review.add_response("confirm", "Создать")
+                    review.set_default_response("cancel")
+                    review.set_close_response("cancel")
+                    review.connect("response", lambda _, result: deploy(target, options) if result == "confirm" else None)
+                    review.present(parent)
+                    return
+                deploy(target, None)
+
+            def deploy(target, options):
+                if self.busy or generation != self.generation or rootful != self.rootful:
+                    return
                 parent.close()
                 self.busy = True
                 self.generation += 1
@@ -260,7 +313,7 @@ def main() -> int:
                 self.update_actions()
                 def worker():
                     engine = Engine(rootful=rootful)
-                    return engine.pull_image(target) if item is None else engine.create_container(target, item["ID"])
+                    return engine.pull_image(target) if item is None else engine.create_container(target, item["ID"], options)
                 future = self.pool.submit(worker)
                 if item is None:
                     future.add_done_callback(lambda f: GLib.idle_add(self.pull_finished, current, f))

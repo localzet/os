@@ -14,6 +14,7 @@ cleanup() {
     if [[ -f "$work/compose.yaml" ]]; then
         docker_local compose -p "$name" -f "$work/compose.yaml" down >/dev/null 2>&1 || true
     fi
+    docker_local rm -f "$name-advanced" >/dev/null 2>&1 || true
     docker_local rm -f "$name" >/dev/null 2>&1 || true
     docker_local volume rm "$name" >/dev/null 2>&1 || true
     docker_local network rm "$name" >/dev/null 2>&1 || true
@@ -110,6 +111,22 @@ for kind, predicate in (
     (Path(out) / f"{kind}.json").write_text(json.dumps(row, indent=2))
     print("PASS: real", kind, "inventory")
 PY
+# Create an advanced fixture with real options, then remove only that fixture.
+advanced="$name-advanced"
+docker_local inspect "$advanced" >/dev/null 2>&1 && exit 1
+python3 - "$name" "$image" "$advanced" <<'PY'
+import sys
+from localzet.containers import Deployment, Engine
+name, reference, advanced = sys.argv[1:]
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == reference)
+options = Deployment(network="bridge", ports=("18080:80/tcp", "15353:53/udp"),
+    environment=("LOCALZET_FIXTURE=dev",), mounts=(f"{name}:/data:ro",),
+    memory_mib=256, cpus="0.5", restart="on-failure")
+assert any(row.name == advanced and row.state == "created" for row in engine.create_container(advanced, image["ID"], options))
+PY
+docker_local inspect "$advanced" | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; h=c["HostConfig"]; assert h["Memory"]==268435456 and h["NanoCpus"]==500000000; assert h["RestartPolicy"]["Name"]=="on-failure"; assert "LOCALZET_FIXTURE=dev" in c["Config"]["Env"]; assert h["PortBindings"]["80/tcp"][0]["HostIp"]=="127.0.0.1"; assert h["PortBindings"]["53/udp"][0]["HostPort"]=="15353"; assert any(m["Destination"]=="/data" and not m["RW"] for m in c["Mounts"])'
+docker_local rm "$advanced"
 python3 - "$name" <<'PY'
 import sys
 from localzet.containers import Engine
