@@ -1,0 +1,47 @@
+name: Windows Runtime GTK smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/localzet/windows_app.py'
+      - 'apps/localzet-windows/**'
+      - 'packaging/com.localzet.WindowsRuntime.desktop'
+      - '.github/workflows/windows-gtk-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  gtk:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-adw-1 gir1.2-gtk-4.0 xvfb xauth dbus-x11 xdotool imagemagick
+      - name: Open Windows Runtime without executing any file
+        run: |
+          mkdir -p out/runtime-gtk
+          export PYTHONPATH="$PWD/src" GDK_BACKEND=x11 GSK_RENDERER=cairo
+          xvfb-run -a dbus-run-session -- bash -eu -c '
+            python3 -m localzet.windows_app > out/runtime-gtk/app.log 2>&1 &
+            pid=$!
+            trap "kill \"$pid\" 2>/dev/null || true" EXIT
+            for attempt in $(seq 1 30); do
+              kill -0 "$pid" || { cat out/runtime-gtk/app.log; exit 1; }
+              if xdotool search --name "Localzet Windows Runtime" >/dev/null 2>&1; then
+                sleep 2
+                import -window root out/runtime-gtk/window.png
+                exit 0
+              fi
+              sleep 1
+            done
+            cat out/runtime-gtk/app.log
+            exit 1
+          '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-runtime-gtk
+          path: out/runtime-gtk/
+          retention-days: 7
