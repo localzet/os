@@ -321,7 +321,7 @@ expected = plan(load_manifest(Path("/opt/localzet-os/config/profiles.json")), AR
 assert receipt == expected
 packages = expected["ubuntu_package_candidates"]
 output = subprocess.check_output(["dpkg-query", "-W", "-f=${Package}\\t${db:Status-Abbrev}\\n", *packages], text=True)
-assert set(output.splitlines()) == {name + "\\tii " for name in packages}, output
+assert set(output.splitlines()) == {name + "\tii " for name in packages}, output
 assert not expected["install_ready"]
 print("PASS: installed archive profile package inventory; external components remain pending")
 PY
