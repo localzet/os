@@ -134,3 +134,12 @@ initial version; status and resulting tag are verified. A ten-minute CLI
 limit does not guarantee daemon cancellation. CI builds the actual scratch
 fixture through this adapter. Build arguments, streaming diagnostics, layer
 history, interactive GTK and rootless acceptance remain pending.
+
+Stage 15 adds explicit non-secret build arguments, opt-in build output (last
+256 KiB, shown after completion), and image history limited to 256 entries
+with ID, age and size only. Commands and comments are excluded from history.
+Build arguments may be visible in process arguments and image metadata; they
+are not a secret mechanism. Output is kept in memory only and can contain
+sensitive data. CI checks real build argument propagation, diagnostics and
+history. Streaming progress, cancellation, interactive GTK and rootless QA
+remain outstanding.
