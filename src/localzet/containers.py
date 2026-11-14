@@ -402,6 +402,15 @@ class Engine:
                       "-p", "localzet-validation", "-f", str(path), "config", "--quiet")
         return document
 
+    def studio_status(self, source: str) -> tuple[Container, ...]:
+        identity = StudioStore.identity(source)
+        project = "localzet-studio-" + identity[:32]
+        rows = parse_inventory(self._run("container", "ls", "--all", "--no-trunc",
+            "--filter", f"label=com.docker.compose.project={project}",
+            "--filter", f"label=com.localzet.studio.document={identity}",
+            "--format", "{{json .}}"))
+        return rows
+
     def managed_compose(self, source: str, action: str) -> str:
         """Operate only on a deterministic, app-owned restricted project."""
         import hashlib
