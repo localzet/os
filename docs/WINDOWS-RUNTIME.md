@@ -31,3 +31,12 @@ Windows drivers, anti-cheat, DRM, DirectX or Proton games.
 - Proton/Steam and DXVK/VKD3D GPU testing, separate from desktop Wine.
 - Actual sandboxing or explicit documented security boundaries.
 - Integration into the desktop DEB and installed image after runtime checks.
+
+## Native desktop entry
+
+Localzet Windows Runtime is now packaged as a GTK application and registered
+as an available EXE/MSI handler. Opening a file shows its path, a named Wine
+profile and an explicit trust checkbox; no automatic execution or default
+MIME association changes occur. The optional build flag
+`LOCALZET_WINDOWS=1` adds the Ubuntu Wine packages to the image. The default
+image remains unchanged until the combined image is verified.
