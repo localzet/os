@@ -277,3 +277,39 @@ class ContainersTests(unittest.TestCase):
         with patch.object(engine, "_run", side_effect=inspect) as run:
             engine.validate_compose(json.dumps({"services": {"app": {"image": "sha256:" + CID}}}))
             run.assert_called_once()
+
+    def test_managed_compose_rejects_unknown_action_and_missing_image(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        source = json.dumps({"services": {"app": {"image": "sha256:" + CID}}})
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=()):
+            for action in ("prune", "up"):
+                with self.assertRaises(EngineError):
+                    engine.managed_compose(source, action)
+            run.assert_not_called()
+
+    def test_managed_compose_refuses_foreign_project(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        source = json.dumps({"services": {"app": {"image": "sha256:" + CID}}})
+        with patch.object(engine, "_run", side_effect=[json.dumps(CID), "{}"]) as run:
+            with self.assertRaisesRegex(EngineError, "identity mismatch"):
+                engine.managed_compose(source, "down")
+            self.assertEqual(run.call_count, 2)
+
+    def test_managed_compose_down_targets_exact_ids(self):
+        import hashlib
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        source = json.dumps({"services": {"app": {"image": "sha256:" + CID}}})
+        document, _ = compose_document(source)
+        digest = hashlib.sha256(document.encode()).hexdigest()
+        project = "localzet-studio-" + digest[:32]
+        labels = json.dumps({"com.localzet.studio.document": digest,
+                             "com.docker.compose.project": project,
+                             "com.docker.compose.service": "app"})
+        with patch.object(engine, "_run", side_effect=[json.dumps(CID), labels, "",
+                json.dumps(CID), labels, "", ""]) as run:
+            self.assertEqual(engine.managed_compose(source, "down"), project)
+            self.assertEqual(run.call_args_list[-2].args, ("container", "stop", "--time", "10", CID))
+            self.assertEqual(run.call_args_list[-1].args, ("container", "rm", CID))

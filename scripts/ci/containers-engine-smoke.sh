@@ -45,6 +45,17 @@ assert set(json.loads(document)["services"]) == {"app", "worker"}
 assert engine.inventory() == before
 (Path(sys.argv[2]) / "compose-studio.json").write_text(document)
 print("PASS: real Compose config validation without deployment")
+project = engine.managed_compose(source, "up")
+try:
+    assert any(row.name == project and "running" in row.status for row in engine.stacks())
+    assert engine.managed_compose(source, "stop") == project
+    assert engine.managed_compose(source, "start") == project
+    assert engine.managed_compose(source, "restart") == project
+finally:
+    engine.managed_compose(source, "down")
+assert engine.inventory() == before
+print("PASS: real managed Compose lifecycle")
+
 PY
 cid="$(python3 - "$name" "$image" <<'PY'
 import sys

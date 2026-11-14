@@ -346,6 +346,76 @@ class Engine:
                       "-p", "localzet-validation", "-f", str(path), "config", "--quiet")
         return document
 
+    def managed_compose(self, source: str, action: str) -> str:
+        """Operate only on a deterministic, app-owned restricted project."""
+        import hashlib
+        import tempfile
+        document, _ = compose_document(source)
+        digest = hashlib.sha256(document.encode("utf-8")).hexdigest()
+        project = "localzet-studio-" + digest[:32]
+        if action not in ("up", "start", "stop", "restart", "down"):
+            raise EngineError("Unsupported Compose action")
+        if action == "up":
+            images = {row["ID"] for row in self.resources("images")}
+            if any(service["image"] not in images for service in json.loads(document)["services"].values()):
+                raise EngineError("A selected local image is missing")
+        # Compose project names are not an authorization boundary. Refuse any
+        # existing project unless every container carries our exact document
+        # fingerprint and service label. No foreign stack adoption.
+        def verify():
+            output = self._run("container", "ls", "--all", "--no-trunc",
+                "--filter", f"label=com.docker.compose.project={project}",
+                "--format", "{{json .ID}}")
+            ids = []
+            for line in output.splitlines():
+                try:
+                    cid = json.loads(line)
+                    if not isinstance(cid, str) or not ID.fullmatch(cid):
+                        raise ValueError("Invalid ID")
+                except (ValueError, TypeError) as exc:
+                    raise EngineError("Invalid project inventory") from exc
+                ids.append(cid)
+            for cid in ids:
+                raw = self._run("container", "inspect", "--format",
+                    '{{json .Config.Labels}}', cid)
+                try:
+                    labels = json.loads(raw)
+                    if (labels.get("com.localzet.studio.document") != digest or
+                        labels.get("com.docker.compose.project") != project or
+                        labels.get("com.docker.compose.service") not in json.loads(document)["services"]):
+                        raise ValueError("Foreign project")
+                except (ValueError, TypeError, AttributeError) as exc:
+                    raise EngineError("Project identity mismatch; no changes made") from exc
+            return ids
+        existing = verify()
+        if action != "up" and not existing:
+            raise EngineError("No matching managed project exists")
+        model = json.loads(document)
+        for service in model["services"].values():
+            service["labels"] = {"com.localzet.studio.document": digest}
+        with tempfile.TemporaryDirectory(prefix="localzet-compose-") as directory:
+            path = Path(directory) / "compose.json"
+            path.write_text(json.dumps(model), encoding="utf-8")
+            args = ("compose", "--project-directory", directory, "--env-file",
+                    "/dev/null", "-p", project, "-f", str(path))
+            self._run(*args, "config", "--quiet")
+            current = verify()
+            if action != "up":
+                if not current:
+                    raise EngineError("Managed project disappeared; refresh")
+                # Target exact verified IDs; never expand to other project labels.
+                for cid in current:
+                    if action == "down":
+                        self._run("container", "stop", "--time", "10", cid)
+                        self._run("container", "rm", cid)
+                    else:
+                        self._run("container", action, cid)
+                return project
+            if current:
+                raise EngineError("Project already exists; use Start or Down")
+            self._run(*args, "up", "-d", "--no-build", "--pull", "never", "--no-recreate", timeout=120)
+        return project
+
     def _lookup(self, container_id: str) -> Container:
         if not isinstance(container_id, str) or not ID.fullmatch(container_id):
             raise EngineError("Invalid full container ID")
