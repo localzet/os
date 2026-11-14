@@ -34,7 +34,8 @@ class Guest:
         self.accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
         cpu = "host" if self.accel == "kvm" else "max"
         command = [
-            "qemu-system-x86_64", "-machine", "q35", "-accel", self.accel,
+            "qemu-system-x86_64", "-machine", "q35,smm=on", "-accel", self.accel,
+            "-global", "driver=cfi.pflash01,property=secure,value=on",
             "-cpu", cpu, "-m", "5120", "-smp", "2", "-nic", "none",
             "-vga", "virtio", "-display", "none", "-monitor", "none", "-no-reboot",
             "-qmp", f"unix:{self.socket},server=on,wait=off",
@@ -142,6 +143,10 @@ set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
 trap 'printf "\\nLOCALZET_CANDIDATE_FAILED\\n"' ERR
 pgrep -u localzet -f /usr/bin/localzet-installer >/dev/null
+findmnt --mountpoint /sys/firmware/efi/efivars || true
+for flag in /sys/firmware/efi/efivars/SecureBoot-* /sys/firmware/efi/efivars/SetupMode-*; do
+    if test -f "$flag"; then printf '%s: ' "$flag"; od -An -t u1 "$flag"; fi
+done
 export PYTHONPATH=/opt/localzet-os/src
 python3 - <<'PY' | /usr/lib/localzet/installer-backend
 import json
