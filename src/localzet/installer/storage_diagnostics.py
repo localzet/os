@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import re
 from pathlib import Path
 from localzet.installer.preflight import read_lsblk, inspect_disk
 
@@ -26,7 +28,7 @@ def storage_controllers(root: Path = Path("/sys/bus/pci/devices")) -> list[dict]
     return result
 
 
-def report(payload: dict, live_disk: str | None, controllers: list[dict]) -> dict:
+def report(payload: dict, live_disk: str | None, controllers: list[dict], *, source_known: bool = True) -> dict:
     from localzet.installer.interactive import eligible_plan
     from localzet.installer.target import identity
     rows = []
@@ -40,7 +42,9 @@ def report(payload: dict, live_disk: str | None, controllers: list[dict]) -> dic
         row["eligible"] = False
         row["efi_partitions"] = [child.get("path") for child in disk.get("children") or []
                                  if str(child.get("parttype") or "").lower() == EFI_TYPE]
-        if row["boot_medium"]:
+        if not source_known:
+            row["reason"] = "Загрузочный носитель не определён; установка заблокирована"
+        elif row["boot_medium"]:
             row["reason"] = "Загрузочный носитель"
         elif not identity(disk):
             row["reason"] = "Нет стабильного WWN или серийного номера"
@@ -56,7 +60,7 @@ def report(payload: dict, live_disk: str | None, controllers: list[dict]) -> dic
     return {"disks": rows, "controllers": controllers,
             "internal_disks_visible": len(internal),
             "intel_rst_possible": any(c["intel_raid_or_vmd"] for c in controllers),
-            "writes_performed": False}
+            "source_known": source_known, "writes_performed": False}
 
 
 def describe(data: dict) -> str:
@@ -77,13 +81,45 @@ def describe(data: dict) -> str:
     return "\n".join(lines) or "Накопители и контроллеры не обнаружены."
 
 
+def parse_boot_entries(output: str) -> list[dict]:
+    """Firmware hints only; labels and paths do not prove actual GRUB content."""
+    entries = []
+    for line in output.splitlines():
+        match = re.match(r"^Boot([0-9a-fA-F]{4})\*?\s+(.*)", line)
+        if not match:
+            continue
+        label = re.split(r"\s+(?:HD|PciRoot|VenHw|BBS|FvFile|USB)\(", match[2], maxsplit=1)[0].strip()
+        path_match = re.search(r"File\(([^)]*)\)", line, re.I)
+        path = path_match[1] if path_match else ""
+        lower = path.lower()
+        kind = ("windows" if "bootmgfw.efi" in lower else
+                "possible-grub" if any(x in lower for x in ("grub", "shim")) else
+                "unknown")
+        entries.append({"entry": match[1], "label": label, "loader_path": path, "kind": kind})
+    return entries
+
+
+def firmware_boot_entries() -> dict:
+    try:
+        output = subprocess.check_output(["efibootmgr", "-v"], text=True,
+                                         stderr=subprocess.DEVNULL, timeout=10)
+        return {"available": True, "entries": parse_boot_entries(output)}
+    except (OSError, subprocess.SubprocessError):
+        return {"available": False, "entries": []}
+
+
 def main() -> int:
     from localzet.installer.interactive import live_source_disk
     try:
         live = live_source_disk()
-    except (OSError, ValueError):
+    except (OSError, ValueError, subprocess.SubprocessError):
         live = None
-    print(json.dumps(report(read_lsblk(), live, storage_controllers()), ensure_ascii=False, indent=2))
+        known = False
+    else:
+        known = True
+    data = report(read_lsblk(), live, storage_controllers(), source_known=known)
+    data["firmware_boot_entries"] = firmware_boot_entries()
+    print(json.dumps(data, ensure_ascii=False, indent=2))
     return 0
 
 

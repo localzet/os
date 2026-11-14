@@ -83,6 +83,7 @@ for driver in vmd nvme nvme_core ahci; do
     module="$(chroot "$root" modinfo -k "$kernel" -F filename "$driver")"
     if [[ "$module" != '(builtin)' ]]; then
         basename="${module##*/}"
+        basename="${basename%%.ko*}.ko"
         grep -Fq "/$basename" <<< "$initrd_list" || {
             echo "Initramfs missing storage driver: $driver" >&2; exit 2;
         }

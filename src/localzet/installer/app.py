@@ -125,7 +125,11 @@ def create_application():
             self.diagnostics.set_label("")
             try:
                 payload = read_lsblk()
-                boot_disk = live_source_disk()
+                try:
+                    boot_disk = live_source_disk()
+                except Exception:
+                    self.diagnostics.set_label(describe(report(payload, None, storage_controllers(), source_known=False)))
+                    raise
                 self.diagnostics.set_label(describe(report(payload, boot_disk, storage_controllers())))
                 plans = []
                 errors = []
