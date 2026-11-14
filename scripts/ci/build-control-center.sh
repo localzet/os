@@ -60,6 +60,8 @@ for deb in "${debs[@]}"; do
     cp "$deb" "$out/"
 done
 sha256sum "${debs[@]}" >> "$out/provenance.txt"
+(cd "$out" && sha256sum "${debs[@]}") > "$out/SHA256SUMS"
+git -C "$repo" rev-parse HEAD > "$out/BUILD-COMMIT"
 # Check embedded compiled logo and compare panel inventory with stock
 # before installing the rebuilt pair on this disposable runner.
 sudo apt-get install -y gnome-control-center
