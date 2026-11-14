@@ -131,7 +131,7 @@ chroot "$root" update-initramfs -u -k all
 chroot "$root" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
     --bootloader-id=Localzet --removable --no-nvram
 mkdir -p "$root/etc/default/grub.d"
-printf 'GRUB_DISABLE_OS_PROBER=true\n' > "$root/etc/default/grub.d/90-localzet.cfg"
+printf 'GRUB_DISABLE_OS_PROBER=true\nGRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n' > "$root/etc/default/grub.d/90-localzet.cfg"
 if [[ "$mode" == vm ]]; then
     printf '%s\n' 'GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8 systemd.show_status=1 systemd.mask=serial-getty@ttyS0.service"' > "$root/etc/default/grub.d/99-localzet-test.cfg"
 fi

@@ -1,11 +1,11 @@
 [Desktop Entry]
 Type=Application
-Name=Localzet Settings
-Name[ru]=Параметры Localzet
-Comment=Manage your Localzet OS workspace
-Comment[ru]=Настройки и компоненты Localzet OS
+Name=Localzet Components
+Name[ru]=Компоненты Localzet
+Comment=Manage optional Localzet features
+Comment[ru]=Дополнительные компоненты Localzet OS
 Exec=localzet-settings
 Icon=preferences-system-symbolic
 Terminal=false
-Categories=Settings;System;
+Categories=Utility;System;
 StartupNotify=true

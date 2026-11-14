@@ -6,11 +6,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 // Dock buttons always launch existing apps. Optional apps only appear when
 // actually installed; there are no placeholders or inert icons.
 const PINNED = [
-    'com.microsoft.Edge.desktop',
-    'microsoft-edge.desktop',
+    'org.gnome.Epiphany.desktop',
     'org.gnome.Nautilus.desktop',
     'org.gnome.Ptyxis.desktop',
-    'com.localzet.Settings.desktop',
+    'org.gnome.Settings.desktop',
 ];
 
 export class LocalzetDock {
