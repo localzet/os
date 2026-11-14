@@ -7,14 +7,15 @@ root="$(realpath -e -- "$1")"
 bundle="$(realpath -e -- "$2")"
 repo="$(realpath -e -- "$3")"
 [[ "$root" != / && -d "$root/var/lib/dpkg" && -d "$bundle" ]]
-[[ "$(cat "$bundle/BUILD-COMMIT")" == "$(git -C "$repo" rev-parse HEAD)" ]]
+[[ "$(cat "$bundle/BUILD-COMMIT")" == "$(git -c "safe.directory=$repo" -C "$repo" rev-parse HEAD)" ]]
 # The expected exact two package names are determined by dpkg metadata.
 shopt -s nullglob
 files=("$bundle"/gnome-control-center_*.deb "$bundle"/gnome-control-center-data_*.deb)
 [[ ${#files[@]} == 2 ]]
 [[ -f "$bundle/SHA256SUMS" && ! -L "$bundle/SHA256SUMS" ]]
 # Avoid accepting arbitrary paths from checksum manifests.
-expected="$(for f in "${files[@]}"; do [[ -f "$f" && ! -L "$f" ]]; sha256sum "$f"; done | sed "s|  $bundle/|  |" | sort)"
+for f in "${files[@]}"; do [[ -f "$f" && ! -L "$f" ]]; done
+expected="$(cd "$bundle"; for f in "${files[@]}"; do sha256sum -- "${f##*/}"; done | sort)"
 actual="$(sort "$bundle/SHA256SUMS")"
 [[ "$actual" == "$expected" ]] || { echo "Control Center bundle checksum mismatch" >&2; exit 2; }
 staging="$(mktemp -d "$root/tmp/localzet-control-center.XXXXXXXX")"
