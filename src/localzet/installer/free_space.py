@@ -51,8 +51,8 @@ def inspect_free_space(payload: dict, selected: str, live_disk: str | None,
     if table.get("device") != path or table.get("unit") != "sectors":
         raise ValueError("Partition table does not match target or uses unknown units")
     sector = _integer(table.get("sectorsize"), "sector size")
-    if sector not in (512, 4096):
-        raise ValueError("Unsupported logical sector size")
+    if sector not in (512, 4096) or sector != _integer(disk.get("log-sec"), "lsblk logical sector size"):
+        raise ValueError("Unsupported or inconsistent logical sector size")
     capacity = _integer(disk.get("size"), "disk size")
     if capacity % sector:
         raise ValueError("Disk size is not sector aligned")
@@ -61,6 +61,8 @@ def inspect_free_space(payload: dict, selected: str, live_disk: str | None,
     if not 2 <= first <= last < capacity // sector - 1:
         raise ValueError("Invalid usable GPT bounds")
     table_id = _guid(table.get("id"), "GPT disk UUID")
+    if table_id != _guid(disk.get("ptuuid"), "lsblk GPT disk UUID"):
+        raise ValueError("GPT disk UUID mismatch")
     rows = table.get("partitions")
     if not isinstance(rows, list) or not rows:
         raise ValueError("Existing partitions required; use dedicated SSD planner otherwise")
@@ -88,7 +90,9 @@ def inspect_free_space(payload: dict, selected: str, live_disk: str | None,
                 or part_id in seen_ids
                 or part_id != _guid(child.get("partuuid"), "lsblk partition UUID")
                 or kind != _guid(child.get("parttype"), "lsblk partition type")
-                or size * sector != _integer(child.get("size"), "lsblk partition size")):
+                or size * sector != _integer(child.get("size"), "lsblk partition size")
+                # util-linux lsblk START is in 512-byte units even on 4Kn.
+                or start * sector != _integer(child.get("start"), "lsblk partition start") * 512):
             raise ValueError("Partition bounds, identity or size mismatch")
         seen_ids.add(part_id)
         partitions.append({"path": node, "start_lba": start, "end_lba_exclusive": start + size,
@@ -134,6 +138,46 @@ def inspect_free_space(payload: dict, selected: str, live_disk: str | None,
         "install_ready": False,
         "write_operations_available": False,
     }
+
+
+def select_extent(plan: dict, start_lba: int, end_lba_exclusive: int) -> dict:
+    """Bind review to one exact offered extent. Does not grant write permission."""
+    if plan.get("operation") != "read_only_gpt_free_space":
+        raise ValueError("A GPT free-space review is required")
+    start = _integer(start_lba, "selected start LBA")
+    end = _integer(end_lba_exclusive, "selected end LBA")
+    matches = [extent for extent in plan["aligned_free_extents"]
+               if extent["start_lba"] == start and extent["end_lba_exclusive"] == end
+               and extent["meets_root_minimum"] is True]
+    if len(matches) != 1:
+        raise ValueError("Select one exact extent meeting the root capacity hint")
+    keys = ("selected_identity", "hardware_fingerprint", "layout_fingerprint", "gpt_fingerprint")
+    if any(not plan.get(key) for key in keys):
+        raise ValueError("Incomplete review fingerprints")
+    return {"operation": "read_only_gpt_extent_selection",
+            **{key: plan[key] for key in keys},
+            "extent": dict(matches[0]),
+            "requires_backup": True,
+            "requires_revalidation_before_write": True,
+            "requires_explicit_efi_plan": True,
+            "install_ready": False, "write_operations_available": False}
+
+
+def revalidate_extent(payload: dict, table_payload: dict, previous: dict,
+                      live_disk: str | None, *, source_known: bool) -> dict:
+    """A changed disk, GPT, partition state or free extent invalidates review."""
+    if previous.get("operation") != "read_only_gpt_extent_selection":
+        raise ValueError("A previously selected GPT extent is required")
+    current = inspect_free_space(payload, previous["selected_identity"], live_disk,
+                                 table_payload, source_known=source_known)
+    for key in ("hardware_fingerprint", "layout_fingerprint", "gpt_fingerprint"):
+        if not previous.get(key) or current[key] != previous[key]:
+            raise ValueError(f"Disk changed since review: {key}")
+    extent = previous["extent"]
+    result = select_extent(current, extent["start_lba"], extent["end_lba_exclusive"])
+    if result["extent"] != extent:
+        raise ValueError("Free extent changed since review")
+    return result
 
 
 def main() -> int:

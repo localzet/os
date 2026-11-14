@@ -1,7 +1,7 @@
 """Sector-exact synthetic GPT fixtures; never open a real block device."""
 from copy import deepcopy
 import unittest
-from localzet.installer.free_space import inspect_free_space, EFI_TYPE
+from localzet.installer.free_space import inspect_free_space, select_extent, revalidate_extent, EFI_TYPE
 
 DATA_TYPE = "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7"
 
@@ -18,13 +18,15 @@ def fixture(sector=512):
     ]
     children = [
         {"type": "part", "path": row["node"], "name": row["node"].split("/")[-1],
-         "size": row["size"] * sector, "partuuid": row["uuid"],
+         "size": row["size"] * sector, "start": row["start"] * sector // 512,
+         "partuuid": row["uuid"],
          "parttype": row["type"], "fstype": fs, "ro": False, "mountpoints": [None]}
         for row, fs in zip(rows, ("vfat", "ntfs"))
     ]
     payload = {"blockdevices": [{"type": "disk", "path": disk, "name": "nvme0n1",
                 "serial": "MAIN", "tran": "nvme", "size": total * sector,
-                "pttype": "gpt", "ro": False, "rm": False, "rota": False,
+                "pttype": "gpt", "ptuuid": "00000000-0000-4000-8000-000000000003",
+                "log-sec": sector, "ro": False, "rm": False, "rota": False,
                 "children": children}]}
     table = {"partitiontable": {"label": "gpt", "device": disk, "unit": "sectors",
                 "id": "00000000-0000-4000-8000-000000000003", "sectorsize": sector,
@@ -62,6 +64,7 @@ class FreeSpaceTests(unittest.TestCase):
     def test_overlap_rejected(self):
         p, t = fixture()
         t["partitiontable"]["partitions"][1]["start"] -= 1
+        p["blockdevices"][0]["children"][1]["start"] -= 1
         with self.assertRaisesRegex(ValueError, "Overlapping"):
             self.plan(p, t)
 
@@ -93,5 +96,43 @@ class FreeSpaceTests(unittest.TestCase):
         p, t = fixture()
         before = self.plan(p, t)
         t["partitiontable"]["partitions"][1]["start"] += 2048
+        p["blockdevices"][0]["children"][1]["start"] += 2048
         after = self.plan(p, t)
         self.assertNotEqual(before["gpt_fingerprint"], after["gpt_fingerprint"])
+
+    def test_independent_geometry_and_disk_id_mismatch(self):
+        for key, value in (("log-sec", 4096), ("ptuuid", "00000000-0000-4000-8000-000000000099")):
+            p, t = fixture()
+            p["blockdevices"][0][key] = value
+            with self.assertRaises(ValueError):
+                self.plan(p, t)
+        p, t = fixture(4096)
+        p["blockdevices"][0]["children"][1]["start"] += 1
+        with self.assertRaisesRegex(ValueError, "mismatch"):
+            self.plan(p, t)
+
+    def test_exact_extent_and_revalidation(self):
+        p, t = fixture(4096)
+        plan = self.plan(p, t)
+        extent = plan["aligned_free_extents"][-1]
+        start, end = extent["start_lba"], extent["end_lba_exclusive"]
+        selected = select_extent(plan, start, end)
+        self.assertFalse(selected["install_ready"])
+        self.assertEqual(selected, revalidate_extent(p, t, selected, "/dev/sdb", source_known=True))
+        with self.assertRaises(ValueError):
+            select_extent(plan, start + 1, end)
+        with self.assertRaises(ValueError):
+            revalidate_extent(p, t, selected, "/dev/sdb", source_known=False)
+        p["blockdevices"][0]["children"][1]["mountpoints"] = ["/mnt/foreign"]
+        with self.assertRaises(ValueError):
+            revalidate_extent(p, t, selected, "/dev/sdb", source_known=True)
+
+    def test_revalidation_rejects_consistent_new_layout(self):
+        p, t = fixture()
+        plan = self.plan(p, t)
+        extent = plan["aligned_free_extents"][-1]
+        selected = select_extent(plan, extent["start_lba"], extent["end_lba_exclusive"])
+        t["partitiontable"]["partitions"][1]["start"] += 2048
+        p["blockdevices"][0]["children"][1]["start"] += 2048
+        with self.assertRaisesRegex(ValueError, "changed since review"):
+            revalidate_extent(p, t, selected, "/dev/sdb", source_known=True)
