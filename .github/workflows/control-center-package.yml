@@ -1,0 +1,37 @@
+name: GNOME Control Center branded package
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/control-center-package.yml'
+      - 'scripts/patch-control-center-brand.py'
+      - 'scripts/ci/build-control-center.sh'
+      - 'scripts/ci/control-center-about-smoke.sh'
+      - 'assets/brand/**'
+      - 'tests/test_control_center_brand.py'
+permissions:
+  contents: read
+concurrency:
+  group: control-center-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  package:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source patch tests
+        run: python3 -m unittest discover -s tests -p test_control_center_brand.py -v
+      - name: Build from signed Ubuntu source and verify About
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil
+          LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/build-control-center.sh
+      - name: Upload engineering evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-center-build-evidence
+          path: out/control-center/
+          if-no-files-found: warn
+          retention-days: 7
