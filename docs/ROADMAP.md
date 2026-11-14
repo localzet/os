@@ -1,28 +1,32 @@
 # Roadmap
 
-## P0 — bootstrap (current)
-- [x] Establish Ubuntu 26.04 + GNOME 50 target and repository boundaries.
-- [x] Add minimal GNOME extension source; **runtime unverified**.
-- [x] Add design tokens and original wallpaper.
-- [x] Add read-only module catalog/resolver with tests.
-- [x] Add CI source checks (first run succeeded on 2026-11-10).
-- [ ] Build and validate a GNOME 50 extension ZIP in CI.
-- [ ] Verify shell extension enable/disable in a clean Ubuntu 26.04 GNOME VM.
-- [ ] Capture genuine desktop screenshots and extension logs.
+## P0 — foundation (verified)
+- [x] Ubuntu 26.04 LTS, GNOME 50 and project boundaries.
+- [x] Aurora shell extension, persistent dock, launcher, wallpaper and tokens.
+- [x] Read-only module catalogue/resolver and source checks.
+- [x] Extension ZIP packaging, GNOME visual smoke and GTK Settings smoke.
+- [x] Rootless desktop DEB packaging.
 
-## P1 — first bootable release
-- [ ] Build a clean Ubuntu 26.04 desktop live image from verified sources.
-- [ ] Verify checksum, UEFI + BIOS boot, networking, GNOME login and shutdown in QEMU.
-- [ ] Produce a licensing/redistribution inventory before publishing an ISO.
-- [ ] Add reproducible packages and a signed artifact pipeline.
-- [ ] Make the installer non-destructive in dry-run mode.
+## P1 — first installable release (current)
+- [x] Ubuntu rootfs, Casper Live image and GRUB BIOS/UEFI assembly.
+- [x] SHA-256 and real BIOS/UEFI GNOME Wayland boot in QEMU.
+- [x] Read-only SSD inventory, stable identity and layout revalidation.
+- [x] VM-only UEFI install, unchanged second disk, reboot without ISO.
+- [ ] Interactive candidate with exact-image install and authenticated desktop test.
+- [ ] Real dedicated-SSD hardware validation, failure recovery and update testing.
+- [ ] License/source inventory, signed artifacts and release documentation.
+- [ ] Secure Boot, encryption and wider installation options.
 
 ## P2 — coherent desktop
-- [ ] Implement shell styling, dock, launcher, notifications and overview incrementally.
-- [ ] Build Localzet Settings and unified package/module UI.
-- [ ] Validate accessibility, low-power behaviour and reduced motion.
+- [x] Initial shell, dock, launcher and native settings.
+- [ ] Complete Aurora styling, accessibility, reduced motion, notification UI.
+- [ ] Unified app/module manager and safe package transactions.
+- [ ] Update/recovery integration and consistent boot/greeter branding.
 
-## P3 — optional services
-- [ ] Implement authorized package transactions with polkit, rollback and removal.
-- [ ] Containers module, network policy module, NetBird, UserNet and Gaming.
-- [ ] Document Wine/Proton compatibility testing; no universal compatibility claims.
+## P3 — system integrations
+- [x] 64-bit Wine fixture executes successfully; per-app profiles.
+- [x] Localzet Connect entry points and pinned NectarLink DEB verification.
+- [ ] Actual Android pairing and upstream package redistribution review.
+- [ ] Windows GUI manager, 32-bit and Proton/Steam GPU testing.
+- [ ] Containers, networking, NetBird, UserNet and gaming profiles.
+- [ ] Russian and English product documentation, localization QA.
