@@ -226,6 +226,9 @@ def main() -> int:
                     history = Gtk.Button(label="История слоёв", halign=Gtk.Align.END)
                     history.connect("clicked", lambda _, item=item: self.show_image_history(dialog, item["ID"]))
                     group.add(history)
+                    registry = Gtk.Button(label="Тег / Публикация", halign=Gtk.Align.END)
+                    registry.connect("clicked", lambda _, item=item: self.open_registry(dialog, item))
+                    group.add(registry)
                 if kind in ("images", "networks") and not (kind == "networks" and
                         (item["Name"] in ("bridge", "host", "none") or item["Scope"] != "local")):
                     remove = Gtk.Button(label="Удалить", halign=Gtk.Align.END)
@@ -235,6 +238,66 @@ def main() -> int:
                 content.append(group)
             dialog.present(self.window)
             return GLib.SOURCE_REMOVE
+
+        def open_registry(self, parent, item):
+            if self.busy:
+                return
+            generation, rootful = self.generation, self.rootful
+            identity = item["ID"]
+            prompt = Adw.AlertDialog(heading="Registry",
+                body="Docker Hub, GHCR и приватные реестры. Вход выполните заранее через Docker CLI. Приложение не читает и не хранит пароли или токены.")
+            form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            form.append(Gtk.Label(label=identity, selectable=True, wrap=True))
+            reference = Gtk.Entry(placeholder_text="ghcr.io/owner/image:v1")
+            form.append(reference)
+            form.append(Gtk.Label(label="Для публикации сначала создайте тег выбранного образа. Укажите полный адрес реестра.", wrap=True, xalign=0))
+            prompt.set_extra_child(form)
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("tag", "Создать тег")
+            prompt.add_response("push", "Публиковать")
+            prompt.set_default_response("cancel")
+            prompt.set_close_response("cancel")
+            def review(_, action):
+                if action not in ("tag", "push") or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                from localzet.containers import validate_registry_tag
+                target = reference.get_text()
+                try:
+                    validate_registry_tag(target, qualified=action == "push")
+                except EngineError as error:
+                    invalid = Adw.AlertDialog(heading="Проверьте адрес", body=str(error))
+                    invalid.add_response("close", "Закрыть")
+                    invalid.present(parent)
+                    return
+                confirm = Adw.AlertDialog(heading="Подтвердить публикацию?" if action == "push" else "Подтвердить тег?",
+                    body=target + "\n" + identity + ("\nОбраз и его слои будут переданы указанному реестру. Удалённый тег может быть изменён. Проверьте содержимое и права доступа." if action == "push" else "\nСоздаётся дополнительный локальный тег. Существующий тег не заменяется."))
+                confirm.add_response("cancel", "Отмена")
+                confirm.add_response("confirm", "Публиковать" if action == "push" else "Создать тег")
+                confirm.set_default_response("cancel")
+                confirm.set_close_response("cancel")
+                def run(_, choice):
+                    if choice != "confirm" or self.busy or generation != self.generation or rootful != self.rootful:
+                        return
+                    parent.close()
+                    self.busy = True
+                    self.generation += 1
+                    current = self.generation
+                    self.status.set_label("Публикация образа (до 10 минут)…" if action == "push" else "Создание тега…")
+                    self.update_actions()
+                    def worker():
+                        engine = Engine(rootful=rootful)
+                        return engine.push_image(identity, target) if action == "push" else engine.tag_image(identity, target)
+                    future = self.pool.submit(worker)
+                    def complete():
+                        if current != self.generation or not self.window:
+                            return GLib.SOURCE_REMOVE
+                        self.status.set_label("Операция завершена." if future.exception() is None else "Операция не подтверждена; проверьте состояние реестра и локальных образов.")
+                        return self.resources_finished(current, "images", "Образы", future)
+                    future.add_done_callback(lambda _: GLib.idle_add(complete))
+                confirm.connect("response", run)
+                confirm.present(parent)
+            prompt.connect("response", review)
+            prompt.present(parent)
 
         def show_image_history(self, parent, identity):
             if self.busy:

@@ -328,6 +328,24 @@ def read_build_tail(proc, timeout: int) -> str:
     return ("[Earlier output omitted]\n" if truncated else "") + tail.decode("utf-8", errors="replace")
 
 
+def registry_tag_key(reference: str) -> str:
+    # Docker CLI omits docker.io and library/ in the local image listing.
+    if reference.startswith("docker.io/"):
+        reference = reference[len("docker.io/"):]
+    if reference.startswith("library/"):
+        reference = reference[len("library/"):]
+    return reference
+
+
+def validate_registry_tag(reference: str, *, qualified: bool = False) -> None:
+    pattern = r"(?:[a-z0-9][a-z0-9.-]*(?::[0-9]{1,5})?/)?(?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*:[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}"
+    if not isinstance(reference, str) or len(reference) > 255 or not re.fullmatch(pattern, reference):
+        raise EngineError("Explicit repository and tag required")
+    host, slash, path = reference.partition("/")
+    if qualified and (not slash or not ("." in host or ":" in host or host == "localhost") or "/" not in path and host == "docker.io"):
+        raise EngineError("Explicit registry host and repository required")
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -408,6 +426,30 @@ class Engine:
         else:
             self._run("network", "rm", identity)
         return self.resources(kind)
+
+    def tag_image(self, image_id: str, reference: str) -> tuple[dict[str, str], ...]:
+        validate_registry_tag(reference)
+        if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+            raise EngineError("Full local image ID required")
+        rows = self.resources("images")
+        if not any(row["ID"] == image_id for row in rows):
+            raise EngineError("Image no longer exists")
+        if any(registry_tag_key(row["Repository"] + ":" + row["Tag"]) == registry_tag_key(reference) for row in rows):
+            raise EngineError("Destination tag already exists")
+        self._run("image", "tag", image_id, reference)
+        return self.resources("images")
+
+    def push_image(self, image_id: str, reference: str) -> tuple[dict[str, str], ...]:
+        # Explicit fully qualified registry + repository + tag. No credentials
+        # passed by this application; Docker uses its existing credential store.
+        validate_registry_tag(reference, qualified=True)
+        if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+            raise EngineError("Full local image ID required")
+        rows = self.resources("images")
+        if not any(row["ID"] == image_id and registry_tag_key(row["Repository"] + ":" + row["Tag"]) == registry_tag_key(reference) for row in rows):
+            raise EngineError("Selected image tag changed or no longer exists")
+        self._run("image", "push", reference, timeout=600)
+        return self.resources("images")
 
     def pull_image(self, reference: str) -> tuple[dict[str, str], ...]:
         # Explicit tag or digest; no URL, credentials, flags or implicit latest.
