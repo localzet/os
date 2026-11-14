@@ -43,11 +43,12 @@ jobs:
         run: |
           printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
           x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
-      - name: Install candidate and authenticate installed GNOME desktop
+      - name: Install candidate from USB and authenticate installed GNOME desktop
         run: |
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --boot-media usb \
             --fixture "$RUNNER_TEMP/smoke.exe" \
             --logs dist/candidate-logs
       - name: Upload diagnostics
