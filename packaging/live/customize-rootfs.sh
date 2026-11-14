@@ -6,6 +6,9 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
+    bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
+fi
 cat > "$root/usr/lib/os-release" <<'EOF'
 NAME="Localzet OS"
 PRETTY_NAME="Localzet OS (development)"
