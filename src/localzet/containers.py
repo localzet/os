@@ -166,6 +166,37 @@ class Engine:
             raise EngineError("Unknown resource kind")
         return parse_resources(kind, self._run(*RESOURCE_COMMANDS[kind], "--format", "{{json .}}"))
 
+    def create_resource(self, kind: str, name: str) -> tuple[dict[str, str], ...]:
+        if kind not in ("volumes", "networks") or not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}", name):
+            raise EngineError("Invalid resource kind or name (2–63 ASCII characters)")
+        if any(row["Name"] == name for row in self.resources(kind)):
+            raise EngineError("Resource already exists")
+        if kind == "volumes":
+            self._run("volume", "create", "--driver", "local", name)
+        else:
+            self._run("network", "create", "--driver", "bridge", "--internal", name)
+        return self.resources(kind)
+
+    def remove_resource(self, kind: str, identity: str) -> tuple[dict[str, str], ...]:
+        # No volume deletion, force, prune or name-based removal.
+        if kind not in ("images", "networks") or not isinstance(identity, str):
+            raise EngineError("Unsupported resource removal")
+        pattern = r"sha256:[0-9a-f]{64}" if kind == "images" else r"[0-9a-f]{64}"
+        if not re.fullmatch(pattern, identity):
+            raise EngineError("Full resource ID required")
+        rows = [row for row in self.resources(kind) if row["ID"] == identity]
+        if not rows:
+            raise EngineError("Resource no longer exists")
+        if kind == "networks" and any(row["Name"] in ("bridge", "host", "none") or row["Scope"] != "local" for row in rows):
+            raise EngineError("Built-in and non-local networks cannot be removed")
+        if kind == "images" and len(rows) != 1:
+            raise EngineError("Image has multiple references; explicit tag management required")
+        if kind == "images":
+            self._run("image", "rm", "--no-prune", identity)
+        else:
+            self._run("network", "rm", identity)
+        return self.resources(kind)
+
     def _lookup(self, container_id: str) -> Container:
         if not isinstance(container_id, str) or not ID.fullmatch(container_id):
             raise EngineError("Invalid full container ID")

@@ -114,3 +114,55 @@ class ContainersTests(unittest.TestCase):
             with self.assertRaises(EngineError):
                 engine.resources("prune")
             self.assertEqual(run.call_count, count)
+
+    def test_resource_creation_rejects_invalid_names_and_existing_resources(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run", return_value="") as run:
+            for kind, name in (("images", "fixture"), ("volumes", "--help"), ("networks", "a/b"), ("volumes", "a")):
+                with self.assertRaises(EngineError):
+                    engine.create_resource(kind, name)
+            run.assert_not_called()
+        with patch.object(engine, "resources", return_value=({"Name": "fixture"},)), patch.object(engine, "_run") as run:
+            with self.assertRaises(EngineError):
+                engine.create_resource("volumes", "fixture")
+            run.assert_not_called()
+
+    def test_resource_creation_fixed_arguments(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "resources", return_value=()), patch.object(engine, "_run") as run:
+            engine.create_resource("volumes", "fixture")
+            run.assert_called_with("volume", "create", "--driver", "local", "fixture")
+            engine.create_resource("networks", "fixture")
+            run.assert_called_with("network", "create", "--driver", "bridge", "--internal", "fixture")
+
+    def test_resource_removal_guards(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=()):
+            for kind, identity in (("volumes", "fixture"), ("images", "short"), ("networks", CID)):
+                with self.assertRaises(EngineError):
+                    engine.remove_resource(kind, identity)
+            run.assert_not_called()
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=({"ID": CID, "Name": "bridge", "Scope": "local"},)):
+            with self.assertRaises(EngineError):
+                engine.remove_resource("networks", CID)
+            run.assert_not_called()
+        image = {"ID": "sha256:" + CID}
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=(image, image)):
+            with self.assertRaises(EngineError):
+                engine.remove_resource("images", image["ID"])
+            run.assert_not_called()
+
+    def test_resource_removal_no_force(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        image = {"ID": "sha256:" + CID}
+        network = {"ID": CID, "Name": "fixture", "Scope": "local"}
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=(image,)):
+            engine.remove_resource("images", image["ID"])
+            run.assert_called_once_with("image", "rm", "--no-prune", image["ID"])
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=(network,)):
+            engine.remove_resource("networks", CID)
+            run.assert_called_once_with("network", "rm", CID)
