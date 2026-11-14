@@ -31,7 +31,19 @@ CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 6
 EOF
 docker_local build --network none -t "$image" "$work"
 docker_local compose version > "$out/compose-version.txt"
-cid="$(docker_local create --name "$name" --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image")"
+cid="$(python3 - "$name" "$image" <<'PY'
+import sys
+from localzet.containers import Engine
+name, reference = sys.argv[1:]
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == reference)
+row = next(row for row in engine.create_container(name, image["ID"]) if row.name == name)
+assert row.state == "created"
+print(row.id)
+PY
+)"
+# Check actual engine configuration, not just the CLI arguments.
+docker_local inspect "$cid" | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; h=c["HostConfig"]; assert c["Config"]["User"]=="65534:65534"; assert h["NetworkMode"]=="none" and h["ReadonlyRootfs"] and "ALL" in h["CapDrop"]; assert h["Memory"]==536870912 and h["PidsLimit"]==256; assert not h["Privileged"] and not h["PortBindings"]'
 python3 - "$cid" "$out" <<'PY'
 import json, sys
 from dataclasses import asdict
