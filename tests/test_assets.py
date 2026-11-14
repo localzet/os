@@ -24,3 +24,6 @@ class AssetsTests(unittest.TestCase):
     def test_wallpaper_is_svg(self):
         root = ET.parse(ROOT / 'assets/wallpapers/aurora.svg').getroot()
         self.assertEqual(root.tag, '{http://www.w3.org/2000/svg}svg')
+        self.assertEqual(root.attrib['viewBox'], '0 0 1920 1080')
+        self.assertEqual(root.attrib['width'], '3840')
+        self.assertEqual(root.attrib['height'], '2160')

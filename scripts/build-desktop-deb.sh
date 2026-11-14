@@ -38,6 +38,7 @@ install -m 0644 "$repo/packaging/com.localzet.WindowsRuntime.desktop" "$pkg/usr/
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet.svg"
+install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -m 0644 "$repo/LICENSE" "$pkg/usr/share/doc/localzet-desktop/copyright"
 install -m 0755 "$repo/apps/localzet-connect/localzet-connect" "$pkg/usr/bin/localzet-connect"
 install -m 0644 "$repo/packaging/com.localzet.Connect.desktop" "$pkg/usr/share/applications/"

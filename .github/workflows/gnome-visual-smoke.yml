@@ -6,6 +6,8 @@ on:
       - '.github/workflows/gnome-visual-smoke.yml'
       - 'scripts/ci/gnome50-visual-smoke.sh'
       - 'extensions/localzet-shell@localzet.com/**'
+      - 'assets/wallpapers/**'
+      - 'scripts/ci/check-nectarlink-tray.py'
 concurrency:
   group: gnome-visual-${{ github.ref }}
   cancel-in-progress: true
