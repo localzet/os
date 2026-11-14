@@ -81,3 +81,14 @@ for secrets. Volume driver options are rejected, but name-based volume checks
 are not atomic against other clients. No arbitrary bind mounts or host mode.
 CI inspects the actual advanced container configuration, not service reachability.
 Interactive GTK, rootless, live registry and deployment runtime QA remain open.
+
+Stage 10 introduces Compose Studio with a native split editor and generated
+configuration preview. The first input format is a strict JSON subset of YAML:
+1–16 named services with a full local image ID per service. All other fields
+are rejected; the generator inserts the restricted profile. Compose config
+validation runs on a private temporary file with no project env file, external
+includes, builds or host paths. No user-provided file is executed or opened.
+Edits invalidate previous previews. CI exercises actual Compose validation
+without deployment. Full YAML parsing/highlighting, persistent projects,
+local image existence checks, deployment and project lifecycle are subsequent
+milestones, as are interactive GTK and rootless acceptance.

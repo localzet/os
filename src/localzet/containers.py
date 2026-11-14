@@ -180,6 +180,42 @@ def deployment_args(options: Deployment) -> tuple[str, ...]:
     return tuple(args)
 
 
+def compose_document(source: str) -> tuple[str, tuple[str, ...]]:
+    """Strict JSON subset of YAML; generate a new restricted Compose document."""
+    if not isinstance(source, str) or len(source.encode("utf-8")) > 65536:
+        raise EngineError("Compose document exceeds 64 KiB")
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Duplicate key")
+            result[key] = value
+        return result
+    try:
+        data = json.loads(source, object_pairs_hook=unique)
+        if not isinstance(data, dict) or set(data) != {"services"}:
+            raise ValueError("Only services are accepted")
+        services = data["services"]
+        if not isinstance(services, dict) or not 1 <= len(services) <= 16:
+            raise ValueError("Expected 1–16 services")
+        result = {}
+        for name, service in services.items():
+            if not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", name):
+                raise ValueError("Invalid service name")
+            if not isinstance(service, dict) or set(service) != {"image"}:
+                raise ValueError("Only image is accepted per service")
+            image = service["image"]
+            if not isinstance(image, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image):
+                raise ValueError("Full local image ID required")
+            result[name] = {"image": image, "pull_policy": "never", "network_mode": "none",
+                            "read_only": True, "cap_drop": ["ALL"], "user": "65534:65534",
+                            "security_opt": ["no-new-privileges:true"], "mem_limit": "512m",
+                            "pids_limit": 256}
+        return json.dumps({"services": result}, indent=2), tuple(result)
+    except (ValueError, TypeError, RecursionError) as exc:
+        raise EngineError("Invalid Compose JSON: use unique service names and full local image IDs only") from exc
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -297,6 +333,18 @@ class Engine:
                     raise EngineError("Only default local volumes are supported") from exc
         self._run("container", "create", "--name", name, "--pull", "never", *args, image_id)
         return self.inventory()
+
+    def validate_compose(self, source: str) -> str:
+        document, names = compose_document(source)
+        # Private temporary directory; no external config, interpolation, includes
+        # or file paths from the editor are passed to Compose.
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="localzet-compose-") as directory:
+            path = Path(directory) / "compose.json"
+            path.write_text(document, encoding="utf-8")
+            self._run("compose", "--project-directory", directory, "--env-file", "/dev/null",
+                      "-p", "localzet-validation", "-f", str(path), "config", "--quiet")
+        return document
 
     def _lookup(self, container_id: str) -> Container:
         if not isinstance(container_id, str) or not ID.fullmatch(container_id):

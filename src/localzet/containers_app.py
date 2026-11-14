@@ -404,6 +404,9 @@ def main() -> int:
             label = Gtk.Label(label=summary, xalign=0, wrap=True, selectable=True)
             label.add_css_class("heading")
             content.append(label)
+            studio = Gtk.Button(label="Открыть Compose Studio")
+            studio.connect("clicked", lambda *_: self.compose_studio(dialog))
+            content.append(studio)
             for item in rows:
                 group = Adw.PreferencesGroup()
                 for caption, value in (("Проект", item.name), ("Состояние", item.status),
@@ -418,6 +421,83 @@ def main() -> int:
                 content.append(group)
             dialog.present(self.window)
             return GLib.SOURCE_REMOVE
+
+        def compose_studio(self, parent):
+            if self.busy:
+                return
+            parent.close()
+            dialog = Adw.Dialog(title="Compose Studio", content_width=940, content_height=640)
+            toolbar = Adw.ToolbarView()
+            header = Adw.HeaderBar()
+            toolbar.add_top_bar(header)
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
+                          margin_top=12, margin_bottom=12, margin_start=12, margin_end=12)
+            box.append(Gtk.Label(label="JSON-подмножество YAML · services → image (полный локальный SHA-256 ID). Только проверка, без запуска.",
+                                 wrap=True, xalign=0))
+            editor = Gtk.TextView(monospace=True, wrap_mode=Gtk.WrapMode.NONE)
+            editor.get_buffer().set_text('{\n  "services": {\n    "app": {\n      "image": "sha256:..."\n    }\n  }\n}')
+            preview = Gtk.TextView(monospace=True, editable=False, cursor_visible=False)
+            panels = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL, vexpand=True, wide_handle=True)
+            for setter, view in ((panels.set_start_child, editor), (panels.set_end_child, preview)):
+                scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True, min_content_width=250)
+                scroll.set_child(view)
+                setter(scroll)
+            panels.set_position(440)
+            box.append(panels)
+            status = Gtk.Label(label="Введите конфигурацию и нажмите «Проверить».", wrap=True, xalign=0)
+            box.append(status)
+            validate = Gtk.Button(label="Проверить")
+            validate.add_css_class("suggested-action")
+            header.pack_end(validate)
+            toolbar.set_content(box)
+            dialog.set_child(toolbar)
+            state = {"closed": False, "revision": 0}
+            def changed(*_):
+                state["revision"] += 1
+                preview.get_buffer().set_text("")
+                status.set_label("Конфигурация изменена; требуется повторная проверка.")
+            editor.get_buffer().connect("changed", changed)
+            def closed(*_):
+                state["closed"] = True
+            dialog.connect("closed", closed)
+            def check(*_):
+                if self.busy:
+                    return
+                buffer = editor.get_buffer()
+                source = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True)
+                revision = state["revision"]
+                self.busy = True
+                self.generation += 1
+                generation = self.generation
+                rootful = self.rootful
+                self.update_actions()
+                validate.set_sensitive(False)
+                editor.set_editable(False)
+                status.set_label("Проверка Docker Compose…")
+                preview.get_buffer().set_text("")
+                future = self.pool.submit(lambda: Engine(rootful=rootful).validate_compose(source))
+                def finished():
+                    if generation != self.generation or not self.window:
+                        return GLib.SOURCE_REMOVE
+                    self.busy = False
+                    self.update_actions()
+                    if state["closed"]:
+                        return GLib.SOURCE_REMOVE
+                    validate.set_sensitive(True)
+                    editor.set_editable(True)
+                    if revision != state["revision"]:
+                        return GLib.SOURCE_REMOVE
+                    try:
+                        preview.get_buffer().set_text(future.result())
+                        status.set_label("Конфигурация принята Docker Compose. Ничего не запущено.")
+                    except (EngineError, OSError, ValueError) as error:
+                        status.set_label(str(error))
+                    except Exception:
+                        status.set_label("Не удалось проверить конфигурацию.")
+                    return GLib.SOURCE_REMOVE
+                future.add_done_callback(lambda _: GLib.idle_add(finished))
+            validate.connect("clicked", check)
+            dialog.present(self.window)
 
         def choose_engine(self, *_):
             if self.busy:
