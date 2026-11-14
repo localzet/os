@@ -29,7 +29,13 @@
   "glass": {
     "surfaceOpacity": 0.78,
     "borderOpacity": 0.22,
-    "opaqueFallback": "#28183F"
+    "opaqueFallback": "#28183F",
+    "qualityGate": "real compositor-backed background sampling and blur; no flat alpha-only imitation",
+    "edgeTreatment": "subtle directional highlight, no uniform conspicuous outline",
+    "depth": "soft ambient and contact shadow, layered tint, legible foreground",
+    "refraction": "optional shader-based edge distortion only where supported and performant",
+    "fallback": "opaque violet surface with equivalent contrast; reduced transparency and motion options",
+    "verification": "actual GNOME session captures over light, dark and detailed wallpapers; GPU and software-rendering performance checks"
   },
   "notes": "Purple is the dominant UI hue; orange from the Localzet logo is reserved for key actions. Preserve original third-party brand identities. Exact component geometry and glass effects await visual reference review."
 }
