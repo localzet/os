@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # Invoked only in isolated Xvfb session on disposable runner.
 set -Eeuo pipefail
-export GDK_BACKEND=x11 GTK_A11Y=none
+export GDK_BACKEND=x11 GTK_A11Y=none XDG_CURRENT_DESKTOP=GNOME
 export LC_ALL=C.UTF-8
 gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-gnome-control-center about > "$OUT/about.log" 2>&1 &
+gnome-control-center system about > "$OUT/about.log" 2>&1 &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true' EXIT
 window=""
 for i in $(seq 1 30); do
-    kill -0 "$pid"
+    kill -0 "$pid" || { cat "$OUT/about.log"; exit 1; }
     window="$(xdotool search --onlyvisible --class 'gnome-control-center' 2>/dev/null | head -n 1 || true)"
     [[ -n "$window" ]] && break
     sleep 1
 done
-test -n "$window"
+test -n "$window" || { cat "$OUT/about.log"; exit 1; }
 sleep 3
 xdotool getwindowname "$window" > "$OUT/about-window.txt"
 import -window "$window" "$OUT/about.png"
