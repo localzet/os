@@ -50,7 +50,7 @@ class ContainersTests(unittest.TestCase):
     def test_metrics_validate_identity_and_shape(self):
         with patch("localzet.containers.os.geteuid", return_value=1000):
             engine = Engine()
-        metrics = {"ID": CID, "CPUPerc": "0.10%", "MemUsage": "1MiB / 1GiB",
+        metrics = {"ID": CID, "CPUPerc": "0.10%", "MemUsage": "1MiB / 1GiB", "MemPerc": "0.10%",
                    "NetIO": "0B / 0B", "BlockIO": "0B / 0B", "PIDs": "1"}
         with patch.object(engine, "_run", side_effect=[json.dumps(ROW), json.dumps(metrics)]):
             self.assertEqual(engine.metrics(CID)["CPUPerc"], "0.10%")
@@ -351,3 +351,12 @@ class ContainersTests(unittest.TestCase):
             root.chmod(0o755)
             with self.assertRaises(EngineError):
                 store.projects()
+
+    def test_metric_sample_validates_percentages(self):
+        from localzet.containers import metric_sample
+        sample = metric_sample({"CPUPerc": "250.25%", "MemPerc": "42.5%"})
+        self.assertEqual(sample.cpu, 250.25)
+        self.assertEqual(sample.memory, 42.5)
+        for cpu, memory in (("NaN%", "0%"), ("-1%", "0%"), ("1%", "101%"), ("1%", "none")):
+            with self.assertRaises(EngineError):
+                metric_sample({"CPUPerc": cpu, "MemPerc": memory})
