@@ -6,6 +6,10 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ -n "${LOCALZET_PROFILE_PLAN:-}" ]]; then
+    install -D -m 0644 "$LOCALZET_PROFILE_PLAN" "$root/usr/share/localzet/archive-profile-plan.json"
+    PYTHONPATH="$LOCALZET_REPO/src" python3 "$LOCALZET_REPO/scripts/check-profile-rootfs.py" "$root" "$LOCALZET_PROFILE_PLAN"
+fi
 cat > "$root/usr/lib/os-release" <<'EOF'
 NAME="Localzet OS"
 PRETTY_NAME="Localzet OS (development)"

@@ -25,3 +25,16 @@ Telegram Desktop distribution via https://desktop.telegram.org/ as an
 upstream source. Verify artifact identity, installation/update method and
 license before enabling provisioning. No third-party repack or unverified
 download is substituted for it.
+
+## Archive image integration (engineering)
+
+Set LOCALZET_ARCHIVE_PROFILE=standard only in a disposable build VM to
+include the approved Ubuntu archive portion using mmdebstrap's existing
+signed archive. The image contains a read-only plan, and package status
+and versions are checked against it before ISO assembly. The installed
+QEMU test checks the same inventory and launches VLC and qBittorrent.
+No network acquisition of third-party apps or external credentials occurs.
+The Standard archive image is **partial**: ONLYOFFICE, Telegram, NectarLink
+and browser choice remain pending, as do actual media/printing/scanning
+workflows and licensing review. Not a release or a completed profile.
+Existing default build and disk-write policies are unchanged.
