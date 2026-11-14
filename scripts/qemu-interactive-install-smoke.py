@@ -297,7 +297,11 @@ def main():
             installed.launch("ptyxis")
             time.sleep(30)
             installed.capture("terminal-before")
-            installed.click(16000, 12000)
+            # The overview contains four windows; select the terminal thumbnail
+            # in its lower-left quadrant, not the empty workspace center.
+            installed.click(11700, 22500)
+            time.sleep(3)
+            installed.capture("terminal-focused")
             # Authenticate at the sudo password prompt (no echoed password).
             installed.text("sudo -k; sudo -v")
             installed.key("ret")
