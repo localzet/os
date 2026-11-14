@@ -18,6 +18,7 @@ cleanup() {
     docker_local rm -f "$name" >/dev/null 2>&1 || true
     docker_local volume rm "$name" >/dev/null 2>&1 || true
     docker_local network rm "$name" >/dev/null 2>&1 || true
+    docker_local image rm "ghcr.io/localzet-ci/$image" >/dev/null 2>&1 || true
     docker_local image rm "$image" >/dev/null 2>&1 || true
     rm -rf -- "$work"
 }
@@ -43,6 +44,12 @@ row = next(row for row in rows if row["Repository"] + ":" + row["Tag"] == tag)
 assert diagnostics and diagnostics[0]
 assert engine.image_history(row["ID"])
 assert engine._run("image", "inspect", "--format", '{{index .Config.Labels "com.localzet.fixture"}}', row["ID"]).strip() == "stage15"
+alias = "ghcr.io/localzet-ci/" + tag
+tagged = engine.tag_image(row["ID"], alias)
+assert any(item["ID"] == row["ID"] and item["Repository"] + ":" + item["Tag"] == alias for item in tagged)
+# Remove only the local alias; never contact GHCR or publish a CI fixture.
+engine._run("image", "rm", alias)
+print("PASS: real local registry tag without network publication")
 print("PASS: real Image Builder using local scratch fixture")
 PY
 docker_local compose version > "$out/compose-version.txt"
