@@ -2,7 +2,7 @@ PYTHON ?= python3
 .PHONY: test extension-zip desktop-deb clean
 
 test:
-	$(PYTHON) -m unittest discover -s tests -v
+	PYTHONPATH=src $(PYTHON) -m unittest discover -s tests -v
 	PYTHONPATH=src $(PYTHON) -m localzet.cli validate
 
 extension-zip:

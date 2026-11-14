@@ -1,0 +1,30 @@
+name: Localzet Containers GTK smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/localzet/containers*.py'
+      - 'apps/localzet-containers/**'
+      - 'packaging/com.localzet.Containers.desktop'
+      - '.github/workflows/containers-gtk.yml'
+      - 'scripts/ci/containers-gtk-smoke.sh'
+permissions:
+  contents: read
+jobs:
+  gtk:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-adw-1 gir1.2-gtk-4.0 xvfb xauth dbus-x11 xdotool imagemagick
+      - name: Open actual app without engine provisioning
+        run: bash scripts/ci/containers-gtk-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: containers-gtk-evidence
+          path: out/containers-gtk/
+          retention-days: 7

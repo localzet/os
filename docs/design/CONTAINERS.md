@@ -16,3 +16,10 @@ Next: GTK4/libadwaita split-pane UI with real inventory and confirmed actions,
 live logs and metrics, Compose stacks, images, volumes, networks, build and
 registry management, remote contexts with SSH/TLS, credential handling and
 backups. Docker Desktop/Portainer parity remains a target, not a claim.
+
+Stage 2 adds a native GTK4/libadwaita local workspace: asynchronous inventory,
+search, actual selection/details, confirmed lifecycle actions and explicit
+engine selection. Errors clear stale inventory rather than showing fabricated
+state. Experimental packaging is opt-in; default ISO remains unchanged.
+The initial GTK test captures actual startup; full GUI action automation,
+rootless validation, design refinement and parity features remain required.
