@@ -1,0 +1,6 @@
+id = "windows"
+title = "Windows-приложения"
+description = "Localzet Windows Runtime — запуск EXE/MSI через Wine с отдельными профилями"
+status = "prototype"
+packages = ["wine", "wine64", "fonts-wine"]
+depends_on = []
