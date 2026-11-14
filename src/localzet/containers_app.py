@@ -502,8 +502,49 @@ def main() -> int:
                 button.connect("clicked", lambda _, action=action: confirm(action))
                 actions.append(button)
                 buttons.append(button)
+            inspect = Gtk.Button(label="Состояние сервисов", sensitive=False)
+            actions.append(inspect)
             box.append(actions)
+            def inspect_project(*_):
+                source = state["validated"]
+                if source is None or self.busy or state["closed"]:
+                    return
+                self.busy = True
+                self.generation += 1
+                generation = self.generation
+                rootful = self.rootful
+                self.update_actions()
+                enable(False)
+                validate.set_sensitive(False)
+                editor.set_editable(False)
+                status.set_label("Получение состояния сервисов…")
+                future = self.pool.submit(lambda: Engine(rootful=rootful).studio_status(source))
+                def complete():
+                    if generation != self.generation or not self.window:
+                        return GLib.SOURCE_REMOVE
+                    self.busy = False
+                    self.update_actions()
+                    if state["closed"]:
+                        return GLib.SOURCE_REMOVE
+                    enable(True)
+                    validate.set_sensitive(True)
+                    editor.set_editable(True)
+                    try:
+                        rows = future.result()
+                        status.set_label(f"Контейнеров проекта: {len(rows)}")
+                        details = Adw.AlertDialog(heading="Контейнеры проекта",
+                            body="\n".join(f"{row.name} · {row.state} · {row.status}" for row in rows) or "Нет контейнеров.")
+                        details.add_response("close", "Закрыть")
+                        details.present(dialog)
+                    except (EngineError, OSError, ValueError) as error:
+                        status.set_label(str(error))
+                    except Exception:
+                        status.set_label("Не удалось получить состояние проекта.")
+                    return GLib.SOURCE_REMOVE
+                future.add_done_callback(lambda _: GLib.idle_add(complete))
+            inspect.connect("clicked", inspect_project)
             def enable(value):
+                inspect.set_sensitive(value)
                 save.set_sensitive(value)
                 for button in buttons:
                     button.set_sensitive(value)
