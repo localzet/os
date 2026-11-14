@@ -68,10 +68,8 @@ def main() -> int:
             apps.add(self._row("Windows-приложения", "Localzet Windows Runtime · Wine", ["localzet-windows"]))
             phone = Adw.PreferencesGroup(title="Localzet Connect")
             client = Path("/usr/bin/nectarlink-desktop")
-            if client.is_file() and os.access(client, os.X_OK):
-                phone.add(self._row("Связь с телефоном", "Android · NectarLink", ["/usr/bin/nectarlink-desktop"]))
-            else:
-                phone.add(self._row("Связь с телефоном", "NectarLink не установлен"))
+            status = "Android · NectarLink" if client.is_file() and os.access(client, os.X_OK) else "Настроить связь с Android"
+            phone.add(self._row("Связь с телефоном", status, ["localzet-connect"]))
             page.add(apps)
             page.add(phone)
             return page

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Fixed, authenticated on-demand transaction. No repository/key changes.
+set -Eeuo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C.UTF-8
+unset PYTHONPATH PYTHONHOME APT_CONFIG
+[[ $# == 0 && $EUID == 0 && "${PKEXEC_UID:-}" =~ ^[1-9][0-9]*$ ]] || exit 2
+if grep -qw boot=casper /proc/cmdline; then
+    echo "Install NectarLink after installing Localzet OS." >&2
+    exit 2
+fi
+grep -Eq '^ID=("localzet"|localzet)$' /etc/os-release
+root=/opt/localzet-os
+version="$(python3 -c 'import tomllib; print(tomllib.load(open("/opt/localzet-os/packaging/nectarlink/release.toml","rb"))["version"])')"
+if dpkg-query -W -f='${Status}' nectarlink 2>/dev/null | grep -qx 'install ok installed'; then
+    current="$(dpkg-query -W -f='${Version}' nectarlink)"
+    if dpkg --compare-versions "$current" ge "$version"; then
+        echo "NectarLink already installed: $current"
+        exit 0
+    fi
+fi
+work="$(mktemp -d /var/tmp/localzet-connect.XXXXXX)"
+trap 'rm -rf -- "$work"' EXIT
+python3 "$root/scripts/fetch-nectarlink-deb.py" --output "$work"
+deb="$work/nectarlink_${version}_amd64.deb"
+python3 "$root/scripts/check-nectarlink-control.py" "$deb"
+apt-get -o Acquire::Retries=3 update
+DEBIAN_FRONTEND=noninteractive apt-get -y --no-remove --no-install-recommends install "$deb"
+[[ "$(dpkg-query -W -f='${Version}' nectarlink)" == "$version" ]]
+echo "NectarLink installed successfully."

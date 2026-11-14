@@ -23,7 +23,7 @@ bash "$repo/scripts/build-desktop-deb.sh" "$build"
 export LOCALZET_DESKTOP_DEB="$build/localzet-desktop_${LOCALZET_PACKAGE_VERSION}_all.deb"
 mkdir -p "$(dirname "$root")"
 # Use a minimal GNOME stack, not the Ubuntu-branded desktop metapackage.
-packages="ubuntu-keyring,ubuntu-minimal,systemd-sysv,linux-generic,linux-firmware,casper,initramfs-tools,dbus,dbus-user-session,gdm3,gnome-session,gnome-shell,gnome-control-center,gnome-settings-daemon,nautilus,ptyxis,network-manager,pipewire-audio,wireplumber,xwayland,libgl1-mesa-dri,fonts-dejavu-core,fonts-noto-core,dconf-cli,locales,language-pack-ru,language-pack-gnome-ru,python3,python3-gi,gir1.2-gtk-4.0,gir1.2-adw-1,procps"
+packages="ubuntu-keyring,ubuntu-minimal,systemd-sysv,linux-generic,linux-firmware,casper,initramfs-tools,dbus,dbus-user-session,gdm3,gnome-session,gnome-shell,gnome-control-center,gnome-settings-daemon,nautilus,ptyxis,network-manager,pipewire-audio,wireplumber,xwayland,libgl1-mesa-dri,fonts-dejavu-core,fonts-noto-core,dconf-cli,locales,language-pack-ru,language-pack-gnome-ru,python3,python3-gi,gir1.2-gtk-4.0,gir1.2-adw-1,pkexec,procps"
 if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then
     export LOCALZET_INSTALL_TEST
     packages+=",parted,dosfstools,e2fsprogs,squashfs-tools,grub-efi-amd64-bin,grub2-common,sudo"

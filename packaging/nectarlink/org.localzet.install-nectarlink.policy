@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "https://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Localzet OS</vendor>
+  <action id="org.localzet.install-nectarlink">
+    <description>Install the pinned NectarLink Android integration</description>
+    <description xml:lang="ru">Установить проверенный NectarLink</description>
+    <message>Administrator authentication is required to install NectarLink.</message>
+    <message xml:lang="ru">Для установки NectarLink требуется пароль администратора.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/localzet/install-nectarlink</annotate>
+  </action>
+</policyconfig>
