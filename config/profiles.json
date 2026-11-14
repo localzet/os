@@ -1,0 +1,253 @@
+{
+  "schema": 1,
+  "status": "planning-only",
+  "profiles": {
+    "minimal": {
+      "required": [
+        "desktop",
+        "recovery"
+      ],
+      "optional": [
+        "office",
+        "telegram",
+        "media",
+        "torrent",
+        "discord",
+        "music",
+        "phone",
+        "windows",
+        "gaming",
+        "netbird",
+        "usernet",
+        "containers",
+        "devtools",
+        "vscode"
+      ],
+      "browser_choice": false
+    },
+    "standard": {
+      "required": [
+        "desktop",
+        "recovery",
+        "office",
+        "telegram",
+        "media",
+        "torrent",
+        "phone"
+      ],
+      "optional": [
+        "discord",
+        "music",
+        "windows",
+        "gaming",
+        "netbird",
+        "usernet",
+        "containers",
+        "devtools",
+        "vscode"
+      ],
+      "browser_choice": true
+    },
+    "complete": {
+      "required": [
+        "desktop",
+        "recovery",
+        "office",
+        "telegram",
+        "media",
+        "torrent",
+        "phone",
+        "music",
+        "windows",
+        "gaming",
+        "netbird",
+        "usernet",
+        "containers",
+        "devtools",
+        "vscode"
+      ],
+      "optional": [
+        "discord"
+      ],
+      "browser_choice": true
+    }
+  },
+  "applications": {
+    "desktop": {
+      "title": "Aurora desktop",
+      "source": "ubuntu",
+      "packages": [
+        "gnome-shell",
+        "gnome-control-center",
+        "nautilus",
+        "ptyxis",
+        "epiphany-browser",
+        "file-roller",
+        "papers",
+        "loupe",
+        "gnome-system-monitor",
+        "gnome-software",
+        "gnome-disk-utility",
+        "gnome-text-editor",
+        "gnome-calculator"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "recovery": {
+      "title": "Storage and recovery",
+      "source": "ubuntu",
+      "packages": [
+        "gparted",
+        "pciutils",
+        "nvme-cli",
+        "smartmontools",
+        "efibootmgr",
+        "ntfs-3g",
+        "exfatprogs",
+        "btrfs-progs"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "office": {
+      "title": "ONLYOFFICE Desktop Editors",
+      "source": "upstream",
+      "packages": [
+        "onlyoffice-desktopeditors"
+      ],
+      "url": "https://www.onlyoffice.com/download-desktop",
+      "review": "pending"
+    },
+    "telegram": {
+      "title": "Telegram Desktop",
+      "source": "ubuntu",
+      "packages": [
+        "telegram-desktop"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "media": {
+      "title": "Multimedia and graphics",
+      "source": "ubuntu",
+      "packages": [
+        "vlc",
+        "gimp",
+        "simple-scan",
+        "cups"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "torrent": {
+      "title": "qBittorrent",
+      "source": "ubuntu",
+      "packages": [
+        "qbittorrent"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "chrome": {
+      "title": "Google Chrome",
+      "source": "upstream",
+      "packages": [
+        "google-chrome-stable"
+      ],
+      "url": "https://www.google.com/chrome/",
+      "review": "pending"
+    },
+    "edge": {
+      "title": "Microsoft Edge",
+      "source": "upstream",
+      "packages": [
+        "microsoft-edge-stable"
+      ],
+      "url": "https://www.microsoft.com/edge",
+      "review": "pending"
+    },
+    "discord": {
+      "title": "Discord",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://discord.com/download",
+      "review": "pending"
+    },
+    "music": {
+      "title": "Yandex Music",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://music.yandex.ru/download/",
+      "review": "pending"
+    },
+    "phone": {
+      "title": "NectarLink by thtbee",
+      "source": "upstream",
+      "packages": [
+        "nectarlink"
+      ],
+      "url": "https://github.com/thtbee/nectarlink",
+      "review": "pending"
+    },
+    "windows": {
+      "title": "Windows Runtime",
+      "source": "localzet",
+      "packages": [],
+      "url": "https://github.com/localzet/os",
+      "review": "pending"
+    },
+    "gaming": {
+      "title": "Gaming / Steam / Proton / GOG",
+      "source": "localzet",
+      "packages": [],
+      "url": "https://github.com/localzet/os",
+      "review": "pending"
+    },
+    "netbird": {
+      "title": "NetBird",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://netbird.io/",
+      "review": "pending"
+    },
+    "usernet": {
+      "title": "UserNet",
+      "source": "localzet",
+      "packages": [],
+      "url": "https://github.com/localzet/os",
+      "review": "pending"
+    },
+    "containers": {
+      "title": "Localzet Containers",
+      "source": "localzet",
+      "packages": [],
+      "url": "https://github.com/localzet/os",
+      "review": "pending"
+    },
+    "devtools": {
+      "title": "Development and virtualization",
+      "source": "ubuntu",
+      "packages": [
+        "git",
+        "build-essential",
+        "openssh-client",
+        "qemu-system-x86",
+        "libvirt-daemon-system",
+        "virt-manager",
+        "obs-studio"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "vscode": {
+      "title": "Visual Studio Code",
+      "source": "upstream",
+      "packages": [
+        "code"
+      ],
+      "url": "https://code.visualstudio.com/download",
+      "review": "pending"
+    }
+  }
+}
