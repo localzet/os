@@ -58,3 +58,15 @@ Built-in networks and multiply referenced images are rejected. Volume removal
 is intentionally absent. Docker remains the authority on in-use resources;
 name checks before creation are not atomic against other clients. GUI and
 rootless acceptance remain required. No profile or installer changes.
+
+Stage 8 adds explicit registry pulls with tag or SHA-256 digest and a bounded
+10-minute timeout, plus creation from a full local image ID without starting
+or pulling implicitly. The first deployment profile uses no network, no host
+mounts or published ports, read-only rootfs, UID/GID 65534, dropped capabilities,
+no-new-privileges, 512 MiB memory and 256 PID limit. Image-declared volumes may
+still be created by Docker; this is not a sandbox. Arbitrary images may be
+incompatible with this profile. Port mappings, environment, named mounts and
+network selection remain future work. Unit tests cover pull argument validation;
+real CI creates a local fixture and checks its actual engine configuration,
+without depending on an external registry. Live registry, interactive GTK and
+rootless acceptance remain pending. No profile or installer changes.
