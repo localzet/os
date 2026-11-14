@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Localzet Connect
-Name[ru]=Связь с телефоном
-Comment=Connect your Android phone using NectarLink
-Comment[ru]=Связь Android с компьютером через NectarLink
+Name=NectarLink Setup
+Name[ru]=Настройка NectarLink
+Comment=Install or open the original NectarLink client
+Comment[ru]=Установка и запуск оригинального клиента NectarLink от thtbee
 Exec=localzet-connect
 Icon=phone-symbolic
 Terminal=false

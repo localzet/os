@@ -30,13 +30,21 @@ EOF
 cp -a "$repo/src/localzet" "$pkg/opt/localzet-os/src/"
 find "$pkg/opt/localzet-os/src" -type d -name __pycache__ -prune -exec rm -rf -- {} +
 cp -a "$repo/config/modules" "$pkg/opt/localzet-os/config/"
+install -m 0644 "$repo/config/profiles.json" "$pkg/opt/localzet-os/config/profiles.json"
 cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/applications/"
 install -m 0755 "$repo/apps/localzet-windows/localzet-windows" "$pkg/usr/bin/localzet-windows"
 install -m 0644 "$repo/packaging/com.localzet.WindowsRuntime.desktop" "$pkg/usr/share/applications/"
+# Experimental Containers UI is packaged only on explicit request.
+if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
+    install -m 0755 "$repo/apps/localzet-containers/localzet-containers" "$pkg/usr/bin/localzet-containers"
+    install -m 0644 "$repo/packaging/com.localzet.Containers.desktop" "$pkg/usr/share/applications/"
+fi
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
+install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet.svg"
+install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -m 0644 "$repo/LICENSE" "$pkg/usr/share/doc/localzet-desktop/copyright"
 install -m 0755 "$repo/apps/localzet-connect/localzet-connect" "$pkg/usr/bin/localzet-connect"
 install -m 0644 "$repo/packaging/com.localzet.Connect.desktop" "$pkg/usr/share/applications/"

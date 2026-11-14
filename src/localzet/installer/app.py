@@ -9,6 +9,7 @@ from localzet.installer.interactive import (
 )
 from localzet.installer.preflight import read_lsblk
 from localzet.installer.target import identity
+from localzet.installer.storage_diagnostics import report, describe, storage_controllers
 
 
 def spawn_backend():
@@ -75,6 +76,9 @@ def create_application():
             refresh.connect("clicked", self.refresh)
             page.append(self.disk_group)
             page.append(refresh)
+            self.diagnostics = Gtk.Label(wrap=True, selectable=True, xalign=0)
+            self.diagnostics.add_css_class("dim-label")
+            page.append(self.diagnostics)
             self.refresh_button = refresh
 
             account = Adw.PreferencesGroup(title="2. Учётная запись")
@@ -118,9 +122,15 @@ def create_application():
             self.plan = None
             self.confirm.set_text("")
             self.backup.set_active(False)
+            self.diagnostics.set_label("")
             try:
                 payload = read_lsblk()
-                boot_disk = live_source_disk()
+                try:
+                    boot_disk = live_source_disk()
+                except Exception:
+                    self.diagnostics.set_label(describe(report(payload, None, storage_controllers(), source_known=False)))
+                    raise
+                self.diagnostics.set_label(describe(report(payload, boot_disk, storage_controllers())))
                 plans = []
                 errors = []
                 for disk in payload["blockdevices"]:

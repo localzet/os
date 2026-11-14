@@ -1,4 +1,3 @@
-import Clutter from 'gi://Clutter';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -6,11 +5,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 // Dock buttons always launch existing apps. Optional apps only appear when
 // actually installed; there are no placeholders or inert icons.
 const PINNED = [
-    'com.microsoft.Edge.desktop',
-    'microsoft-edge.desktop',
+    'org.gnome.Epiphany.desktop',
     'org.gnome.Nautilus.desktop',
     'org.gnome.Ptyxis.desktop',
-    'com.localzet.Settings.desktop',
+    'org.gnome.Settings.desktop',
 ];
 
 export class LocalzetDock {
@@ -34,7 +32,7 @@ export class LocalzetDock {
 
         Main.layoutManager.addChrome(this._actor, {
             affectsStruts: false,
-            trackFullscreen: false,
+            trackFullscreen: true,
         });
         this._rebuild();
         if (Main.overview.visible)
@@ -65,7 +63,7 @@ export class LocalzetDock {
             return;
         this._actor.destroy_all_children();
         this._addButton(new St.Icon({
-            icon_name: 'view-app-grid-symbolic', icon_size: 32,
+            icon_name: 'view-app-grid-symbolic', icon_size: 28,
         }), () => Main.overview.show(), 'Приложения');
 
         const installed = new Set();
@@ -74,7 +72,7 @@ export class LocalzetDock {
             if (!app || !app.get_app_info().should_show() || installed.has(app.get_id()))
                 continue;
             installed.add(app.get_id());
-            this._addButton(app.create_icon_texture(32),
+            this._addButton(app.create_icon_texture(28),
                 () => app.activate(), app.get_name());
         }
         this._place();
@@ -87,12 +85,12 @@ export class LocalzetDock {
         if (!monitor)
             return;
         const count = this._actor.get_n_children();
-        const width = Math.min(monitor.width - 24, Math.max(90, 18 + count * 53));
-        const height = 66;
+        const width = Math.min(monitor.width - 24, Math.max(64, 16 + count * 46));
+        const height = 48;
         this._actor.set_size(width, height);
         this._actor.set_position(
             monitor.x + Math.round((monitor.width - width) / 2),
-            monitor.y + monitor.height - height - 16,
+            monitor.y + monitor.height - height - 12,
         );
     }
 

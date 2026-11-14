@@ -25,7 +25,7 @@
 
 ## P3 — system integrations
 - [x] 64-bit Wine fixture executes successfully; per-app profiles.
-- [x] Localzet Connect entry points and pinned NectarLink DEB verification.
+- [x] Upstream NectarLink (thtbee) setup entry point and pinned DEB verification.
 - [ ] Actual Android pairing and upstream package redistribution review.
 - [ ] Windows GUI manager, 32-bit and Proton/Steam GPU testing.
 - [ ] Containers, networking, NetBird, UserNet and gaming profiles.

@@ -23,7 +23,17 @@ bash "$repo/scripts/build-desktop-deb.sh" "$build"
 export LOCALZET_DESKTOP_DEB="$build/localzet-desktop_${LOCALZET_PACKAGE_VERSION}_all.deb"
 mkdir -p "$(dirname "$root")"
 # Use a minimal GNOME stack, not the Ubuntu-branded desktop metapackage.
-packages="ubuntu-keyring,ubuntu-minimal,systemd-sysv,linux-generic,linux-firmware,casper,initramfs-tools,dbus,dbus-user-session,gdm3,gnome-session,gnome-shell,gnome-control-center,gnome-settings-daemon,nautilus,ptyxis,network-manager,pipewire-audio,wireplumber,xwayland,libgl1-mesa-dri,fonts-dejavu-core,fonts-noto-core,dconf-cli,locales,language-pack-ru,language-pack-gnome-ru,python3,python3-gi,gir1.2-gtk-4.0,gir1.2-adw-1,pkexec,procps"
+packages="ubuntu-keyring,ubuntu-minimal,systemd-sysv,linux-generic,linux-firmware,casper,initramfs-tools,dbus,dbus-user-session,gdm3,gnome-session,gnome-shell,gnome-shell-extension-appindicator,gnome-control-center,gnome-settings-daemon,nautilus,ptyxis,network-manager,pipewire-audio,wireplumber,xwayland,libgl1-mesa-dri,fonts-dejavu-core,fonts-noto-core,dconf-cli,locales,language-pack-ru,language-pack-gnome-ru,python3,python3-gi,gir1.2-gtk-4.0,gir1.2-adw-1,pkexec,procps,pciutils,usbutils,nvme-cli,smartmontools,efibootmgr,gparted,gnome-disk-utility,ntfs-3g,exfatprogs,btrfs-progs,gnome-system-monitor,gnome-text-editor,gnome-calculator,gnome-software,file-roller,loupe,papers,epiphany-browser,papirus-icon-theme,plymouth,plymouth-theme-spinner,librsvg2-bin"
+# Only signed Ubuntu archive packages are included by this experimental
+# profile path. Never execute an upstream URL or silently mark it complete.
+if [[ -n "${LOCALZET_ARCHIVE_PROFILE:-}" ]]; then
+    case "$LOCALZET_ARCHIVE_PROFILE" in minimal|standard|complete) ;; *) echo "Invalid archive profile" >&2; exit 2 ;; esac
+    export LOCALZET_PROFILE_PLAN="$build/profile-plan.json"
+    PYTHONPATH="$repo/src" python3 -m localzet.profiles --manifest "$repo/config/profiles.json" "$LOCALZET_ARCHIVE_PROFILE" > "$LOCALZET_PROFILE_PLAN"
+    profile_packages="$(python3 -c 'import json,sys; print(",".join(json.load(open(sys.argv[1]))["ubuntu_package_candidates"]))' "$LOCALZET_PROFILE_PLAN")"
+    [[ -n "$profile_packages" ]]
+    packages+=",$profile_packages"
+fi
 if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 && "${LOCALZET_INSTALLER:-0}" == 1 ]]; then
     echo "Test and interactive installation profiles are mutually exclusive" >&2
     exit 2

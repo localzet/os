@@ -2,6 +2,9 @@
 
 **The published installer ISO must not look like a stock GNOME session with a new wallpaper.** This is a product requirement, not a promise that this PR already implements it.
 
+The owner-approved [Aurora Professional design](design/README.md) and
+[acceptance matrix](design/ACCEPTANCE.md) are the current baseline.
+
 ## Consistency targets
 
 - Brand system: Localzet Aurora Dark tokens, deliberate light-mode alternative, unified typography and icon system.
@@ -32,6 +35,8 @@
 | Install | Calamares integration, bootloader confined to selected SSD, standalone boot |
 | Release | Signed artifacts, checksum, BIOS/UEFI/Secure Boot handling and real hardware QA |
 
-## Scope of this change
+## Current implementation
 
-A GNOME 50 searchable launcher with a branded menu replaces the temporary four-action popup. It still needs live GUI acceptance, screenshot review and interaction tests; it is *not* a completed graphical shell or final visual design.
+The approved design is a target, not current screenshots. The compact dock
+and revised palette are foundation work; real glass and full Shell/settings
+integration still need implementation and actual visual acceptance.

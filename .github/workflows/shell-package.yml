@@ -44,7 +44,7 @@ jobs:
             test "$installed" -eq 1
             gnome-shell --version | grep -E "^GNOME Shell 50(\\.[0-9]+)*$"
             mkdir -p dist
-            gnome-extensions pack --force --out-dir dist extensions/localzet-shell@localzet.com
+            gnome-extensions pack --force --extra-source=dock.js --extra-source=panel.js --out-dir dist extensions/localzet-shell@localzet.com
             shopt -s nullglob
             packages=(dist/*.zip)
             test "${#packages[@]}" -eq 1

@@ -59,8 +59,8 @@ jobs:
           path: dist/candidate-logs/
           if-no-files-found: warn
           retention-days: 7
-      - name: Upload verified candidate (not a production release)
-        if: success()
+      - name: Upload manually requested engineering image
+        if: success() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: localzet-uefi-install-candidate

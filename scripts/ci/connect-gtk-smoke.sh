@@ -12,18 +12,18 @@ dbus-run-session -- bash -eu -c '
   found=0
   for i in $(seq 1 30); do
     if ! kill -0 "$app_pid" 2>/dev/null; then
-      echo "Localzet Connect exited before creating a window" >&2
+      echo "NectarLink exited before creating a window" >&2
       cat out/connect/application.log >&2
       exit 1
     fi
-    if xdotool search --name "Localzet Connect" > out/connect/windows.txt 2>/dev/null; then
+    if xdotool search --name "NectarLink — настройка" > out/connect/windows.txt 2>/dev/null; then
       found=1
       break
     fi
     sleep 1
   done
   if [ "$found" != 1 ]; then
-    echo "No Localzet Connect X11 window found" >&2
+    echo "No NectarLink X11 window found" >&2
     cat out/connect/application.log >&2
     exit 1
   fi

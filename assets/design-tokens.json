@@ -1,17 +1,49 @@
 {
-  "name": "Localzet Aurora Dark",
-  "status": "draft",
+  "name": "Localzet Aurora — Violet × Ember",
+  "status": "owner-approved Professional visual direction; implementation pending",
   "colors": {
-    "background": "#0a1120",
-    "surface": "#13203a",
-    "surfaceElevated": "#1e3154",
-    "accent": "#6c92ed",
-    "textPrimary": "#f1f5ff",
-    "textSecondary": "#aebed9",
+    "background": "#10091E",
+    "surface": "#28183F",
+    "surfaceElevated": "#34234F",
+    "accent": "#FF7E00",
+    "textPrimary": "#F4EEFF",
+    "textSecondary": "#B9A5D5",
     "success": "#4fc6a8",
-    "warning": "#e6b66b"
+    "warning": "#e6b66b",
+    "violetDeep": "#6436B5",
+    "primary": "#9B72F2",
+    "onAccent": "#10091E"
   },
-  "radii": {"sm": 8, "md": 14, "lg": 22},
-  "blur": {"surfacePx": 18},
-  "motion": {"shortMs": 140, "mediumMs": 240}
+  "radii": {
+    "sm": 6,
+    "md": 8,
+    "lg": 14
+  },
+  "blur": {
+    "surfacePx": 18
+  },
+  "motion": {
+    "shortMs": 140,
+    "mediumMs": 240
+  },
+  "glass": {
+    "surfaceOpacity": 0.78,
+    "borderOpacity": 0.22,
+    "opaqueFallback": "#28183F",
+    "qualityGate": "real compositor-backed background sampling and blur; no flat alpha-only imitation",
+    "edgeTreatment": "subtle directional highlight, no uniform conspicuous outline",
+    "depth": "soft ambient and contact shadow, layered tint, legible foreground",
+    "refraction": "optional shader-based edge distortion only where supported and performant",
+    "fallback": "opaque violet surface with equivalent contrast; reduced transparency and motion options",
+    "verification": "actual GNOME session captures over light, dark and detailed wallpapers; GPU and software-rendering performance checks"
+  },
+  "notes": "Dominant violet and restrained orange. Approved Professional poster and functional scope: docs/design/README.md. Genuine compositor glass and opaque accessibility fallback; no thick outlines.",
+  "density": {
+    "panelHeight": 32,
+    "tableRowMin": 32,
+    "tableRowMax": 36,
+    "dockIcon": 28,
+    "dockHeight": 48,
+    "accessibleScale": true
+  }
 }
