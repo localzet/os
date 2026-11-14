@@ -16,7 +16,7 @@ screenshots or a statement of implemented compatibility.
   The poster's demo CPU, memory, IP addresses, battery, game compatibility,
   version labels and connection indicators are illustrative, not measured
   results. Do not copy inaccurate text or generated brand variants.
-- Source branding is the owner's original Localzet SVG; do not redraw the
+- Source branding is the owner's original [Localzet SVG](../../assets/brand/localzet.svg); do not redraw the
   cat logo from generated artwork. NectarLink and NetBird retain their
   upstream names, icons and attribution.
 
