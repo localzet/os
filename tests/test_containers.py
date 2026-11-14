@@ -430,3 +430,38 @@ class ContainersTests(unittest.TestCase):
         with patch.object(engine, "resources", return_value=({"ID": identity},)), patch.object(engine, "_run", return_value=raw) as run:
             self.assertEqual(engine.image_history(identity), ({"ID": "<missing>", "CreatedSince": "1 hour ago", "Size": "0B"},))
             run.assert_called_once_with("image", "history", "--no-trunc", "--format", "{{json .}}", identity)
+
+    def test_registry_requires_explicit_destination(self):
+        from localzet.containers import validate_registry_tag
+        for reference in ("ghcr.io/team/app:v1", "docker.io/team/app:v1", "registry.example:5000/app:v1"):
+            validate_registry_tag(reference, qualified=True)
+        for reference in ("app:v1", "team/app:v1", "ghcr.io/team/app", "--all-tags",
+                          "https://ghcr.io/team/app:v1", "user:token@ghcr.io/team/app:v1"):
+            with self.assertRaises(EngineError):
+                validate_registry_tag(reference, qualified=True)
+
+    def test_registry_tag_does_not_overwrite(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        identity = "sha256:" + CID
+        row = {"ID": identity, "Repository": "team/app", "Tag": "v1"}
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=(row,)):
+            with self.assertRaises(EngineError):
+                engine.tag_image(identity, "docker.io/team/app:v1")
+            run.assert_not_called()
+            engine.tag_image(identity, "ghcr.io/team/app:v2")
+            run.assert_called_once_with("image", "tag", identity, "ghcr.io/team/app:v2")
+
+    def test_registry_push_requires_matching_image_id(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        identity = "sha256:" + CID
+        row = {"ID": identity, "Repository": "team/app", "Tag": "v1"}
+        with patch.object(engine, "_run") as run, patch.object(engine, "resources", return_value=(row,)):
+            for image, reference in (("sha256:" + "b" * 64, "docker.io/team/app:v1"),
+                    (identity, "ghcr.io/team/app:v1"), (identity, "team/app:v1")):
+                with self.assertRaises(EngineError):
+                    engine.push_image(image, reference)
+            run.assert_not_called()
+            engine.push_image(identity, "docker.io/team/app:v1")
+            run.assert_called_once_with("image", "push", "docker.io/team/app:v1", timeout=600)
