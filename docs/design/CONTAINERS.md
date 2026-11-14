@@ -143,3 +143,13 @@ are not a secret mechanism. Output is kept in memory only and can contain
 sensitive data. CI checks real build argument propagation, diagnostics and
 history. Streaming progress, cancellation, interactive GTK and rootless QA
 remain outstanding.
+
+Stage 16 adds explicit local image tagging and confirmed publication to a fully
+qualified registry repository/tag. Docker CLI uses its existing credentials;
+Localzet does not inspect or store auth data. Users authenticate separately.
+Existing local destinations are rejected, and push checks the selected full
+image ID against the local tag. These checks are not atomic against concurrent
+Docker clients. Push transfers image layers and may replace a remote tag.
+CI checks actual local tagging and mocked push command/guards; it never pushes
+to an external registry. Live registry authentication/publication, GUI credential
+management, tag removal, remote catalog and interactive/rootless QA remain open.
