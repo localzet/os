@@ -1,7 +1,6 @@
-# Localzet Connect
+# NectarLink integration
 
-Localzet Connect is the OS-facing entry point to the upstream NectarLink Android
-integration. It is not a fork or a separate protocol implementation.
+[NectarLink](https://github.com/thtbee/nectarlink) is an independent project by thtbee. Localzet OS provides only a setup entry point for the original upstream client, not a fork or a separate protocol implementation. The integration uses the upstream name and explicitly credits its developer. The setup entry point is labeled NectarLink Setup to distinguish it from the client.
 
 - Aurora launcher exposes the official desktop application when installed.
 - Localzet Settings shows a phone row without requiring privileged actions.
@@ -55,4 +54,4 @@ A matching hash establishes artifact identity, not trust or licensing compliance
 
 ## Native setup
 
-Localzet Connect opens from Aurora or Settings. The ISO contains the setup UI and fixed polkit-authenticated installer, not the upstream binary. After installation to SSD, the user may explicitly download the pinned NectarLink package, verify its SHA-256 and reviewed maintainer scripts, and install with administrator authorization. Live sessions do not install it. Actual Android pairing is not yet verified; the upstream client launch passed in Ubuntu CI. No redistribution of NectarLink is enabled.
+The NectarLink setup entry point opens from the application list or Components. The ISO contains the setup UI and fixed polkit-authenticated installer, not the upstream binary. After installation to SSD, the user may explicitly download the pinned NectarLink package, verify its SHA-256 and reviewed maintainer scripts, and install with administrator authorization. Live sessions do not install it. Actual Android pairing is not yet verified; the upstream client launch passed in Ubuntu CI. No redistribution of NectarLink is enabled.

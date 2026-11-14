@@ -1,4 +1,4 @@
-"""Localzet Connect: user-initiated upstream Android integration."""
+"""NectarLink: user-initiated upstream Android integration."""
 from __future__ import annotations
 
 import os
@@ -28,7 +28,7 @@ def main() -> int:
                 self.window.present()
                 return
             Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
-            self.window = Adw.ApplicationWindow(application=self, title="Localzet Connect")
+            self.window = Adw.ApplicationWindow(application=self, title="NectarLink — настройка")
             self.window.set_default_size(650, 460)
             self.window.connect("close-request", lambda *_: self.running)
             toolbar = Adw.ToolbarView()
@@ -44,10 +44,10 @@ def main() -> int:
             title = Gtk.Label(label="Связь с телефоном", xalign=0)
             title.add_css_class("title-1")
             page.append(title)
-            page.append(Gtk.Label(label="Android · NectarLink", xalign=0))
+            page.append(Gtk.Label(label="NectarLink · проект thtbee", xalign=0))
             page.append(Gtk.Label(
                 label="Уведомления, файлы, буфер обмена и другие функции через локальную сеть. "
-                      "Сопряжение и разрешения настраиваются в оригинальном клиенте.",
+                      "Сопряжение и разрешения настраиваются в оригинальном клиенте. Localzet OS только интегрирует его.",
                 wrap=True, xalign=0))
             self.version = Gtk.Label(wrap=True, xalign=0)
             self.version.add_css_class("dim-label")
@@ -59,7 +59,7 @@ def main() -> int:
             self.action.set_halign(Gtk.Align.START)
             self.action.connect("clicked", self.activate_client)
             page.append(self.action)
-            link = Gtk.LinkButton(uri="https://github.com/thtbee/nectarlink", label="Исходный проект NectarLink")
+            link = Gtk.LinkButton(uri="https://github.com/thtbee/nectarlink", label="NectarLink на GitHub · thtbee")
             link.set_halign(Gtk.Align.START)
             page.append(link)
             self.refresh()

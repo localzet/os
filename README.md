@@ -11,7 +11,7 @@ Ubuntu 26.04 LTS, GNOME 50 и Wayland. Русский язык — первый 
 
 - Aurora Shell: поиск приложений, панель, постоянный dock, оригинальные обои.
 - Localzet Settings: нативное GTK4/libadwaita приложение.
-- Localzet Connect: точки входа для NectarLink и проверка закреплённого DEB
+- [NectarLink](https://github.com/thtbee/nectarlink) от thtbee: интеграция оригинального клиента и проверка закреплённого DEB
   (сопряжение с Android и включение клиента в образ ещё не проверены).
 - Windows Runtime: запуск доверенных EXE/MSI через отдельные Wine-профили;
   64-битная тестовая программа Wine успешно выполнена в CI.
