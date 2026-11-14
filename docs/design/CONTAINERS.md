@@ -44,3 +44,10 @@ the selected local engine and the same serialized worker as container actions.
 Paths are plain selectable metadata, not links or executable inputs. Empty
 inventories and engine errors are distinct. No Compose mutations or profile
 changes; actual GUI interaction and rootless acceptance remain required.
+
+Stage 6 adds read-only image, volume and network inventories with native GTK
+views. Only allowlisted metadata is displayed; labels, mount paths, secrets
+and environment variables are not requested for display. No create, remove,
+pull, prune or network changes are exposed. The disposable Docker CI creates
+its own isolated fixtures and checks actual inventory. Interactive resource
+view and rootless acceptance are still required.
