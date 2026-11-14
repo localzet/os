@@ -1,7 +1,7 @@
 import json
 import unittest
 from unittest.mock import patch
-from localzet.containers import Engine, EngineError, parse_inventory, parse_stacks
+from localzet.containers import Engine, EngineError, parse_inventory, parse_stacks, parse_resources
 
 CID = "a" * 64
 ROW = {"ID": CID, "Names": "fixture", "Image": "fixture:local", "State": "running",
@@ -81,3 +81,36 @@ class ContainersTests(unittest.TestCase):
             {"Name": "demo", "Status": "exited(1)", "ConfigFiles": "/untrusted/path"}])) as run:
             self.assertEqual(engine.stacks()[0].config_files, "/untrusted/path")
             run.assert_called_once_with("compose", "ls", "--all", "--format", "json")
+
+    def test_resource_inventory_allowlist(self):
+        rows = {
+            "images": {"Repository": "fixture", "Tag": "local", "ID": "sha256:" + CID, "Size": "1MB"},
+            "volumes": {"Name": "fixture", "Driver": "local", "Scope": "local"},
+            "networks": {"Name": "fixture", "ID": CID, "Driver": "bridge", "Scope": "local"},
+        }
+        for kind, row in rows.items():
+            with self.subTest(kind=kind):
+                self.assertEqual(parse_resources(kind, json.dumps({**row, "Labels": "private"})), (row,))
+                self.assertEqual(parse_resources(kind, ""), ())
+                for invalid in ("null", "[]", "{}", "not json", json.dumps({**row, next(iter(row)): 1})):
+                    with self.assertRaises(EngineError):
+                        parse_resources(kind, invalid)
+        for kind in ("images", "networks"):
+            with self.assertRaises(EngineError):
+                parse_resources(kind, json.dumps({**rows[kind], "ID": "short"}))
+
+    def test_resource_commands_are_fixed(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run", return_value="") as run:
+            for kind, command in (
+                ("images", ("image", "ls", "--all", "--no-trunc")),
+                ("volumes", ("volume", "ls")),
+                ("networks", ("network", "ls", "--no-trunc")),
+            ):
+                self.assertEqual(engine.resources(kind), ())
+                run.assert_called_with(*command, "--format", "{{json .}}")
+            count = run.call_count
+            with self.assertRaises(EngineError):
+                engine.resources("prune")
+            self.assertEqual(run.call_count, count)

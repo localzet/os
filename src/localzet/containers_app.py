@@ -82,6 +82,12 @@ def main() -> int:
             self.stacks_button = Gtk.Button(label="Compose-проекты")
             self.stacks_button.connect("clicked", self.show_stacks)
             top.append(self.stacks_button)
+            self.resource_buttons = []
+            for kind, caption in (("images", "Образы"), ("volumes", "Тома"), ("networks", "Сети")):
+                button = Gtk.Button(label=caption)
+                button.connect("clicked", self.show_resources, kind, caption)
+                top.append(button)
+                self.resource_buttons.append(button)
             main.append(top)
             self.status = Gtk.Label(label="Подключение…", xalign=0, wrap=True, selectable=True)
             self.status.add_css_class("dim-label")
@@ -153,6 +159,55 @@ def main() -> int:
             self.selection.connect("notify::selected-item", lambda *_: self.update_actions())
             self.window.present()
             self.load()
+
+        def show_resources(self, _, kind, caption):
+            if self.busy:
+                return
+            self.busy = True
+            self.generation += 1
+            generation = self.generation
+            rootful = self.rootful
+            self.update_actions()
+            future = self.pool.submit(lambda: Engine(rootful=rootful).resources(kind))
+            future.add_done_callback(lambda f: GLib.idle_add(self.resources_finished, generation, caption, f))
+
+        def resources_finished(self, generation, caption, future):
+            if generation != self.generation or not self.window:
+                return GLib.SOURCE_REMOVE
+            self.busy = False
+            self.update_actions()
+            dialog = Adw.Dialog(title=caption, content_width=820, content_height=480)
+            toolbar = Adw.ToolbarView()
+            toolbar.add_top_bar(Adw.HeaderBar())
+            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
+                              margin_top=16, margin_bottom=16, margin_start=16, margin_end=16)
+            scroll = Gtk.ScrolledWindow(vexpand=True)
+            scroll.set_child(content)
+            toolbar.set_content(scroll)
+            dialog.set_child(toolbar)
+            try:
+                rows = future.result()
+                summary = f"Ресурсов: {len(rows)} · Только просмотр"
+            except (EngineError, OSError, ValueError) as error:
+                rows = ()
+                summary = str(error)
+            except Exception:
+                rows = ()
+                summary = "Не удалось получить список ресурсов."
+            content.append(Gtk.Label(label=summary, xalign=0, wrap=True, selectable=True))
+            labels = {"Repository": "Репозиторий", "Tag": "Тег", "ID": "ID",
+                      "Size": "Размер", "Name": "Имя", "Driver": "Драйвер", "Scope": "Область"}
+            for item in rows:
+                group = Adw.PreferencesGroup()
+                for key, value in item.items():
+                    row = Adw.ActionRow(title=labels[key])
+                    label = Gtk.Label(label=value or "—", selectable=True, wrap=True,
+                                      max_width_chars=64, xalign=1)
+                    row.add_suffix(label)
+                    group.add(row)
+                content.append(group)
+            dialog.present(self.window)
+            return GLib.SOURCE_REMOVE
 
         def show_stacks(self, *_):
             if self.busy:
@@ -346,6 +401,8 @@ def main() -> int:
             self.refresh.set_sensitive(not self.busy)
             self.engine_button.set_sensitive(not self.busy)
             self.stacks_button.set_sensitive(not self.busy)
+            for button in self.resource_buttons:
+                button.set_sensitive(not self.busy)
             self.table.set_sensitive(not self.busy)
             self.search.set_sensitive(not self.busy)
             if self.detail_id and (not item or item.id != self.detail_id):
