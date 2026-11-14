@@ -8,7 +8,6 @@ candidate ISO contains no automatic test installer or credentials.
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
 from pathlib import Path
@@ -48,6 +47,7 @@ class Guest:
             "-drive", f"if=none,id=target,file={disk},format=raw",
             "-device", "nvme,drive=target,serial=LZ_TEST_NVME",
             "-fw_cfg", f"name=opt/localzet/test,file={script}",
+            "-fw_cfg", f"name=opt/localzet/fixture,file={args.fixture}",
         ]
         command += ["-boot", "order=d", "-cdrom", str(args.iso)] if live else ["-boot", "order=c"]
         self.error_stream = self.errors.open("wb")
@@ -127,7 +127,7 @@ class Guest:
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
                 return
-            if FAIL in lines or self.process.poll() is not None:
+            if any(line.startswith(FAIL) for line in lines) or self.process.poll() is not None:
                 break
             time.sleep(1)
         if self.serial.exists():
@@ -184,11 +184,11 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(fixture: bytes):
+def installed_script():
     return r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
-trap 'printf "\nLOCALZET_CANDIDATE_FAILED\n"' ERR
+trap 'printf "\nLOCALZET_CANDIDATE_FAILED line=%s status=%s\n" "$LINENO" "$?"' ERR
 [[ "$(findmnt -n -o FSTYPE /)" == ext4 ]]
 [[ "$(findmnt -n -o FSTYPE /boot/efi)" == vfat ]]
 for point in / /boot/efi; do
@@ -232,10 +232,12 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
 # Stage host-built test data outside the installed image. No credentials
 # or testing service are baked into the distribution.
 install -d -m 0755 /run/localzet-candidate-check
-base64 -d > /run/localzet-candidate-check/smoke.exe <<'FIXTURE'
-""" + base64.b64encode(fixture).decode("ascii") + r"""
-FIXTURE
-chmod 0644 /run/localzet-candidate-check/smoke.exe
+printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'
+install -m 0644 /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/fixture/raw \
+    /run/localzet-candidate-check/smoke.exe
+test -s /run/localzet-candidate-check/smoke.exe
+sha256sum /run/localzet-candidate-check/smoke.exe
+printf '\nLOCALZET_CANDIDATE_FIXTURE_READY\n'
 cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
 #!/bin/bash
 set -Eeuo pipefail
@@ -271,6 +273,7 @@ chmod 0755 /run/localzet-candidate-check/run-wine.sh
 printf '\nLOCALZET_CANDIDATE_DESKTOP\n'
 # Use the GNOME user's systemd manager, which inherits the real graphical
 # environment. The fixture remains unprivileged, with no console focus needed.
+printf '\nLOCALZET_CANDIDATE_WINE_START\n'
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --wait --pipe --collect /usr/bin/timeout 300 /bin/bash /run/localzet-candidate-check/run-wine.sh
@@ -293,6 +296,9 @@ def main():
         setattr(args, name, path)
     args.logs = args.logs.resolve()
     args.logs.mkdir(parents=True, exist_ok=False)
+    args.fixture = args.fixture.resolve(strict=True)
+    if not args.fixture.is_file():
+        parser.error("fixture must be a regular file")
     fixture = args.fixture.read_bytes()
     if not fixture.startswith(b"MZ") or len(fixture) > 2 * 1024**2:
         parser.error("expected a small original PE fixture")
@@ -311,12 +317,12 @@ def main():
             live.wait(LIVE, 480)
             live.launch("localzet-installer")
             live.launch("ptyxis")
-            live.text("sudo -n modprobe qemu_fw_cfg; sudo -n bash /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw")
+            live.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
             live.key("ret")
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(fixture))
+        script.write_text(installed_script())
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -350,7 +356,7 @@ def main():
             installed.text(password)
             installed.key("ret")
             time.sleep(3)
-            installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n bash /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw")
+            installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
             installed.key("ret")
             installed.wait(READY, 180)
             installed.capture("desktop-verified")
