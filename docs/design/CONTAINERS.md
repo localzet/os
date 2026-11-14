@@ -102,3 +102,14 @@ Labels are not an authorization boundary and concurrent Docker clients can race.
 Operations may partially succeed; refresh actual state after errors. Projects
 can be re-addressed by the same document, but persistent editor storage, ordinary
 YAML, syntax highlighting and interactive GTK/rootless testing remain outstanding.
+
+Stage 12 stores validated Studio source in private per-user content-addressed
+files under ~/.local/share/localzet/compose. Atomic replacement, strict file
+permissions, bounded reads and fingerprint verification protect against stale
+or malformed files; this is not protection against the same user modifying
+parent directories. Saved projects can be reopened and must be revalidated.
+A read-only status action lists matching actual containers by both project and
+document labels. Storage is shared across local engine choices, so actions use
+the explicitly selected engine. No general YAML/highlighting, automatic
+startup, project deletion or migration yet. CI covers storage and real state;
+interactive GTK and rootless acceptance remain outstanding.

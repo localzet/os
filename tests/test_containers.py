@@ -313,3 +313,41 @@ class ContainersTests(unittest.TestCase):
             self.assertEqual(engine.managed_compose(source, "down"), project)
             self.assertEqual(run.call_args_list[-2].args, ("container", "stop", "--time", "10", CID))
             self.assertEqual(run.call_args_list[-1].args, ("container", "rm", CID))
+
+    def test_studio_store_roundtrip_and_permissions(self):
+        import tempfile
+        from pathlib import Path
+        from localzet.containers import StudioStore
+        source = json.dumps({"services": {"app": {"image": "sha256:" + CID}}})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "studio"
+            store = StudioStore(root)
+            identity = store.save(source)
+            self.assertEqual(store.projects(), (identity,))
+            self.assertEqual(StudioStore(root).load(identity), source)
+            self.assertEqual((root / (identity + ".json")).stat().st_mode & 0o777, 0o600)
+            self.assertEqual(root.stat().st_mode & 0o777, 0o700)
+            with self.assertRaises(EngineError):
+                store.load("../outside")
+            target = root / (identity + ".json")
+            target.write_text(json.dumps({"services": {"other": {"image": "sha256:" + CID}}}))
+            with self.assertRaisesRegex(EngineError, "fingerprint"):
+                store.load(identity)
+
+    def test_studio_store_refuses_symlink_and_public_directory(self):
+        import tempfile
+        from pathlib import Path
+        from localzet.containers import StudioStore
+        source = json.dumps({"services": {"app": {"image": "sha256:" + CID}}})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "studio"
+            store = StudioStore(root)
+            identity = store.save(source)
+            target = root / (identity + ".json")
+            target.unlink()
+            target.symlink_to("/etc/passwd")
+            with self.assertRaises(OSError):
+                store.load(identity)
+            root.chmod(0o755)
+            with self.assertRaises(EngineError):
+                store.projects()
