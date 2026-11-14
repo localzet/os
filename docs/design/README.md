@@ -128,3 +128,12 @@ Rounded dock/popovers require a proper mask, not a rectangular blur leaking
 outside rounded corners. No global redraw hacks, no forced transparency on
 third-party windows. See upstream API:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
+
+### Boot branding implementation
+
+The separate `localzet-aurora` Plymouth theme uses the upstream two-step
+renderer and its existing prompt/message animation resources, with a new
+palette and watermark rendered from the canonical Localzet SVG. The build
+checks the theme and logo in initramfs. This does not establish that the
+splash is visible on every GPU/firmware; capture boot and verify password
+prompts/recovery before acceptance. No foreign bootloader is modified.

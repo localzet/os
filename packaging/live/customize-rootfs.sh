@@ -64,12 +64,22 @@ for driver in vmd nvme nvme_core ahci; do
         printf '%s\n' "$driver" >> "$root/etc/initramfs-tools/modules"
     fi
 done
-# Use the maintained Plymouth spinner rather than diagnostic console output.
+# Keep the upstream two-step renderer and its password/message assets.
+# Create our own theme rather than changing distribution-owned files.
 test -f "$root/usr/share/plymouth/themes/spinner/spinner.plymouth"
-# Ubuntu's spinner package may ship the theme without registering this
-# alternatives group. Register the real descriptor before selecting it.
-chroot "$root" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth 100
-chroot "$root" update-alternatives --set default.plymouth /usr/share/plymouth/themes/spinner/spinner.plymouth
+theme=/usr/share/plymouth/themes/localzet-aurora
+test ! -e "$root$theme"
+chroot "$root" cp -aL /usr/share/plymouth/themes/spinner "$theme"
+install -m 0644 "$LOCALZET_REPO/packaging/live/aurora.plymouth" "$root$theme/localzet-aurora.plymouth"
+rm -f "$root$theme/spinner.plymouth" "$root$theme/watermark.png"
+chroot "$root" rsvg-convert -w 220 -h 220 -o "$theme/watermark.png" /usr/share/localzet/brand/localzet.svg
+test -s "$root$theme/watermark.png"
+chroot "$root" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$theme/localzet-aurora.plymouth" 150
+chroot "$root" update-alternatives --set default.plymouth "$theme/localzet-aurora.plymouth"
+# Select the theme explicitly as well; Ubuntu's default config can otherwise
+# prefer BGRT even when the alternatives symlink has changed.
+mkdir -p "$root/etc/plymouth"
+printf '[Daemon]\nTheme=localzet-aurora\n' > "$root/etc/plymouth/plymouthd.conf"
 test -f "$root/usr/share/gnome-shell/extensions/ubuntu-appindicators@ubuntu.com/metadata.json"
 test -f "$root/usr/share/icons/Papirus-Dark/index.theme"
 # Ensure the initramfs contains the Casper hooks installed by apt.
@@ -82,6 +92,9 @@ initrd_list="$(chroot "$root" lsinitramfs "/boot/${initrds[0]##*/}")"
 grep -Eq '(^|/)scripts/casper$' <<< "$initrd_list" || {
     echo "Initramfs has no Casper boot script" >&2; exit 2;
 }
+# Verify the selected custom theme and its real logo are shipped in the boot image.
+grep -Fq 'plymouth/themes/localzet-aurora/localzet-aurora.plymouth' <<< "$initrd_list" || { echo "Missing Aurora theme in initramfs" >&2; exit 2; }
+grep -Fq 'plymouth/themes/localzet-aurora/watermark.png' <<< "$initrd_list" || { echo "Missing Aurora logo in initramfs" >&2; exit 2; }
 # Each modular storage driver must actually be present in the initramfs.
 for driver in vmd nvme nvme_core ahci; do
     module="$(chroot "$root" modinfo -k "$kernel" -F filename "$driver")"
