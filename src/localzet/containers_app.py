@@ -201,6 +201,10 @@ def main() -> int:
                 create = Gtk.Button(label="Создать локальный том" if kind == "volumes" else "Создать изолированную сеть")
                 create.connect("clicked", lambda *_: self.confirm_resource(dialog, kind, caption, None))
                 content.append(create)
+            if kind == "images":
+                pull = Gtk.Button(label="Загрузить образ")
+                pull.connect("clicked", lambda *_: self.confirm_deployment(dialog, None))
+                content.append(pull)
             for item in rows:
                 group = Adw.PreferencesGroup()
                 for key, value in item.items():
@@ -209,6 +213,10 @@ def main() -> int:
                                       max_width_chars=64, xalign=1)
                     row.add_suffix(label)
                     group.add(row)
+                if kind == "images":
+                    create = Gtk.Button(label="Создать контейнер", halign=Gtk.Align.END)
+                    create.connect("clicked", lambda _, item=item: self.confirm_deployment(dialog, item))
+                    group.add(create)
                 if kind in ("images", "networks") and not (kind == "networks" and
                         (item["Name"] in ("bridge", "host", "none") or item["Scope"] != "local")):
                     remove = Gtk.Button(label="Удалить", halign=Gtk.Align.END)
@@ -218,6 +226,55 @@ def main() -> int:
                 content.append(group)
             dialog.present(self.window)
             return GLib.SOURCE_REMOVE
+
+        def confirm_deployment(self, parent, item):
+            if self.busy:
+                return
+            generation, rootful = self.generation, self.rootful
+            if item is None:
+                prompt = Adw.AlertDialog(heading="Загрузить образ?",
+                    body="Укажите доверенный registry и явный тег или digest. Загрузка обращается к сети и может изменить локальный тег. Образ не запускается.")
+                entry = Gtk.Entry(placeholder_text="docker.io/library/alpine:3.22")
+                action = "Загрузить"
+            else:
+                prompt = Adw.AlertDialog(heading="Создать контейнер?",
+                    body=item["ID"] + "\nСоздаётся без запуска, без сети, с read-only rootfs, UID 65534, без capabilities, лимитами 512 МиБ и 256 процессов. Используйте только доверенные образы.")
+                entry = Gtk.Entry(placeholder_text="Имя контейнера")
+                action = "Создать"
+            prompt.set_extra_child(entry)
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("confirm", action)
+            prompt.set_close_response("cancel")
+            prompt.set_default_response("cancel")
+            prompt.set_response_appearance("confirm", Adw.ResponseAppearance.SUGGESTED)
+
+            def response(_, choice):
+                if choice != "confirm" or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                target = entry.get_text()
+                parent.close()
+                self.busy = True
+                self.generation += 1
+                current = self.generation
+                self.status.set_label("Загрузка образа (до 10 минут)…" if item is None else "Создание контейнера…")
+                self.update_actions()
+                def worker():
+                    engine = Engine(rootful=rootful)
+                    return engine.pull_image(target) if item is None else engine.create_container(target, item["ID"])
+                future = self.pool.submit(worker)
+                if item is None:
+                    future.add_done_callback(lambda f: GLib.idle_add(self.pull_finished, current, f))
+                else:
+                    future.add_done_callback(lambda f: GLib.idle_add(self.finished, current, f))
+            prompt.connect("response", response)
+            prompt.present(parent)
+
+        def pull_finished(self, generation, future):
+            if generation != self.generation or not self.window:
+                return GLib.SOURCE_REMOVE
+            self.status.set_label("Загрузка завершена; список образов обновлён." if future.exception() is None
+                                  else "Загрузка не подтверждена. Проверьте список образов.")
+            return self.resources_finished(generation, "images", "Образы", future)
 
         def confirm_resource(self, parent, kind, caption, item):
             if self.busy:
