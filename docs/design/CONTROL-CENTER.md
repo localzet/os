@@ -25,3 +25,14 @@ First successful build: Ubuntu 1:50.3-0ubuntu0.2+localzet1, workflow
 geometry that displaced the details. Keep the canonical SVG unchanged,
 but constrain its GTK picture to a compact 144 logical pixel target.
 Rebuild and inspect the result before ISO integration.
+
+The compact 144 px About screenshot passed (43635926648). The next
+engineering workflow hands the two rebuilt packages from its own successful
+package job to a disposable ISO build. It validates both SHA-256 digests,
+same checkout commit, exact package names/architecture and matching stock
+Ubuntu source version inside the rootfs before installing. A newer archive
+version requires a new rebuild rather than downgrading. The regular build
+remains unchanged unless explicitly given LOCALZET_CONTROL_CENTER_BUNDLE.
+No package is pinned or held. The exact image is tested via the interactive
+USB/QEMU installation path, without uploading a public release. Actual
+installed About screenshot and maintained signed repository are still gates.

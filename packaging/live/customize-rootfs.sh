@@ -6,6 +6,9 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
+    bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
+fi
 if [[ -n "${LOCALZET_PROFILE_PLAN:-}" ]]; then
     install -D -m 0644 "$LOCALZET_PROFILE_PLAN" "$root/usr/share/localzet/archive-profile-plan.json"
     PYTHONPATH="$LOCALZET_REPO/src" python3 "$LOCALZET_REPO/scripts/check-profile-rootfs.py" "$root" "$LOCALZET_PROFILE_PLAN"

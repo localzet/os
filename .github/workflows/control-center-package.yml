@@ -9,6 +9,8 @@ on:
       - 'scripts/ci/control-center-about-smoke.sh'
       - 'assets/brand/**'
       - 'tests/test_control_center_brand.py'
+      - 'scripts/install-branded-control-center.sh'
+      - 'packaging/live/customize-rootfs.sh'
 permissions:
   contents: read
 concurrency:
@@ -33,5 +35,45 @@ jobs:
         with:
           name: control-center-build-evidence
           path: out/control-center/
+          if-no-files-found: warn
+          retention-days: 7
+
+  installed-image:
+    needs: package
+    runs-on: ubuntu-26.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: control-center-build-evidence
+          path: out/control-center/
+      - name: Build exact branded candidate
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 LOCALZET_CONTROL_CENTER_BUNDLE="$PWD/out/control-center" bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/branded-root"
+          sudo chroot "$RUNNER_TEMP/branded-root" dpkg-query -W gnome-control-center gnome-control-center-data | tee out/control-center-installed.txt
+          grep -F '+localzet1' out/control-center-installed.txt
+          sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/branded-root" "$PWD/dist/localzet-branded-candidate.iso"
+          (cd dist && sha256sum -c localzet-branded-candidate.iso.sha256)
+      - name: Install and log in using exact branded image
+        run: |
+          printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
+          x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
+          python3 scripts/qemu-interactive-install-smoke.py dist/localzet-branded-candidate.iso \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --boot-media usb --fixture "$RUNNER_TEMP/smoke.exe" --logs dist/branded-logs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: control-center-iso-evidence
+          path: |
+            out/control-center-installed.txt
+            dist/branded-logs/
+            dist/localzet-branded-candidate.iso.sha256
           if-no-files-found: warn
           retention-days: 7
