@@ -52,3 +52,7 @@ version and architecture, then atomically publishes the downloaded file.
 It does not execute the installer or any maintainer script. CI extracts
 control metadata and the file list for review; it does not upload the DEB.
 A matching hash establishes artifact identity, not trust or licensing compliance.
+
+## Native setup
+
+Localzet Connect opens from Aurora or Settings. The ISO contains the setup UI and fixed polkit-authenticated installer, not the upstream binary. After installation to SSD, the user may explicitly download the pinned NectarLink package, verify its SHA-256 and reviewed maintainer scripts, and install with administrator authorization. Live sessions do not install it. Actual Android pairing is not yet verified; the upstream client launch passed in Ubuntu CI. No redistribution of NectarLink is enabled.
