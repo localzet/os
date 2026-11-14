@@ -122,3 +122,15 @@ request. Closing clears in-memory history and stops scheduling; bounded active
 CLI requests may finish. Logs are not stored or uploaded. This is polling, not
 Docker log streaming; network and disk charts, interactive GTK and rootless
 acceptance remain pending. CI exercises real metric parsing and existing logs.
+
+Stage 14 adds a native Dockerfile editor, explicit local context picker, local
+tag and second confirmation. The reviewed Dockerfile bytes are passed via
+stdin; context files can change and are sent according to Docker ignore rules.
+Trusted inputs only: build executes Dockerfile instructions and is not a
+sandbox. RUN networking is disabled; base images/frontend/remote sources may
+still be fetched. Existing tags are rejected before build, but this check is
+not atomic against concurrent clients. Build output is discarded in this
+initial version; status and resulting tag are verified. A ten-minute CLI
+limit does not guarantee daemon cancellation. CI builds the actual scratch
+fixture through this adapter. Build arguments, streaming diagnostics, layer
+history, interactive GTK and rootless acceptance remain pending.
