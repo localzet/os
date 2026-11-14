@@ -26,9 +26,10 @@ Stable identifiers and repeated checks do not constitute an atomic hotplug lock:
 never connect or disconnect drives during installation.
 
 The candidate CI builds the exact image, boots it in QEMU with an emulated
-NVMe SSD, opens the actual installer UI, exercises the real privileged backend,
+NVMe SSD, opens the actual installer UI and exercises the real privileged backend using a
+host-supplied request (the wizard's button-to-backend interaction is not yet automated),
 boots the installed SSD without ISO or other drives, authenticates the test user
-in GDM and requires an active Wayland session, Aurora extension and Settings.
+in GDM and requires an active Wayland session, Aurora extension, Settings, Windows Runtime and Localzet Connect.
 Test input is provided by the QEMU host, not baked into the ISO.
 The ISO is uploaded only if the candidate test succeeds. The independent
 two-disk test must also pass before a release is considered.
@@ -37,3 +38,13 @@ Do not advertise a stable release or general hardware compatibility based on
 these VM tests. Real-device testing, security review, localization polish,
 package updates, recovery, Secure Boot, encryption and broader hardware support
 remain separate tasks.
+
+## Combined Aurora candidate
+
+The candidate workflow includes Wine from the signed Ubuntu archive and the
+native Windows Runtime and Connect setup applications. It compiles a harmless
+64-bit PE fixture on the CI host, injects it only at test time and runs it as
+the authenticated installed desktop user using Localzet Windows Runtime.
+The upload requires exit code 42 from that fixture in addition to the installed
+Wayland desktop checks. The upstream NectarLink binary is not bundled; phone
+pairing and the on-demand transaction on installed hardware remain unverified.
