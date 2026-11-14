@@ -29,7 +29,7 @@ trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
 export OUT
 set +e
-dbus-run-session -- bash -c '
+dbus-run-session -- bash -s <<'GNOME_TEST'
   set -u
   # Mutter devkit displays the nested desktop through PipeWire.
   pipewire > "$OUT/pipewire.log" 2>&1 &
@@ -40,7 +40,7 @@ dbus-run-session -- bash -c '
   sleep 3
   LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
-  trap "kill $shell_pid 2>/dev/null || true" EXIT
+  trap "kill $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   for i in $(seq 1 30); do
     if ! kill -0 "$shell_pid" 2>/dev/null; then
       echo "GNOME Shell exited early" >&2
@@ -61,7 +61,15 @@ dbus-run-session -- bash -c '
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   sleep 16
-  xdotool search --name "Mutter Development Kit" windowactivate --sync key Escape || exit 1
+  # Xvfb has no outer window manager; use direct focus rather than EWMH.
+  xwininfo -root -tree > "$OUT/xwindows.txt"
+  window="$(xdotool search --onlyvisible --name 'Mutter|GNOME Shell' | head -n 1)"
+  if [[ -z "$window" ]]; then
+    cat "$OUT/xwindows.txt"
+    echo "No nested compositor window" >&2
+    exit 1
+  fi
+  xdotool windowfocus --sync "$window" key Escape || exit 1
   sleep 3
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
@@ -100,7 +108,7 @@ dbus-run-session -- bash -c '
   wait "$nectar_pid" 2>/dev/null || true
   rm -rf -- "$nectar_data"
   echo "GNOME Shell devkit running with Localzet Shell enabled" > "$OUT/result.txt"
-'
+GNOME_TEST
 rc=$?
 set -e
 DISPLAY=:99 import -window root "$OUT/after-exit.png" || true
