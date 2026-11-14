@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Install Localzet OS
+Name[ru]=Установить Localzet OS
+Comment=Install Localzet OS to a dedicated blank SSD
+Comment[ru]=Установка Localzet OS на отдельный пустой SSD
+Exec=localzet-installer
+Icon=drive-harddisk
+Terminal=false
+Categories=System;
+StartupNotify=true

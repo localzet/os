@@ -1,0 +1,393 @@
+#!/usr/bin/env python3
+"""QEMU-only test of the exact interactive installation candidate.
+
+All writable disks are newly created temporary files. Test commands are
+injected through a QEMU firmware data item and a local desktop terminal; the
+candidate ISO contains no automatic test installer or credentials.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import socket
+import subprocess
+import tempfile
+import time
+
+LIVE = b"LOCALZET_LIVE_READY"
+INSTALL = b"LOCALZET_CANDIDATE_INSTALLED"
+READY = b"LOCALZET_CANDIDATE_DESKTOP"
+WINE_READY = b"LOCALZET_CANDIDATE_WINE_READY"
+FAIL = b"LOCALZET_CANDIDATE_FAILED"
+
+
+class Guest:
+    def __init__(self, args, directory: Path, disk: Path, script: Path, label: str, live: bool):
+        self.serial = args.logs / f"{label}.serial.log"
+        self.errors = args.logs / f"{label}.qemu.log"
+        self.screen = args.logs / f"{label}.ppm"
+        self.socket = directory / f"{label}.sock"
+        variables = directory / f"{label}.fd"
+        shutil.copyfile(args.ovmf_vars, variables)
+        self.accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
+        cpu = "host" if self.accel == "kvm" else "max"
+        command = [
+            "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
+            "-global", "driver=cfi.pflash01,property=secure,value=on",
+            "-cpu", cpu, "-m", "5120", "-smp", "2", "-nic", "none",
+            "-vga", "virtio", "-device", "usb-tablet", "-display", "none", "-monitor", "none", "-no-reboot",
+            "-qmp", f"unix:{self.socket},server=on,wait=off",
+            "-serial", f"file:{self.serial}",
+            "-drive", f"if=pflash,format=raw,readonly=on,file={args.ovmf_code}",
+            "-drive", f"if=pflash,format=raw,file={variables}",
+            "-drive", f"if=none,id=target,file={disk},format=raw",
+            "-device", "nvme,drive=target,serial=LZ_TEST_NVME",
+            "-fw_cfg", f"name=opt/localzet/test,file={script}",
+            "-fw_cfg", f"name=opt/localzet/fixture,file={args.fixture}",
+        ]
+        if live and args.boot_media == "usb":
+            # Attach the unmodified hybrid ISO as a read-only USB mass-storage
+            # device, not as a CD-ROM. This exercises the real USB source
+            # exclusion path in the privileged installer.
+            command += [
+                "-device", "qemu-xhci,id=installusb",
+                "-drive", f"if=none,id=installmedia,format=raw,readonly=on,file={args.iso}",
+                "-device", "usb-storage,bus=installusb.0,drive=installmedia,removable=on,bootindex=1",
+            ]
+        elif live:
+            command += ["-boot", "order=d", "-cdrom", str(args.iso)]
+        else:
+            command += ["-boot", "order=c"]
+        self.error_stream = self.errors.open("wb")
+        self.process = subprocess.Popen(command, stdout=self.error_stream, stderr=self.error_stream)
+        self.connection = None
+        self.stream = None
+        self.sequence = 0
+
+    def connect(self):
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            try:
+                self.connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.connection.settimeout(10)
+                self.connection.connect(str(self.socket))
+                self.stream = self.connection.makefile("rwb")
+                if "QMP" not in json.loads(self.stream.readline()):
+                    raise RuntimeError("Invalid QMP greeting")
+                self.qmp("qmp_capabilities")
+                return
+            except OSError:
+                self.connection.close()
+                time.sleep(0.5)
+        raise RuntimeError("QMP unavailable")
+
+    def qmp(self, execute, arguments=None):
+        self.sequence += 1
+        self.stream.write((json.dumps({"execute": execute, "arguments": arguments or {},
+                                       "id": self.sequence}) + "\n").encode())
+        self.stream.flush()
+        while True:
+            line = self.stream.readline()
+            if not line:
+                raise RuntimeError("QMP disconnected")
+            reply = json.loads(line)
+            if reply.get("id") == self.sequence:
+                if "error" in reply:
+                    raise RuntimeError(str(reply["error"]))
+                return reply.get("return")
+
+    def key(self, name):
+        self.qmp("human-monitor-command", {"command-line": f"sendkey {name} 40"})
+        time.sleep(0.12)
+
+    def text(self, value):
+        keys = {" ": "spc", "-": "minus", "_": "shift-minus", "/": "slash",
+                ".": "dot", ";": "semicolon", "|": "shift-backslash",
+                "'": "apostrophe", "=": "equal", ":": "shift-semicolon"}
+        for char in value:
+            if char in keys:
+                self.key(keys[char])
+            elif char.isascii() and char.isalnum():
+                self.key("shift-" + char.lower() if char.isupper() else char)
+            else:
+                raise ValueError(f"Unsupported keyboard character {char!r}")
+
+    def click(self, x, y):
+        self.qmp("input-send-event", {"events": [
+            {"type": "abs", "data": {"axis": "x", "value": x}},
+            {"type": "abs", "data": {"axis": "y", "value": y}},
+            {"type": "btn", "data": {"down": True, "button": "left"}},
+            {"type": "btn", "data": {"down": False, "button": "left"}},
+        ]})
+        time.sleep(1)
+
+    def launch(self, app):
+        self.key("alt-f2")
+        time.sleep(1)
+        self.text(app)
+        self.key("ret")
+        time.sleep(6)
+
+    def wait(self, marker, timeout):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            lines = self.serial.read_bytes().splitlines() if self.serial.exists() else []
+            if marker in lines:
+                print(f"PASS: {marker.decode()}", flush=True)
+                return
+            if any(line.startswith(FAIL) for line in lines) or self.process.poll() is not None:
+                break
+            time.sleep(1)
+        if self.serial.exists():
+            print(self.serial.read_bytes()[-30000:].decode(errors="replace"), flush=True)
+        self.capture()
+        raise RuntimeError(f"Missing {marker.decode()}")
+
+    def capture(self, stage=None):
+        try:
+            self.qmp("screendump", {"filename": str(self.screen.with_name(f"{self.screen.stem}-{stage}.ppm") if stage else self.screen)})
+        except (OSError, RuntimeError, ValueError) as error:
+            print(f"QMP capture unavailable: {error}", flush=True)
+
+    def close(self):
+        if self.stream:
+            self.stream.close()
+        if self.connection:
+            self.connection.close()
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait()
+        self.error_stream.close()
+
+
+def installation_script(password, boot_media):
+    return """#!/bin/bash
+set -Eeuo pipefail
+exec >/dev/ttyS0 2>&1
+trap 'printf "\\nLOCALZET_CANDIDATE_FAILED\\n"' ERR
+pgrep -u localzet -f /usr/bin/localzet-installer >/dev/null
+findmnt --mountpoint /sys/firmware/efi/efivars || true
+for flag in /sys/firmware/efi/efivars/SecureBoot-* /sys/firmware/efi/efivars/SetupMode-*; do
+    if test -f "$flag"; then printf '%s: ' "$flag"; od -An -t u1 "$flag"; fi
+done
+export PYTHONPATH=/opt/localzet-os/src
+python3 - <<'PY' | /usr/lib/localzet/installer-backend
+import json
+from localzet.installer.interactive import eligible_plan, live_source_disk, confirmation_for
+from localzet.installer.preflight import read_lsblk
+from localzet.installer.target import identity
+payload = read_lsblk()
+target = next(d for d in payload["blockdevices"] if d.get("serial") == "LZ_TEST_NVME")
+source_disk = live_source_disk()
+expected_media = """ + repr(boot_media) + """
+if expected_media == "usb":
+    assert source_disk is not None, "USB boot source must resolve to a physical device"
+    source = next(d for d in payload["blockdevices"] if d.get("path") == source_disk)
+    assert source.get("tran") == "usb", "Boot source must be a USB mass-storage disk"
+    assert source_disk != target.get("path")
+    print("PASS: USB media excluded from installation target", file=__import__("sys").stderr)
+else:
+    assert source_disk is None, "Expected an optical boot source"
+plan = eligible_plan(payload, identity(target), source_disk)
+print(json.dumps({"plan": plan, "confirmation": confirmation_for(plan),
+                  "backup_acknowledged": True, "username": "localzet-test",
+                  "password": """ + repr(password) + """}))
+PY
+sync
+printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
+"""
+
+
+def installed_script():
+    return r"""#!/bin/bash
+set -Eeuo pipefail
+exec >/dev/ttyS0 2>&1
+trap 'printf "\nLOCALZET_CANDIDATE_FAILED line=%s status=%s\n" "$LINENO" "$?"' ERR
+[[ "$(findmnt -n -o FSTYPE /)" == ext4 ]]
+[[ "$(findmnt -n -o FSTYPE /boot/efi)" == vfat ]]
+for point in / /boot/efi; do
+    parent="$(lsblk -dn -o PKNAME "$(findmnt -n -o SOURCE "$point")")"
+    [[ "$(lsblk -dn -o SERIAL "/dev/$parent")" == LZ_TEST_NVME ]]
+done
+if grep -qw boot=casper /proc/cmdline; then exit 2; fi
+PYTHONPATH=/opt/localzet-os/src python3 -m localzet.installer.audit /
+[[ "$(passwd -S localzet-test | cut -d ' ' -f2)" == P ]]
+pgrep -u localzet-test -x gnome-shell >/dev/null
+pgrep -u localzet-test -f /usr/bin/localzet-settings >/dev/null
+pgrep -u localzet-test -f /usr/bin/localzet-windows >/dev/null
+pgrep -u localzet-test -f /usr/bin/localzet-connect >/dev/null
+[[ -x /usr/lib/localzet/install-nectarlink ]]
+[[ -x /usr/bin/wine ]]
+[[ -f /usr/share/polkit-1/actions/org.localzet.install-nectarlink.policy ]]
+# The validation console is a separate authenticated TTY. Find the actual
+# Wayland session, return to its VT, then require it to be active.
+session=""
+while read -r candidate _; do
+    if [[ "$(loginctl show-session "$candidate" -p Name --value)" == localzet-test &&
+          "$(loginctl show-session "$candidate" -p Seat --value)" == seat0 &&
+          "$(loginctl show-session "$candidate" -p Type --value)" == wayland ]]; then
+        session="$candidate"
+        break
+    fi
+done < <(loginctl list-sessions --no-legend)
+[[ -n "$session" ]]
+vt="$(loginctl show-session "$session" -p VTNr --value)"
+[[ "$vt" =~ ^[1-9][0-9]*$ ]]
+chvt "$vt"
+for attempt in $(seq 1 20); do
+    [[ "$(loginctl show-session "$session" -p Active --value)" == yes ]] && break
+    sleep 1
+done
+[[ "$(loginctl show-session "$session" -p Active --value)" == yes ]]
+uid="$(id -u localzet-test)"
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-shell@localzet.com
+# Stage host-built test data outside the installed image. No credentials
+# or testing service are baked into the distribution.
+install -d -m 0755 /run/localzet-candidate-check
+printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'
+install -m 0644 /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/fixture/raw \
+    /run/localzet-candidate-check/smoke.exe
+test -s /run/localzet-candidate-check/smoke.exe
+sha256sum /run/localzet-candidate-check/smoke.exe
+printf '\nLOCALZET_CANDIDATE_FIXTURE_READY\n'
+cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+data="$(mktemp -d)"
+trap 'rm -rf -- "$data"' EXIT
+export XDG_DATA_HOME="$data" WINEDLLOVERRIDES="mscoree,mshtml=" WINEDEBUG=-all
+export WINEPREFIX="$data/localzet/windows/prefixes/ci-smoke"
+mkdir -p "$WINEPREFIX"
+wineboot --init
+server="$(command -v wineserver || true)"
+if [[ -z "$server" ]]; then
+    while IFS= read -r path; do
+        case "$path" in
+            */wineserver|*/wineserver64)
+                if [[ -x "$path" && -f "$path" ]]; then server="$path"; break; fi ;;
+        esac
+    done < <(dpkg -L wine64 libwine wine-common)
+fi
+[[ -x "$server" ]]
+export WINESERVER="$server"
+"$WINESERVER" -w
+set +e
+timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/smoke.exe --profile ci-smoke --run
+status=$?
+set -e
+printf 'Installed Wine fixture exit code: %s\n' "$status"
+"$WINESERVER" -w
+test "$status" -eq 42
+test -s "$WINEPREFIX/system.reg"
+USERTEST
+chmod 0755 /run/localzet-candidate-check/run-wine.sh
+printf '\nLOCALZET_CANDIDATE_DESKTOP\n'
+# Use the GNOME user's systemd manager, which inherits the real graphical
+# environment. The fixture remains unprivileged, with no console focus needed.
+printf '\nLOCALZET_CANDIDATE_WINE_START\n'
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /usr/bin/timeout 300 /bin/bash /run/localzet-candidate-check/run-wine.sh
+printf '\nLOCALZET_CANDIDATE_WINE_READY\n'
+"""
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("iso", type=Path)
+    parser.add_argument("--ovmf-code", type=Path, required=True)
+    parser.add_argument("--ovmf-vars", type=Path, required=True)
+    parser.add_argument("--logs", type=Path, required=True)
+    parser.add_argument("--fixture", type=Path, required=True)
+    parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
+    args = parser.parse_args()
+    for name in ("iso", "ovmf_code", "ovmf_vars"):
+        path = getattr(args, name).resolve(strict=True)
+        if not path.is_file():
+            parser.error(f"{name} must be a regular file")
+        setattr(args, name, path)
+    args.logs = args.logs.resolve()
+    args.logs.mkdir(parents=True, exist_ok=False)
+    args.fixture = args.fixture.resolve(strict=True)
+    if not args.fixture.is_file():
+        parser.error("fixture must be a regular file")
+    fixture = args.fixture.read_bytes()
+    if not fixture.startswith(b"MZ") or len(fixture) > 2 * 1024**2:
+        parser.error("expected a small original PE fixture")
+    password = secrets.token_hex(12)
+    with tempfile.TemporaryDirectory(prefix="lz-candidate-") as temp:
+        directory = Path(temp)
+        disk = directory / "target.raw"
+        with disk.open("xb") as stream:
+            stream.truncate(32 * 1024**3)
+        script = directory / "install.sh"
+        script.write_text(installation_script(password, args.boot_media))
+        script.chmod(0o600)
+        live = Guest(args, directory, disk, script, "candidate-live", True)
+        try:
+            live.connect()
+            live.wait(LIVE, 480)
+            live.launch("localzet-installer")
+            live.launch("ptyxis")
+            live.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
+            live.key("ret")
+            live.wait(INSTALL, 1200)
+        finally:
+            live.close()
+        script.write_text(installed_script())
+        installed = Guest(args, directory, disk, script, "candidate-installed", False)
+        try:
+            installed.connect()
+            # Installed image has no test service or automatic login.
+            # Drive the actual GDM greeter using the ephemeral account.
+            time.sleep(45 if installed.accel == "kvm" else 120)
+            installed.key("ret")
+            time.sleep(4)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(25 if installed.accel == "kvm" else 60)
+            installed.launch("localzet-settings")
+            installed.launch("localzet-windows")
+            installed.launch("localzet-connect")
+            # Use a real text login instead of typing commands into the GNOME
+            # overview. No autologin, no injected root service, no password in argv.
+            installed.capture("desktop-before-console")
+            installed.key("ctrl-alt-f3")
+            time.sleep(8)
+            installed.capture("tty-login")
+            installed.text("localzet-test")
+            installed.key("ret")
+            time.sleep(3)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(5)
+            installed.capture("tty-authenticated")
+            installed.text("sudo -k; sudo -v")
+            installed.key("ret")
+            time.sleep(3)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(3)
+            installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
+            installed.key("ret")
+            installed.wait(READY, 180)
+            installed.capture("desktop-verified")
+            installed.wait(WINE_READY, 360)
+        finally:
+            installed.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

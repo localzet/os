@@ -18,12 +18,20 @@ done
 for platform in i386-pc x86_64-efi; do
     [[ -d "/usr/lib/grub/$platform" ]] || { echo "Missing GRUB $platform modules" >&2; exit 2; }
 done
-# Refuse nested mounts, including proc/dev/sys and bind mounts.
-while IFS= read -r target; do
-    [[ "$target" != "$root" && "$target" != "$root/"* ]] || {
-        echo "Rootfs contains a mounted filesystem: $target" >&2; exit 2;
-    }
-done < <(findmnt --list --noheadings --raw --output TARGET)
+# Fail closed if the mount inventory fails; process substitution would hide
+# findmnt's exit status. JSON preserves mount paths containing spaces.
+mount_inventory="$(findmnt --json --output TARGET)"
+python3 -c '
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+def visit(nodes):
+    for node in nodes:
+        target = pathlib.Path(node["target"])
+        if target == root or root in target.parents:
+            raise SystemExit(f"Rootfs contains a mounted filesystem: {target}")
+        visit(node.get("children", []))
+visit(json.load(sys.stdin)["filesystems"])
+' "$root" <<< "$mount_inventory"
 for path in etc/passwd etc/shadow usr/lib/os-release usr/lib/localzet/localzet-live-ready.py; do
     [[ -f "$root/$path" && ! -L "$root/$path" ]] || { echo "Missing or symlinked $path" >&2; exit 2; }
 done
@@ -58,8 +66,11 @@ if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then
     [[ -f "$root/usr/lib/localzet/vm-install-test.sh" ]]
     sed -i 's/boot=casper /boot=casper localzet.install-test=1 /g' "$stage/tree/boot/grub/grub.cfg"
     printf 'Localzet OS VM installation test ONLY\n' > "$stage/tree/.disk/info"
+elif [[ "${LOCALZET_INSTALLER:-0}" == 1 ]]; then
+    [[ -f "$root/usr/lib/localzet/installer-enabled" && ! -e "$root/usr/lib/localzet/vm-install-test.sh" ]]
+    printf 'Localzet OS interactive installation candidate\n' > "$stage/tree/.disk/info"
 else
-    [[ ! -e "$root/usr/lib/localzet/vm-install-test.sh" ]]
+    [[ ! -e "$root/usr/lib/localzet/vm-install-test.sh" && ! -e "$root/usr/lib/localzet/installer-enabled" ]]
     printf 'Localzet OS development Live amd64\n' > "$stage/tree/.disk/info"
 fi
 dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Package} ${Version}\n' > "$stage/tree/casper/filesystem.manifest"
