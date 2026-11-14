@@ -137,7 +137,7 @@ class Engine:
         if not os.access(self.socket, os.W_OK):
             raise EngineError("No permission to access selected Docker engine; no automatic elevation")
 
-    def _run(self, *args: str) -> str:
+    def _run(self, *args: str, timeout: int = 45) -> str:
         self._check()
         # A fixed local endpoint; ignore inherited Docker contexts, SSH, TLS,
         # config overrides and plugin PATH. No shell, sudo or pkexec.
@@ -145,7 +145,7 @@ class Engine:
         try:
             proc = subprocess.run(
                 [str(DOCKER), "--host", f"unix://{self.socket}", *args],
-                text=True, capture_output=True, timeout=45, env=env, check=False)
+                text=True, capture_output=True, timeout=timeout, env=env, check=False)
         except (OSError, subprocess.SubprocessError) as exc:
             raise EngineError("Docker command could not complete; refresh to check actual state") from exc
         if proc.returncode:
@@ -196,6 +196,31 @@ class Engine:
         else:
             self._run("network", "rm", identity)
         return self.resources(kind)
+
+    def pull_image(self, reference: str) -> tuple[dict[str, str], ...]:
+        # Explicit tag or digest; no URL, credentials, flags or implicit latest.
+        pattern = r"(?:[a-z0-9][a-z0-9.-]*(?::[0-9]{1,5})?/)?(?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*(?::[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}|@sha256:[0-9a-f]{64})"
+        if not isinstance(reference, str) or len(reference) > 255 or not re.fullmatch(pattern, reference):
+            raise EngineError("Explicit image tag or SHA-256 digest required")
+        self._run("image", "pull", reference, timeout=600)
+        return self.resources("images")
+
+    def create_container(self, name: str, image_id: str) -> tuple[Container, ...]:
+        # Conservative first deployment profile: no host mounts, network,
+        # published ports, extra privileges or automatic start/pull.
+        if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}", name):
+            raise EngineError("Invalid container name (2–63 ASCII characters)")
+        if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+            raise EngineError("Full local image ID required")
+        if not any(row["ID"] == image_id for row in self.resources("images")):
+            raise EngineError("Image no longer exists")
+        if any(row.name == name for row in self.inventory()):
+            raise EngineError("Container already exists")
+        self._run("container", "create", "--name", name, "--pull", "never",
+                  "--network", "none", "--read-only", "--cap-drop", "ALL",
+                  "--security-opt", "no-new-privileges", "--user", "65534:65534",
+                  "--pids-limit", "256", "--memory", "512m", image_id)
+        return self.inventory()
 
     def _lookup(self, container_id: str) -> Container:
         if not isinstance(container_id, str) or not ID.fullmatch(container_id):
