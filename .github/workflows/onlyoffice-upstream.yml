@@ -1,0 +1,32 @@
+name: ONLYOFFICE upstream artifact and desktop smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'config/upstream/onlyoffice.json'
+      - 'scripts/fetch-onlyoffice.py'
+      - 'scripts/ci/onlyoffice-*.sh'
+      - 'tests/test_onlyoffice_manifest.py'
+      - '.github/workflows/onlyoffice-upstream.yml'
+permissions:
+  contents: read
+jobs:
+  office:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify manifest and downloader
+        run: python3 -m unittest discover -s tests -p test_onlyoffice_manifest.py -v
+      - name: Install Ubuntu runtime test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl xvfb xauth dbus-x11 xdotool imagemagick python3-pil libgtk-3-0t64 libnss3 libasound2t64 libgbm1 libgl1 libxcb-xinerama0 libxcb-cursor0 libxkbcommon-x11-0 libxss1 libxcomposite1 libxdamage1 libxrandr2 fonts-dejavu-core
+      - name: Review pinned DEB and launch official AppImage
+        run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/onlyoffice-review.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: onlyoffice-review-evidence
+          path: out/onlyoffice-review/
+          retention-days: 7
