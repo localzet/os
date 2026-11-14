@@ -1,0 +1,79 @@
+name: Experimental Live ISO
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/live-iso.yml'
+      - 'scripts/build-live-rootfs.sh'
+      - 'scripts/assemble-live-iso.sh'
+      - 'scripts/build-desktop-deb.sh'
+      - 'scripts/qemu-iso-smoke.py'
+      - 'packaging/live/**'
+concurrency:
+  group: live-iso-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate source before expensive build
+        run: |
+          make test
+          for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh; do
+            bash -n "$script"
+          done
+          python3 -m py_compile scripts/qemu-iso-smoke.py packaging/live/localzet-live-ready.py
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf
+          df -h
+          if test -c /dev/kvm && command -v setfacl >/dev/null; then
+            sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          fi
+          ls -l /dev/kvm || true
+      - name: Build experimental image
+        run: |
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
+          sudo bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/localzet-root" "$PWD/dist/localzet-dev.iso"
+          (cd dist && sha256sum -c localzet-dev.iso.sha256)
+      - name: BIOS smoke
+        run: python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
+      - name: Publish BIOS diagnostic log
+        if: always()
+        run: |
+          if test -f dist/bios.log; then tail -n 300 dist/bios.log; fi
+      - name: UEFI smoke
+        if: success() || failure()
+        run: |
+          test -f dist/localzet-dev.iso
+          python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware uefi --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 480 --marker LOCALZET_LIVE_READY --log dist/uefi.log
+      - name: Publish UEFI diagnostic log
+        if: always()
+        run: |
+          if test -f dist/uefi.log; then tail -n 300 dist/uefi.log; fi
+      - name: Upload diagnostic logs first
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-live-diagnostics
+          path: |
+            dist/*.log
+            dist/*.ppm
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload development ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-live-development
+          path: |
+            dist/localzet-dev.iso
+            dist/localzet-dev.iso.sha256
+          if-no-files-found: warn
+          retention-days: 3
