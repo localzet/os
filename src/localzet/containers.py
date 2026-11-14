@@ -216,6 +216,62 @@ def compose_document(source: str) -> tuple[str, tuple[str, ...]]:
         raise EngineError("Invalid Compose JSON: use unique service names and full local image IDs only") from exc
 
 
+class StudioStore:
+    """Private, content-addressed storage of validated Studio source."""
+    def __init__(self, root: Path | None = None):
+        self.root = root if root is not None else Path.home() / ".local/share/localzet/compose"
+
+    def _directory(self):
+        self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        info = self.root.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise EngineError("Studio directory must be private and owned by the current user")
+
+    @staticmethod
+    def identity(source: str) -> str:
+        import hashlib
+        document, _ = compose_document(source)
+        return hashlib.sha256(document.encode("utf-8")).hexdigest()
+
+    def save(self, source: str) -> str:
+        import tempfile
+        identity = self.identity(source)
+        self._directory()
+        target = self.root / (identity + ".json")
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self.root, delete=False) as stream:
+            temporary = Path(stream.name)
+            try:
+                stream.write(source)
+                stream.flush()
+                os.fsync(stream.fileno())
+                os.replace(temporary, target)
+            finally:
+                temporary.unlink(missing_ok=True)
+        return identity
+
+    def load(self, identity: str) -> str:
+        if not isinstance(identity, str) or not ID.fullmatch(identity):
+            raise EngineError("Invalid Studio project ID")
+        self._directory()
+        fd = os.open(self.root / (identity + ".json"), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                raise EngineError("Invalid Studio project file")
+            data = stream.read(65537)
+        if len(data) > 65536:
+            raise EngineError("Studio project exceeds size limit")
+        source = data.decode("utf-8")
+        if self.identity(source) != identity:
+            raise EngineError("Studio project fingerprint mismatch")
+        return source
+
+    def projects(self) -> tuple[str, ...]:
+        self._directory()
+        return tuple(sorted(path.stem for path in self.root.glob("*.json")
+                            if ID.fullmatch(path.stem)))
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
