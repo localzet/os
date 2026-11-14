@@ -26,3 +26,16 @@ class ControlCenterBrandTests(unittest.TestCase):
         line = "distributor_logo = get_option('distributor_logo')\n"
         with self.assertRaises(ValueError):
             module.patch(line * 2)
+
+    def test_about_logo_is_shrinkable(self):
+        original = """          maximum-size: 192;
+          tightening-threshold: 192;
+
+          child: Picture os_logo {
+            can-shrink: false;"""
+        result = module.patch_about(original)
+        self.assertIn("maximum-size: 144", result)
+        self.assertIn("can-shrink: true", result)
+        self.assertIn("height-request: 144", result)
+        with self.assertRaises(ValueError):
+            module.patch_about("upstream changed")

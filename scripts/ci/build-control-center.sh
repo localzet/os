@@ -43,8 +43,8 @@ cp debian/rules "$out/upstream-debian-rules.txt"
 grep -nE 'distributor_logo|dh_auto_configure|meson' debian/rules | tee "$out/upstream-build-options.txt" || true
 export QUILT_PATCHES=debian/patches
 quilt new localzet-distributor-logo.patch
-quilt add meson.build
-python3 "$repo/scripts/patch-control-center-brand.py" meson.build
+quilt add meson.build panels/system/about/cc-about-page.blp
+python3 "$repo/scripts/patch-control-center-brand.py" meson.build --about-blueprint panels/system/about/cc-about-page.blp
 quilt refresh
 cp debian/patches/localzet-distributor-logo.patch "$out/"
 export DEBFULLNAME="Localzet OS" DEBEMAIL="build@localzet.com"

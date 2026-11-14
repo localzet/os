@@ -19,3 +19,9 @@ another distribution package or binary patching.
 Next: integrate native Localzet pages for runtime, containers, connectivity
 and update management; use actual service APIs and independent privilege
 boundaries. The separate Components prototype is not the final settings UI.
+
+First successful build: Ubuntu 1:50.3-0ubuntu0.2+localzet1, workflow
+43635038458. Actual About screenshot revealed oversized intrinsic SVG
+geometry that displaced the details. Keep the canonical SVG unchanged,
+but constrain its GTK picture to a compact 144 logical pixel target.
+Rebuild and inspect the result before ISO integration.
