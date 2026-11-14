@@ -20,6 +20,14 @@ LIVE_ONLY = (
     "usr/lib/localzet/localzet-live-ready.py",
     "usr/lib/systemd/system/localzet-live-ready.service",
     "etc/systemd/system/graphical.target.wants/localzet-live-ready.service",
+    "usr/lib/localzet/install-engine.sh",
+    "usr/lib/localzet/installer-backend",
+    "usr/lib/localzet/installer-enabled",
+    "usr/bin/localzet-installer",
+    "usr/share/applications/com.localzet.Installer.desktop",
+    "usr/lib/localzet/vm-install-test.sh",
+    "usr/lib/systemd/system/localzet-install-test.service",
+    "etc/systemd/system/multi-user.target.wants/localzet-install-test.service",
 )
 
 
