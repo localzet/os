@@ -15,6 +15,8 @@ cleanup() {
         docker_local compose -p "$name" -f "$work/compose.yaml" down >/dev/null 2>&1 || true
     fi
     docker_local rm -f "$name" >/dev/null 2>&1 || true
+    docker_local volume rm "$name" >/dev/null 2>&1 || true
+    docker_local network rm "$name" >/dev/null 2>&1 || true
     docker_local image rm "$image" >/dev/null 2>&1 || true
     rm -rf -- "$work"
 }
@@ -76,4 +78,23 @@ stack = next(row for row in Engine(rootful=True).stacks() if row.name == sys.arg
 assert "running" in stack.status, stack
 (Path(sys.argv[2]) / "compose.json").write_text(json.dumps(asdict(stack), indent=2))
 print("PASS: real Compose project inventory")
+PY
+
+# Real resource inventory; create only isolated, uniquely named fixtures.
+docker_local volume create "$name" >/dev/null
+docker_local network create --internal "$name" >/dev/null
+python3 - "$name" "$image" "$out" <<'PY'
+import json, sys
+from pathlib import Path
+from localzet.containers import Engine
+name, image, out = sys.argv[1:]
+engine = Engine(rootful=True)
+for kind, predicate in (
+    ("images", lambda row: row["Repository"] + ":" + row["Tag"] == image),
+    ("volumes", lambda row: row["Name"] == name),
+    ("networks", lambda row: row["Name"] == name),
+):
+    row = next(row for row in engine.resources(kind) if predicate(row))
+    (Path(out) / f"{kind}.json").write_text(json.dumps(row, indent=2))
+    print("PASS: real", kind, "inventory")
 PY
