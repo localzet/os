@@ -58,8 +58,11 @@ if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then
     [[ -f "$root/usr/lib/localzet/vm-install-test.sh" ]]
     sed -i 's/boot=casper /boot=casper localzet.install-test=1 /g' "$stage/tree/boot/grub/grub.cfg"
     printf 'Localzet OS VM installation test ONLY\n' > "$stage/tree/.disk/info"
+elif [[ "${LOCALZET_INSTALLER:-0}" == 1 ]]; then
+    [[ -f "$root/usr/lib/localzet/installer-enabled" && ! -e "$root/usr/lib/localzet/vm-install-test.sh" ]]
+    printf 'Localzet OS interactive installation candidate\n' > "$stage/tree/.disk/info"
 else
-    [[ ! -e "$root/usr/lib/localzet/vm-install-test.sh" ]]
+    [[ ! -e "$root/usr/lib/localzet/vm-install-test.sh" && ! -e "$root/usr/lib/localzet/installer-enabled" ]]
     printf 'Localzet OS development Live amd64\n' > "$stage/tree/.disk/info"
 fi
 dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Package} ${Version}\n' > "$stage/tree/casper/filesystem.manifest"
