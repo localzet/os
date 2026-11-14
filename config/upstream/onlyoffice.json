@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "project": "ONLYOFFICE/DesktopEditors",
+  "tag": "v10.0.0",
+  "version": "10.0.0",
+  "status": "engineering-review",
+  "artifacts": {
+    "deb": {
+      "name": "onlyoffice-desktopeditors_amd64.deb",
+      "size": 279357060,
+      "sha256": "2190edb4022a2ac2f6eee0f78815520f0e4ece1e8a1097c645a6f9b225c8b59c"
+    },
+    "appimage": {
+      "name": "DesktopEditors-x86_64.AppImage",
+      "size": 425810424,
+      "sha256": "3e4668d44f6881d1d8873b38ea9c9fd81b9c77132facdb735bfebfe960edb745"
+    }
+  }
+}
