@@ -8,6 +8,7 @@ candidate ISO contains no automatic test installer or credentials.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -21,6 +22,7 @@ import time
 LIVE = b"LOCALZET_LIVE_READY"
 INSTALL = b"LOCALZET_CANDIDATE_INSTALLED"
 READY = b"LOCALZET_CANDIDATE_DESKTOP"
+WINE_READY = b"LOCALZET_CANDIDATE_WINE_READY"
 FAIL = b"LOCALZET_CANDIDATE_FAILED"
 
 
@@ -28,6 +30,7 @@ class Guest:
     def __init__(self, args, directory: Path, disk: Path, script: Path, label: str, live: bool):
         self.serial = args.logs / f"{label}.serial.log"
         self.errors = args.logs / f"{label}.qemu.log"
+        self.screen = args.logs / f"{label}.ppm"
         self.socket = directory / f"{label}.sock"
         variables = directory / f"{label}.fd"
         shutil.copyfile(args.ovmf_vars, variables)
@@ -120,7 +123,14 @@ class Guest:
             time.sleep(1)
         if self.serial.exists():
             print(self.serial.read_bytes()[-30000:].decode(errors="replace"), flush=True)
+        self.capture()
         raise RuntimeError(f"Missing {marker.decode()}")
+
+    def capture(self):
+        try:
+            self.qmp("screendump", {"filename": str(self.screen)})
+        except (OSError, RuntimeError, ValueError) as error:
+            print(f"QMP capture unavailable: {error}", flush=True)
 
     def close(self):
         if self.stream:
@@ -165,7 +175,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script():
+def installed_script(fixture: bytes):
     return r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -181,6 +191,11 @@ PYTHONPATH=/opt/localzet-os/src python3 -m localzet.installer.audit /
 [[ "$(passwd -S localzet-test | cut -d ' ' -f2)" == P ]]
 pgrep -u localzet-test -x gnome-shell >/dev/null
 pgrep -u localzet-test -f /usr/bin/localzet-settings >/dev/null
+pgrep -u localzet-test -f /usr/bin/localzet-windows >/dev/null
+pgrep -u localzet-test -f /usr/bin/localzet-connect >/dev/null
+[[ -x /usr/lib/localzet/install-nectarlink ]]
+[[ -x /usr/bin/wine ]]
+[[ -f /usr/share/polkit-1/actions/org.localzet.install-nectarlink.policy ]]
 session="$(loginctl list-sessions --no-legend | awk '$3=="localzet-test" && $4=="seat0" {print $1; exit}')"
 [[ -n "$session" ]]
 [[ "$(loginctl show-session "$session" -p Active --value)" == yes ]]
@@ -189,6 +204,30 @@ uid="$(id -u localzet-test)"
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     gnome-extensions list --active | grep -Fx localzet-shell@localzet.com
+# Stage host-built test data outside the installed image. No credentials
+# or testing service are baked into the distribution.
+install -d -m 0755 /run/localzet-candidate-check
+base64 -d > /run/localzet-candidate-check/smoke.exe <<'FIXTURE'
+""" + base64.b64encode(fixture).decode("ascii") + r"""
+FIXTURE
+chmod 0644 /run/localzet-candidate-check/smoke.exe
+cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+trap 'printf "\nLOCALZET_CANDIDATE_FAILED\n" | sudo -n tee /dev/ttyS0 >/dev/null' ERR
+data="$(mktemp -d)"
+trap 'rm -rf -- "$data"' EXIT
+export XDG_DATA_HOME="$data" WINEDLLOVERRIDES="mscoree,mshtml=" WINEDEBUG=-all
+set +e
+timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/smoke.exe --profile ci-smoke --run
+status=$?
+set -e
+printf 'Installed Wine fixture exit code: %s\n' "$status" | sudo -n tee /dev/ttyS0 >/dev/null
+test "$status" -eq 42
+printf '\nLOCALZET_CANDIDATE_WINE_READY\n' | sudo -n tee /dev/ttyS0 >/dev/null
+USERTEST
+chmod 0755 /run/localzet-candidate-check/run-wine.sh
 printf '\nLOCALZET_CANDIDATE_DESKTOP\n'
 """
 
@@ -199,6 +238,7 @@ def main():
     parser.add_argument("--ovmf-code", type=Path, required=True)
     parser.add_argument("--ovmf-vars", type=Path, required=True)
     parser.add_argument("--logs", type=Path, required=True)
+    parser.add_argument("--fixture", type=Path, required=True)
     args = parser.parse_args()
     for name in ("iso", "ovmf_code", "ovmf_vars"):
         path = getattr(args, name).resolve(strict=True)
@@ -207,6 +247,9 @@ def main():
         setattr(args, name, path)
     args.logs = args.logs.resolve()
     args.logs.mkdir(parents=True, exist_ok=False)
+    fixture = args.fixture.read_bytes()
+    if not fixture.startswith(b"MZ") or len(fixture) > 2 * 1024**2:
+        parser.error("expected a small original PE fixture")
     password = secrets.token_hex(12)
     with tempfile.TemporaryDirectory(prefix="lz-candidate-") as temp:
         directory = Path(temp)
@@ -227,7 +270,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script())
+        script.write_text(installed_script(fixture))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -240,10 +283,22 @@ def main():
             installed.key("ret")
             time.sleep(25 if installed.accel == "kvm" else 60)
             installed.launch("localzet-settings")
+            installed.launch("localzet-windows")
+            installed.launch("localzet-connect")
             installed.launch("ptyxis")
-            installed.text(f"echo {password} | sudo -S modprobe qemu_fw_cfg; echo {password} | sudo -S bash /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw")
+            # Authenticate at the sudo password prompt (no echoed password).
+            installed.text("sudo -k; sudo -v")
+            installed.key("ret")
+            time.sleep(3)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(3)
+            installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n bash /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw")
             installed.key("ret")
             installed.wait(READY, 180)
+            installed.text("bash /run/localzet-candidate-check/run-wine.sh")
+            installed.key("ret")
+            installed.wait(WINE_READY, 300)
         finally:
             installed.close()
     return 0

@@ -31,19 +31,24 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64
           if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
       - name: Build exact interactive candidate
         run: |
           mkdir -p dist
-          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/candidate-root"
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/candidate-root"
           sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/candidate-root" "$PWD/dist/localzet-uefi-candidate.iso"
           (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
+      - name: Compile original Windows fixture
+        run: |
+          printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
+          x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
       - name: Install candidate and authenticate installed GNOME desktop
         run: |
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --fixture "$RUNNER_TEMP/smoke.exe" \
             --logs dist/candidate-logs
       - name: Upload diagnostics
         if: always()

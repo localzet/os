@@ -22,9 +22,11 @@ other="$(readlink -e "$keep")"
 [[ "$(lsblk -dn -o RO "$disk")" == 0 ]]
 [[ "$(lsblk -dn -o SIZE -b "$disk")" == 34359738368 ]]
 [[ "$(lsblk -nr -o NAME "$disk" | wc -l)" == 1 ]]
-[[ -z "$(lsblk -nr -o MOUNTPOINTS "$disk")" ]]
+mountpoints="$(lsblk -nr -o MOUNTPOINTS "$disk")"
+[[ -z "$mountpoints" ]]
 # Require a genuinely blank target; don't overwrite an existing partition table.
-[[ -z "$(wipefs -n --noheadings -o TYPE "$disk")" ]]
+signatures="$(wipefs --no-act --noheadings --output TYPE "$disk")"
+[[ -z "$signatures" ]]
 trap 'printf "\nLOCALZET_INSTALL_FAILED line=%s\n" "$LINENO" > /dev/ttyS0' ERR
 password="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 printf '%s\n' "$password" | /bin/bash /usr/lib/localzet/install-engine.sh vm "$byid" localzet-test "$disk" "$(stat -Lc '%t:%T' "$byid")"
