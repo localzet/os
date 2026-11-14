@@ -32,6 +32,20 @@ CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 6
 EOF
 docker_local build --network none -t "$image" "$work"
 docker_local compose version > "$out/compose-version.txt"
+python3 - "$image" "$out" <<'PY'
+import json, sys
+from pathlib import Path
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == sys.argv[1])
+source = json.dumps({"services": {"app": {"image": image["ID"]}, "worker": {"image": image["ID"]}}})
+before = engine.inventory()
+document = engine.validate_compose(source)
+assert set(json.loads(document)["services"]) == {"app", "worker"}
+assert engine.inventory() == before
+(Path(sys.argv[2]) / "compose-studio.json").write_text(document)
+print("PASS: real Compose config validation without deployment")
+PY
 cid="$(python3 - "$name" "$image" <<'PY'
 import sys
 from localzet.containers import Engine
