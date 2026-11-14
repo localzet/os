@@ -21,7 +21,7 @@ jobs:
       - name: Install Ubuntu runtime test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends curl xvfb xauth dbus-x11 xdotool x11-utils imagemagick python3-pil libgtk-3-0t64 libnss3 libasound2t64 libgbm1 libgl1 libxcb-xinerama0 libxcb-cursor0 libxcb-shape0 libxcb-shm0 libxcb-render0 libxcb-render-util0 libxcb-randr0 libxcb-xfixes0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-sync1 libxcb-xkb1 libxcb-util1 libxcb-glx0 libxkbcommon-x11-0 libxss1 libxcomposite1 libxdamage1 libxrandr2 fonts-dejavu-core
+          sudo apt-get install -y --no-install-recommends curl xvfb xauth dbus-x11 xdotool x11-utils imagemagick python3-pil libgtk-3-0t64 libnss3 libasound2t64 libpulse0 libgbm1 libgl1 libxcb-xinerama0 libxcb-cursor0 libxcb-shape0 libxcb-shm0 libxcb-render0 libxcb-render-util0 libxcb-randr0 libxcb-xfixes0 libxcb-keysyms1 libxcb-icccm4 libxcb-image0 libxcb-sync1 libxcb-xkb1 libxcb-util1 libxcb-glx0 libxkbcommon-x11-0 libxss1 libxcomposite1 libxdamage1 libxrandr2 fonts-dejavu-core
       - name: Review and install pinned native DEB in disposable runner
         run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/onlyoffice-review.sh
       - uses: actions/upload-artifact@v4
