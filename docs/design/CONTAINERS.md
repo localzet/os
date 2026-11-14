@@ -92,3 +92,13 @@ Edits invalidate previous previews. CI exercises actual Compose validation
 without deployment. Full YAML parsing/highlighting, persistent projects,
 local image existence checks, deployment and project lifecycle are subsequent
 milestones, as are interactive GTK and rootless acceptance.
+
+Stage 11 adds confirmed lifecycle actions for a restricted Studio document.
+Project name and container labels derive from the generated document digest;
+existing containers must match the fingerprint and service names. Up uses local
+images only, no pull/build/recreate. Start/stop/restart and Down target verified
+full container IDs; Down removes containers without deleting volumes or networks.
+Labels are not an authorization boundary and concurrent Docker clients can race.
+Operations may partially succeed; refresh actual state after errors. Projects
+can be re-addressed by the same document, but persistent editor storage, ordinary
+YAML, syntax highlighting and interactive GTK/rootless testing remain outstanding.
