@@ -49,7 +49,19 @@ class Guest:
             "-fw_cfg", f"name=opt/localzet/test,file={script}",
             "-fw_cfg", f"name=opt/localzet/fixture,file={args.fixture}",
         ]
-        command += ["-boot", "order=d", "-cdrom", str(args.iso)] if live else ["-boot", "order=c"]
+        if live and args.boot_media == "usb":
+            # Attach the unmodified hybrid ISO as a read-only USB mass-storage
+            # device, not as a CD-ROM. This exercises the real USB source
+            # exclusion path in the privileged installer.
+            command += [
+                "-device", "qemu-xhci,id=installusb",
+                "-drive", f"if=none,id=installmedia,format=raw,readonly=on,file={args.iso}",
+                "-device", "usb-storage,bus=installusb.0,drive=installmedia,removable=on,bootindex=1",
+            ]
+        elif live:
+            command += ["-boot", "order=d", "-cdrom", str(args.iso)]
+        else:
+            command += ["-boot", "order=c"]
         self.error_stream = self.errors.open("wb")
         self.process = subprocess.Popen(command, stdout=self.error_stream, stderr=self.error_stream)
         self.connection = None
@@ -156,7 +168,7 @@ class Guest:
         self.error_stream.close()
 
 
-def installation_script(password):
+def installation_script(password, boot_media):
     return """#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -174,7 +186,17 @@ from localzet.installer.preflight import read_lsblk
 from localzet.installer.target import identity
 payload = read_lsblk()
 target = next(d for d in payload["blockdevices"] if d.get("serial") == "LZ_TEST_NVME")
-plan = eligible_plan(payload, identity(target), live_source_disk())
+source_disk = live_source_disk()
+expected_media = """ + repr(boot_media) + """
+if expected_media == "usb":
+    assert source_disk is not None, "USB boot source must resolve to a physical device"
+    source = next(d for d in payload["blockdevices"] if d.get("path") == source_disk)
+    assert source.get("tran") == "usb", "Boot source must be a USB mass-storage disk"
+    assert source_disk != target.get("path")
+    print("PASS: USB media excluded from installation target", file=__import__("sys").stderr)
+else:
+    assert source_disk is None, "Expected an optical boot source"
+plan = eligible_plan(payload, identity(target), source_disk)
 print(json.dumps({"plan": plan, "confirmation": confirmation_for(plan),
                   "backup_acknowledged": True, "username": "localzet-test",
                   "password": """ + repr(password) + """}))
@@ -288,6 +310,7 @@ def main():
     parser.add_argument("--ovmf-vars", type=Path, required=True)
     parser.add_argument("--logs", type=Path, required=True)
     parser.add_argument("--fixture", type=Path, required=True)
+    parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
     args = parser.parse_args()
     for name in ("iso", "ovmf_code", "ovmf_vars"):
         path = getattr(args, name).resolve(strict=True)
@@ -309,7 +332,7 @@ def main():
         with disk.open("xb") as stream:
             stream.truncate(32 * 1024**3)
         script = directory / "install.sh"
-        script.write_text(installation_script(password))
+        script.write_text(installation_script(password, args.boot_media))
         script.chmod(0o600)
         live = Guest(args, directory, disk, script, "candidate-live", True)
         try:
