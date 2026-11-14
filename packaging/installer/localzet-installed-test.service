@@ -1,0 +1,11 @@
+[Unit]
+Description=Verify installed Localzet test system
+After=display-manager.service
+ConditionKernelCommandLine=!boot=casper
+ConditionPathExists=/dev/ttyS0
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /usr/lib/localzet/vm-installed-ready.sh
+TimeoutStartSec=240
+[Install]
+WantedBy=graphical.target
