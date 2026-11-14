@@ -172,7 +172,7 @@ def backend() -> int:
         info = target.stat()
         if not stat.S_ISBLK(info.st_mode):
             raise ValueError("Целевое устройство не является диском.")
-        if command("wipefs", "-n", "--noheadings", "-o", "TYPE", str(device)):
+        if command("wipefs", "--no-act", "--noheadings", "--output", "TYPE", str(device)):
             raise ValueError("На SSD обнаружены сигнатуры данных.")
         # Re-read after probing. The engine repeats device identity checks
         # before each write; this is not an atomic hotplug-safe device lock.

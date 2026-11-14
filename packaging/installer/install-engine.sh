@@ -46,8 +46,10 @@ same_disk
 [[ "$disk" == "$expected_disk" ]]
 [[ "$(lsblk -dn -o SIZE -b "$byid")" -ge 34359738368 ]]
 [[ "$(lsblk -nr -o NAME "$byid" | wc -l)" == 1 ]]
-[[ -z "$(lsblk -nr -o MOUNTPOINTS "$byid")" ]]
-[[ -z "$(wipefs -n --noheadings -o TYPE "$byid")" ]]
+mountpoints="$(lsblk -nr -o MOUNTPOINTS "$byid")"
+[[ -z "$mountpoints" ]]
+signatures="$(wipefs --no-act --noheadings --output TYPE "$byid")"
+[[ -z "$signatures" ]]
 # Check the contents of the media before creating any partition.
 (cd /cdrom && md5sum -c md5sum.txt)
 same_disk
