@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
-from localzet.containers import Deployment, Engine, EngineError, StudioStore, deployment_args, metric_sample
+from localzet.containers import Deployment, Engine, EngineError, StudioStore, deployment_args, metric_sample, build_argument_flags
 
 
 def main() -> int:
@@ -223,6 +223,9 @@ def main() -> int:
                     create = Gtk.Button(label="Создать контейнер", halign=Gtk.Align.END)
                     create.connect("clicked", lambda _, item=item: self.confirm_deployment(dialog, item))
                     group.add(create)
+                    history = Gtk.Button(label="История слоёв", halign=Gtk.Align.END)
+                    history.connect("clicked", lambda _, item=item: self.show_image_history(dialog, item["ID"]))
+                    group.add(history)
                 if kind in ("images", "networks") and not (kind == "networks" and
                         (item["Name"] in ("bridge", "host", "none") or item["Scope"] != "local")):
                     remove = Gtk.Button(label="Удалить", halign=Gtk.Align.END)
@@ -232,6 +235,39 @@ def main() -> int:
                 content.append(group)
             dialog.present(self.window)
             return GLib.SOURCE_REMOVE
+
+        def show_image_history(self, parent, identity):
+            if self.busy:
+                return
+            self.busy = True
+            self.generation += 1
+            generation, rootful = self.generation, self.rootful
+            self.update_actions()
+            future = self.pool.submit(lambda: Engine(rootful=rootful).image_history(identity))
+            def complete():
+                if generation != self.generation or not self.window:
+                    return GLib.SOURCE_REMOVE
+                self.busy = False
+                self.update_actions()
+                dialog = Adw.Dialog(title="История слоёв", content_width=760, content_height=480)
+                toolbar = Adw.ToolbarView()
+                toolbar.add_top_bar(Adw.HeaderBar())
+                view = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.CHAR)
+                scroll = Gtk.ScrolledWindow(vexpand=True)
+                scroll.set_child(view)
+                toolbar.set_content(scroll)
+                dialog.set_child(toolbar)
+                try:
+                    rows = future.result()
+                    value = "\n\n".join(f"{row['ID']}\n{row['CreatedSince']} · {row['Size']}" for row in rows)
+                    view.get_buffer().set_text(value or "Нет данных.")
+                except (EngineError, OSError, ValueError) as error:
+                    view.get_buffer().set_text(str(error))
+                except Exception:
+                    view.get_buffer().set_text("Не удалось получить историю.")
+                dialog.present(parent)
+                return GLib.SOURCE_REMOVE
+            future.add_done_callback(lambda _: GLib.idle_add(complete))
 
         def open_builder(self, parent):
             if self.busy:
@@ -259,9 +295,13 @@ def main() -> int:
             editor.get_buffer().set_text("FROM scratch\n")
             scroll = Gtk.ScrolledWindow(min_content_height=180, min_content_width=340)
             scroll.set_child(editor)
+            arguments = Gtk.TextView(monospace=True, wrap_mode=Gtk.WrapMode.CHAR, height_request=64)
+            capture = Gtk.CheckButton(label="Показать последние 256 КиБ вывода (может содержать секреты)")
             for widget in (Gtk.Label(label="Локальный тег", xalign=0), tag,
                            Gtk.Label(label="Контекст", xalign=0), context, choose,
-                           Gtk.Label(label="Dockerfile", xalign=0), scroll):
+                           Gtk.Label(label="Dockerfile", xalign=0), scroll,
+                           Gtk.Label(label="Build ARG: KEY=value, одна строка. Не для секретов.", xalign=0, wrap=True),
+                           arguments, capture):
                 form.append(widget)
             prompt.set_extra_child(form)
             prompt.add_response("cancel", "Отмена")
@@ -274,8 +314,19 @@ def main() -> int:
                 buffer = editor.get_buffer()
                 source = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True)
                 target, directory = tag.get_text(), context.get_text()
+                arg_buffer = arguments.get_buffer()
+                values = tuple(line for line in arg_buffer.get_text(arg_buffer.get_start_iter(), arg_buffer.get_end_iter(), True).splitlines() if line)
+                try:
+                    build_argument_flags(values)
+                except EngineError as error:
+                    invalid = Adw.AlertDialog(heading="Проверьте аргументы", body=str(error))
+                    invalid.add_response("close", "Закрыть")
+                    invalid.present(parent)
+                    return
+                collect = capture.get_active()
+                keys = ", ".join(value.split("=", 1)[0] for value in values) or "—"
                 confirm = Adw.AlertDialog(heading="Подтвердить сборку",
-                    body=f"Тег: {target}\nКаталог: {directory}\nDockerfile: {len(source.encode('utf-8'))} байт. Сборка выполняет команды из Dockerfile; она не является песочницей.")
+                    body=f"Тег: {target}\nКаталог: {directory}\nDockerfile: {len(source.encode('utf-8'))} байт.\nARG: {keys}. Сборка выполняет команды из Dockerfile; она не является песочницей.")
                 confirm.add_response("cancel", "Отмена")
                 confirm.add_response("build", "Собрать")
                 confirm.set_default_response("cancel")
@@ -289,13 +340,28 @@ def main() -> int:
                     current = self.generation
                     self.status.set_label("Сборка образа (до 10 минут)…")
                     self.update_actions()
-                    future = self.pool.submit(lambda: Engine(rootful=rootful).build_image(target, source, Path(directory)))
+                    diagnostics = []
+                    future = self.pool.submit(lambda: Engine(rootful=rootful).build_image(
+                        target, source, Path(directory), build_args=values,
+                        output=diagnostics.append if collect else None))
                     def complete():
                         if current != self.generation or not self.window:
                             return GLib.SOURCE_REMOVE
                         self.status.set_label("Сборка завершена; тег найден." if future.exception() is None
                                               else "Сборка не подтверждена; проверьте образы.")
-                        return self.resources_finished(current, "images", "Образы", future)
+                        result = self.resources_finished(current, "images", "Образы", future)
+                        if diagnostics:
+                            report = Adw.Dialog(title="Вывод сборки", content_width=800, content_height=480)
+                            layout = Adw.ToolbarView()
+                            layout.add_top_bar(Adw.HeaderBar())
+                            view = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.CHAR)
+                            view.get_buffer().set_text(diagnostics.pop())
+                            scroll = Gtk.ScrolledWindow(vexpand=True)
+                            scroll.set_child(view)
+                            layout.set_content(scroll)
+                            report.set_child(layout)
+                            report.present(self.window)
+                        return result
                     future.add_done_callback(lambda _: GLib.idle_add(complete))
                 confirm.connect("response", run)
                 confirm.present(parent)
