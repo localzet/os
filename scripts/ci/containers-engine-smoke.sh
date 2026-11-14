@@ -30,7 +30,15 @@ COPY busybox /busybox
 USER 65534:65534
 CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 600"]
 EOF
-docker_local build --network none -t "$image" "$work"
+python3 - "$image" "$work" <<'PY'
+import sys
+from pathlib import Path
+from localzet.containers import Engine
+tag, context = sys.argv[1], Path(sys.argv[2])
+rows = Engine(rootful=True).build_image(tag, (context / "Dockerfile").read_text(), context)
+assert any(row["Repository"] + ":" + row["Tag"] == tag for row in rows)
+print("PASS: real Image Builder using local scratch fixture")
+PY
 docker_local compose version > "$out/compose-version.txt"
 python3 - "$image" "$out" <<'PY'
 import json, sys
