@@ -135,12 +135,12 @@ def main() -> int:
                 self.plan()
                 process = Gio.Subprocess.new(
                     [sys.executable, str(Path(windows_runtime.__file__).resolve()),
-                     str(self.file), "--profile", self.profile.get_text(), "--run"],
+                     str(self.file.resolve()), "--profile", self.profile.get_text(), "--run"],
                     Gio.SubprocessFlags.NONE,
                 )
+                self.trusted.set_active(False)
                 self.status.set_label("Wine запущен. При первом запуске создаётся профиль.")
                 process.wait_async(None, self.finished)
-                self.trusted.set_active(False)
             except Exception as error:
                 self.status.set_label(f"Не удалось запустить приложение: {error}")
 
