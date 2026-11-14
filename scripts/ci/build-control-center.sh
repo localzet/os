@@ -63,14 +63,16 @@ sha256sum "${debs[@]}" >> "$out/provenance.txt"
 # Check embedded compiled logo and compare panel inventory with stock
 # before installing the rebuilt pair on this disposable runner.
 sudo apt-get install -y gnome-control-center
-gnome-control-center --list > "$out/stock-panels.txt"
+LC_ALL=C.UTF-8 XDG_CURRENT_DESKTOP=GNOME xvfb-run -a dbus-run-session -- gnome-control-center --list | sort > "$out/stock-panels.txt"
 test -s "$out/stock-panels.txt"
+grep -qw network "$out/stock-panels.txt"
+grep -qw sound "$out/stock-panels.txt"
 bash "$repo/scripts/build-desktop-deb.sh" "$work/desktop"
 sudo apt-get install -y "$work"/desktop/localzet-desktop_*.deb
 sudo apt-get install -y "$work"/gnome-control-center_*.deb "$work"/gnome-control-center-data_*.deb
-test "$(dpkg-query -W -f='\${Version}' gnome-control-center)" = "$new_version"
+test "$(dpkg-query -W -f='${Version}' gnome-control-center)" = "$new_version"
 strings /usr/bin/gnome-control-center | grep -Fx '/usr/share/localzet/brand/localzet.svg' > "$out/compiled-logo.txt"
-gnome-control-center --list > "$out/localzet-panels.txt"
+LC_ALL=C.UTF-8 XDG_CURRENT_DESKTOP=GNOME xvfb-run -a dbus-run-session -- gnome-control-center --list | sort > "$out/localzet-panels.txt"
 diff -u "$out/stock-panels.txt" "$out/localzet-panels.txt"
 export OUT="$out"
 xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash "$repo/scripts/ci/control-center-about-smoke.sh"
