@@ -272,6 +272,28 @@ class StudioStore:
                             if ID.fullmatch(path.stem)))
 
 
+@dataclass(frozen=True)
+class MetricSample:
+    cpu: float
+    memory: float
+
+
+def metric_sample(values: dict[str, str]) -> MetricSample:
+    import math
+    def percent(value):
+        if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?%", value):
+            raise EngineError("Invalid percentage")
+        result = float(value[:-1])
+        if not math.isfinite(result):
+            raise EngineError("Invalid percentage")
+        return result
+    cpu = percent(values["CPUPerc"])
+    memory = percent(values["MemPerc"])
+    if memory > 100:
+        raise EngineError("Invalid memory percentage")
+    return MetricSample(cpu, memory)
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -498,7 +520,7 @@ class Engine:
             row = json.loads(output)
             if row["ID"] != container_id:
                 raise ValueError("Container ID mismatch")
-            result = {key: row[key] for key in ("CPUPerc", "MemUsage", "NetIO", "BlockIO", "PIDs")}
+            result = {key: row[key] for key in ("CPUPerc", "MemUsage", "NetIO", "BlockIO", "PIDs", "MemPerc")}
             if not all(isinstance(value, str) for value in result.values()):
                 raise ValueError("Invalid metric")
         except (ValueError, TypeError, KeyError) as exc:
