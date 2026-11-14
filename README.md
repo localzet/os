@@ -1,51 +1,48 @@
 # Localzet OS
 
-A modular Ubuntu-based desktop distribution with a consistent GNOME interface.
+Российский desktop-дистрибутив с собственным интерфейсом Aurora на базе
+Ubuntu 26.04 LTS, GNOME 50 и Wayland. Русский язык — первый класс;
+базовые возможности не требуют облачной учётной записи.
 
-**Status: P0 foundation prototype (not an installable operating system or ISO).**
+**Статус: проверенный Live Desktop и экспериментальная установка в QEMU.
+Стабильного релиза для физического SSD пока нет.**
 
-## Target
+## Реализовано и проверено
 
-- Ubuntu **26.04 LTS** (Resolute Raccoon), GNOME **50**, Wayland.
-- Cohesive Localzet design system, shell and system applications.
-- Optional install-on-demand components for containers, gaming, private networking and development.
-- Windows application support via Wine/Proton with documented compatibility limitations.
-- Least-privilege system integration, safe upgrades and recovery.
+- Aurora Shell: поиск приложений, панель, постоянный dock, оригинальные обои.
+- Localzet Settings: нативное GTK4/libadwaita приложение.
+- Localzet Connect: точки входа для NectarLink и проверка закреплённого DEB
+  (сопряжение с Android и включение клиента в образ ещё не проверены).
+- Windows Runtime: запуск доверенных EXE/MSI через отдельные Wine-профили;
+  64-битная тестовая программа Wine успешно выполнена в CI.
+- Сборка системного DEB, Ubuntu rootfs, Casper Live ISO, GRUB BIOS/UEFI.
+- Проверенные загрузки Live GNOME Wayland в обоих режимах.
+- Установка на виртуальный SSD в UEFI, неизменность второго диска и загрузка
+  установленной системы без ISO; пока отдельный VM-only тестовый образ.
 
-## What's actually in this repository?
-
-1. A small GNOME Shell 50 extension adding a Localzet menu to the top panel. **It has not been run against a real GNOME 50 session yet.**
-2. An original SVG wallpaper and draft design tokens.
-3. A standard-library Python **read-only** module planner: validates manifests and prints dependency-ordered plans without installing anything.
-4. Automated unit tests and source validation in GitHub Actions.
-5. Explicit architecture decisions, migration notes, and acceptance criteria.
-
-## Try it safely
-
-On a disposable **Ubuntu 26.04 VM** (not a production workstation):
+## Разработка
 
 ```bash
 make test
+make desktop-deb
+make extension-zip
 PYTHONPATH=src python3 -m localzet.cli list
-PYTHONPATH=src python3 -m localzet.cli plan containers
-bash scripts/install-shell-dev.sh
-# Log out and back in, then enable the extension from GNOME Extensions.
 ```
 
-The shell installer only copies a folder into the current user's home directory; it does not use sudo or change package sources. To remove it, see [docs/BUILD.md](docs/BUILD.md).
+Сборка ISO выполняется только в отдельной VM; инструкции:
+[ISO build and smoke tests](docs/ISO-SMOKE.md).
+[UEFI installation test](docs/UEFI-INSTALL-TEST.md) описывает проверенный
+виртуальный путь. Тестовый автоматический установщик не предназначен для
+физических дисков.
 
-## Important boundaries
+## Границы проекта
 
-- **No ISO is produced yet.** The installer, custom package repository, signed updates, privileged module activation and hardware support are future work.
-- `plan` is deliberately read-only. It never executes APT or systemd.
-- Ubuntu, GNOME, Microsoft Edge, Steam, Docker, NetBird, Wine and other names belong to their respective owners and retain their own license terms.
-- The upstream project's existing code and history remain at [localzet/localzet-os](https://github.com/localzet/localzet-os). See [migration](docs/MIGRATION.md).
+Wine-профили не являются песочницей, а поддержка всех Windows-приложений и игр
+не гарантируется. Proton, игровой профиль, телефонное сопряжение, обновления,
+восстановление, широкая аппаратная совместимость и Secure Boot ещё требуют
+проверки. Российское происхождение продукта не означает полностью отечественную
+кодовую базу, официальную регистрацию или сертификацию.
 
-## Development
-
-```bash
-make test
-make extension-zip  # requires the gnome-extensions CLI
-```
-
-Read [architecture](docs/ARCHITECTURE.md), [roadmap](docs/ROADMAP.md), [build notes](docs/BUILD.md) [GNOME 50 smoke-test instructions](docs/GNOME-50-SMOKE.md) and [security](docs/SECURITY.md) before shipping anything.
+[Архитектура](docs/ARCHITECTURE.md) · [Продукт](docs/PRODUCT.md) ·
+[Roadmap](docs/ROADMAP.md) · [Безопасность](docs/SECURITY.md) ·
+[Миграция](docs/MIGRATION.md)
