@@ -38,3 +38,9 @@ checks real status; no registry pull or host mounts. Config paths returned
 by Docker are metadata only, not trusted paths to execute. Compose editing,
 validation and explicit start/stop/deploy with reviewed project files remain
 later milestones. This is not a complete Compose management interface.
+
+Stage 5 exposes the existing Compose inventory in a native GTK dialog. It uses
+the selected local engine and the same serialized worker as container actions.
+Paths are plain selectable metadata, not links or executable inputs. Empty
+inventories and engine errors are distinct. No Compose mutations or profile
+changes; actual GUI interaction and rootless acceptance remain required.
