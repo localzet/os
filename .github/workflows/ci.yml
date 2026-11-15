@@ -11,7 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Python tests and module validation
-        run: make test
+        run: |
+          python3 -m compileall -q src tests
+          make test
       - name: Validate shell JavaScript syntax
         run: |
           node --check extensions/localzet-shell@localzet.com/extension.js
