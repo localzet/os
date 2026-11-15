@@ -8,7 +8,7 @@ from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib
+from gi.repository import GLib, Gtk
 
 from localzet.containers import Engine
 from localzet.containers_app import create_application
@@ -45,6 +45,23 @@ def capture(label):
                    check=True, timeout=10)
 
 
+def click_response(dialog, label):
+    # Activate the actual dialog button, not a synthetic response signal.
+    def walk(widget):
+        yield widget
+        child = widget.get_first_child()
+        while child is not None:
+            yield from walk(child)
+            child = child.get_next_sibling()
+
+    buttons = [widget for widget in walk(dialog)
+               if isinstance(widget, Gtk.Button)
+               and widget.get_label() == label
+               and widget.get_mapped() and widget.get_sensitive()]
+    assert len(buttons) == 1, f"Expected one visible response button: {label}"
+    buttons[0].emit("clicked")
+
+
 def advance():
     global phase
     try:
@@ -61,7 +78,7 @@ def advance():
         elif phase == 2:
             dialog = app.window.get_visible_dialog()
             assert dialog is not None
-            dialog.response("cancel")
+            click_response(dialog, "Отмена")
             assert state() == "exited"
         elif phase == 3:
             assert state() == "exited"
@@ -69,7 +86,7 @@ def advance():
         elif phase == 4:
             dialog = app.window.get_visible_dialog()
             assert dialog is not None
-            dialog.response("confirm")
+            click_response(dialog, "Запустить")
         elif phase == 5:
             assert not app.last_error and state() == "running"
             select_fixture()

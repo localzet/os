@@ -1713,7 +1713,7 @@ def create_application():
                 self.style.disconnect(handler)
             self.window = None
             self.pool.shutdown(wait=False, cancel_futures=True)
-            super().do_shutdown()
+            Adw.Application.do_shutdown(self)
 
     return Workspace()
 
