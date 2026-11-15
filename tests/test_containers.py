@@ -522,5 +522,17 @@ class ContainersTests(unittest.TestCase):
         from localzet.containers import RemoteEngine
         from subprocess import CompletedProcess
         with patch("localzet.containers.subprocess.run", return_value=CompletedProcess([], 1, stdout="", stderr="private diagnostic")):
-            with self.assertRaisesRegex(EngineError, "SSH inventory failed"):
+            with self.assertRaisesRegex(EngineError, "SSH operation failed"):
                 RemoteEngine("server", "dev").inventory()
+
+    def test_remote_action_checks_state_and_exact_identity(self):
+        from localzet.containers import RemoteEngine, Container
+        remote = RemoteEngine("server.example.org", "dev")
+        row = Container(CID, "fixture", "fixture:dev", "running", "Up", "")
+        with patch.object(RemoteEngine, "inventory", return_value=(row,)), patch.object(RemoteEngine, "_run") as run:
+            for action, identity in (("rm", CID), ("stop", "short"), ("start", CID), ("stop", "b"*64)):
+                with self.assertRaises(EngineError):
+                    remote.action(action, identity)
+            run.assert_not_called()
+            remote.action("stop", CID)
+            run.assert_called_once_with("container stop " + CID)
