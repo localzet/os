@@ -12,7 +12,8 @@ import stat
 import subprocess
 import sys
 
-from localzet.hardware import inventory, plan
+from localzet.hardware import inventory
+from localzet.hardware_status import publish
 from localzet.hardware_cuda import running_gpus
 from localzet.hardware_install import (
     JOURNAL, installed_system, review, apply_reviewed, write_receipt, check_previous_receipt,
@@ -52,10 +53,10 @@ def next_step(previous, devices, boot_id, runtime_ready):
     hardware = identity(devices)
     if previous:
         state = previous["state"]
-        if state in TERMINAL:
-            return state
         if previous["hardware"] != hardware:
             return "blocked"
+        if state in TERMINAL:
+            return state
         if state in ("driver-installing", "cuda-installing"):
             return "recovery-required"
         if state == "awaiting-reboot":
@@ -125,11 +126,14 @@ def run():
         if pending_phase:
             entry["phase"] = pending_phase
         write_receipt(JOURNAL, entry, filename=STATE)
+        publish(state)
         print("Hardware setup: " + state, flush=True)
 
     if phase not in ("driver", "cuda"):
         if not previous or previous["state"] != phase:
             record(phase)
+        else:
+            publish(phase)
         return
     # Check prior transaction receipts before even refreshing repositories.
     try:
@@ -138,6 +142,7 @@ def run():
     except (OSError, ValueError) as error:
         record("recovery-required", str(error))
         raise
+    publish("refreshing")
     try:
         update_cache()
     except (OSError, subprocess.SubprocessError):
