@@ -257,12 +257,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolve", action="store_true", help="Inspect local Ubuntu recommendations and APT cache without network access")
     parser.add_argument("--simulate", action="store_true", help="Simulate a recommended NVIDIA driver transaction; never install")
+    parser.add_argument("--cuda", action="store_true", help="Inspect compatible CUDA toolkit and simulate its installation")
     args = parser.parse_args()
     try:
         devices = inventory()
     except OSError as error:
         parser.exit(1, f"Hardware inventory unavailable: {error}\n")
     result = simulate_driver_setup(devices) if args.simulate else resolve_local(devices) if args.resolve else plan(devices)
+    if args.cuda:
+        from localzet.hardware_cuda import inspect_cuda
+        result["cuda"] = inspect_cuda(devices)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
