@@ -130,6 +130,61 @@ verify(engine.action("restart", cid), "running", "restart")
 verify(engine.action("stop", cid), "exited", "stop")
 PY
 docker_local start "$cid" >/dev/null
+# Actual SSH transport on loopback only, with ephemeral keys and known_hosts.
+(
+    sshdir="$work/ssh"
+    mkdir -m 700 "$sshdir" "$sshdir/.ssh"
+    ssh-keygen -q -t ed25519 -N '' -f "$sshdir/host"
+    ssh-keygen -q -t ed25519 -N '' -f "$sshdir/client"
+    cp "$sshdir/client.pub" "$sshdir/authorized_keys"
+    chmod 600 "$sshdir/authorized_keys"
+    port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
+    printf '[127.0.0.1]:%s %s\n' "$port" "$(cat "$sshdir/host.pub")" > "$sshdir/.ssh/known_hosts"
+    cat > "$sshdir/sshd.conf" <<EOF
+Port $port
+ListenAddress 127.0.0.1
+HostKey $sshdir/host
+PidFile $sshdir/sshd.pid
+AuthorizedKeysFile $sshdir/authorized_keys
+StrictModes no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin no
+AllowUsers $(id -un)
+UsePAM yes
+DisableForwarding yes
+EOF
+    sudo mkdir -p /run/sshd
+    sudo /usr/sbin/sshd -f "$sshdir/sshd.conf" -E "$sshdir/sshd.log"
+    eval "$(ssh-agent -s)" >/dev/null
+    trap 'ssh-agent -k >/dev/null; sudo kill "$(cat "$sshdir/sshd.pid")" 2>/dev/null || true' EXIT
+    ssh-add "$sshdir/client" >/dev/null 2>&1
+    python3 - "$cid" "$sshdir" "$port" "$(id -un)" <<'PY'
+import sys
+from pathlib import Path
+from unittest.mock import patch
+from localzet.containers import RemoteEngine, EngineError
+cid, home, port, user = sys.argv[1:]
+with patch("localzet.containers.Path.home", return_value=Path(home)):
+    remote = RemoteEngine("127.0.0.1", user, int(port))
+    def state(rows):
+        return next(row.state for row in rows if row.id == cid)
+    assert state(remote.inventory()) == "running"
+    assert state(remote.action("stop", cid)) == "exited"
+    assert state(remote.action("start", cid)) == "running"
+    assert state(remote.action("restart", cid)) == "running"
+    known = Path(home) / ".ssh/known_hosts"
+    known.write_text("")
+    try:
+        remote.inventory()
+    except EngineError:
+        pass
+    else:
+        raise AssertionError("Untrusted SSH host accepted")
+print("PASS: actual SSH remote lifecycle and unknown host rejection")
+PY
+)
 # Exercise the exact VTE spawn helper on an actual interactive Docker PTY.
 xvfb-run -a /usr/bin/python3 - "$cid" <<'PY'
 import os, sys
