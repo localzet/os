@@ -98,3 +98,66 @@ class HardwareTests(unittest.TestCase):
             self.assertNotIn("cuda-toolkit", [row["name"] for row in result["archive_candidates"]])
             self.assertIsNone(result["cuda_compatible"])
             self.assertFalse(result["install_ready"])
+
+    def test_nvidia_targets_require_single_recommendation_and_signed_abi(self):
+        from localzet.hardware import nvidia_driver_targets
+        base = {"nvidia_gpu_detected": True, "nvidia_desktop_recommendations": [["nvidia-driver-580-open"]],
+                "recommendations": {"status": "observed"}, "kernel": "7.0.0-15-generic", "secure_boot": "enabled"}
+        self.assertEqual(nvidia_driver_targets(base), (
+            "linux-modules-nvidia-580-open-generic",
+            "linux-modules-nvidia-580-open-7.0.0-15-generic", "nvidia-driver-580-open"))
+        self.assertEqual(nvidia_driver_targets({**base, "nvidia_gpu_detected": False}), ())
+        for change in ({"secure_boot": "unknown"}, {"kernel": "7.0.0-custom"},
+                       {"nvidia_desktop_recommendations": []},
+                       {"nvidia_desktop_recommendations": [["nvidia-driver-580"], ["nvidia-driver-580-open"]]},
+                       {"nvidia_desktop_recommendations": [["nvidia-driver-580-server"]]}):
+            with self.assertRaises(ValueError):
+                nvidia_driver_targets({**base, **change})
+
+    def test_transaction_blocks_unsafe_dependencies_and_clears_marks(self):
+        from types import SimpleNamespace as NS
+        from unittest.mock import Mock, patch
+        from localzet.hardware import simulate_packages
+
+        def package(name, **kwargs):
+            return NS(name=name, candidate=NS(version="1", size=5, installed_size=10,
+                      origins=[NS(trusted=True, origin="Ubuntu", archive="resolute")]),
+                      mark_install=Mock(), marked_delete=False, marked_downgrade=False,
+                      marked_install=True, marked_upgrade=False, installed=None, is_installed=False, **kwargs)
+
+        class Cache(dict):
+            broken_count = 0
+            dpkg_journal_dirty = False
+            required_download = 100
+            required_space = 200
+
+            def get_changes(self):
+                return list(self.values())
+
+            def clear(self):
+                self.cleared = True
+
+        for bad in ("untrusted", "removal", "downgrade", "dkms"):
+            target = package("nvidia-driver-580")
+            dependency = package("nvidia-dkms-580" if bad == "dkms" else "dependency")
+            if bad == "untrusted":
+                dependency.candidate.origins[0].trusted = False
+            if bad == "removal":
+                dependency.marked_delete = True
+            if bad == "downgrade":
+                dependency.marked_downgrade = True
+            cache = Cache({target.name: target, dependency.name: dependency})
+            with self.assertRaises(ValueError):
+                simulate_packages(cache, (target.name,))
+            self.assertTrue(cache.cleared)
+
+        target = package("nvidia-driver-580")
+        cache = Cache({target.name: target})
+        with patch("shutil.disk_usage", return_value=NS(free=2 * 1024**3)):
+            result = simulate_packages(cache, (target.name,))
+        self.assertEqual(result["status"], "simulated")
+        self.assertEqual(result["changes"], [{"name": target.name, "version": "1", "action": "install"}])
+        self.assertFalse(result["install_ready"])
+        self.assertTrue(cache.cleared)
+        with patch("shutil.disk_usage", return_value=NS(free=1)):
+            self.assertEqual(simulate_packages(cache, (target.name,))["status"], "insufficient-space")
