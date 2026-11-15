@@ -139,3 +139,14 @@ References:
 - https://docs.nvidia.com/cuda/archive/13.1.1/cuda-compiler-driver-nvcc/index.html
 - https://docs.nvidia.com/cuda/archive/12.4.1/cuda-compiler-driver-nvcc/index.html
 - https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
+
+H3.2: localzet-hardware --verify-cuda runs only as the desktop user. It
+locates a supported nvcc, checks all NVIDIA GPUs and driver compatibility,
+compiles a fixed original CUDA C++ probe with an explicit sm target per
+architecture, allocates device memory, executes a kernel, synchronizes,
+copies the computed value 42 to host memory and verifies exact PCI coverage.
+Temporary files are private and removed, compiler and runtime have timeouts.
+Failure exits nonzero. Unit tests simulate process results, not actual GPU
+execution. Physical acceptance must run this command on the installed machine
+and retain the JSON output; no GPU success claim until then. No privileged
+receipt update, automatic setup orchestration or container GPU integration yet.
