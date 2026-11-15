@@ -44,11 +44,11 @@ jobs:
           ls -l /dev/kvm || true
       - name: Build experimental image
         env:
-          CONTAINERS_CANDIDATE: ${{ inputs.containers_candidate || github.head_ref == 'feat/containers-aurora-workspace' }}
+          CONTAINERS_CANDIDATE: ${{ inputs.containers_candidate || github.head_ref == 'feat/containers-aurora-workspace' || github.head_ref == 'feat/complete-integration' }}
         run: |
           mkdir -p dist
           if [[ "$CONTAINERS_CANDIDATE" == true ]]; then
-            sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_ARCHIVE_PROFILE=complete LOCALZET_EXPERIMENTAL_CONTAINERS=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
+            sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_ARCHIVE_PROFILE=complete LOCALZET_EXPERIMENTAL_CONTAINERS=1 LOCALZET_EXPERIMENTAL_HARDWARE_AUTO=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
             sudo cat "$RUNNER_TEMP/localzet-root/usr/share/localzet/containers-candidate-packages.tsv" | tee dist/containers-candidate-packages.tsv
             sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/localzet-root" "$PWD/dist/localzet-dev.iso"
           else
