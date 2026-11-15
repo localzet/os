@@ -351,6 +351,15 @@ pgrep -u localzet-test -x qbittorrent >/dev/null
         assert "installed archive profile package inventory" in script
     if containers:
         check = r"""
+test -x /usr/bin/localzet-hardware-manager
+test -x /usr/sbin/localzet-install-drivers
+test -f /usr/lib/systemd/system/localzet-hardware-firstboot.timer
+test ! -e /etc/localzet/hardware-auto
+test ! -e /usr/lib/localzet/hardware-auto-enabled
+if systemctl is-enabled --quiet localzet-hardware-firstboot.timer; then
+    echo "Unexpected automatic hardware setup without consent"; exit 2
+fi
+launch_app localzet-hardware-manager /usr/bin/localzet-hardware-manager
 test -x /usr/bin/localzet-containers
 launch_app localzet-containers /usr/bin/localzet-containers
 pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
