@@ -177,3 +177,19 @@ compute verification runs asynchronously as the desktop user. Recovery and
 reboot guidance are informational; no GUI privilege escalation, automatic
 reboot or actual repair is implemented. Status is coarse phase progress,
 not byte-level APT progress. This is not yet a GNOME Control Center panel.
+
+H4.3: versioned general-hardware-and-cuda-v2 installer authorization adds a
+baseline phase before NVIDIA. The original NVIDIA-only v1 policy is not
+silently broadened. Ubuntu 26.04's linux-firmware metapackage supplies vendor
+firmware for Wi-Fi/Bluetooth/Ethernet/audio/graphics; CPU vendor selects
+intel-microcode or amd64-microcode only outside detected VMs. AMD/Intel PCI
+graphics select libgl1-mesa-dri and mesa-vulkan-drivers. All use reviewed
+APT dependency resolution, separate base receipt, no removal/downgrade,
+DKMS or kernel/bootloader/NVIDIA-driver changes in the base phase. A changed
+baseline requires a new boot before the NVIDIA phase; an already-installed
+baseline proceeds immediately. No-NVIDIA systems finish the baseline without
+CUDA. Hardware identity changes stop the flow for review. Kernel modules,
+individual device functionality, additional proprietary Wi-Fi/DKMS packages,
+32-bit Vulkan, printers/scanners and actual physical tests remain open.
+References: https://packages.ubuntu.com/resolute/linux-firmware and
+https://packages.ubuntu.com/resolute/mesa-vulkan-drivers .
