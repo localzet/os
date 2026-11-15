@@ -38,6 +38,22 @@ jobs:
           assert candidate["status"] == "ubuntu-candidate", candidate
           print("PASS: actual Ubuntu driver recommendations and signed archive candidate")
           PY
+      - name: Simulate real signed archive dependency transaction without installation
+        run: |
+          sha256sum /var/lib/dpkg/status > out/hardware/dpkg-before.sha256
+          PYTHONPATH=src /usr/bin/python3 -m localzet.hardware --simulate > out/hardware/driver-transaction.json
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import apt, json
+          from pathlib import Path
+          from localzet.hardware import simulate_packages
+          result = simulate_packages(apt.Cache(), ("mesa-utils",))
+          assert result["status"] == "simulated", result
+          assert not result["install_ready"]
+          assert result["targets"] == ["mesa-utils"]
+          Path("out/hardware/apt-simulation.json").write_text(json.dumps(result, indent=2))
+          print("PASS: actual APT dependency simulation, no commit")
+          PY
+          sha256sum -c out/hardware/dpkg-before.sha256
       - uses: actions/upload-artifact@v4
         if: always()
         with:
