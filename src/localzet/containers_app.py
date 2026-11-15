@@ -14,7 +14,7 @@ def spawn_terminal(terminal, argv, cancellable, callback):
                          cancellable, callback, None)
 
 
-def main() -> int:
+def create_application():
     import gi
     gi.require_version("Gtk", "4.0")
     gi.require_version("Adw", "1")
@@ -137,6 +137,7 @@ def main() -> int:
             self.resource_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10,
                                          margin_top=16, margin_bottom=16, margin_start=16, margin_end=16)
             self.pages.add_named(self.resource_page, "resources")
+            self.resource_selection = None
             self.status = Gtk.Label(label="Подключение…", xalign=0, wrap=True, selectable=True,
                                     margin_start=14, margin_end=14, margin_top=6, margin_bottom=6)
             self.status.add_css_class("dim-label")
@@ -240,6 +241,7 @@ def main() -> int:
             self.navigate(self.active_page)
 
         def clear_resource_page(self, caption, summary):
+            self.resource_selection = None
             child = self.resource_page.get_first_child()
             while child is not None:
                 self.resource_page.remove(child)
@@ -284,6 +286,7 @@ def main() -> int:
             scroll = Gtk.ScrolledWindow(vexpand=True, min_content_height=140)
             scroll.set_child(table)
             content.append(scroll)
+            self.resource_selection = selection
             return selection
 
         def show_resources(self, _, kind, caption):
@@ -1712,7 +1715,11 @@ def main() -> int:
             self.pool.shutdown(wait=False, cancel_futures=True)
             super().do_shutdown()
 
-    return Workspace().run([sys.argv[0]])
+    return Workspace()
+
+
+def main() -> int:
+    return create_application().run([sys.argv[0]])
 
 
 if __name__ == "__main__":
