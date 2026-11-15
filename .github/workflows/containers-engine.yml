@@ -41,10 +41,31 @@ jobs:
       - name: Prepare rootless dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y uidmap slirp4netns fuse-overlayfs dbus-user-session busybox-static
+          # Use the signed Ubuntu archive, matching the target distribution.
+          sudo apt-get install -y uidmap slirp4netns fuse-overlayfs dbus-user-session busybox-static rootlesskit docker.io
           if ! command -v dockerd-rootless.sh; then
-            sudo apt-get install -y docker-ce-rootless-extras
+            script="$(dpkg-query -L docker.io | grep '/dockerd-rootless.sh
+          sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
+      - name: Exercise actual rootless engine
+        run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/containers-rootless-smoke.sh
+      - name: Capture daemon diagnostics
+        if: always()
+        run: |
+          mkdir -p out/containers-rootless
+          journalctl --user -u 'localzet-rootless-ci-*' --no-pager > out/containers-rootless/daemon.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: containers-rootless-evidence
+          path: out/containers-rootless/
+          retention-days: 7
+ | head -n 1)"
+            test -n "$script" && test -f "$script"
+            echo "$(dirname "$script")" >> "$GITHUB_PATH"
           fi
+          dpkg-query -W docker.io rootlesskit uidmap
+          test -x /usr/bin/docker
           sudo loginctl enable-linger "$(id -un)"
           sudo systemctl start "user@$(id -u).service"
       - name: Exercise actual rootless engine
