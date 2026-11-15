@@ -2,12 +2,17 @@
 # Shared UEFI installation engine. The VM and interactive entry points use
 # this same implementation. Never execute against a nonblank target.
 set -Eeuo pipefail
-[[ $# == 5 ]] || exit 2
+[[ $# == 5 || $# == 6 ]] || exit 2
 mode="$1"
 byid="$2"
 username="$3"
 expected_disk="$4"
 expected_devno="$5"
+automatic_hardware="${6:-0}"
+[[ "$automatic_hardware" == 0 || "$automatic_hardware" == 1 ]] || exit 2
+if [[ "$automatic_hardware" == 1 ]]; then
+    [[ "$mode" == interactive && -f /usr/lib/localzet/hardware-auto-enabled ]] || exit 2
+fi
 IFS= read -r password
 [[ $EUID == 0 && -d /sys/firmware/efi ]] || exit 2
 grep -qw 'boot=casper' /proc/cmdline
@@ -123,6 +128,13 @@ chroot "$root" useradd -m -s /bin/bash -G sudo "$username"
 printf '%s:%s\n' "$username" "$password" | chroot "$root" chpasswd
 unset password
 chroot "$root" passwd -l root
+# Persist only the installer-authorized policy, never execute APT on the host.
+rm -f "$root/usr/lib/localzet/hardware-auto-enabled"
+if [[ "$automatic_hardware" == 1 ]]; then
+    install -d -m 0755 "$root/etc/localzet"
+    (umask 077; printf 'nvidia-driver-and-cuda-v1\n' > "$root/etc/localzet/hardware-auto")
+    systemctl --root="$root" enable localzet-hardware-firstboot.service
+fi
 printf "localzet-pc\n" > "$root/etc/hostname"
 printf "127.0.0.1 localhost\n127.0.1.1 localzet-pc\n::1 localhost ip6-localhost ip6-loopback\n" > "$root/etc/hosts"
 chroot "$root" dpkg --purge casper
