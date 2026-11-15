@@ -11,7 +11,7 @@ import time
 PUBLIC = Path("/var/lib/localzet-hardware-status/status.json")
 STATES = frozenset(("not-applicable", "refreshing", "driver-installing", "awaiting-reboot",
                     "cuda-installing", "compute-verification-required", "offline", "blocked",
-                    "recovery-required"))
+                    "recovery-required", "base-installing", "base-ready", "base-awaiting-reboot", "base-complete"))
 
 
 def publish(state, path=PUBLIC):
