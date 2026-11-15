@@ -37,15 +37,25 @@ def installed_system():
         raise ValueError("Unsupported installed root filesystem")
 
 
-def review(cache):
-    result = resolve_local(inventory())
-    targets = nvidia_driver_targets(result)
-    if not targets:
-        raise ValueError("No NVIDIA GPU detected")
-    transaction = simulate_packages(cache, targets, retain_marks=True)
+def review(cache, *, cuda=False):
+    devices = inventory()
+    result = resolve_local(devices)
+    runtime = []
+    if cuda:
+        from localzet.hardware_cuda import cuda_transaction
+        selected = cuda_transaction(cache, devices, retain_marks=True)
+        runtime = selected["runtime"]
+        transaction = selected["transaction"]
+        targets = tuple(transaction["targets"])
+    else:
+        targets = nvidia_driver_targets(result)
+        if not targets:
+            raise ValueError("No NVIDIA GPU detected")
+        transaction = simulate_packages(cache, targets, retain_marks=True)
     if transaction["status"] != "simulated":
         raise ValueError("Driver transaction is blocked: " + transaction["status"])
-    return {"kernel": result["kernel"], "secure_boot": result["secure_boot"],
+    return {"phase": "cuda" if cuda else "driver", "runtime": runtime,
+            "kernel": result["kernel"], "secure_boot": result["secure_boot"],
             "graphics": result["graphics"], "targets": transaction["targets"],
             "target_versions": {name: cache[name].candidate.version for name in targets},
             "changes": transaction["changes"],
@@ -58,10 +68,11 @@ def fingerprint(reviewed):
     # identity, version, target and action changes require a new confirmation.
     stable = {key: reviewed[key] for key in ("kernel", "secure_boot", "graphics",
                                             "targets", "target_versions", "changes")}
+    stable.update(phase=reviewed.get("phase", "driver"), runtime=reviewed.get("runtime", []))
     return hashlib.sha256(json.dumps(stable, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def write_receipt(directory, record):
+def write_receipt(directory, record, *, filename="last-driver-transaction.json"):
     for path in (directory.parent, directory):
         path.mkdir(mode=0o700, exist_ok=True)
         info = path.lstat()
@@ -73,7 +84,7 @@ def write_receipt(directory, record):
             json.dump(record, stream, indent=2)
             stream.flush()
             os.fsync(stream.fileno())
-            os.replace(temporary, directory / "last-driver-transaction.json")
+            os.replace(temporary, directory / filename)
             fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
             try:
                 os.fsync(fd)
@@ -108,13 +119,14 @@ def apply_reviewed(cache, approved, *, review_fn=review, receipt_fn=None):
         record["state"] = "failed-recovery-required"
         receipt_fn(record)
         raise
-    record["state"] = "installed-reboot-verification-required"
+    record["state"] = ("installed-compute-verification-required" if current.get("phase") == "cuda"
+                       else "installed-reboot-verification-required")
     receipt_fn(record)
     return record["state"]
 
 
-def check_previous_receipt(directory):
-    path = directory / "last-driver-transaction.json"
+def check_previous_receipt(directory, filename="last-driver-transaction.json"):
+    path = directory / filename
     if not path.exists():
         return
     # Only root-owned, private receipt files are accepted.
@@ -127,14 +139,18 @@ def check_previous_receipt(directory):
     if len(data) > 1024 * 1024:
         raise ValueError("Previous transaction receipt is too large")
     record = json.loads(data)
-    if record.get("state") != "installed-reboot-verification-required":
+    if record.get("state") not in ("installed-reboot-verification-required", "installed-compute-verification-required"):
         raise ValueError("Previous transaction needs administrator recovery review")
 
 
 def main():
-    if len(sys.argv) != 1 or not sys.stdin.isatty() or not sys.stdout.isatty():
-        print("Interactive use only; no arguments accepted", file=sys.stderr)
+    if sys.argv[1:] not in ([], ["--cuda"]) or not sys.stdin.isatty() or not sys.stdout.isatty():
+        print("Interactive use only; optional --cuda phase", file=sys.stderr)
         return 2
+    cuda = sys.argv[1:] == ["--cuda"]
+    filename = "last-cuda-transaction.json" if cuda else "last-driver-transaction.json"
+    def current_review(cache):
+        return review(cache, cuda=cuda)
     try:
         installed_system()
         # Fixed execution environment; do not inherit APT_CONFIG, Python paths,
@@ -149,12 +165,13 @@ def main():
         apt_pkg.config.set("Acquire::AllowDowngradeToInsecureRepositories", "false")
         with apt_pkg.SystemLock():
             check_previous_receipt(JOURNAL)
+            check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
             cache = apt.Cache()
-            approved = review(cache)
+            approved = current_review(cache)
             cache.clear()
         print(json.dumps(approved, indent=2, ensure_ascii=False))
         if not approved["changes"]:
-            print("The reviewed driver packages are already installed. Reboot/runtime verification remains required.")
+            print("The reviewed packages are already installed. Runtime verification remains required.")
             return 0
         token = "INSTALL " + fingerprint(approved)[:16]
         print("This changes system packages. Keep a working recovery kernel. No automatic reboot.")
@@ -163,8 +180,9 @@ def main():
             return 1
         with apt_pkg.SystemLock():
             check_previous_receipt(JOURNAL)
-            state = apply_reviewed(apt.Cache(), approved,
-                receipt_fn=lambda record: write_receipt(JOURNAL, record))
+            check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+            state = apply_reviewed(apt.Cache(), approved, review_fn=current_review,
+                receipt_fn=lambda record: write_receipt(JOURNAL, record, filename=filename))
         print(state)
         return 0
     except (OSError, ValueError, RuntimeError, SystemError, ImportError, EOFError, subprocess.SubprocessError) as error:
