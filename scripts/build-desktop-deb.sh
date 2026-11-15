@@ -35,6 +35,8 @@ cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware" "$pkg/usr/bin/localzet-hardware"
 install -D -m 0755 "$repo/apps/localzet-hardware/localzet-install-drivers" "$pkg/usr/sbin/localzet-install-drivers"
+install -m 0755 "$repo/packaging/hardware/hardware-firstboot" "$pkg/usr/lib/localzet/hardware-firstboot"
+install -D -m 0644 "$repo/packaging/hardware/localzet-hardware-firstboot.service" "$pkg/usr/lib/systemd/system/localzet-hardware-firstboot.service"
 install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/applications/"
 install -m 0755 "$repo/apps/localzet-windows/localzet-windows" "$pkg/usr/bin/localzet-windows"
 install -m 0644 "$repo/packaging/com.localzet.WindowsRuntime.desktop" "$pkg/usr/share/applications/"
