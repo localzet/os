@@ -571,6 +571,46 @@ class Engine:
             self._run("network", "create", "--driver", "bridge", "--internal", name)
         return self.resources(kind)
 
+    def volume_info(self, name: str) -> dict:
+        if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,127}", name):
+            raise EngineError("Invalid volume name")
+        if not any(row["Name"] == name for row in self.resources("volumes")):
+            raise EngineError("Volume no longer exists")
+        try:
+            item = json.loads(self._run("volume", "inspect", "--format", "{{json .}}", name))
+            if item["Name"] != name or not all(isinstance(item[key], str) for key in ("Driver", "Scope", "CreatedAt")):
+                raise ValueError("Invalid volume")
+            default_local = item["Driver"] == "local" and item["Scope"] == "local" and item["Options"] in (None, {})
+        except (ValueError, TypeError, KeyError) as exc:
+            raise EngineError("Invalid volume metadata") from exc
+        # Docker volume filters include stopped containers. Validate each
+        # matching mount name because filters are not exact identity checks.
+        candidates = parse_inventory(self._run("container", "ls", "--all", "--no-trunc",
+            "--filter", "volume=" + name, "--format", "{{json .}}"))
+        references = []
+        for row in candidates:
+            try:
+                mounts = json.loads(self._run("container", "inspect", "--format", "{{json .Mounts}}", row.id))
+                if not isinstance(mounts, list) or not all(isinstance(mount, dict) for mount in mounts):
+                    raise ValueError("Invalid mounts")
+                if any(mount.get("Type") == "volume" and mount.get("Name") == name for mount in mounts):
+                    references.append(row)
+            except (ValueError, TypeError) as exc:
+                raise EngineError("Invalid volume references") from exc
+        return {"name": name, "driver": item["Driver"], "scope": item["Scope"],
+                "created": item["CreatedAt"], "default_local": default_local,
+                "references": tuple(references)}
+
+    def remove_volume(self, name: str) -> tuple[dict[str, str], ...]:
+        info = self.volume_info(name)
+        if not info["default_local"]:
+            raise EngineError("Only default local volumes may be removed")
+        if info["references"]:
+            raise EngineError("Volume is referenced by a container, including stopped containers")
+        # No force or prune. Docker still checks usage at deletion time.
+        self._run("volume", "rm", name)
+        return self.resources("volumes")
+
     def remove_resource(self, kind: str, identity: str) -> tuple[dict[str, str], ...]:
         # No volume deletion, force, prune or name-based removal.
         if kind not in ("images", "networks") or not isinstance(identity, str):

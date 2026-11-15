@@ -586,3 +586,34 @@ class ContainersTests(unittest.TestCase):
                 self.assertIn(str(path / "key.pem"), args)
                 self.assertNotIn("DOCKER_HOST", run.call_args.kwargs["env"])
                 self.assertEqual(args[-6:], ["container", "ls", "--all", "--no-trunc", "--format", "{{json .}}"])
+
+    def test_volume_removal_checks_exact_references_and_options(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        volume = {"Name": "fixture", "Driver": "local", "Scope": "local"}
+        metadata = {**volume, "CreatedAt": "2026-11-15T00:00:00Z", "Options": None}
+        stopped = {**ROW, "State": "exited", "Status": "Exited"}
+        with patch.object(engine, "resources", return_value=(volume,)), patch.object(engine, "_run",
+                side_effect=[json.dumps(metadata), json.dumps(stopped), json.dumps([{"Type": "volume", "Name": "fixture"}])]) as run:
+            with self.assertRaisesRegex(EngineError, "referenced"):
+                engine.remove_volume("fixture")
+            self.assertEqual(run.call_count, 3)
+        with patch.object(engine, "resources", return_value=(volume,)), patch.object(engine, "_run",
+                side_effect=[json.dumps({**metadata, "Options": {"device": "/host"}}), ""]) as run:
+            with self.assertRaisesRegex(EngineError, "default local"):
+                engine.remove_volume("fixture")
+            self.assertEqual(run.call_count, 2)
+        with patch.object(engine, "resources", side_effect=[(volume,), ()]), patch.object(engine, "_run",
+                side_effect=[json.dumps(metadata), json.dumps(stopped),
+                             json.dumps([{"Type": "bind", "Name": "fixture"}]), ""]) as run:
+            self.assertEqual(engine.remove_volume("fixture"), ())
+            run.assert_called_with("volume", "rm", "fixture")
+
+    def test_volume_rejects_invalid_name_before_docker(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        with patch.object(engine, "_run") as run:
+            for name in ("--force", "../data", "name with spaces"):
+                with self.assertRaises(EngineError):
+                    engine.volume_info(name)
+            run.assert_not_called()

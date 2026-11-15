@@ -229,6 +229,10 @@ def main() -> int:
                                       max_width_chars=64, xalign=1)
                     row.add_suffix(label)
                     group.add(row)
+                if kind == "volumes":
+                    details = Gtk.Button(label="Сведения и использование", halign=Gtk.Align.END)
+                    details.connect("clicked", lambda _, item=item: self.show_volume(dialog, item["Name"]))
+                    group.add(details)
                 if kind == "images":
                     create = Gtk.Button(label="Создать контейнер", halign=Gtk.Align.END)
                     create.connect("clicked", lambda _, item=item: self.confirm_deployment(dialog, item))
@@ -542,6 +546,70 @@ def main() -> int:
             self.status.set_label("Загрузка завершена; список образов обновлён." if future.exception() is None
                                   else "Загрузка не подтверждена. Проверьте список образов.")
             return self.resources_finished(generation, "images", "Образы", future)
+
+        def show_volume(self, parent, name):
+            if self.busy:
+                return
+            self.busy = True
+            self.generation += 1
+            generation, rootful = self.generation, self.rootful
+            self.update_actions()
+            future = self.pool.submit(lambda: Engine(rootful=rootful).volume_info(name))
+            def complete():
+                if generation != self.generation or not self.window:
+                    return GLib.SOURCE_REMOVE
+                self.busy = False
+                self.update_actions()
+                dialog = Adw.AlertDialog(heading="Том · " + name)
+                dialog.add_response("close", "Закрыть")
+                dialog.set_close_response("close")
+                dialog.set_default_response("close")
+                try:
+                    info = future.result()
+                    references = info["references"]
+                    details = "\n".join(f"{row.name} · {row.state} · {row.id[:12]}" for row in references)
+                    dialog.set_body(f"Драйвер: {info['driver']} · {info['scope']}\nСоздан: {info['created']}\n"
+                                    + f"Подключений: {len(references)} (включая остановленные)\n"
+                                    + (details or "Нет подключений."))
+                    if info["default_local"] and not references:
+                        dialog.add_response("remove", "Удалить том")
+                        dialog.set_response_appearance("remove", Adw.ResponseAppearance.DESTRUCTIVE)
+                        dialog.connect("response", lambda _, choice: self.confirm_volume_delete(parent, name, generation, rootful)
+                                       if choice == "remove" else None)
+                except (EngineError, OSError, ValueError) as error:
+                    dialog.set_body(str(error))
+                except Exception:
+                    dialog.set_body("Не удалось получить сведения о томе.")
+                dialog.present(parent)
+                return GLib.SOURCE_REMOVE
+            future.add_done_callback(lambda _: GLib.idle_add(complete))
+
+        def confirm_volume_delete(self, parent, name, generation, rootful):
+            if self.busy or generation != self.generation or rootful != self.rootful:
+                return
+            prompt = Adw.AlertDialog(heading="Безвозвратно удалить данные?",
+                body="Том " + name + " будет удалён вместе со всем содержимым. Резервная копия не создаётся. Введите точное имя тома.")
+            entry = Gtk.Entry(placeholder_text=name)
+            prompt.set_extra_child(entry)
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("confirm", "Удалить")
+            prompt.set_response_enabled("confirm", False)
+            prompt.set_response_appearance("confirm", Adw.ResponseAppearance.DESTRUCTIVE)
+            prompt.set_default_response("cancel")
+            prompt.set_close_response("cancel")
+            entry.connect("changed", lambda field: prompt.set_response_enabled("confirm", field.get_text() == name))
+            def confirmed(_, choice):
+                if choice != "confirm" or entry.get_text() != name or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                parent.close()
+                self.busy = True
+                self.generation += 1
+                current = self.generation
+                self.update_actions()
+                future = self.pool.submit(lambda: Engine(rootful=rootful).remove_volume(name))
+                future.add_done_callback(lambda f: GLib.idle_add(self.resources_finished, current, "volumes", "Тома", f))
+            prompt.connect("response", confirmed)
+            prompt.present(parent)
 
         def confirm_resource(self, parent, kind, caption, item):
             if self.busy:
