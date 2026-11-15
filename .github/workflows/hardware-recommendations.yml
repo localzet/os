@@ -109,12 +109,50 @@ jobs:
           from localzet.hardware_common import cpu_vendor, physical_cpu
           preview = simulate_packages(cache, common_targets(inventory(), cpu_vendor(), physical_cpu()))
           Path("out/hardware/common-space-preview.json").write_text(json.dumps(preview, indent=2))
-          assert preview["status"] == "simulated", preview
-          report = review_common(cache)
+          # The hosted runner has a separate ~1 GiB /boot. A legitimate
+          # space refusal must remain a refusal, with no retained marks.
+          required = preview["download_bytes"] + preview["additional_installed_bytes"] + 512 * 1024 * 1024
+          assert not preview["install_ready"], preview
+          if preview["minimum_free_bytes"] < required:
+              assert preview["status"] == "insufficient-space", preview
+              assert not cache.get_changes(), "Blocked transaction retained APT marks"
+              try:
+                  review_common(cache)
+              except ValueError as error:
+                  assert "insufficient-space" in str(error), str(error)
+              else:
+                  raise AssertionError("Common review accepted insufficient space")
+              report = {"status": "blocked", "reason": "insufficient-space", "transaction": preview}
+          else:
+              assert preview["status"] == "simulated", preview
+              report = review_common(cache)
           cache.clear()
           Path("out/hardware/common-plan.json").write_text(json.dumps(report, indent=2))
           print("PASS: actual archive general hardware dependency plan; no driver installation")
           PY
+          sha256sum -c out/hardware/dpkg-before.sha256
+      - name: Verify successful firmware review with spacious isolated boot filesystem
+        run: |
+          # Only this mount namespace sees the fixture; no host boot files
+          # are modified and no firmware transaction is committed.
+          fixture="$(mktemp -d)"
+          trap 'rmdir "$fixture"' EXIT
+          sudo unshare --mount --propagation private /bin/bash -eu -c '
+            mount --bind "$1" /boot
+            df -h / /boot /var/cache/apt/archives
+            PYTHONPATH=src /usr/bin/python3 - <<'"'"'PY'"'"'
+          import apt, json
+          from pathlib import Path
+          from localzet.hardware_common import review_common
+          cache = apt.Cache()
+          report = review_common(cache)
+          assert report["phase"] == "base"
+          assert "linux-firmware" in report["targets"]
+          assert report["changes"], report
+          cache.clear()
+          Path("out/hardware/common-spacious-fixture.json").write_text(json.dumps(report, indent=2))
+          PY
+          ' bash "$fixture"
           sha256sum -c out/hardware/dpkg-before.sha256
       - name: Exercise actual commit and system lock on disposable runner fixture
         run: |
