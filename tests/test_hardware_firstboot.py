@@ -35,6 +35,7 @@ class FirstBootTests(unittest.TestCase):
     def test_interruption_and_terminal_states_never_retry(self):
         for state in ("driver-installing", "cuda-installing"):
             self.assertEqual(next_step(self.previous(state), (GPU,), "second-boot", True), "recovery-required")
+        self.assertEqual(next_step(self.previous("compute-verification-required"), (), "second-boot", False), "blocked")
         for state in ("not-applicable", "blocked", "recovery-required", "compute-verification-required"):
             self.assertEqual(next_step(self.previous(state), (GPU,), "second-boot", True), state)
 
