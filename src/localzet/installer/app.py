@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 from localzet.installer.interactive import (
     confirmation_for, eligible_plan, live_source_disk, validate_request
@@ -89,6 +90,10 @@ def create_application():
                 account.add(row)
             page.append(account)
 
+            self.automatic_hardware = Gtk.CheckButton(label="Автоматически настроить NVIDIA и CUDA после установки (экспериментально)")
+            self.automatic_hardware.set_visible(Path("/usr/lib/localzet/hardware-auto-enabled").is_file())
+            self.automatic_hardware.set_tooltip_text("Загружает подписанные пакеты после первого запуска. Может потребоваться перезагрузка; при ошибке настройка останавливается.")
+            page.append(self.automatic_hardware)
             confirmation = Adw.PreferencesGroup(title="3. Подтверждение установки",
                                                 description="На выбранном SSD будет создана новая таблица разделов.")
             self.confirm = Adw.EntryRow(title="Введите указанную фразу")
@@ -171,6 +176,7 @@ def create_application():
                 "backup_acknowledged": self.backup.get_active(),
                 "username": self.username.get_text(),
                 "password": self.password.get_text(),
+                "automatic_hardware": self.automatic_hardware.get_visible() and self.automatic_hardware.get_active(),
             }
             validate_request(data)
             return data
@@ -198,7 +204,7 @@ def create_application():
                 self.running = True
                 self.install.set_sensitive(False)
                 for widget in (self.refresh_button, self.username, self.password,
-                               self.repeat, self.confirm, self.backup):
+                               self.repeat, self.confirm, self.backup, self.automatic_hardware):
                     widget.set_sensitive(False)
                 self.spinner.start()
                 self.status.set_label("Идёт установка. Не выключайте компьютер и не отключайте SSD.")
@@ -219,13 +225,14 @@ def create_application():
             self.plan = None
             self.confirm.set_text("")
             self.backup.set_active(False)
+            self.automatic_hardware.set_active(False)
             self.password.set_text("")
             self.repeat.set_text("")
             self.phrase.set_label("")
             self.disk_info.set_title("Требуется повторная проверка SSD")
             self.disk_info.set_subtitle("")
             self.refresh_button.set_sensitive(True)
-            for widget in (self.username, self.password, self.repeat, self.confirm, self.backup):
+            for widget in (self.username, self.password, self.repeat, self.confirm, self.backup, self.automatic_hardware):
                 widget.set_sensitive(True)
             self.update()
 
