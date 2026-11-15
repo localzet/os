@@ -346,28 +346,35 @@ def validate_registry_tag(reference: str, *, qualified: bool = False) -> None:
         raise EngineError("Explicit registry host and repository required")
 
 
+def validate_remote_host(host: str, port: int) -> None:
+    import ipaddress
+    if not isinstance(host, str) or type(port) is not int or not 1 <= port <= 65535:
+        raise EngineError("Invalid remote host or port")
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        if len(host) > 253 or not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", host) or any(
+                not part or len(part) > 63 or part.startswith("-") or part.endswith("-")
+                for part in host.split(".")):
+            raise EngineError("Invalid remote host")
+
+
 @dataclass(frozen=True)
 class RemoteEngine:
     host: str
     user: str
     port: int = 22
 
+    def validate(self):
+        validate_remote_host(self.host, self.port)
+        if not isinstance(self.user, str) or not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_.-]{0,63}", self.user):
+            raise EngineError("Invalid SSH user")
+
     def _run(self, command: str) -> str:
         # OpenSSH known_hosts and keys are managed by the user outside this
         # app. No automatic trust, password prompt, proxy or host escalation.
-        import ipaddress
-        if not isinstance(self.host, str) or not isinstance(self.user, str):
-            raise EngineError("Invalid SSH destination")
+        self.validate()
         host = self.host
-        try:
-            ipaddress.ip_address(host)
-        except ValueError:
-            if len(host) > 253 or not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?", host) or any(
-                    not part or len(part) > 63 or part.startswith("-") or part.endswith("-")
-                    for part in host.split(".")):
-                raise EngineError("Invalid SSH host")
-        if not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_.-]{0,63}", self.user) or type(self.port) is not int or not 1 <= self.port <= 65535:
-            raise EngineError("Invalid SSH user or port")
         env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
         agent = os.environ.get("SSH_AUTH_SOCK")
         if agent:
@@ -404,6 +411,103 @@ class RemoteEngine:
             raise EngineError("Remote container state changed; refresh")
         self._run("container " + action + " " + container_id)
         return self.inventory()
+
+
+@dataclass(frozen=True)
+class TLSEngine:
+    host: str
+    port: int = 2376
+    certificate_dir: str = ""
+
+    def validate(self):
+        validate_remote_host(self.host, self.port)
+        if not isinstance(self.certificate_dir, str) or not Path(self.certificate_dir).is_absolute():
+            raise EngineError("Select an absolute TLS certificate directory")
+
+    def inventory(self) -> tuple[Container, ...]:
+        self.validate()
+        directory = Path(self.certificate_dir)
+        ca, cert, key = (directory / name for name in ("ca.pem", "cert.pem", "key.pem"))
+        for path in (ca, cert, key):
+            if not path.is_file() or not os.access(path, os.R_OK):
+                raise EngineError("TLS requires readable ca.pem, cert.pem and key.pem")
+        if key.stat().st_uid != os.getuid() or key.stat().st_mode & 0o077:
+            raise EngineError("TLS private key must be owned by you and private")
+        host = f"[{self.host}]" if ":" in self.host else self.host
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
+        args = [str(DOCKER), "--host", f"tcp://{host}:{self.port}", "--tlsverify",
+                "--tlscacert", str(ca), "--tlscert", str(cert), "--tlskey", str(key),
+                "container", "ls", "--all", "--no-trunc", "--format", "{{json .}}"]
+        try:
+            proc = subprocess.run(args, capture_output=True, text=True, timeout=25, env=env, check=False)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EngineError("TLS connection could not complete") from exc
+        if proc.returncode:
+            raise EngineError("TLS verification or Docker inventory failed")
+        if len(proc.stdout.encode("utf-8")) > 2 * 1024 * 1024:
+            raise EngineError("Remote inventory exceeds size limit")
+        return parse_inventory(proc.stdout)
+
+
+class RemoteStore:
+    """Save endpoint metadata only, never credential contents."""
+    def __init__(self, root: Path | None = None):
+        self.root = root if root is not None else Path.home() / ".local/share/localzet/remote-engines"
+
+    def _directory(self):
+        self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        info = self.root.lstat()
+        if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+            raise EngineError("Remote connection directory must be private")
+
+    def save(self, name: str, endpoint: RemoteEngine | TLSEngine):
+        import tempfile
+        if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,47}", name):
+            raise EngineError("Invalid connection name")
+        if not isinstance(endpoint, (RemoteEngine, TLSEngine)):
+            raise EngineError("Invalid remote endpoint")
+        endpoint.validate()
+        self._directory()
+        record = {"transport": "ssh" if isinstance(endpoint, RemoteEngine) else "tls", **asdict(endpoint)}
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=self.root, delete=False) as stream:
+            temporary = Path(stream.name)
+            try:
+                json.dump(record, stream)
+                stream.flush()
+                os.fsync(stream.fileno())
+                # No overwrite: changing an endpoint requires a new name.
+                os.link(temporary, self.root / (name + ".json"))
+            except FileExistsError as exc:
+                raise EngineError("Connection name already exists") from exc
+            finally:
+                temporary.unlink(missing_ok=True)
+
+    def names(self) -> tuple[str, ...]:
+        self._directory()
+        return tuple(sorted(path.stem for path in self.root.glob("*.json")
+            if re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,47}", path.stem)))
+
+    def load(self, name: str) -> RemoteEngine | TLSEngine:
+        if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{0,47}", name):
+            raise EngineError("Invalid connection name")
+        self._directory()
+        fd = os.open(self.root / (name + ".json"), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                raise EngineError("Invalid saved connection file")
+            data = stream.read(8193)
+        if len(data) > 8192:
+            raise EngineError("Saved connection is too large")
+        try:
+            record = json.loads(data)
+            transport = record.pop("transport")
+            cls = {"ssh": RemoteEngine, "tls": TLSEngine}[transport]
+            endpoint = cls(**record)
+            endpoint.validate()
+            return endpoint
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
+            raise EngineError("Invalid saved connection") from exc
 
 
 class Engine:
