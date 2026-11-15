@@ -10,7 +10,7 @@ from localzet.containers import Deployment, Engine, EngineError, RemoteEngine, S
 def spawn_terminal(terminal, argv, cancellable, callback):
     from gi.repository import GLib, Vte
     terminal.spawn_async(Vte.PtyFlags.DEFAULT, "/", list(argv), None,
-                         GLib.SpawnFlags.DO_NOT_REAP_CHILD, None, 10000,
+                         GLib.SpawnFlags.DO_NOT_REAP_CHILD, None, None, 10000,
                          cancellable, callback, None)
 
 
