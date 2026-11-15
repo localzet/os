@@ -122,7 +122,7 @@ def recommendations() -> dict:
 
 
 def archive_candidate(cache, name: str) -> dict:
-    if not PACKAGE.fullmatch(name):
+    if not re.fullmatch(r"[a-z0-9][a-z0-9+.-]{0,127}(?::[a-z0-9-]{1,16})?", name):
         raise ValueError("Invalid package name")
     try:
         candidate = cache[name].candidate
@@ -166,15 +166,100 @@ def resolve_local(devices: tuple[PCIDevice, ...]) -> dict:
     return result
 
 
+def nvidia_driver_targets(result: dict) -> tuple[str, ...]:
+    """Choose only one recommended desktop series, with matching signed ABI."""
+    if not result["nvidia_gpu_detected"]:
+        return ()
+    rows = result["nvidia_desktop_recommendations"]
+    if result["recommendations"]["status"] != "observed" or len(rows) != 1:
+        raise ValueError("A unique NVIDIA desktop recommendation is required")
+    driver = rows[0][0]
+    if not NVIDIA_DRIVER.fullmatch(driver):
+        raise ValueError("Invalid NVIDIA driver recommendation")
+    kernel = result["kernel"]
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-generic", kernel):
+        raise ValueError("Only the running Ubuntu generic kernel is supported")
+    if result["secure_boot"] not in ("enabled", "disabled", "not-uefi"):
+        raise ValueError("Secure Boot state unknown")
+    suffix = driver.removeprefix("nvidia-driver-")
+    # Include the flavour metapackage for future kernel updates and the exact
+    # running ABI for the next boot. No DKMS fallback or server series.
+    return ("linux-modules-nvidia-" + suffix + "-generic",
+            "linux-modules-nvidia-" + suffix + "-" + kernel, driver)
+
+
+def simulate_packages(cache, targets: tuple[str, ...]) -> dict:
+    """Resolve a fresh APT cache in memory only; never call commit or update."""
+    import shutil
+    if not targets or len(set(targets)) != len(targets) or not all(
+            isinstance(name, str) and PACKAGE.fullmatch(name) for name in targets):
+        raise ValueError("Invalid transaction targets")
+    if cache.broken_count or getattr(cache, "dpkg_journal_dirty", False):
+        raise ValueError("APT or dpkg requires recovery before driver setup")
+    changes = []
+    try:
+        for name in targets:
+            if archive_candidate(cache, name)["status"] != "ubuntu-candidate":
+                raise ValueError("No reviewed Ubuntu candidate: " + name)
+            cache[name].mark_install(auto_fix=True, auto_inst=True, from_user=True)
+        if cache.broken_count:
+            raise ValueError("Unresolved dependency transaction")
+        for name in targets:
+            package = cache[name]
+            if package.marked_delete or not (package.marked_install or package.marked_upgrade
+                    or (package.installed and package.installed.version == package.candidate.version)):
+                raise ValueError("Requested package not resolved: " + name)
+        for package in cache.get_changes():
+            name = package.name
+            if package.marked_delete or package.marked_downgrade:
+                raise ValueError("Removal or downgrade requires separate review: " + name)
+            if name.startswith("nvidia-dkms-") or name == "dkms":
+                raise ValueError("DKMS requires a separate signing/MOK workflow")
+            if not (package.marked_install or package.marked_upgrade):
+                raise ValueError("Unsupported package change: " + name)
+            candidate = archive_candidate(cache, name)
+            if candidate["status"] != "ubuntu-candidate":
+                raise ValueError("Unreviewed dependency origin: " + name)
+            changes.append({"name": name, "version": candidate["version"],
+                            "action": "upgrade" if package.is_installed else "install"})
+        download = max(0, cache.required_download)
+        installed = max(0, cache.required_space)
+        # Conservative screening, not a reservation or per-mount calculation.
+        free = min(shutil.disk_usage(path).free for path in ("/", "/var/cache/apt/archives", "/boot"))
+        enough = free >= download + installed + 512 * 1024 * 1024
+        return {"status": "simulated" if enough else "insufficient-space",
+                "targets": list(targets), "changes": sorted(changes, key=lambda row: row["name"]),
+                "download_bytes": download, "additional_installed_bytes": installed,
+                "minimum_free_bytes": free, "install_ready": False}
+    finally:
+        cache.clear()
+
+
+def simulate_driver_setup(devices: tuple[PCIDevice, ...]) -> dict:
+    result = resolve_local(devices)
+    try:
+        targets = nvidia_driver_targets(result)
+        if not targets:
+            result["transaction"] = {"status": "not-applicable", "install_ready": False}
+        else:
+            import apt
+            result["transaction"] = simulate_packages(apt.Cache(), targets)
+    except (ImportError, OSError, RuntimeError, SystemError, ValueError) as error:
+        result["transaction"] = {"status": "blocked", "reason": str(error), "install_ready": False}
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--resolve", action="store_true", help="Inspect local Ubuntu recommendations and APT cache without network access")
+    parser.add_argument("--simulate", action="store_true", help="Simulate a recommended NVIDIA driver transaction; never install")
     args = parser.parse_args()
     try:
         devices = inventory()
     except OSError as error:
         parser.exit(1, f"Hardware inventory unavailable: {error}\n")
-    print(json.dumps(resolve_local(devices) if args.resolve else plan(devices), ensure_ascii=False, indent=2))
+    result = simulate_driver_setup(devices) if args.simulate else resolve_local(devices) if args.resolve else plan(devices)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 
