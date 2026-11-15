@@ -21,7 +21,7 @@ from localzet.hardware_install import (
 
 POLICY = Path("/etc/localzet/hardware-auto")
 STATE = "first-boot.json"
-TERMINAL = {"not-applicable", "compute-verification-required", "blocked", "recovery-required"}
+TERMINAL = {"not-applicable", "base-complete", "compute-verification-required", "blocked", "recovery-required"}
 
 
 def read_private(path):
@@ -40,37 +40,48 @@ def read_private(path):
 
 
 def authorized():
-    return read_private(POLICY) == b"nvidia-driver-and-cuda-v1\n"
+    return {b"nvidia-driver-and-cuda-v1\n": "nvidia", b"general-hardware-and-cuda-v2\n": "general"}.get(read_private(POLICY))
 
 
-def identity(devices):
+def identity(devices, general=False):
     return sorted([row.address, row.vendor, row.device, row.device_class] for row in devices
-                  if row.vendor == "10de" and row.device_class.startswith("03"))
+                  if general or (row.vendor == "10de" and row.device_class.startswith("03")))
 
 
-def next_step(previous, devices, boot_id, runtime_ready):
+def next_step(previous, devices, boot_id, runtime_ready, general=False):
     """Pure state transition; never authorize installation by GPU ID alone."""
-    hardware = identity(devices)
+    hardware = identity(devices, general)
+    nvidia = bool(identity(devices))
     if previous:
         state = previous["state"]
         if previous["hardware"] != hardware:
             return "blocked"
         if state in TERMINAL:
             return state
-        if state in ("driver-installing", "cuda-installing"):
+        if state in ("base-installing", "driver-installing", "cuda-installing"):
             return "recovery-required"
+        if state in ("base-awaiting-reboot", "base-ready"):
+            if not general:
+                return "blocked"
+            if state == "base-awaiting-reboot" and previous["boot_id"] == boot_id:
+                return state
+            return ("cuda" if runtime_ready else "driver") if nvidia else "base-complete"
         if state == "awaiting-reboot":
             if previous["boot_id"] == boot_id:
                 return state
             return "cuda" if runtime_ready else "blocked"
         if state == "offline":
+            if general and previous.get("phase") == "base":
+                return "base"
             if previous.get("phase") == "cuda":
                 return "cuda" if runtime_ready else "blocked"
             if previous.get("phase") != "driver":
                 return "blocked"
         else:
             return "blocked"
-    if not hardware:
+    if general and not previous:
+        return "base"
+    if not nvidia:
         return "not-applicable"
     return "cuda" if runtime_ready else "driver"
 
@@ -87,11 +98,16 @@ def transaction(phase):
     apt_pkg.config.set("APT::Get::AllowUnauthenticated", "false")
     apt_pkg.config.set("Acquire::AllowInsecureRepositories", "false")
     apt_pkg.config.set("Acquire::AllowDowngradeToInsecureRepositories", "false")
-    filename = "last-cuda-transaction.json" if phase == "cuda" else "last-driver-transaction.json"
+    filename = {"base": "last-base-transaction.json", "cuda": "last-cuda-transaction.json",
+                "driver": "last-driver-transaction.json"}[phase]
     with apt_pkg.SystemLock():
         check_previous_receipt(JOURNAL)
         check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+        check_previous_receipt(JOURNAL, "last-base-transaction.json")
         def current(cache):
+            if phase == "base":
+                from localzet.hardware_common import review_common
+                return review_common(cache)
             return review(cache, cuda=phase == "cuda")
         cache = apt.Cache()
         approved = current(cache)
@@ -102,8 +118,10 @@ def transaction(phase):
 
 def run():
     installed_system()
-    if not authorized():
-        raise ValueError("No explicit installer authorization for automatic NVIDIA setup")
+    policy = authorized()
+    if not policy:
+        raise ValueError("No explicit installer authorization for automatic hardware setup")
+    general = policy == "general"
     os.environ.clear()
     os.environ.update(PATH="/usr/sbin:/usr/bin:/sbin:/bin", HOME="/root",
                       LC_ALL="C.UTF-8", DEBIAN_FRONTEND="noninteractive")
@@ -111,13 +129,13 @@ def run():
     previous = json.loads(data) if data is not None else None
     devices = inventory()
     boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    hardware = identity(devices)
+    hardware = identity(devices, general)
     try:
         running_gpus(devices)
         runtime_ready = True
     except ValueError:
         runtime_ready = False
-    phase = next_step(previous, devices, boot_id, runtime_ready)
+    phase = next_step(previous, devices, boot_id, runtime_ready, general)
 
     def record(state, reason=None, pending_phase=None):
         entry = {"schema": 1, "state": state, "boot_id": boot_id, "hardware": hardware}
@@ -129,7 +147,7 @@ def run():
         publish(state)
         print("Hardware setup: " + state, flush=True)
 
-    if phase not in ("driver", "cuda"):
+    if phase not in ("base", "driver", "cuda"):
         if not previous or previous["state"] != phase:
             record(phase)
         else:
@@ -139,6 +157,7 @@ def run():
     try:
         check_previous_receipt(JOURNAL)
         check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+        check_previous_receipt(JOURNAL, "last-base-transaction.json")
     except (OSError, ValueError) as error:
         record("recovery-required", str(error))
         raise
@@ -154,7 +173,14 @@ def run():
     except Exception as error:
         record("recovery-required", str(error))
         raise
-    if phase == "driver":
+    if phase == "base":
+        if outcome == "already-installed":
+            record("base-ready")
+            # Re-evaluate the real inventory before proceeding to NVIDIA.
+            run()
+        else:
+            record("base-awaiting-reboot")
+    elif phase == "driver":
         # Even already-installed packages may need a reboot to activate.
         record("awaiting-reboot")
     else:
