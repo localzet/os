@@ -38,7 +38,7 @@ class Guest:
         command = [
             "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
             "-global", "driver=cfi.pflash01,property=secure,value=on",
-            "-cpu", cpu, "-m", "5120", "-smp", "2", "-nic", "none",
+            "-cpu", cpu, "-m", "6144", "-smp", "4", "-nic", "none",
             "-vga", "virtio", "-device", "usb-tablet", "-display", "none", "-monitor", "none", "-no-reboot",
             "-qmp", f"unix:{self.socket},server=on,wait=off",
             "-serial", f"file:{self.serial}",
@@ -102,7 +102,7 @@ class Guest:
 
     def key(self, name):
         self.qmp("human-monitor-command", {"command-line": f"sendkey {name} 40"})
-        time.sleep(0.12)
+        time.sleep(0.22 if self.accel == "kvm" else 0.35)
 
     def text(self, value):
         keys = {" ": "spc", "-": "minus", "_": "shift-minus", "/": "slash",
@@ -206,7 +206,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None):
+def installed_script(archive_profile=None, containers=False):
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -221,9 +221,6 @@ if grep -qw boot=casper /proc/cmdline; then exit 2; fi
 PYTHONPATH=/opt/localzet-os/src python3 -m localzet.installer.audit /
 [[ "$(passwd -S localzet-test | cut -d ' ' -f2)" == P ]]
 pgrep -u localzet-test -x gnome-shell >/dev/null
-pgrep -u localzet-test -f /usr/bin/localzet-settings >/dev/null
-pgrep -u localzet-test -f /usr/bin/localzet-windows >/dev/null
-pgrep -u localzet-test -f /usr/bin/localzet-connect >/dev/null
 [[ -x /usr/lib/localzet/install-nectarlink ]]
 [[ -x /usr/bin/wine ]]
 [[ -f /usr/share/polkit-1/actions/org.localzet.install-nectarlink.policy ]]
@@ -248,6 +245,23 @@ for attempt in $(seq 1 20); do
 done
 [[ "$(loginctl show-session "$session" -p Active --value)" == yes ]]
 uid="$(id -u localzet-test)"
+# Launch from the real authenticated GNOME user manager, not a burst of
+# Alt+F2 keystrokes that can race the compositor and TTY switch.
+launch_app() {
+    local app="$1" pattern="$2"
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemd-run --user --collect --unit="localzet-candidate-$app" "/usr/bin/$app"
+    for attempt in $(seq 1 45); do
+        if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
+        sleep 1
+    done
+    echo "Application did not launch: $app"
+    return 1
+}
+launch_app localzet-settings /usr/bin/localzet-settings
+launch_app localzet-windows /usr/bin/localzet-windows
+launch_app localzet-connect /usr/bin/localzet-connect
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     gnome-extensions list --active | grep -Fx localzet-shell@localzet.com
@@ -325,6 +339,8 @@ assert set(output.splitlines()) == {name + "\tii " for name in packages}, output
 assert not expected["install_ready"]
 print("PASS: installed archive profile package inventory; external components remain pending")
 PY
+launch_app vlc /usr/bin/vlc
+launch_app qbittorrent /usr/bin/qbittorrent
 pgrep -u localzet-test -x vlc >/dev/null
 pgrep -u localzet-test -x qbittorrent >/dev/null
 """
@@ -333,6 +349,25 @@ pgrep -u localzet-test -x qbittorrent >/dev/null
         check = check.replace("ARCHIVE_PROFILE", repr(archive_profile))
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed archive profile package inventory" in script
+    if containers:
+        check = r"""
+test -x /usr/bin/localzet-containers
+launch_app localzet-containers /usr/bin/localzet-containers
+pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
+dpkg-query -W docker.io docker-compose-v2 gir1.2-vte-3.91
+/usr/bin/docker compose version
+for unit in docker.service docker.socket containerd.service; do
+    if systemctl is-enabled --quiet "$unit" || systemctl is-active --quiet "$unit"; then
+        echo "Unexpected enabled or active Docker unit: $unit"; exit 2
+    fi
+done
+if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
+    echo "Unexpected docker group access"; exit 2
+fi
+printf 'PASS: installed Containers launched unprivileged; system daemon disabled\n'
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+        assert "installed Containers launched" in script
     return script
 
 
@@ -345,7 +380,10 @@ def main():
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
+    parser.add_argument("--expect-containers", action="store_true")
     args = parser.parse_args()
+    if args.expect_containers and args.expect_archive_profile != "complete":
+        parser.error("Containers candidate requires complete archive profile")
     for name in ("iso", "ovmf_code", "ovmf_vars"):
         path = getattr(args, name).resolve(strict=True)
         if not path.is_file():
@@ -379,7 +417,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -391,25 +429,21 @@ def main():
             installed.text(password)
             installed.key("ret")
             time.sleep(25 if installed.accel == "kvm" else 60)
-            installed.launch("localzet-settings")
-            installed.launch("localzet-windows")
-            installed.launch("localzet-connect")
-            if args.expect_archive_profile:
-                installed.launch("vlc")
-                installed.launch("qbittorrent")
-            # Use a real text login instead of typing commands into the GNOME
-            # overview. No autologin, no injected root service, no password in argv.
+            # Authenticate the installed system via GDM, then switch to the
+            # real TTY before launching applications. No GUI key queue.
             installed.capture("desktop-before-console")
+            installed.key("esc")
             installed.key("ctrl-alt-f3")
-            time.sleep(8)
+            time.sleep(20 if installed.accel == "kvm" else 45)
             installed.capture("tty-login")
             installed.text("localzet-test")
             installed.key("ret")
-            time.sleep(3)
+            time.sleep(8)
             installed.text(password)
             installed.key("ret")
-            time.sleep(5)
-            installed.capture("tty-authenticated")
+            time.sleep(12)
+            # Do not capture authentication screens: an unexpected prompt
+            # can echo the ephemeral password as a username.
             installed.text("sudo -k; sudo -v")
             installed.key("ret")
             time.sleep(3)
@@ -418,8 +452,10 @@ def main():
             time.sleep(3)
             installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
             installed.key("ret")
-            installed.wait(READY, 180)
+            installed.wait(READY, 300)
             installed.capture("desktop-verified")
+            if args.expect_containers:
+                installed.capture("containers-installed")
             installed.wait(WINE_READY, 360)
         finally:
             installed.close()
