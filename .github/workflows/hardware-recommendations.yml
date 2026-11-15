@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'src/localzet/hardware.py'
-      - 'tests/test_hardware.py'
+      - 'src/localzet/hardware*.py'
+      - 'tests/test_hardware*.py'
       - 'src/localzet/hardware_install.py'
       - 'tests/test_hardware_install.py'
       - 'apps/localzet-hardware/**'
@@ -57,6 +57,19 @@ jobs:
           assert result["targets"] == ["mesa-utils"]
           Path("out/hardware/apt-simulation.json").write_text(json.dumps(result, indent=2))
           print("PASS: actual APT dependency simulation, no commit")
+          PY
+          PYTHONPATH=src /usr/bin/python3 -m localzet.hardware --cuda > out/hardware/cuda-plan.json
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import json, apt
+          from pathlib import Path
+          from localzet.hardware_cuda import GPU, select_toolkit
+          report = json.loads(Path("out/hardware/cuda-plan.json").read_text())
+          assert not report["cuda"]["install_ready"]
+          # Synthetic capability + actual signed archive metadata, no GPU claim.
+          cache = apt.Cache()
+          for capability, expected in (("12.0", "cuda-toolkit-13-1"), ("6.1", "nvidia-cuda-toolkit")):
+              assert select_toolkit((GPU("0000:01:00.0", capability, "590.44.01"),), cache) == expected
+          print("PASS: CUDA selector against real Ubuntu archive versions; no GPU execution")
           PY
           sha256sum -c out/hardware/dpkg-before.sha256
       - name: Exercise actual commit and system lock on disposable runner fixture
