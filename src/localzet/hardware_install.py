@@ -113,6 +113,24 @@ def apply_reviewed(cache, approved, *, review_fn=review, receipt_fn=None):
     return record["state"]
 
 
+def check_previous_receipt(directory):
+    path = directory / "last-driver-transaction.json"
+    if not path.exists():
+        return
+    # Only root-owned, private receipt files are accepted.
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, "rb") as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077:
+            raise ValueError("Unsafe previous transaction receipt")
+        data = stream.read(1024 * 1024 + 1)
+    if len(data) > 1024 * 1024:
+        raise ValueError("Previous transaction receipt is too large")
+    record = json.loads(data)
+    if record.get("state") != "installed-reboot-verification-required":
+        raise ValueError("Previous transaction needs administrator recovery review")
+
+
 def main():
     if len(sys.argv) != 1 or not sys.stdin.isatty() or not sys.stdout.isatty():
         print("Interactive use only; no arguments accepted", file=sys.stderr)
@@ -130,6 +148,7 @@ def main():
         apt_pkg.config.set("Acquire::AllowInsecureRepositories", "false")
         apt_pkg.config.set("Acquire::AllowDowngradeToInsecureRepositories", "false")
         with apt_pkg.SystemLock():
+            check_previous_receipt(JOURNAL)
             cache = apt.Cache()
             approved = review(cache)
             cache.clear()
@@ -143,6 +162,7 @@ def main():
             print("Cancelled; no packages changed")
             return 1
         with apt_pkg.SystemLock():
+            check_previous_receipt(JOURNAL)
             state = apply_reviewed(apt.Cache(), approved,
                 receipt_fn=lambda record: write_receipt(JOURNAL, record))
         print(state)
