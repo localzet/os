@@ -90,9 +90,9 @@ def create_application():
                 account.add(row)
             page.append(account)
 
-            self.automatic_hardware = Gtk.CheckButton(label="Автоматически настроить NVIDIA и CUDA после установки (экспериментально)")
+            self.automatic_hardware = Gtk.CheckButton(label="Автоматически настроить оборудование, драйверы и CUDA (экспериментально)")
             self.automatic_hardware.set_visible(Path("/usr/lib/localzet/hardware-auto-enabled").is_file())
-            self.automatic_hardware.set_tooltip_text("Загружает подписанные пакеты после первого запуска. Может потребоваться перезагрузка; при ошибке настройка останавливается.")
+            self.automatic_hardware.set_tooltip_text("Загружает firmware, микрокод, графические драйверы и CUDA из подписанных репозиториев после первого запуска. Может потребоваться перезагрузка; при ошибке настройка останавливается.")
             page.append(self.automatic_hardware)
             confirmation = Adw.PreferencesGroup(title="3. Подтверждение установки",
                                                 description="На выбранном SSD будет создана новая таблица разделов.")
