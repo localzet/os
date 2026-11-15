@@ -119,3 +119,23 @@ enablement yet. Existing system APT configuration is trusted; candidate origin
 screening is not independent key pinning. CI exercises real commit with a
 small signed hello package on a disposable runner, not a GPU installation.
 Physical NVIDIA, Secure Boot signing and kernel recovery acceptance remain open.
+
+H3.1: localzet-hardware --cuda queries actual nvidia-smi PCI bus IDs,
+compute capabilities and running driver version. Every detected NVIDIA GPU
+must be bound to nvidia and match runtime inventory. The resolver selects
+reviewed Ubuntu cuda-toolkit-13-1 (13.1) or nvidia-cuda-toolkit (12.4) using
+explicit compiler target sets and conservative full toolkit driver minima
+590.44.01 and 550.54.15 respectively, not minor compatibility mode. Unknown
+architectures or mixed GPUs with no common toolkit block installation.
+The interactive administrator CLI accepts the fixed --cuda phase and uses
+the same locked, fingerprint-confirmed APT transaction, with runtime identity
+and a separate CUDA receipt. Driver/kernel changes are blocked; an incomplete
+prior transaction blocks retry. No automatic reboot or unattended install.
+Candidate selection is not an actual compute test. CI compares synthetic
+architectures with real archive metadata; physical GPU, dependency acceptance,
+compiler and CUDA kernel execution remain unverified.
+References:
+- https://docs.nvidia.com/cuda/archive/13.1.0/cuda-toolkit-release-notes/index.html
+- https://docs.nvidia.com/cuda/archive/13.1.1/cuda-compiler-driver-nvcc/index.html
+- https://docs.nvidia.com/cuda/archive/12.4.1/cuda-compiler-driver-nvcc/index.html
+- https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
