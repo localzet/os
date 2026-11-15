@@ -206,7 +206,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None):
+def installed_script(archive_profile=None, containers=False):
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -333,6 +333,24 @@ pgrep -u localzet-test -x qbittorrent >/dev/null
         check = check.replace("ARCHIVE_PROFILE", repr(archive_profile))
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed archive profile package inventory" in script
+    if containers:
+        check = r"""
+test -x /usr/bin/localzet-containers
+pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
+dpkg-query -W docker.io docker-compose-v2 gir1.2-vte-3.91
+/usr/bin/docker compose version
+for unit in docker.service docker.socket containerd.service; do
+    if systemctl is-enabled --quiet "$unit" || systemctl is-active --quiet "$unit"; then
+        echo "Unexpected enabled or active Docker unit: $unit"; exit 2
+    fi
+done
+if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
+    echo "Unexpected docker group access"; exit 2
+fi
+printf 'PASS: installed Containers launched unprivileged; system daemon disabled\n'
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+        assert "installed Containers launched" in script
     return script
 
 
@@ -345,7 +363,10 @@ def main():
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
+    parser.add_argument("--expect-containers", action="store_true")
     args = parser.parse_args()
+    if args.expect_containers and args.expect_archive_profile != "complete":
+        parser.error("Containers candidate requires complete archive profile")
     for name in ("iso", "ovmf_code", "ovmf_vars"):
         path = getattr(args, name).resolve(strict=True)
         if not path.is_file():
@@ -379,7 +400,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -397,6 +418,9 @@ def main():
             if args.expect_archive_profile:
                 installed.launch("vlc")
                 installed.launch("qbittorrent")
+            if args.expect_containers:
+                installed.launch("localzet-containers")
+                installed.capture("containers-installed")
             # Use a real text login instead of typing commands into the GNOME
             # overview. No autologin, no injected root service, no password in argv.
             installed.capture("desktop-before-console")
