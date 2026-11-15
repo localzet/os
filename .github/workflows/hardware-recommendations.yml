@@ -59,6 +59,37 @@ jobs:
           print("PASS: actual APT dependency simulation, no commit")
           PY
           sha256sum -c out/hardware/dpkg-before.sha256
+      - name: Exercise actual commit and system lock on disposable runner fixture
+        run: |
+          sudo env PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import apt, apt_pkg, copy, json
+          from localzet.hardware import simulate_packages
+          from localzet.hardware_install import apply_reviewed
+          # This is intentionally NOT a GPU transaction. Use a tiny signed
+          # package on the disposable GitHub runner to verify the real API.
+          def fixture_review(cache):
+              transaction = simulate_packages(cache, ("hello",), retain_marks=True)
+              assert transaction["status"] == "simulated", transaction
+              assert all(row["name"] == "hello" for row in transaction["changes"]), transaction
+              return {"kernel": "fixture", "secure_boot": "fixture", "graphics": [],
+                      "targets": ["hello"], "target_versions": {"hello": cache["hello"].candidate.version},
+                      "changes": transaction["changes"], "download_bytes": transaction["download_bytes"],
+                      "additional_installed_bytes": transaction["additional_installed_bytes"]}
+          with apt_pkg.SystemLock():
+              cache = apt.Cache()
+              assert not cache["hello"].is_installed, "Expected a fresh disposable runner"
+              approved = fixture_review(cache)
+              cache.clear()
+          records = []
+          with apt_pkg.SystemLock():
+              state = apply_reviewed(apt.Cache(), approved, review_fn=fixture_review,
+                                     receipt_fn=lambda record: records.append(copy.deepcopy(record)))
+          assert state == "installed-reboot-verification-required"
+          assert apt.Cache()["hello"].is_installed
+          assert [record["state"] for record in records] == ["installing", state]
+          print("PASS: real APT locked commit and receipt on disposable runner fixture")
+          PY
+          /usr/bin/hello
       - uses: actions/upload-artifact@v4
         if: always()
         with:
