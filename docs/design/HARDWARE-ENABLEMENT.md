@@ -92,3 +92,15 @@ installation is enabled yet.
 
 Reference: https://ubuntu.com/desktop/docs/en/latest/how-to/graphics/install-nvidia-drivers/
 
+
+H2.1: localzet-hardware --simulate resolves one actual desktop NVIDIA
+recommendation to the generic kernel flavour metapackage, exact running ABI
+prebuilt module package and driver metapackage. It blocks unknown Secure Boot,
+ambiguous recommendations, unsupported kernel flavours, missing candidates,
+APT recovery requirements, removals, downgrades, DKMS and unreviewed origins.
+python3-apt marks dependencies in memory, reports versions and aggregate sizes,
+checks conservative free-space headroom, and clears marks. No update, commit,
+module loading or reboot. The simulation does not prove a signature will load,
+reserve disk space, lock package state, validate CUDA, or authorize installation.
+CI exercises real archive resolution for mesa-utils and unchanged dpkg status;
+actual NVIDIA transaction and physical acceptance remain open.
