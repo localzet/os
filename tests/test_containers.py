@@ -536,3 +536,53 @@ class ContainersTests(unittest.TestCase):
             run.assert_not_called()
             remote.action("stop", CID)
             run.assert_called_once_with("container stop " + CID)
+
+    def test_saved_remote_endpoints_roundtrip(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from localzet.containers import RemoteEngine, RemoteStore, TLSEngine
+        with TemporaryDirectory() as directory:
+            store = RemoteStore(Path(directory) / "connections")
+            ssh = RemoteEngine("server.example.org", "dev", 2222)
+            tls = TLSEngine("server.example.org", 2376, "/home/dev/certs")
+            store.save("dev", ssh)
+            store.save("production", tls)
+            self.assertEqual(store.names(), ("dev", "production"))
+            self.assertEqual(store.load("dev"), ssh)
+            self.assertEqual(store.load("production"), tls)
+            self.assertEqual((store.root / "dev.json").stat().st_mode & 0o777, 0o600)
+            with self.assertRaises(EngineError):
+                store.save("dev", tls)
+            with self.assertRaises(EngineError):
+                store.save("../outside", ssh)
+            (store.root / "dev.json").unlink()
+            (store.root / "dev.json").symlink_to("/etc/passwd")
+            with self.assertRaises(OSError):
+                store.load("dev")
+
+    def test_tls_requires_verified_certificates_and_private_key(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from subprocess import CompletedProcess
+        from localzet.containers import TLSEngine
+        with TemporaryDirectory() as directory:
+            path = Path(directory)
+            endpoint = TLSEngine("server.example.org", 2376, str(path))
+            with patch("localzet.containers.subprocess.run", return_value=CompletedProcess([], 0, stdout=json.dumps(ROW), stderr="")) as run:
+                with self.assertRaises(EngineError):
+                    endpoint.inventory()
+                for name in ("ca.pem", "cert.pem", "key.pem"):
+                    (path / name).write_text("test fixture")
+                (path / "key.pem").chmod(0o644)
+                with self.assertRaises(EngineError):
+                    endpoint.inventory()
+                run.assert_not_called()
+                (path / "key.pem").chmod(0o600)
+                self.assertEqual(endpoint.inventory(), parse_inventory(json.dumps(ROW)))
+                args = run.call_args.args[0]
+                self.assertEqual(args[:4], ["/usr/bin/docker", "--host", "tcp://server.example.org:2376", "--tlsverify"])
+                self.assertIn(str(path / "ca.pem"), args)
+                self.assertIn(str(path / "cert.pem"), args)
+                self.assertIn(str(path / "key.pem"), args)
+                self.assertNotIn("DOCKER_HOST", run.call_args.kwargs["env"])
+                self.assertEqual(args[-6:], ["container", "ls", "--all", "--no-trunc", "--format", "{{json .}}"])

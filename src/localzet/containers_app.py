@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
-from localzet.containers import Deployment, Engine, EngineError, RemoteEngine, StudioStore, deployment_args, metric_sample, build_argument_flags
+from localzet.containers import Deployment, Engine, EngineError, RemoteEngine, RemoteStore, TLSEngine, StudioStore, deployment_args, metric_sample, build_argument_flags
 
 
 def spawn_terminal(terminal, argv, cancellable, callback):
@@ -869,7 +869,7 @@ def main() -> int:
             dialog.add_response("cancel", "Отмена")
             dialog.add_response("rootless", "Rootless")
             dialog.add_response("rootful", "Системный Docker")
-            dialog.add_response("remote", "Удалённый SSH")
+            dialog.add_response("remote", "Удалённый SSH / TLS")
             dialog.set_response_appearance("rootful", Adw.ResponseAppearance.DESTRUCTIVE)
             dialog.set_close_response("cancel")
             dialog.connect("response", self.engine_chosen)
@@ -893,14 +893,50 @@ def main() -> int:
         def open_remote(self):
             if self.busy:
                 return
-            prompt = Adw.AlertDialog(heading="Удалённый Docker · SSH",
+            prompt = Adw.AlertDialog(heading="Удалённый Docker · SSH / TLS",
                 body="Управление удалёнными контейнерами. Заранее настройте ключи и проверьте ключ сервера в known_hosts. Никаких паролей, автоматического принятия ключей или повышения привилегий.")
             form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
             host = Gtk.Entry(placeholder_text="server.example.org")
             user = Gtk.Entry(placeholder_text="SSH user")
             port = Gtk.SpinButton.new_with_range(1, 65535, 1)
             port.set_value(22)
-            for label, widget in (("Хост", host), ("Пользователь", user), ("Порт", port)):
+            protocol = Gtk.DropDown.new_from_strings(["SSH", "TLS · только просмотр"])
+            certificate = Gtk.Entry(placeholder_text="/path/to/certificates")
+            connection_name = Gtk.Entry(placeholder_text="Имя для сохранения (необязательно)")
+            store = RemoteStore()
+            saved = Gtk.DropDown.new_from_strings([])
+            load = Gtk.Button(label="Открыть сохранённое подключение")
+            try:
+                saved.set_model(Gtk.StringList.new(list(store.names())))
+            except (EngineError, OSError):
+                load.set_sensitive(False)
+            def protocol_changed(*_):
+                tls = protocol.get_selected() == 1
+                user.set_sensitive(not tls)
+                certificate.set_sensitive(tls)
+                port.set_value(2376 if tls else 22)
+            protocol.connect("notify::selected", protocol_changed)
+            protocol_changed()
+            def load_endpoint(*_):
+                item = saved.get_selected_item()
+                if item is None:
+                    return
+                try:
+                    endpoint = store.load(item.get_string())
+                    tls = isinstance(endpoint, TLSEngine)
+                    protocol.set_selected(1 if tls else 0)
+                    host.set_text(endpoint.host)
+                    port.set_value(endpoint.port)
+                    user.set_text("" if tls else endpoint.user)
+                    certificate.set_text(endpoint.certificate_dir if tls else "")
+                    connection_name.set_text("")
+                except (EngineError, OSError, ValueError) as error:
+                    self.status.set_label(str(error))
+            load.connect("clicked", load_endpoint)
+            for label, widget in (("Сохранённые подключения", saved), ("", load),
+                                  ("Протокол", protocol), ("Хост", host), ("Пользователь SSH", user),
+                                  ("Порт", port), ("TLS: ca.pem, cert.pem, key.pem", certificate),
+                                  ("Сохранить как", connection_name)):
                 form.append(Gtk.Label(label=label, xalign=0))
                 form.append(widget)
             prompt.set_extra_child(form)
@@ -911,19 +947,28 @@ def main() -> int:
             def connect(_, choice):
                 if choice != "connect" or self.busy:
                     return
-                remote = RemoteEngine(host.get_text(), user.get_text(), port.get_value_as_int())
+                remote = (TLSEngine(host.get_text(), port.get_value_as_int(), certificate.get_text())
+                          if protocol.get_selected() == 1 else RemoteEngine(host.get_text(), user.get_text(), port.get_value_as_int()))
+                name = connection_name.get_text()
+                endpoint_label = (f"TLS · {remote.host}:{remote.port}" if isinstance(remote, TLSEngine)
+                                  else f"SSH · {remote.user}@{remote.host}:{remote.port}")
+                def connect_worker():
+                    rows = remote.inventory()
+                    if name:
+                        store.save(name, remote)
+                    return rows
                 self.busy = True
                 self.generation += 1
                 generation = self.generation
                 self.update_actions()
                 self.status.set_label("Получение удалённого списка…")
-                future = self.pool.submit(remote.inventory)
+                future = self.pool.submit(connect_worker)
                 def complete():
                     if generation != self.generation or not self.window:
                         return GLib.SOURCE_REMOVE
                     self.busy = False
                     self.update_actions()
-                    dialog = Adw.Dialog(title=f"SSH · {remote.user}@{remote.host}:{remote.port}",
+                    dialog = Adw.Dialog(title=endpoint_label,
                                         content_width=920, content_height=540)
                     layout = Adw.ToolbarView()
                     layout.add_top_bar(Adw.HeaderBar())
@@ -987,14 +1032,15 @@ def main() -> int:
                             execute()
                             return
                         confirm = Adw.AlertDialog(heading="Удалённая операция: " + action,
-                            body=f"{remote.user}@{remote.host}:{remote.port}\n{row.name}\n{row.id}")
+                            body=f"{endpoint_label}\n{row.name}\n{row.id}")
                         confirm.add_response("cancel", "Отмена")
                         confirm.add_response("yes", "Выполнить")
                         confirm.set_default_response("cancel")
                         confirm.set_close_response("cancel")
                         confirm.connect("response", lambda _, choice: execute() if choice == "yes" else None)
                         confirm.present(dialog)
-                    for action, label in (("refresh", "Обновить"), ("start", "Старт"), ("stop", "Стоп"), ("restart", "Рестарт")):
+                    choices = (("refresh", "Обновить"),) if isinstance(remote, TLSEngine) else (("refresh", "Обновить"), ("start", "Старт"), ("stop", "Стоп"), ("restart", "Рестарт"))
+                    for action, label in choices:
                         button = Gtk.Button(label=label)
                         button.connect("clicked", lambda _, action=action: perform(action))
                         controls.append(button)

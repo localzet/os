@@ -181,3 +181,14 @@ The local engine remains selected throughout. Saved connections, TLS, remote
 rootless, live non-loopback deployment and interactive QA are still pending.
 The VTE spawn adapter also supplies the GI child-setup data argument required
 by the Ubuntu runner binding, correcting the previous real-engine failure.
+
+Stage 18 context follow-up adds private named SSH/TLS endpoint metadata under
+~/.local/share/localzet/remote-engines (0600 files, no overwrite, bounded reads,
+no symlink reads). Saved profiles are reopened explicitly; a successful
+inventory precedes saving. No private key or password contents are stored.
+TLS inventory uses the fixed Docker CLI with --tlsverify and explicit
+ca.pem, cert.pem and key.pem; the key must be private and user-owned. No
+insecure fallback or TLS mutation. Unit tests cover transport configuration
+and persistence; real TLS server/certificate acceptance and GUI validation
+remain pending. Saved endpoint editing/removal, remote rootless and streaming
+bounds remain open.
