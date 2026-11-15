@@ -186,6 +186,79 @@ with patch("localzet.containers.Path.home", return_value=Path(home)):
 print("PASS: actual SSH remote lifecycle and unknown host rejection")
 PY
 )
+# Real mutually authenticated TLS against a loopback-only relay to the actual
+# disposable Docker daemon. No daemon configuration or external port changes.
+(
+    umask 077
+    tlsdir="$work/tls"
+    mkdir "$tlsdir" "$tlsdir/client"
+    cd "$tlsdir"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=Localzet-CI-CA -keyout ca.key -out ca.pem 2>/dev/null
+    openssl req -newkey rsa:2048 -nodes -subj /CN=localhost -keyout server.key -out server.csr 2>/dev/null
+    printf 'subjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\n' > server.ext
+    openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -extfile server.ext -out server.pem 2>/dev/null
+    openssl req -newkey rsa:2048 -nodes -subj /CN=Localzet-CI-client -keyout client/key.pem -out client.csr 2>/dev/null
+    printf 'extendedKeyUsage=clientAuth\n' > client.ext
+    openssl x509 -req -in client.csr -CA ca.pem -CAkey ca.key -CAserial ca.srl -days 1 -extfile client.ext -out client/cert.pem 2>/dev/null
+    cp ca.pem client/ca.pem
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=Untrusted-CI-CA -keyout wrong.key -out wrong.pem 2>/dev/null
+    python3 - "$cid" "$tlsdir" <<'PY'
+import socket, ssl, sys, threading
+from pathlib import Path
+from localzet.containers import TLSEngine, EngineError
+cid, directory = sys.argv[1], Path(sys.argv[2])
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(directory / "server.pem", directory / "server.key")
+context.load_verify_locations(directory / "ca.pem")
+context.verify_mode = ssl.CERT_REQUIRED
+
+def relay(client):
+    try:
+        with context.wrap_socket(client, server_side=True) as secure, socket.socket(socket.AF_UNIX) as upstream:
+            upstream.connect("/var/run/docker.sock")
+            def pump(source, target):
+                try:
+                    while data := source.recv(65536):
+                        target.sendall(data)
+                except OSError:
+                    pass
+                finally:
+                    try:
+                        target.shutdown(socket.SHUT_WR)
+                    except OSError:
+                        pass
+            writer = threading.Thread(target=pump, args=(secure, upstream), daemon=True)
+            writer.start()
+            pump(upstream, secure)
+    except OSError:
+        client.close()
+
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    def serve():
+        while True:
+            try:
+                client, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=relay, args=(client,), daemon=True).start()
+    threading.Thread(target=serve, daemon=True).start()
+    endpoint = TLSEngine("127.0.0.1", listener.getsockname()[1], str(directory / "client"))
+    assert any(row.id == cid and row.state == "running" for row in endpoint.inventory())
+    ca = directory / "client/ca.pem"
+    ca.write_bytes((directory / "wrong.pem").read_bytes())
+    try:
+        endpoint.inventory()
+    except EngineError:
+        pass
+    else:
+        raise AssertionError("Untrusted TLS server accepted")
+    ca.write_bytes((directory / "ca.pem").read_bytes())
+    assert any(row.id == cid for row in endpoint.inventory())
+print("PASS: real mutual TLS Docker inventory and untrusted CA rejection")
+PY
+)
 # Exercise the exact VTE spawn helper on an actual interactive Docker PTY.
 xvfb-run -a /usr/bin/python3 - "$cid" <<'PY'
 import os, sys
