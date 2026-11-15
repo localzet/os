@@ -76,9 +76,10 @@ def validate_account(username: str, password: str) -> None:
 
 
 def validate_request(request: dict) -> None:
-    if not isinstance(request, dict) or set(request) != {
-        "plan", "confirmation", "backup_acknowledged", "username", "password"
-    }:
+    required = {"plan", "confirmation", "backup_acknowledged", "username", "password"}
+    if (not isinstance(request, dict) or not required <= set(request)
+            or set(request) - required - {"automatic_hardware"}
+            or type(request.get("automatic_hardware", False)) is not bool):
         raise ValueError("Неверный запрос установки.")
     plan = request["plan"]
     if not isinstance(plan, dict) or plan.get("operation") != "read_only_target_plan":
@@ -182,11 +183,14 @@ def backend() -> int:
         if device.resolve(strict=True) != target or target.stat().st_rdev != info.st_rdev:
             raise ValueError("Накопитель изменился после подтверждения.")
         devno = f"{os.major(info.st_rdev):x}:{os.minor(info.st_rdev):x}"
+        automatic = request.get("automatic_hardware", False)
+        if automatic and not Path("/usr/lib/localzet/hardware-auto-enabled").is_file():
+            raise ValueError("Автоматическая настройка оборудования недоступна в этом образе.")
         password = request.pop("password")
         proc = subprocess.run(
             ["/usr/bin/unshare", "--mount", "--propagation", "private",
              "/bin/bash", str(ENGINE), "interactive", str(device),
-             request["username"], str(target), devno],
+             request["username"], str(target), devno, "1" if automatic else "0"],
             input=password + "\n", text=True,
             env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C.UTF-8"},
         )
