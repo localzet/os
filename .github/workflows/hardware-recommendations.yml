@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/localzet/hardware.py'
       - 'tests/test_hardware.py'
+      - 'src/localzet/hardware_install.py'
+      - 'tests/test_hardware_install.py'
+      - 'apps/localzet-hardware/**'
       - '.github/workflows/hardware-recommendations.yml'
 permissions:
   contents: read
@@ -18,6 +21,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ubuntu-drivers-common python3-apt mokutil
+      - name: Verify administrator transaction guards
+        run: PYTHONPATH=src /usr/bin/python3 -m unittest discover -s tests -p 'test_hardware*.py' -v
       - name: Observe actual runner hardware and archive
         run: |
           mkdir -p out/hardware
