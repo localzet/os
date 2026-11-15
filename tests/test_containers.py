@@ -492,3 +492,35 @@ class ContainersTests(unittest.TestCase):
             with self.assertRaises(EngineError):
                 engine.terminal_argv(CID)
             check.assert_not_called()
+
+    def test_remote_ssh_rejects_untrusted_destination_syntax(self):
+        from localzet.containers import RemoteEngine
+        with patch("localzet.containers.subprocess.run") as run:
+            for host, user, port in (("--help", "dev", 22), ("a;id", "dev", 22),
+                ("ssh://server", "dev", 22), ("server", "dev@other", 22),
+                ("server", "dev", 0), ("server", "dev", 65536)):
+                with self.assertRaises(EngineError):
+                    RemoteEngine(host, user, port).inventory()
+            run.assert_not_called()
+
+    def test_remote_ssh_uses_fixed_read_only_command(self):
+        from localzet.containers import RemoteEngine
+        from subprocess import CompletedProcess
+        with patch("localzet.containers.subprocess.run", return_value=CompletedProcess([], 0, stdout=json.dumps(ROW), stderr="")) as run:
+            rows = RemoteEngine("server.example.org", "dev", 2222).inventory()
+            self.assertEqual(rows, parse_inventory(json.dumps(ROW)))
+            args = run.call_args.args[0]
+            self.assertEqual(args[:4], ["/usr/bin/ssh", "-F", "/dev/null", "-T"])
+            self.assertIn("StrictHostKeyChecking=yes", args)
+            self.assertIn("BatchMode=yes", args)
+            self.assertIn("ForwardAgent=no", args)
+            self.assertEqual(args[-6:-1], ["2222", "-l", "dev", "--", "server.example.org"])
+            self.assertIn("container ls --all --no-trunc", args[-1])
+            self.assertNotIn("DOCKER_HOST", run.call_args.kwargs["env"])
+
+    def test_remote_ssh_failure_does_not_expose_diagnostics(self):
+        from localzet.containers import RemoteEngine
+        from subprocess import CompletedProcess
+        with patch("localzet.containers.subprocess.run", return_value=CompletedProcess([], 1, stdout="", stderr="private diagnostic")):
+            with self.assertRaisesRegex(EngineError, "SSH inventory failed"):
+                RemoteEngine("server", "dev").inventory()
