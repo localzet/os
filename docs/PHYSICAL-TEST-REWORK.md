@@ -26,6 +26,12 @@ should be made until the following gates are satisfied.
   interruption, insufficient space, encryption and unsupported RAID.
   Until these pass, the original blank-disk restrictions remain.
 
+## Hardware enablement
+
+- Apply [automatic drivers and conditional CUDA acceptance](design/HARDWARE-ENABLEMENT.md).
+- Validate actual NVIDIA, AMD, Intel and hybrid hardware, Secure Boot and recovery.
+- No stable release based on a GPU vendor ID or QEMU-only driver tests.
+
 ## Desktop
 
 - Replace the duplicated top-panel launcher with one coherent navigation
