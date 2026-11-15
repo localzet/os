@@ -34,6 +34,8 @@ install -m 0644 "$repo/config/profiles.json" "$pkg/opt/localzet-os/config/profil
 cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware" "$pkg/usr/bin/localzet-hardware"
+install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware-manager" "$pkg/usr/bin/localzet-hardware-manager"
+install -m 0644 "$repo/packaging/com.localzet.Hardware.desktop" "$pkg/usr/share/applications/"
 install -D -m 0755 "$repo/apps/localzet-hardware/localzet-install-drivers" "$pkg/usr/sbin/localzet-install-drivers"
 install -m 0755 "$repo/packaging/hardware/hardware-firstboot" "$pkg/usr/lib/localzet/hardware-firstboot"
 install -D -m 0644 "$repo/packaging/hardware/localzet-hardware-firstboot.service" "$pkg/usr/lib/systemd/system/localzet-hardware-firstboot.service"
