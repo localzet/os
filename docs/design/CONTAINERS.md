@@ -172,3 +172,12 @@ passwords or saved connections. Local engine selection remains unchanged.
 Unit tests verify command construction and rejection; actual remote SSH,
 TLS, remote rootless and interactive acceptance remain pending. Output length
 is checked after capture; streaming output bounds are future work.
+
+Stage 18 follow-up adds explicit remote start/stop/restart after fresh full-ID
+and state validation. Each operation confirms the remote host and container
+in the separate SSH dialog; errors require refresh. A disposable loopback
+OpenSSH fixture exercises real remote lifecycle and rejects unknown host keys.
+The local engine remains selected throughout. Saved connections, TLS, remote
+rootless, live non-loopback deployment and interactive QA are still pending.
+The VTE spawn adapter also supplies the GI child-setup data argument required
+by the Ubuntu runner binding, correcting the previous real-engine failure.
