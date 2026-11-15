@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet Hardware
+Name[ru]=Оборудование Localzet
+Comment=Hardware, drivers and CUDA diagnostics
+Comment[ru]=Оборудование, драйверы и CUDA
+Exec=localzet-hardware-manager
+Icon=computer-symbolic
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

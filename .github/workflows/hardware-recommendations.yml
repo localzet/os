@@ -1,0 +1,193 @@
+name: Hardware recommendations read-only
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/localzet/hardware*.py'
+      - 'tests/test_hardware*.py'
+      - 'src/localzet/hardware_install.py'
+      - 'tests/test_hardware_install.py'
+      - 'apps/localzet-hardware/**'
+      - 'packaging/hardware/**'
+      - 'packaging/installer/install-engine.sh'
+      - 'scripts/build-desktop-deb.sh'
+      - '.github/workflows/hardware-recommendations.yml'
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reclaim disposable runner space for firmware dependency simulation
+        run: |
+          df -h / /boot /var/cache/apt/archives
+          # These preinstalled SDKs are not used by this job. Do not remove
+          # packages, kernels, boot files or change the transaction space guard.
+          sudo rm -rf -- /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h / /boot /var/cache/apt/archives
+      - name: Install Ubuntu diagnostic tools only
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ubuntu-drivers-common python3-apt mokutil
+      - name: Verify administrator transaction guards
+        run: PYTHONPATH=src /usr/bin/python3 -m unittest discover -s tests -p 'test_hardware*.py' -v
+      - name: Verify first-boot package and disabled-by-default timer
+        run: |
+          bash scripts/build-desktop-deb.sh out/hardware-package
+          root="$(mktemp -d)"
+          dpkg-deb -x out/hardware-package/localzet-desktop_0.1.0~dev1_all.deb "$root"
+          test -x "$root/usr/lib/localzet/hardware-firstboot"
+          test -f "$root/usr/lib/systemd/system/localzet-hardware-firstboot.service"
+          test -f "$root/usr/lib/systemd/system/localzet-hardware-firstboot.timer"
+          test ! -e "$root/etc/localzet/hardware-auto"
+          test ! -d "$root/etc/systemd/system/timers.target.wants"
+          systemd-analyze verify "$root/usr/lib/systemd/system/localzet-hardware-firstboot.timer" "$root/usr/lib/systemd/system/localzet-hardware-firstboot.service"
+          sudo systemctl --root="$root" enable localzet-hardware-firstboot.timer
+          test -L "$root/etc/systemd/system/timers.target.wants/localzet-hardware-firstboot.timer"
+          sudo rm -rf -- "$root"
+      - name: Observe actual runner hardware and archive
+        run: |
+          mkdir -p out/hardware
+          /usr/bin/ubuntu-drivers list --recommended > out/hardware/ubuntu-recommended.txt
+          PYTHONPATH=src /usr/bin/python3 -m localzet.hardware --resolve > out/hardware/plan.json
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import apt
+          from localzet.hardware import archive_candidate, parse_recommended
+          result = json.loads(Path("out/hardware/plan.json").read_text())
+          assert result["mode"] == "read-only" and not result["install_ready"]
+          assert result["recommendations"]["status"] == "observed", result
+          assert result["archive_status"] == "observed"
+          assert result["cuda_compatible"] is None
+          parse_recommended(Path("out/hardware/ubuntu-recommended.txt").read_text())
+          candidate = archive_candidate(apt.Cache(), "linux-firmware")
+          assert candidate["status"] == "ubuntu-candidate", candidate
+          print("PASS: actual Ubuntu driver recommendations and signed archive candidate")
+          PY
+      - name: Simulate real signed archive dependency transaction without installation
+        run: |
+          sha256sum /var/lib/dpkg/status > out/hardware/dpkg-before.sha256
+          PYTHONPATH=src /usr/bin/python3 -m localzet.hardware --simulate > out/hardware/driver-transaction.json
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import apt, json
+          from pathlib import Path
+          from localzet.hardware import simulate_packages
+          result = simulate_packages(apt.Cache(), ("mesa-utils",))
+          assert result["status"] == "simulated", result
+          assert not result["install_ready"]
+          assert result["targets"] == ["mesa-utils"]
+          Path("out/hardware/apt-simulation.json").write_text(json.dumps(result, indent=2))
+          print("PASS: actual APT dependency simulation, no commit")
+          PY
+          PYTHONPATH=src /usr/bin/python3 -m localzet.hardware --cuda > out/hardware/cuda-plan.json
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import json, apt
+          from pathlib import Path
+          from localzet.hardware_cuda import GPU, select_toolkit
+          report = json.loads(Path("out/hardware/cuda-plan.json").read_text())
+          assert not report["cuda"]["install_ready"]
+          # Synthetic capability + actual signed archive metadata, no GPU claim.
+          cache = apt.Cache()
+          for capability, expected in (("12.0", "cuda-toolkit-13-1"), ("6.1", "nvidia-cuda-toolkit")):
+              assert select_toolkit((GPU("0000:01:00.0", capability, "590.44.01"),), cache) == expected
+          print("PASS: CUDA selector against real Ubuntu archive versions; no GPU execution")
+          PY
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import apt, json
+          from pathlib import Path
+          from localzet.hardware import PCIDevice, archive_candidate
+          from localzet.hardware_common import common_targets, review_common
+          devices = (PCIDevice("0000:01:00.0", "1002", "1234", "030000", "amdgpu"),)
+          cache = apt.Cache()
+          for vendor in ("GenuineIntel", "AuthenticAMD"):
+              for name in common_targets(devices, vendor, True):
+                  assert archive_candidate(cache, name)["status"] == "ubuntu-candidate", name
+          from localzet.hardware import simulate_packages, inventory
+          from localzet.hardware_common import cpu_vendor, physical_cpu
+          preview = simulate_packages(cache, common_targets(inventory(), cpu_vendor(), physical_cpu()))
+          Path("out/hardware/common-space-preview.json").write_text(json.dumps(preview, indent=2))
+          # The hosted runner has a separate ~1 GiB /boot. A legitimate
+          # space refusal must remain a refusal, with no retained marks.
+          required = preview["download_bytes"] + preview["additional_installed_bytes"] + 512 * 1024 * 1024
+          assert not preview["install_ready"], preview
+          if preview["minimum_free_bytes"] < required:
+              assert preview["status"] == "insufficient-space", preview
+              assert not cache.get_changes(), "Blocked transaction retained APT marks"
+              try:
+                  review_common(cache)
+              except ValueError as error:
+                  assert "insufficient-space" in str(error), str(error)
+              else:
+                  raise AssertionError("Common review accepted insufficient space")
+              report = {"status": "blocked", "reason": "insufficient-space", "transaction": preview}
+          else:
+              assert preview["status"] == "simulated", preview
+              report = review_common(cache)
+          cache.clear()
+          Path("out/hardware/common-plan.json").write_text(json.dumps(report, indent=2))
+          print("PASS: actual archive general hardware dependency plan; no driver installation")
+          PY
+          sha256sum -c out/hardware/dpkg-before.sha256
+      - name: Verify successful firmware review with spacious isolated boot filesystem
+        run: |
+          # Only this mount namespace sees the fixture; no host boot files
+          # are modified and no firmware transaction is committed.
+          fixture="$(mktemp -d)"
+          trap 'rmdir "$fixture"' EXIT
+          sudo unshare --mount --propagation private /bin/bash -eu -c '
+            mount --bind "$1" /boot
+            df -h / /boot /var/cache/apt/archives
+            PYTHONPATH=src /usr/bin/python3 - <<'"'"'PY'"'"'
+          import apt, json
+          from pathlib import Path
+          from localzet.hardware_common import review_common
+          cache = apt.Cache()
+          report = review_common(cache)
+          assert report["phase"] == "base"
+          assert "linux-firmware" in report["targets"]
+          assert report["changes"], report
+          cache.clear()
+          Path("out/hardware/common-spacious-fixture.json").write_text(json.dumps(report, indent=2))
+          PY
+          ' bash "$fixture"
+          sha256sum -c out/hardware/dpkg-before.sha256
+      - name: Exercise actual commit and system lock on disposable runner fixture
+        run: |
+          sudo env PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import apt, apt_pkg, copy, json
+          from localzet.hardware import simulate_packages
+          from localzet.hardware_install import apply_reviewed
+          # This is intentionally NOT a GPU transaction. Use a tiny signed
+          # package on the disposable GitHub runner to verify the real API.
+          def fixture_review(cache):
+              transaction = simulate_packages(cache, ("hello",), retain_marks=True)
+              assert transaction["status"] == "simulated", transaction
+              assert all(row["name"] == "hello" for row in transaction["changes"]), transaction
+              return {"kernel": "fixture", "secure_boot": "fixture", "graphics": [],
+                      "targets": ["hello"], "target_versions": {"hello": cache["hello"].candidate.version},
+                      "changes": transaction["changes"], "download_bytes": transaction["download_bytes"],
+                      "additional_installed_bytes": transaction["additional_installed_bytes"]}
+          with apt_pkg.SystemLock():
+              cache = apt.Cache()
+              assert not cache["hello"].is_installed, "Expected a fresh disposable runner"
+              approved = fixture_review(cache)
+              cache.clear()
+          records = []
+          with apt_pkg.SystemLock():
+              state = apply_reviewed(apt.Cache(), approved, review_fn=fixture_review,
+                                     receipt_fn=lambda record: records.append(copy.deepcopy(record)))
+          assert state == "installed-reboot-verification-required"
+          assert apt.Cache()["hello"].is_installed
+          assert [record["state"] for record in records] == ["installing", state]
+          print("PASS: real APT locked commit and receipt on disposable runner fixture")
+          PY
+          /usr/bin/hello
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardware-recommendations
+          path: out/hardware/
+          retention-days: 7

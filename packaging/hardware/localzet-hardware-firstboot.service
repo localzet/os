@@ -1,0 +1,15 @@
+[Unit]
+Description=Localzet experimental automatic hardware, driver and CUDA setup
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/localzet/hardware-auto
+ConditionKernelCommandLine=!boot=casper
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -I /usr/lib/localzet/hardware-firstboot
+TimeoutStartSec=infinity
+# Do not kill dpkg just because a large installation takes time.
+TimeoutStopSec=infinity
+RemainAfterExit=yes
+

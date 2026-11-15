@@ -1,0 +1,42 @@
+name: Hardware Manager GTK smoke
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/hardware*.py'
+      - 'apps/localzet-hardware/**'
+      - 'packaging/com.localzet.Hardware.desktop'
+      - '.github/workflows/hardware-gtk.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gtk:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native GTK dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 python3-apt ubuntu-drivers-common xvfb xauth dbus-x11 xdotool imagemagick
+      - name: Verify actual application and sanitized status refresh
+        run: |
+          mkdir -p out
+          sudo env PYTHONPATH=src /usr/bin/python3 -c 'from localzet.hardware_status import publish; publish("awaiting-reboot")'
+          GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none PYTHONPATH=src xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash -euc '
+            /usr/bin/python3 -m localzet.hardware_app >out/hardware.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window=$(timeout 30 xdotool search --sync --onlyvisible --name "Localzet Hardware" | head -n 1)
+            sleep 12
+            kill -0 "$pid"
+            import -window "$window" out/hardware.png
+            ! grep -E "Traceback|CRITICAL|Error:" out/hardware.log
+          '
+          sudo rm -f /var/lib/localzet-hardware-status/status.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardware-gtk
+          path: out/
+          retention-days: 7

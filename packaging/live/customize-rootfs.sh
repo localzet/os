@@ -173,4 +173,7 @@ if [[ "${LOCALZET_INSTALLER:-0}" == 1 ]]; then
     install -D -m 0755 "$LOCALZET_REPO/packaging/installer/installer-backend" "$root/usr/lib/localzet/installer-backend"
     install -D -m 0644 "$LOCALZET_REPO/packaging/installer/com.localzet.Installer.desktop" "$root/usr/share/applications/com.localzet.Installer.desktop"
     touch "$root/usr/lib/localzet/installer-enabled"
+    if [[ "${LOCALZET_EXPERIMENTAL_HARDWARE_AUTO:-0}" == 1 ]]; then
+        touch "$root/usr/lib/localzet/hardware-auto-enabled"
+    fi
 fi
