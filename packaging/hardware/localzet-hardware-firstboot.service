@@ -1,5 +1,5 @@
 [Unit]
-Description=Localzet experimental automatic NVIDIA driver and CUDA setup
+Description=Localzet experimental automatic hardware, driver and CUDA setup
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/etc/localzet/hardware-auto
