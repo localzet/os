@@ -153,3 +153,13 @@ Docker clients. Push transfers image layers and may replace a remote tag.
 CI checks actual local tagging and mocked push command/guards; it never pushes
 to an external registry. Live registry authentication/publication, GUI credential
 management, tag removal, remote catalog and interactive/rootless QA remain open.
+
+Stage 17 introduces an explicit VTE GTK4 terminal for running local containers.
+The full container ID is revalidated; only /bin/sh or /bin/bash is selected.
+Docker exec uses a fixed local socket and clean environment, without privileged
+or user overrides. VTE supplies the interactive PTY and 2000-line scrollback;
+no terminal history is persisted. Close cancels spawn and signals the local CLI
+when possible, not the container; in-container processes can survive disconnect.
+The experimental desktop package depends on gir1.2-vte-3.91. CI exercises the
+shared VTE adapter with a real disposable Docker shell and verifies TTY and UID.
+Full interactive dialog, resize/disconnect and rootless acceptance remain open.
