@@ -173,6 +173,7 @@ def installation_script(password, boot_media):
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
 trap 'printf "\\nLOCALZET_CANDIDATE_FAILED\\n"' ERR
+printf '\\nLOCALZET_CANDIDATE_INSTALL_STARTED\\n'
 pgrep -u localzet -f /usr/bin/localzet-installer >/dev/null
 findmnt --mountpoint /sys/firmware/efi/efivars || true
 for flag in /sys/firmware/efi/efivars/SecureBoot-* /sys/firmware/efi/efivars/SetupMode-*; do
@@ -411,9 +412,12 @@ def main():
             live.connect()
             live.wait(LIVE, 480)
             live.launch("localzet-installer")
-            live.launch("ptyxis")
-            live.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
-            live.key("ret")
+            live.capture("installer-launched")
+            # Use GNOME's run dialog directly: opening a terminal and typing
+            # into it races focus and terminal startup on slower Live images.
+            # This command contains no credentials; the test payload is fw_cfg.
+            live.launch("sudo -n bash -c 'modprobe qemu_fw_cfg; cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; bash /run/localzet-test.sh'")
+            live.wait(b"LOCALZET_CANDIDATE_INSTALL_STARTED", 90)
             live.wait(INSTALL, 1200)
         finally:
             live.close()
