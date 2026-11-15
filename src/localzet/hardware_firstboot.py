@@ -62,7 +62,12 @@ def next_step(previous, devices, boot_id, runtime_ready):
             if previous["boot_id"] == boot_id:
                 return state
             return "cuda" if runtime_ready else "blocked"
-        if state != "offline":
+        if state == "offline":
+            if previous.get("phase") == "cuda":
+                return "cuda" if runtime_ready else "blocked"
+            if previous.get("phase") != "driver":
+                return "blocked"
+        else:
             return "blocked"
     if not hardware:
         return "not-applicable"
@@ -113,10 +118,12 @@ def run():
         runtime_ready = False
     phase = next_step(previous, devices, boot_id, runtime_ready)
 
-    def record(state, reason=None):
+    def record(state, reason=None, pending_phase=None):
         entry = {"schema": 1, "state": state, "boot_id": boot_id, "hardware": hardware}
         if reason:
             entry["reason"] = reason
+        if pending_phase:
+            entry["phase"] = pending_phase
         write_receipt(JOURNAL, entry, filename=STATE)
         print("Hardware setup: " + state, flush=True)
 
@@ -125,12 +132,16 @@ def run():
             record(phase)
         return
     # Check prior transaction receipts before even refreshing repositories.
-    check_previous_receipt(JOURNAL)
-    check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+    try:
+        check_previous_receipt(JOURNAL)
+        check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+    except (OSError, ValueError) as error:
+        record("recovery-required", str(error))
+        raise
     try:
         update_cache()
     except (OSError, subprocess.SubprocessError):
-        record("offline", "Archive refresh failed; retry on a later boot or explicit service restart")
+        record("offline", "Archive refresh failed; retry on a later boot or explicit service restart", phase)
         return
     record(phase + "-installing")
     try:
