@@ -214,3 +214,13 @@ Concurrent clients can race name checks; do not use during concurrent volume
 management. Not database-consistent backup, no encryption, no large volumes.
 CI exercises actual file roundtrip and overwrite refusal; clone, browsing,
 full-fidelity backup and interactive/rootless acceptance remain pending.
+
+Stage 20 replaces transient inventory dialogs with a persistent Aurora workspace:
+compact sidebar, five navigable sections, filtered column tables, selection
+inspectors, real container counters, shared status bar and engine selector.
+Operations retain explicit review dialogs and existing backend guards. Palette
+uses muted graphite/purple, modest corners, no glow; light/high-contrast modes
+retain native system colors. Ctrl+1–5 selects sections. GTK CI captures dark/light
+and navigates all five sections without fake inventory. Compose editor, terminal,
+monitoring and operation forms remain dialogs. Full populated/rootless, responsive
+and visual acceptance still required; this is not a final Aurora design sign-off.
