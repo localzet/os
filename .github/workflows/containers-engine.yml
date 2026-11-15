@@ -3,9 +3,12 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'src/localzet/containers.py'
+      - 'src/localzet/containers*.py'
+      - 'scripts/ci/containers-populated-gtk.py'
       - 'tests/test_containers.py'
       - 'scripts/ci/containers-engine-smoke.sh'
+      - 'scripts/ci/containers-rootless-smoke.sh'
+      - 'scripts/ci/containers-rootless-gtk.py'
       - '.github/workflows/containers-engine.yml'
 permissions:
   contents: read
@@ -20,7 +23,7 @@ jobs:
       - name: Install static fixture binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y busybox-static
+          sudo apt-get install -y busybox-static python3-gi gir1.2-gtk-4.0 gir1.2-vte-3.91 xvfb xauth openssh-server gir1.2-adw-1 dbus-x11 xdotool imagemagick gsettings-desktop-schemas dconf-gsettings-backend
           test -x /usr/bin/docker
       - name: Test actual engine without remote downloads
         run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/containers-engine-smoke.sh
@@ -29,4 +32,37 @@ jobs:
         with:
           name: containers-engine-evidence
           path: out/containers-engine/
+          retention-days: 7
+
+  rootless:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare rootless dependencies
+        run: |
+          sudo apt-get update
+          # Use the signed Ubuntu archive, matching the target distribution.
+          sudo apt-get install -y uidmap slirp4netns fuse-overlayfs dbus-user-session busybox-static rootlesskit docker.io python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-vte-3.91 xvfb xauth dbus-x11 xdotool imagemagick gsettings-desktop-schemas dconf-gsettings-backend
+          if ! command -v dockerd-rootless.sh; then
+            script="$(dpkg-query -L docker.io | grep '/dockerd-rootless.sh$' | head -n 1)"
+            test -n "$script" && test -f "$script"
+            echo "$(dirname "$script")" >> "$GITHUB_PATH"
+          fi
+          dpkg-query -W docker.io rootlesskit uidmap
+          test -x /usr/bin/docker
+          sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
+      - name: Exercise actual rootless engine
+        run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/containers-rootless-smoke.sh
+      - name: Capture daemon diagnostics
+        if: always()
+        run: |
+          mkdir -p out/containers-rootless
+          journalctl --user -u 'localzet-rootless-ci-*' --no-pager > out/containers-rootless/daemon.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: containers-rootless-evidence
+          path: out/containers-rootless/
           retention-days: 7

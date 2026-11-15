@@ -14,7 +14,11 @@ cleanup() {
     if [[ -f "$work/compose.yaml" ]]; then
         docker_local compose -p "$name" -f "$work/compose.yaml" down >/dev/null 2>&1 || true
     fi
+    docker_local rm -f "$name-advanced" >/dev/null 2>&1 || true
     docker_local rm -f "$name" >/dev/null 2>&1 || true
+    docker_local volume rm "$name" "$name-restored" >/dev/null 2>&1 || true
+    docker_local network rm "$name" >/dev/null 2>&1 || true
+    docker_local image rm "ghcr.io/localzet-ci/$image" >/dev/null 2>&1 || true
     docker_local image rm "$image" >/dev/null 2>&1 || true
     rm -rf -- "$work"
 }
@@ -24,12 +28,80 @@ cp /usr/bin/busybox "$work/busybox"
 cat > "$work/Dockerfile" <<'EOF'
 FROM scratch
 COPY busybox /busybox
+COPY busybox /bin/sh
+COPY busybox /bin/busybox
 USER 65534:65534
 CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 600"]
 EOF
-docker_local build --network none -t "$image" "$work"
+python3 - "$image" "$work" <<'PY'
+import sys
+from pathlib import Path
+from localzet.containers import Engine
+tag, context = sys.argv[1], Path(sys.argv[2])
+engine = Engine(rootful=True)
+diagnostics = []
+source = (context / "Dockerfile").read_text() + '\nARG LOCALZET_FIXTURE\nLABEL com.localzet.fixture="$LOCALZET_FIXTURE"\n'
+rows = engine.build_image(tag, source, context, build_args=("LOCALZET_FIXTURE=stage15",), output=diagnostics.append)
+row = next(row for row in rows if row["Repository"] + ":" + row["Tag"] == tag)
+assert diagnostics and diagnostics[0]
+assert engine.image_history(row["ID"])
+assert engine._run("image", "inspect", "--format", '{{index .Config.Labels "com.localzet.fixture"}}', row["ID"]).strip() == "stage15"
+alias = "ghcr.io/localzet-ci/" + tag
+tagged = engine.tag_image(row["ID"], alias)
+assert any(item["ID"] == row["ID"] and item["Repository"] + ":" + item["Tag"] == alias for item in tagged)
+# Remove only the local alias; never contact GHCR or publish a CI fixture.
+engine._run("image", "rm", alias)
+print("PASS: real local registry tag without network publication")
+print("PASS: real Image Builder using local scratch fixture")
+PY
 docker_local compose version > "$out/compose-version.txt"
-cid="$(docker_local create --name "$name" --network none --read-only --cap-drop ALL --security-opt no-new-privileges "$image")"
+python3 - "$image" "$out" <<'PY'
+import json, sys
+from pathlib import Path
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == sys.argv[1])
+source = json.dumps({"services": {"app": {"image": image["ID"]}, "worker": {"image": image["ID"]}}})
+before = engine.inventory()
+document = engine.validate_compose(source)
+assert set(json.loads(document)["services"]) == {"app", "worker"}
+assert engine.inventory() == before
+(Path(sys.argv[2]) / "compose-studio.json").write_text(document)
+print("PASS: real Compose config validation without deployment")
+from localzet.containers import StudioStore
+import tempfile
+with tempfile.TemporaryDirectory() as directory:
+    store = StudioStore(Path(directory) / "studio")
+    identity = store.save(source)
+    source = StudioStore(store.root).load(identity)
+project = engine.managed_compose(source, "up")
+try:
+    assert any(row.name == project and "running" in row.status for row in engine.stacks())
+    assert len(engine.studio_status(source)) == 2
+    assert all(row.state == "running" for row in engine.studio_status(source))
+    assert engine.managed_compose(source, "stop") == project
+    assert all(row.state == "exited" for row in engine.studio_status(source))
+    assert engine.managed_compose(source, "start") == project
+    assert engine.managed_compose(source, "restart") == project
+finally:
+    engine.managed_compose(source, "down")
+assert engine.inventory() == before
+print("PASS: real managed Compose lifecycle")
+
+PY
+cid="$(python3 - "$name" "$image" <<'PY'
+import sys
+from localzet.containers import Engine
+name, reference = sys.argv[1:]
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == reference)
+row = next(row for row in engine.create_container(name, image["ID"]) if row.name == name)
+assert row.state == "created"
+print(row.id)
+PY
+)"
+# Check actual engine configuration, not just the CLI arguments.
+docker_local inspect "$cid" | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; h=c["HostConfig"]; assert c["Config"]["User"]=="65534:65534"; assert h["NetworkMode"]=="none" and h["ReadonlyRootfs"] and "ALL" in h["CapDrop"]; assert h["Memory"]==536870912 and h["PidsLimit"]==256; assert not h["Privileged"] and not h["PortBindings"]'
 python3 - "$cid" "$out" <<'PY'
 import json, sys
 from dataclasses import asdict
@@ -45,6 +117,9 @@ def verify(rows, expected, label):
 verify(engine.inventory(), "created", "inventory")
 verify(engine.action("start", cid), "running", "start")
 metrics = engine.metrics(cid)
+from localzet.containers import metric_sample
+sample = metric_sample(metrics)
+assert sample.cpu >= 0 and 0 <= sample.memory <= 100
 assert all(metrics[key] for key in ("CPUPerc", "MemUsage", "PIDs")), metrics
 (output / "metrics.json").write_text(json.dumps(metrics, indent=2))
 print("PASS: real container metrics")
@@ -55,6 +130,172 @@ print("PASS: original fixture log snapshot")
 verify(engine.action("restart", cid), "running", "restart")
 verify(engine.action("stop", cid), "exited", "stop")
 PY
+docker_local start "$cid" >/dev/null
+# Actual SSH transport on loopback only, with ephemeral keys and known_hosts.
+(
+    sshdir="$work/ssh"
+    mkdir -m 700 "$sshdir" "$sshdir/.ssh"
+    ssh-keygen -q -t ed25519 -N '' -f "$sshdir/host"
+    ssh-keygen -q -t ed25519 -N '' -f "$sshdir/client"
+    cp "$sshdir/client.pub" "$sshdir/authorized_keys"
+    chmod 600 "$sshdir/authorized_keys"
+    port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')"
+    printf '[127.0.0.1]:%s %s\n' "$port" "$(cat "$sshdir/host.pub")" > "$sshdir/.ssh/known_hosts"
+    cat > "$sshdir/sshd.conf" <<EOF
+Port $port
+ListenAddress 127.0.0.1
+HostKey $sshdir/host
+PidFile $sshdir/sshd.pid
+AuthorizedKeysFile $sshdir/authorized_keys
+StrictModes no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+PermitRootLogin no
+AllowUsers $(id -un)
+UsePAM yes
+DisableForwarding yes
+EOF
+    sudo mkdir -p /run/sshd
+    sudo /usr/sbin/sshd -f "$sshdir/sshd.conf" -E "$sshdir/sshd.log"
+    eval "$(ssh-agent -s)" >/dev/null
+    trap 'ssh-agent -k >/dev/null; sudo kill "$(cat "$sshdir/sshd.pid")" 2>/dev/null || true' EXIT
+    ssh-add "$sshdir/client" >/dev/null 2>&1
+    python3 - "$cid" "$sshdir" "$port" "$(id -un)" <<'PY'
+import sys
+from pathlib import Path
+from unittest.mock import patch
+from localzet.containers import RemoteEngine, EngineError
+cid, home, port, user = sys.argv[1:]
+with patch("localzet.containers.Path.home", return_value=Path(home)):
+    remote = RemoteEngine("127.0.0.1", user, int(port))
+    def state(rows):
+        return next(row.state for row in rows if row.id == cid)
+    assert state(remote.inventory()) == "running"
+    assert state(remote.action("stop", cid)) == "exited"
+    assert state(remote.action("start", cid)) == "running"
+    assert state(remote.action("restart", cid)) == "running"
+    known = Path(home) / ".ssh/known_hosts"
+    known.write_text("")
+    try:
+        remote.inventory()
+    except EngineError:
+        pass
+    else:
+        raise AssertionError("Untrusted SSH host accepted")
+print("PASS: actual SSH remote lifecycle and unknown host rejection")
+PY
+)
+# Real mutually authenticated TLS against a loopback-only relay to the actual
+# disposable Docker daemon. No daemon configuration or external port changes.
+(
+    umask 077
+    tlsdir="$work/tls"
+    mkdir "$tlsdir" "$tlsdir/client"
+    cd "$tlsdir"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=Localzet-CI-CA -keyout ca.key -out ca.pem 2>/dev/null
+    openssl req -newkey rsa:2048 -nodes -subj /CN=localhost -keyout server.key -out server.csr 2>/dev/null
+    printf 'subjectAltName=DNS:localhost,IP:127.0.0.1\nextendedKeyUsage=serverAuth\n' > server.ext
+    openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -extfile server.ext -out server.pem 2>/dev/null
+    openssl req -newkey rsa:2048 -nodes -subj /CN=Localzet-CI-client -keyout client/key.pem -out client.csr 2>/dev/null
+    printf 'extendedKeyUsage=clientAuth\n' > client.ext
+    openssl x509 -req -in client.csr -CA ca.pem -CAkey ca.key -CAserial ca.srl -days 1 -extfile client.ext -out client/cert.pem 2>/dev/null
+    cp ca.pem client/ca.pem
+    openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=Untrusted-CI-CA -keyout wrong.key -out wrong.pem 2>/dev/null
+    python3 - "$cid" "$tlsdir" <<'PY'
+import socket, ssl, sys, threading
+from pathlib import Path
+from localzet.containers import TLSEngine, EngineError
+cid, directory = sys.argv[1], Path(sys.argv[2])
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(directory / "server.pem", directory / "server.key")
+context.load_verify_locations(directory / "ca.pem")
+context.verify_mode = ssl.CERT_REQUIRED
+
+def relay(client):
+    try:
+        with context.wrap_socket(client, server_side=True) as secure, socket.socket(socket.AF_UNIX) as upstream:
+            upstream.connect("/var/run/docker.sock")
+            def pump(source, target):
+                try:
+                    while data := source.recv(65536):
+                        target.sendall(data)
+                except OSError:
+                    pass
+                finally:
+                    try:
+                        target.shutdown(socket.SHUT_WR)
+                    except OSError:
+                        pass
+            writer = threading.Thread(target=pump, args=(secure, upstream), daemon=True)
+            writer.start()
+            pump(upstream, secure)
+    except OSError:
+        client.close()
+
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    def serve():
+        while True:
+            try:
+                client, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=relay, args=(client,), daemon=True).start()
+    threading.Thread(target=serve, daemon=True).start()
+    endpoint = TLSEngine("127.0.0.1", listener.getsockname()[1], str(directory / "client"))
+    assert any(row.id == cid and row.state == "running" for row in endpoint.inventory())
+    ca = directory / "client/ca.pem"
+    ca.write_bytes((directory / "wrong.pem").read_bytes())
+    try:
+        endpoint.inventory()
+    except EngineError:
+        pass
+    else:
+        raise AssertionError("Untrusted TLS server accepted")
+    ca.write_bytes((directory / "ca.pem").read_bytes())
+    assert any(row.id == cid for row in endpoint.inventory())
+print("PASS: real mutual TLS Docker inventory and untrusted CA rejection")
+PY
+)
+# Exercise the exact VTE spawn helper on an actual interactive Docker PTY.
+xvfb-run -a /usr/bin/python3 - "$cid" <<'PY'
+import os, sys
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Vte", "3.91")
+from gi.repository import Gtk, GLib, Gio, Vte
+from localzet.containers import Engine
+from localzet.containers_app import spawn_terminal
+argv = Engine(rootful=True).terminal_argv(sys.argv[1])
+window = Gtk.Window()
+terminal = Vte.Terminal()
+window.set_child(terminal)
+window.present()
+loop = GLib.MainLoop()
+result = []
+def exited(_, code):
+    result.append(os.waitstatus_to_exitcode(code))
+    loop.quit()
+def spawned(_terminal, pid, error, *_):
+    if error is not None:
+        result.append(str(error))
+        loop.quit()
+        return
+    def send():
+        terminal.feed_child(b"test -t 0 && test -t 1 && test $(/busybox id -u) = 65534 && exit 23; exit 42\n")
+        return GLib.SOURCE_REMOVE
+    GLib.timeout_add(500, send)
+terminal.connect("child-exited", exited)
+spawn_terminal(terminal, argv, Gio.Cancellable(), spawned)
+GLib.timeout_add_seconds(20, lambda: (loop.quit(), GLib.SOURCE_REMOVE)[1])
+loop.run()
+assert result == [23], result
+window.destroy()
+print("PASS: actual VTE Docker PTY, interactive input and container UID")
+PY
+docker_local stop "$cid" >/dev/null
 # Start an isolated Compose stack using only the locally built image.
 cat > "$work/compose.yaml" <<EOF
 services:
@@ -76,4 +317,115 @@ stack = next(row for row in Engine(rootful=True).stacks() if row.name == sys.arg
 assert "running" in stack.status, stack
 (Path(sys.argv[2]) / "compose.json").write_text(json.dumps(asdict(stack), indent=2))
 print("PASS: real Compose project inventory")
+PY
+
+# Real resource inventory; create only isolated, uniquely named fixtures.
+python3 - "$name" "$image" "$out" <<'PY'
+import json, sys
+from pathlib import Path
+from localzet.containers import Engine
+name, image, out = sys.argv[1:]
+engine = Engine(rootful=True)
+assert any(row["Name"] == name for row in engine.create_resource("volumes", name))
+assert any(row["Name"] == name for row in engine.create_resource("networks", name))
+for kind, predicate in (
+    ("images", lambda row: row["Repository"] + ":" + row["Tag"] == image),
+    ("volumes", lambda row: row["Name"] == name),
+    ("networks", lambda row: row["Name"] == name),
+):
+    row = next(row for row in engine.resources(kind) if predicate(row))
+    (Path(out) / f"{kind}.json").write_text(json.dumps(row, indent=2))
+    print("PASS: real", kind, "inventory")
+PY
+# Real populated GTK UI, before removing any fixture resources.
+GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none xvfb-run -a -s '-screen 0 1440x900x24' \
+    dbus-run-session -- /usr/bin/python3 scripts/ci/containers-populated-gtk.py "$name" "$image" "$out"
+# Create an advanced fixture with real options, then remove only that fixture.
+advanced="$name-advanced"
+docker_local inspect "$advanced" >/dev/null 2>&1 && exit 1
+python3 - "$name" "$image" "$advanced" <<'PY'
+import sys
+from localzet.containers import Deployment, Engine
+name, reference, advanced = sys.argv[1:]
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == reference)
+options = Deployment(network="bridge", ports=("18080:80/tcp", "15353:53/udp"),
+    environment=("LOCALZET_FIXTURE=dev",), mounts=(f"{name}:/data:ro",),
+    memory_mib=256, cpus="0.5", restart="on-failure")
+assert any(row.name == advanced and row.state == "created" for row in engine.create_container(advanced, image["ID"], options))
+PY
+docker_local inspect "$advanced" | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; h=c["HostConfig"]; assert h["Memory"]==268435456 and h["NanoCpus"]==500000000; assert h["RestartPolicy"]["Name"]=="on-failure"; assert "LOCALZET_FIXTURE=dev" in c["Config"]["Env"]; assert h["PortBindings"]["80/tcp"][0]["HostIp"]=="127.0.0.1"; assert h["PortBindings"]["53/udp"][0]["HostPort"]=="15353"; assert any(m["Destination"]=="/data" and not m["RW"] for m in c["Mounts"])'
+python3 - "$name" "$advanced" <<'PY'
+import sys
+from localzet.containers import Engine, EngineError
+engine = Engine(rootful=True)
+name, advanced = sys.argv[1:]
+info = engine.volume_info(name)
+assert info["default_local"]
+assert any(row.name == advanced and row.state == "created" for row in info["references"])
+try:
+    engine.remove_volume(name)
+except EngineError:
+    pass
+else:
+    raise AssertionError("Referenced volume was removed")
+print("PASS: stopped container volume reference protects data")
+PY
+docker_local rm "$advanced"
+docker_local run --rm --pull never --network none --mount "type=volume,source=$name,target=/data,volume-nocopy" --user 0:0 --entrypoint /bin/busybox "$image" sh -c 'printf localzet-volume-fixture > /data/fixture.txt'
+python3 - "$name" "$image" "$work" <<'PY'
+import sys
+from pathlib import Path
+from localzet.containers import Engine, EngineError
+name, reference, work = sys.argv[1:]
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == reference)
+backup = Path(work) / "volume.tar"
+engine.backup_volume(name, image["ID"], backup)
+assert backup.stat().st_mode & 0o777 == 0o600
+try:
+    engine.backup_volume(name, image["ID"], backup)
+except EngineError:
+    pass
+else:
+    raise AssertionError("Existing backup overwritten")
+engine.restore_volume(name + "-restored", image["ID"], backup)
+try:
+    engine.restore_volume(name, image["ID"], backup)
+except EngineError:
+    pass
+else:
+    raise AssertionError("Existing volume overwritten")
+print("PASS: actual volume TAR backup and new-volume restore")
+PY
+test "$(docker_local run --rm --pull never --network none --mount "type=volume,source=$name-restored,target=/data,readonly,volume-nocopy" --entrypoint /bin/busybox "$image" cat /data/fixture.txt)" = localzet-volume-fixture
+docker_local volume rm "$name-restored"
+python3 - "$name" <<'PY'
+import sys
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+name = sys.argv[1]
+assert engine.volume_info(name)["references"] == ()
+assert not any(row["Name"] == name for row in engine.remove_volume(name))
+print("PASS: real unreferenced local volume removal")
+PY
+python3 - "$name" <<'PY'
+import sys
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+name = sys.argv[1]
+network = next(row for row in engine.resources("networks") if row["Name"] == name)
+assert not any(row["ID"] == network["ID"] for row in engine.remove_resource("networks", network["ID"]))
+print("PASS: real network removal")
+PY
+# Release only our fixture's image references before testing image removal.
+docker_local compose -p "$name" -f "$work/compose.yaml" down
+docker_local rm "$name"
+python3 - "$image" <<'PY'
+import sys
+from localzet.containers import Engine
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == sys.argv[1])
+assert not any(row["ID"] == image["ID"] for row in engine.remove_resource("images", image["ID"]))
+print("PASS: real image removal")
 PY

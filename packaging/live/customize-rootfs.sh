@@ -6,6 +6,21 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
+    # Do not activate a privileged daemon or grant docker-group membership.
+    for unit in docker.service docker.socket containerd.service; do
+        systemctl --root="$root" disable "$unit"
+        if systemctl --root="$root" is-enabled --quiet "$unit"; then
+            echo "Unexpected enabled Docker unit: $unit" >&2; exit 2
+        fi
+    done
+    test -x "$root/usr/bin/localzet-containers"
+    test -f "$root/usr/share/applications/com.localzet.Containers.desktop"
+    chroot "$root" /usr/bin/docker compose version
+    chroot "$root" /usr/bin/python3 -c 'import gi; gi.require_version("Vte", "3.91"); from gi.repository import Vte'
+    chroot "$root" dpkg-query -W -f='${Package}\t${Version}\n' docker.io docker-compose-v2 gir1.2-vte-3.91 \
+        > "$root/usr/share/localzet/containers-candidate-packages.tsv"
+fi
 if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
     bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
 fi
