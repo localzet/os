@@ -352,7 +352,7 @@ class RemoteEngine:
     user: str
     port: int = 22
 
-    def inventory(self) -> tuple[Container, ...]:
+    def _run(self, command: str) -> str:
         # OpenSSH known_hosts and keys are managed by the user outside this
         # app. No automatic trust, password prompt, proxy or host escalation.
         import ipaddress
@@ -376,18 +376,34 @@ class RemoteEngine:
         # interpolation of user input; the destination is an argv element.
         args = ["/usr/bin/ssh", "-F", "/dev/null", "-T", "-o", "BatchMode=yes",
                 "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=10",
+                "-o", f"UserKnownHostsFile={Path.home() / '.ssh/known_hosts'}",
+                "-o", "GlobalKnownHostsFile=/dev/null",
                 "-o", "ClearAllForwardings=yes", "-o", "ForwardAgent=no",
                 "-o", "ForwardX11=no", "-p", str(self.port), "-l", self.user, "--", host,
-                "/usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C.UTF-8 /usr/bin/docker --host unix:///var/run/docker.sock container ls --all --no-trunc --format '{{json .}}'"]
+                "/usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C.UTF-8 /usr/bin/docker --host unix:///var/run/docker.sock " + command]
         try:
             proc = subprocess.run(args, capture_output=True, text=True, timeout=25, env=env, check=False)
         except (OSError, subprocess.SubprocessError) as exc:
             raise EngineError("SSH connection could not complete") from exc
         if proc.returncode:
-            raise EngineError("SSH inventory failed; verify known_hosts, keys and remote Docker permissions")
+            raise EngineError("SSH operation failed; verify known_hosts, keys and remote Docker permissions")
         if len(proc.stdout.encode("utf-8")) > 2 * 1024 * 1024:
             raise EngineError("Remote inventory exceeds size limit")
-        return parse_inventory(proc.stdout)
+        return proc.stdout
+
+    def inventory(self) -> tuple[Container, ...]:
+        return parse_inventory(self._run("container ls --all --no-trunc --format '{{json .}}'"))
+
+    def action(self, action: str, container_id: str) -> tuple[Container, ...]:
+        if action not in ACTIONS or not isinstance(container_id, str) or not ID.fullmatch(container_id):
+            raise EngineError("Invalid remote action or full container ID")
+        row = next((item for item in self.inventory() if item.id == container_id), None)
+        if row is None:
+            raise EngineError("Remote container no longer exists")
+        if action == "start" and row.state not in ("created", "exited") or action != "start" and row.state != "running":
+            raise EngineError("Remote container state changed; refresh")
+        self._run("container " + action + " " + container_id)
+        return self.inventory()
 
 
 class Engine:
