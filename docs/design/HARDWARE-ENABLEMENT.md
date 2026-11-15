@@ -80,5 +80,15 @@ This is a release gate, not a promise that every device is supported.
 - NVIDIA CUDA Linux installation guide:
   https://docs.nvidia.com/cuda/cuda-installation-guide-linux/
 
-Current implementation is H1 read-only; no package transaction or automatic
+Current implementation is H1 read-only. localzet-hardware --resolve observes
+Ubuntu's actual recommended packages and signed-kernel-module candidates,
+running kernel, Secure Boot efivar state and python3-apt candidate version,
+size and origin metadata. It queries only the existing cache; missing tools,
+unknown firmware state and untrusted/mixed origins are explicit. Non-root
+recommendations may be incomplete. Package origin is only a screening signal,
+not a pinned-key verification of a full dependency transaction. CUDA candidate
+availability is not GPU compatibility. No package transaction or automatic
 installation is enabled yet.
+
+Reference: https://ubuntu.com/desktop/docs/en/latest/how-to/graphics/install-nvidia-drivers/
+
