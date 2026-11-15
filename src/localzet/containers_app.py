@@ -1040,7 +1040,7 @@ def main() -> int:
                 terminal.set_input_enabled(False)
                 if not state["closed"]:
                     status.set_label("Сессия завершена · статус " + str(os.waitstatus_to_exitcode(code)))
-            def spawned(_, pid, error, *_):
+            def spawned(_terminal, pid, error, *_):
                 if state["closed"] or state["exited"]:
                     return
                 if error is not None or pid <= 0:
