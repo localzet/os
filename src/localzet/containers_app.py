@@ -151,6 +151,9 @@ def main() -> int:
             self.monitor_button = Gtk.Button(label="Мониторинг")
             self.monitor_button.connect("clicked", self.open_monitor)
             detail_header.append(self.monitor_button)
+            self.terminal_button = Gtk.Button(label="Терминал")
+            self.terminal_button.connect("clicked", self.open_terminal)
+            detail_header.append(self.terminal_button)
             detail_box.append(detail_header)
             self.detail_text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True,
                                            wrap_mode=Gtk.WrapMode.CHAR, top_margin=8, bottom_margin=8,
@@ -946,6 +949,123 @@ def main() -> int:
                 self.table_stack.set_visible_child_name("empty")
             self.update_actions()
 
+        def open_terminal(self, *_):
+            item = self.selected()
+            if self.busy or not item or item.state != "running":
+                return
+            try:
+                gi.require_version("Vte", "3.91")
+                from gi.repository import Vte
+            except (ImportError, ValueError):
+                alert = Adw.AlertDialog(heading="Терминал недоступен", body="Требуется gir1.2-vte-3.91.")
+                alert.add_response("close", "Закрыть")
+                alert.present(self.window)
+                return
+            cid, rootful, generation = item.id, self.rootful, self.generation
+            prompt = Adw.AlertDialog(heading="Открыть shell контейнера?",
+                body=item.name + "\n" + cid + "\nКоманды выполняются внутри контейнера от его настроенного пользователя. Изменения могут быть необратимыми. Доверяйте выбранному контейнеру.")
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("sh", "/bin/sh")
+            prompt.add_response("bash", "/bin/bash")
+            prompt.set_default_response("cancel")
+            prompt.set_close_response("cancel")
+            def chosen(_, response):
+                if response not in ("sh", "bash") or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                selected = self.selected()
+                if not selected or selected.id != cid:
+                    return
+                self.busy = True
+                self.generation += 1
+                current = self.generation
+                self.update_actions()
+                future = self.pool.submit(lambda: Engine(rootful=rootful).terminal_argv(cid, "/bin/" + response))
+                def ready():
+                    if current != self.generation or not self.window:
+                        return GLib.SOURCE_REMOVE
+                    self.busy = False
+                    self.update_actions()
+                    try:
+                        argv = future.result()
+                    except (EngineError, OSError, ValueError) as error:
+                        self.status.set_label(str(error))
+                        return GLib.SOURCE_REMOVE
+                    except Exception:
+                        self.status.set_label("Не удалось подготовить терминал.")
+                        return GLib.SOURCE_REMOVE
+                    self.present_terminal(Vte, item.name, argv)
+                    return GLib.SOURCE_REMOVE
+                future.add_done_callback(lambda _: GLib.idle_add(ready))
+            prompt.connect("response", chosen)
+            prompt.present(self.window)
+
+        def present_terminal(self, Vte, name, argv):
+            import os
+            import signal
+            dialog = Adw.Dialog(title="Терминал · " + name, content_width=940, content_height=620)
+            layout = Adw.ToolbarView()
+            layout.add_top_bar(Adw.HeaderBar())
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6,
+                          margin_top=8, margin_bottom=8, margin_start=8, margin_end=8)
+            status = Gtk.Label(label="Подключение к контейнеру…", xalign=0, wrap=True)
+            box.append(status)
+            terminal = Vte.Terminal()
+            terminal.set_scrollback_lines(2000)
+            terminal.set_allow_hyperlink(False)
+            terminal.set_input_enabled(False)
+            terminal.set_hexpand(True)
+            terminal.set_vexpand(True)
+            scroll = Gtk.ScrolledWindow(vexpand=True)
+            scroll.set_child(terminal)
+            box.append(scroll)
+            layout.set_content(box)
+            dialog.set_child(layout)
+            cancellable = Gio.Cancellable()
+            state = {"closed": False, "exited": False, "pidfd": None}
+            def release():
+                fd = state["pidfd"]
+                if fd is not None:
+                    os.close(fd)
+                    state["pidfd"] = None
+            def exited(_, code):
+                state["exited"] = True
+                release()
+                terminal.set_input_enabled(False)
+                if not state["closed"]:
+                    status.set_label("Сессия завершена · статус " + str(os.waitstatus_to_exitcode(code)))
+            def spawned(_, pid, error, *_):
+                if state["closed"] or state["exited"]:
+                    return
+                if error is not None or pid <= 0:
+                    status.set_label("Не удалось запустить Docker CLI.")
+                    return
+                try:
+                    state["pidfd"] = os.pidfd_open(pid)
+                except OSError:
+                    pass
+                terminal.set_input_enabled(True)
+                terminal.grab_focus()
+                status.set_label("Интерактивный shell · exit для завершения")
+            def closed(*_):
+                state["closed"] = True
+                cancellable.cancel()
+                fd = state["pidfd"]
+                if fd is not None:
+                    try:
+                        signal.pidfd_send_signal(fd, signal.SIGHUP)
+                    except OSError:
+                        pass
+                release()
+                terminal.set_input_enabled(False)
+                terminal.set_pty(None)
+                terminal.reset(True, True)
+            terminal.connect("child-exited", exited)
+            dialog.connect("closed", closed)
+            dialog.present(self.window)
+            terminal.spawn_async(Vte.PtyFlags.DEFAULT, "/", list(argv), None,
+                                 GLib.SpawnFlags.DO_NOT_REAP_CHILD, None, 10000,
+                                 cancellable, spawned, None)
+
         def open_monitor(self, *_):
             item = self.selected()
             if self.busy or not item or item.state != "running":
@@ -1127,6 +1247,7 @@ def main() -> int:
             self.restart_button.set_sensitive(not self.busy and running)
             self.metrics_button.set_sensitive(not self.busy and running)
             self.monitor_button.set_sensitive(not self.busy and running)
+            self.terminal_button.set_sensitive(not self.busy and running)
             self.logs_button.set_sensitive(not self.busy and bool(item))
             self.detail.set_label(f"{item.name} · {item.id[:12]} · {item.status}\n{item.image} · {item.ports or 'Порты не опубликованы'}"
                                   if item else "Выберите контейнер")
