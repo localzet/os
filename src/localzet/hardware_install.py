@@ -166,6 +166,7 @@ def main():
         with apt_pkg.SystemLock():
             check_previous_receipt(JOURNAL)
             check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+            check_previous_receipt(JOURNAL, "last-base-transaction.json")
             cache = apt.Cache()
             approved = current_review(cache)
             cache.clear()
@@ -181,6 +182,7 @@ def main():
         with apt_pkg.SystemLock():
             check_previous_receipt(JOURNAL)
             check_previous_receipt(JOURNAL, "last-cuda-transaction.json")
+            check_previous_receipt(JOURNAL, "last-base-transaction.json")
             state = apply_reviewed(apt.Cache(), approved, review_fn=current_review,
                 receipt_fn=lambda record: write_receipt(JOURNAL, record, filename=filename))
         print(state)
