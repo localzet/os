@@ -264,6 +264,9 @@ for kind, predicate in (
     (Path(out) / f"{kind}.json").write_text(json.dumps(row, indent=2))
     print("PASS: real", kind, "inventory")
 PY
+# Real populated GTK UI, before removing any fixture resources.
+GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none xvfb-run -a -s '-screen 0 1440x900x24' \
+    dbus-run-session -- /usr/bin/python3 scripts/ci/containers-populated-gtk.py "$name" "$image" "$out"
 # Create an advanced fixture with real options, then remove only that fixture.
 advanced="$name-advanced"
 docker_local inspect "$advanced" >/dev/null 2>&1 && exit 1
