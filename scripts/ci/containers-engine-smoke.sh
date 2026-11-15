@@ -28,6 +28,7 @@ cp /usr/bin/busybox "$work/busybox"
 cat > "$work/Dockerfile" <<'EOF'
 FROM scratch
 COPY busybox /busybox
+COPY busybox /bin/sh
 USER 65534:65534
 CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 600"]
 EOF
@@ -128,6 +129,44 @@ print("PASS: original fixture log snapshot")
 verify(engine.action("restart", cid), "running", "restart")
 verify(engine.action("stop", cid), "exited", "stop")
 PY
+docker_local start "$cid" >/dev/null
+# Exercise the exact VTE spawn helper on an actual interactive Docker PTY.
+xvfb-run -a /usr/bin/python3 - "$cid" <<'PY'
+import os, sys
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Vte", "3.91")
+from gi.repository import Gtk, GLib, Gio, Vte
+from localzet.containers import Engine
+from localzet.containers_app import spawn_terminal
+argv = Engine(rootful=True).terminal_argv(sys.argv[1])
+window = Gtk.Window()
+terminal = Vte.Terminal()
+window.set_child(terminal)
+window.present()
+loop = GLib.MainLoop()
+result = []
+def exited(_, code):
+    result.append(os.waitstatus_to_exitcode(code))
+    loop.quit()
+def spawned(_terminal, pid, error, *_):
+    if error is not None:
+        result.append(str(error))
+        loop.quit()
+        return
+    def send():
+        terminal.feed_child(b"test -t 0 && test -t 1 && test $(/busybox id -u) = 65534 && exit 23; exit 42\n")
+        return GLib.SOURCE_REMOVE
+    GLib.timeout_add(500, send)
+terminal.connect("child-exited", exited)
+spawn_terminal(terminal, argv, Gio.Cancellable(), spawned)
+GLib.timeout_add_seconds(20, lambda: (loop.quit(), GLib.SOURCE_REMOVE)[1])
+loop.run()
+assert result == [23], result
+window.destroy()
+print("PASS: actual VTE Docker PTY, interactive input and container UID")
+PY
+docker_local stop "$cid" >/dev/null
 # Start an isolated Compose stack using only the locally built image.
 cat > "$work/compose.yaml" <<EOF
 services:

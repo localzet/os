@@ -465,3 +465,30 @@ class ContainersTests(unittest.TestCase):
             run.assert_not_called()
             engine.push_image(identity, "docker.io/team/app:v1")
             run.assert_called_once_with("image", "push", "docker.io/team/app:v1", timeout=600)
+
+    def test_terminal_argv_uses_fixed_endpoint_and_shell(self):
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine(rootful=True)
+        from localzet.containers import Container
+        row = Container(CID, "fixture", "fixture:dev", "running", "Up", "")
+        with patch.object(engine, "inventory", return_value=(row,)), patch.object(engine, "_check") as check:
+            for identity, shell in (("short", "/bin/sh"), (CID, "--privileged"), (CID, "/bin/sh -c id")):
+                with self.assertRaises(EngineError):
+                    engine.terminal_argv(identity, shell)
+            check.assert_not_called()
+            argv = engine.terminal_argv(CID)
+            self.assertEqual(argv[:2], ("/usr/bin/env", "-i"))
+            self.assertEqual(argv[-9:], ("/usr/bin/docker", "--host", "unix:///var/run/docker.sock",
+                "container", "exec", "--interactive", "--tty", CID, "/bin/sh"))
+            self.assertNotIn("--privileged", argv)
+            self.assertNotIn("--user", argv)
+
+    def test_terminal_rejects_stopped_container(self):
+        from localzet.containers import Container
+        with patch("localzet.containers.os.geteuid", return_value=1000):
+            engine = Engine()
+        row = Container(CID, "fixture", "fixture:dev", "exited", "Exited", "")
+        with patch.object(engine, "inventory", return_value=(row,)), patch.object(engine, "_check") as check:
+            with self.assertRaises(EngineError):
+                engine.terminal_argv(CID)
+            check.assert_not_called()

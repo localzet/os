@@ -650,6 +650,19 @@ class Engine:
             raise EngineError("Container no longer exists on the selected engine")
         return row
 
+    def terminal_argv(self, container_id: str, shell: str = "/bin/sh") -> tuple[str, ...]:
+        if shell not in ("/bin/sh", "/bin/bash"):
+            raise EngineError("Unsupported container shell")
+        if self._lookup(container_id).state != "running":
+            raise EngineError("Container is not running")
+        self._check()
+        # VTE inherits the desktop environment. env -i prevents Docker context
+        # or credential overrides from changing the selected local endpoint.
+        return ("/usr/bin/env", "-i", "PATH=/usr/bin:/bin", f"HOME={Path.home()}",
+                "LC_ALL=C.UTF-8", "TERM=xterm-256color", str(DOCKER),
+                "--host", f"unix://{self.socket}", "container", "exec",
+                "--interactive", "--tty", container_id, shell)
+
     def metrics(self, container_id: str) -> dict[str, str]:
         if self._lookup(container_id).state != "running":
             raise EngineError("Container is not running")
