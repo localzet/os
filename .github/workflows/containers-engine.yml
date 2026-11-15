@@ -3,7 +3,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'src/localzet/containers.py'
+      - 'src/localzet/containers*.py'
+      - 'scripts/ci/containers-populated-gtk.py'
       - 'tests/test_containers.py'
       - 'scripts/ci/containers-engine-smoke.sh'
       - '.github/workflows/containers-engine.yml'
@@ -20,7 +21,7 @@ jobs:
       - name: Install static fixture binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y busybox-static python3-gi gir1.2-gtk-4.0 gir1.2-vte-3.91 xvfb xauth openssh-server
+          sudo apt-get install -y busybox-static python3-gi gir1.2-gtk-4.0 gir1.2-vte-3.91 xvfb xauth openssh-server gir1.2-adw-1 dbus-x11 xdotool imagemagick gsettings-desktop-schemas dconf-gsettings-backend
           test -x /usr/bin/docker
       - name: Test actual engine without remote downloads
         run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/containers-engine-smoke.sh
