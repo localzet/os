@@ -104,3 +104,18 @@ module loading or reboot. The simulation does not prove a signature will load,
 reserve disk space, lock package state, validate CUDA, or authorize installation.
 CI exercises real archive resolution for mesa-utils and unchanged dpkg status;
 actual NVIDIA transaction and physical acceptance remain open.
+
+H2.2: experimental installed-system administrator CLI
+sudo /usr/sbin/localzet-install-drivers requires a real interactive terminal,
+Localzet identity and supported non-Live root. No arbitrary package parameters,
+no unattended mode. It reviews the actual driver transaction under APT system
+lock, releases the lock for explicit fingerprint confirmation, then acquires
+it again and commits the same revalidated in-memory marks with unauthenticated
+downloads disabled. Root-owned receipt in /var/lib/localzet/hardware records
+installing, failed-recovery-required or installed-reboot-verification-required.
+Interrupted/failed receipts block retry pending administrator review. No
+unattended reboot, rollback, CUDA, GUI, APT cache refresh or installer default
+enablement yet. Existing system APT configuration is trusted; candidate origin
+screening is not independent key pinning. CI exercises real commit with a
+small signed hello package on a disposable runner, not a GPU installation.
+Physical NVIDIA, Secure Boot signing and kernel recovery acceptance remain open.
