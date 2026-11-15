@@ -16,7 +16,7 @@ cleanup() {
     fi
     docker_local rm -f "$name-advanced" >/dev/null 2>&1 || true
     docker_local rm -f "$name" >/dev/null 2>&1 || true
-    docker_local volume rm "$name" >/dev/null 2>&1 || true
+    docker_local volume rm "$name" "$name-restored" >/dev/null 2>&1 || true
     docker_local network rm "$name" >/dev/null 2>&1 || true
     docker_local image rm "ghcr.io/localzet-ci/$image" >/dev/null 2>&1 || true
     docker_local image rm "$image" >/dev/null 2>&1 || true
@@ -29,6 +29,7 @@ cat > "$work/Dockerfile" <<'EOF'
 FROM scratch
 COPY busybox /busybox
 COPY busybox /bin/sh
+COPY busybox /bin/busybox
 USER 65534:65534
 CMD ["/busybox", "sh", "-c", "echo localzet-fixture-ready; exec /busybox sleep 600"]
 EOF
@@ -295,6 +296,34 @@ else:
 print("PASS: stopped container volume reference protects data")
 PY
 docker_local rm "$advanced"
+docker_local run --rm --pull never --network none --mount "type=volume,source=$name,target=/data,volume-nocopy" --user 0:0 --entrypoint /bin/busybox "$image" sh -c 'printf localzet-volume-fixture > /data/fixture.txt'
+python3 - "$name" "$image" "$work" <<'PY'
+import sys
+from pathlib import Path
+from localzet.containers import Engine, EngineError
+name, reference, work = sys.argv[1:]
+engine = Engine(rootful=True)
+image = next(row for row in engine.resources("images") if row["Repository"] + ":" + row["Tag"] == reference)
+backup = Path(work) / "volume.tar"
+engine.backup_volume(name, image["ID"], backup)
+assert backup.stat().st_mode & 0o777 == 0o600
+try:
+    engine.backup_volume(name, image["ID"], backup)
+except EngineError:
+    pass
+else:
+    raise AssertionError("Existing backup overwritten")
+engine.restore_volume(name + "-restored", image["ID"], backup)
+try:
+    engine.restore_volume(name, image["ID"], backup)
+except EngineError:
+    pass
+else:
+    raise AssertionError("Existing volume overwritten")
+print("PASS: actual volume TAR backup and new-volume restore")
+PY
+test "$(docker_local run --rm --pull never --network none --mount "type=volume,source=$name-restored,target=/data,readonly,volume-nocopy" --entrypoint /bin/busybox "$image" cat /data/fixture.txt)" = localzet-volume-fixture
+docker_local volume rm "$name-restored"
 python3 - "$name" <<'PY'
 import sys
 from localzet.containers import Engine

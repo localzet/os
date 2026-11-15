@@ -510,6 +510,49 @@ class RemoteStore:
             raise EngineError("Invalid saved connection") from exc
 
 
+VOLUME_ARCHIVE_LIMIT = 128 * 1024 * 1024
+VOLUME_MEMBER_LIMIT = 10000
+
+
+def normalize_volume_archive(source, destination):
+    """Validate and rewrite a bounded archive, never extract it on the host."""
+    import tarfile
+    seen = {}
+    total = 0
+    try:
+        with tarfile.open(fileobj=source, mode="r:") as archive, tarfile.open(
+                fileobj=destination, mode="w:", format=tarfile.USTAR_FORMAT) as clean:
+            for member in archive:
+                name = member.name
+                if name.startswith("./"):
+                    name = name[2:]
+                if name in ("", ".") and member.isdir():
+                    continue
+                parts = name.split("/")
+                if (len(seen) >= VOLUME_MEMBER_LIMIT or len(name.encode("utf-8")) > 240 or
+                    not name or any(part in ("", ".", "..") for part in parts) or
+                    any(ord(ch) < 32 or ch == "\\" for ch in name) or name in seen or
+                    not (member.isdir() or member.isfile()) or member.issparse() or
+                    member.mode & 0o7000 or member.size < 0):
+                    raise EngineError("Unsupported or unsafe volume archive member")
+                total += member.size
+                if total > VOLUME_ARCHIVE_LIMIT:
+                    raise EngineError("Volume archive exceeds size limit")
+                seen[name] = member.isdir()
+                info = tarfile.TarInfo(name)
+                info.type = tarfile.DIRTYPE if member.isdir() else tarfile.REGTYPE
+                info.mode = member.mode & 0o777
+                info.size = 0 if member.isdir() else member.size
+                info.mtime = max(0, min(int(member.mtime), 2**32 - 1))
+                clean.addfile(info, archive.extractfile(member) if member.isfile() else None)
+            for name in seen:
+                parts = name.split("/")
+                if any(seen.get("/".join(parts[:i])) is False for i in range(1, len(parts))):
+                    raise EngineError("Conflicting archive paths")
+    except (tarfile.TarError, OSError, ValueError, OverflowError) as exc:
+        raise EngineError("Invalid or unsupported volume archive") from exc
+
+
 class Engine:
     def __init__(self, *, rootful: bool = False):
         if os.geteuid() == 0:
@@ -600,6 +643,105 @@ class Engine:
         return {"name": name, "driver": item["Driver"], "scope": item["Scope"],
                 "created": item["CreatedAt"], "default_local": default_local,
                 "references": tuple(references)}
+
+    def _volume_helper(self, name: str, image_id: str, *, readonly: bool) -> list[str]:
+        if not isinstance(image_id, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
+            raise EngineError("Full trusted BusyBox helper image ID required")
+        if not any(row["ID"] == image_id for row in self.resources("images")):
+            raise EngineError("Helper image is not available locally")
+        mount = f"type=volume,source={name},target=/data,volume-nocopy" + (",readonly" if readonly else "")
+        return [str(DOCKER), "--host", f"unix://{self.socket}", "container", "run",
+                "--rm", "--pull", "never", "--network", "none", "--read-only",
+                "--cap-drop", "ALL", "--cap-add", "DAC_OVERRIDE", "--security-opt",
+                "no-new-privileges", "--user", "0:0", "--pids-limit", "64",
+                "--memory", "128m", "--mount", mount, "--entrypoint", "/bin/busybox", image_id]
+
+    def backup_volume(self, name: str, image_id: str, destination: Path) -> None:
+        import tempfile
+        info = self.volume_info(name)
+        if not info["default_local"] or info["references"]:
+            raise EngineError("Backup requires an unused default local volume")
+        if not isinstance(destination, Path) or not destination.is_absolute() or destination.suffix != ".tar":
+            raise EngineError("Select an absolute new .tar file")
+        if destination.exists() or destination.is_symlink():
+            raise EngineError("Backup destination already exists")
+        args = self._volume_helper(name, image_id, readonly=True)
+        self._check()
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
+        try:
+            with tempfile.TemporaryFile() as raw, tempfile.NamedTemporaryFile(
+                    dir=destination.parent, delete=False) as clean:
+                temporary = Path(clean.name)
+                try:
+                    with subprocess.Popen([*args, "tar", "-cf", "-", "-C", "/data", "."],
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, env=env) as proc:
+                        try:
+                            deadline = time.monotonic() + 180
+                            size = 0
+                            with selectors.DefaultSelector() as selector:
+                                selector.register(proc.stdout, selectors.EVENT_READ)
+                                while True:
+                                    remaining = deadline - time.monotonic()
+                                    if remaining <= 0 or not selector.select(remaining):
+                                        raise EngineError("Volume backup timed out")
+                                    chunk = os.read(proc.stdout.fileno(), 65536)
+                                    if not chunk:
+                                        break
+                                    size += len(chunk)
+                                    if size > VOLUME_ARCHIVE_LIMIT:
+                                        raise EngineError("Volume archive exceeds 128 MiB")
+                                    raw.write(chunk)
+                            if proc.wait(timeout=5):
+                                raise EngineError("Volume backup helper failed")
+                        finally:
+                            if proc.poll() is None:
+                                proc.kill()
+                                proc.wait()
+                    raw.seek(0)
+                    normalize_volume_archive(raw, clean)
+                    if clean.tell() > VOLUME_ARCHIVE_LIMIT:
+                        raise EngineError("Volume archive exceeds 128 MiB")
+                    clean.flush()
+                    os.fsync(clean.fileno())
+                    os.link(temporary, destination)  # atomic publication, never overwrite
+                finally:
+                    temporary.unlink(missing_ok=True)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EngineError("Volume backup could not complete") from exc
+
+    def restore_volume(self, name: str, image_id: str, source: Path) -> tuple[dict[str, str], ...]:
+        import tempfile
+        if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]{1,62}", name):
+            raise EngineError("Invalid new volume name")
+        if not isinstance(source, Path) or not source.is_absolute():
+            raise EngineError("Select an absolute backup file")
+        args = self._volume_helper(name, image_id, readonly=False)
+        self._check()
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(Path.home()), "LC_ALL": "C.UTF-8"}
+        try:
+            fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, "rb") as original, tempfile.TemporaryFile() as clean:
+                metadata = os.fstat(original.fileno())
+                if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > VOLUME_ARCHIVE_LIMIT:
+                    raise EngineError("Backup must be a regular uncompressed tar up to 128 MiB")
+                normalize_volume_archive(original, clean)
+                if clean.tell() > VOLUME_ARCHIVE_LIMIT:
+                    raise EngineError("Normalized archive exceeds size limit")
+                clean.seek(0)
+                self.create_resource("volumes", name)
+                # A concurrent Docker client can still race a name; do not
+                # auto-delete a partial restore or any volume on failure.
+                if not self.volume_info(name)["default_local"] or self.volume_info(name)["references"]:
+                    raise EngineError("New volume changed; restore stopped")
+                proc = subprocess.run([*args[:args.index("--network")], "--interactive",
+                    *args[args.index("--network"):], "tar", "-xf", "-", "-C", "/data"],
+                    stdin=clean, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    env=env, timeout=180, check=False)
+                if proc.returncode:
+                    raise EngineError("Restore failed; new volume may contain partial data")
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EngineError("Restore could not complete; inspect the new volume") from exc
+        return self.resources("volumes")
 
     def remove_volume(self, name: str) -> tuple[dict[str, str], ...]:
         info = self.volume_info(name)

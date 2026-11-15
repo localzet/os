@@ -200,3 +200,17 @@ prune, driver options or mountpoint access. References are checked again on
 execution; the daemon rejects in-use volume removal, but names are not immutable
 identifiers and concurrent clients can replace a volume. Backup/restore, clone,
 content browsing, size accounting and interactive/rootless QA remain pending.
+
+Stage 19.2 adds offline TAR export of unreferenced default local volumes and
+restore into a new named volume. Explicit trusted local BusyBox image with
+/bin/busybox required; no pull, host bind mounts, or network. Helper runs with
+limited capabilities (DAC_OVERRIDE), root inside the container; not a sandbox.
+Archives are bounded to 128 MiB / 10000 entries, rewritten to USTAR with regular
+files/directories only; no links, special files, traversal or special mode bits.
+UID/GID are normalized to zero; ACL/xattrs and full metadata are not preserved.
+Backup is private (0600), atomic no-overwrite publication; restore never
+intentionally replaces existing volume, and partial new volumes remain on error.
+Concurrent clients can race name checks; do not use during concurrent volume
+management. Not database-consistent backup, no encryption, no large volumes.
+CI exercises actual file roundtrip and overwrite refusal; clone, browsing,
+full-fidelity backup and interactive/rootless acceptance remain pending.
