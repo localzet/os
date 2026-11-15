@@ -214,6 +214,10 @@ def main() -> int:
                 create = Gtk.Button(label="Создать локальный том" if kind == "volumes" else "Создать изолированную сеть")
                 create.connect("clicked", lambda *_: self.confirm_resource(dialog, kind, caption, None))
                 content.append(create)
+                if kind == "volumes":
+                    restore = Gtk.Button(label="Восстановить в новый том")
+                    restore.connect("clicked", lambda *_: self.open_volume_archive(dialog, None))
+                    content.append(restore)
             if kind == "images":
                 pull = Gtk.Button(label="Загрузить образ")
                 pull.connect("clicked", lambda *_: self.confirm_deployment(dialog, None))
@@ -233,6 +237,9 @@ def main() -> int:
                     details = Gtk.Button(label="Сведения и использование", halign=Gtk.Align.END)
                     details.connect("clicked", lambda _, item=item: self.show_volume(dialog, item["Name"]))
                     group.add(details)
+                    backup = Gtk.Button(label="Экспорт TAR", halign=Gtk.Align.END)
+                    backup.connect("clicked", lambda _, item=item: self.open_volume_archive(dialog, item["Name"]))
+                    group.add(backup)
                 if kind == "images":
                     create = Gtk.Button(label="Создать контейнер", halign=Gtk.Align.END)
                     create.connect("clicked", lambda _, item=item: self.confirm_deployment(dialog, item))
@@ -546,6 +553,81 @@ def main() -> int:
             self.status.set_label("Загрузка завершена; список образов обновлён." if future.exception() is None
                                   else "Загрузка не подтверждена. Проверьте список образов.")
             return self.resources_finished(generation, "images", "Образы", future)
+
+        def open_volume_archive(self, parent, name):
+            if self.busy:
+                return
+            from pathlib import Path
+            generation, rootful = self.generation, self.rootful
+            backup = name is not None
+            prompt = Adw.AlertDialog(heading="Экспорт тома" if backup else "Восстановить в новый том",
+                body="Только доверенный локальный BusyBox-образ с /bin/busybox. До 128 МиБ, только обычные файлы и каталоги. UID/GID, ACL и расширенные атрибуты не сохраняются. Для экспорта том должен быть свободен от контейнеров.")
+            form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            target = Gtk.Entry(text=name or "", placeholder_text="Имя нового тома", editable=not backup)
+            helper = Gtk.Entry(placeholder_text="sha256: полный ID доверенного BusyBox")
+            path = Gtk.Entry(placeholder_text="/home/user/backup.tar")
+            picker = Gtk.Button(label="Выбрать файл")
+            def choose(*_):
+                file_dialog = Gtk.FileDialog(title="Архив тома")
+                def selected(dialog, result):
+                    try:
+                        file = dialog.save_finish(result) if backup else dialog.open_finish(result)
+                        if file and file.get_path():
+                            path.set_text(file.get_path())
+                    except GLib.Error:
+                        pass
+                if backup:
+                    file_dialog.set_initial_name(name + ".tar")
+                    file_dialog.save(self.window, None, selected)
+                else:
+                    file_dialog.open(self.window, None, selected)
+            picker.connect("clicked", choose)
+            for label, widget in (("Том", target), ("BusyBox", helper), ("TAR", path), ("", picker)):
+                form.append(Gtk.Label(label=label, xalign=0))
+                form.append(widget)
+            prompt.set_extra_child(form)
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("review", "Проверить")
+            prompt.set_default_response("cancel")
+            prompt.set_close_response("cancel")
+            def review(_, choice):
+                if choice != "review" or self.busy or generation != self.generation or rootful != self.rootful:
+                    return
+                volume, image, filename = target.get_text(), helper.get_text(), path.get_text()
+                confirm = Adw.AlertDialog(heading="Подтвердить экспорт?" if backup else "Подтвердить восстановление?",
+                    body=f"Том: {volume}\nОбраз: {image}\nФайл: {filename}\n"
+                         + ("Архив содержит конфиденциальные данные. Существующий файл не заменяется." if backup else
+                            "Создаётся новый том; при сбое он может содержать неполные данные. Существующие тома не перезаписываются намеренно."))
+                confirm.add_response("cancel", "Отмена")
+                confirm.add_response("yes", "Выполнить")
+                confirm.set_default_response("cancel")
+                confirm.set_close_response("cancel")
+                def execute(_, result):
+                    if result != "yes" or self.busy or generation != self.generation or rootful != self.rootful:
+                        return
+                    parent.close()
+                    self.busy = True
+                    self.generation += 1
+                    current = self.generation
+                    self.status.set_label("Экспорт тома…" if backup else "Восстановление тома…")
+                    self.update_actions()
+                    def worker():
+                        engine = Engine(rootful=rootful)
+                        if backup:
+                            engine.backup_volume(volume, image, Path(filename))
+                            return engine.resources("volumes")
+                        return engine.restore_volume(volume, image, Path(filename))
+                    future = self.pool.submit(worker)
+                    def finished():
+                        if current != self.generation or not self.window:
+                            return GLib.SOURCE_REMOVE
+                        self.status.set_label("Операция завершена." if future.exception() is None else "Операция не подтверждена; проверьте данные.")
+                        return self.resources_finished(current, "volumes", "Тома", future)
+                    future.add_done_callback(lambda _: GLib.idle_add(finished))
+                confirm.connect("response", execute)
+                confirm.present(parent)
+            prompt.connect("response", review)
+            prompt.present(parent)
 
         def show_volume(self, parent, name):
             if self.busy:
