@@ -132,7 +132,7 @@ chroot "$root" passwd -l root
 rm -f "$root/usr/lib/localzet/hardware-auto-enabled"
 if [[ "$automatic_hardware" == 1 ]]; then
     install -d -m 0755 "$root/etc/localzet"
-    (umask 077; printf 'nvidia-driver-and-cuda-v1\n' > "$root/etc/localzet/hardware-auto")
+    (umask 077; printf 'general-hardware-and-cuda-v2\n' > "$root/etc/localzet/hardware-auto")
     systemctl --root="$root" enable localzet-hardware-firstboot.timer
 fi
 printf "localzet-pc\n" > "$root/etc/hostname"
