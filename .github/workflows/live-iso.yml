@@ -1,6 +1,11 @@
 name: Experimental Live ISO
 on:
   workflow_dispatch:
+    inputs:
+      containers_candidate:
+        description: "Build partial Complete archive candidate with experimental Containers (not a release)"
+        type: boolean
+        default: false
   pull_request:
     paths:
       - '.github/workflows/live-iso.yml'
@@ -9,6 +14,7 @@ on:
       - 'scripts/build-desktop-deb.sh'
       - 'scripts/qemu-iso-smoke.py'
       - 'packaging/live/**'
+      - 'src/localzet/containers*.py'
 concurrency:
   group: live-iso-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -37,10 +43,18 @@ jobs:
           fi
           ls -l /dev/kvm || true
       - name: Build experimental image
+        env:
+          CONTAINERS_CANDIDATE: ${{ inputs.containers_candidate || github.head_ref == 'feat/containers-aurora-workspace' || github.head_ref == 'feat/complete-integration' }}
         run: |
           mkdir -p dist
-          sudo env LOCALZET_DISPOSABLE_VM=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
-          sudo bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/localzet-root" "$PWD/dist/localzet-dev.iso"
+          if [[ "$CONTAINERS_CANDIDATE" == true ]]; then
+            sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_ARCHIVE_PROFILE=complete LOCALZET_EXPERIMENTAL_CONTAINERS=1 LOCALZET_EXPERIMENTAL_HARDWARE_AUTO=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
+            sudo cat "$RUNNER_TEMP/localzet-root/usr/share/localzet/containers-candidate-packages.tsv" | tee dist/containers-candidate-packages.tsv
+            sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/localzet-root" "$PWD/dist/localzet-dev.iso"
+          else
+            sudo env LOCALZET_DISPOSABLE_VM=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
+            sudo bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/localzet-root" "$PWD/dist/localzet-dev.iso"
+          fi
           (cd dist && sha256sum -c localzet-dev.iso.sha256)
       - name: BIOS smoke
         run: python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
@@ -65,6 +79,7 @@ jobs:
           path: |
             dist/*.log
             dist/*.ppm
+            dist/*candidate-packages.tsv
           if-no-files-found: warn
           retention-days: 7
       - name: Upload development ISO only on manual request

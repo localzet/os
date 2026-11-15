@@ -16,6 +16,10 @@ mkdir -p "$pkg/DEBIAN" "$pkg/opt/localzet-os/src" "$pkg/opt/localzet-os/config" 
     "$pkg/usr/share/backgrounds/localzet" "$pkg/usr/share/gnome-shell/extensions" \
     "$pkg/usr/share/doc/localzet-desktop" "$pkg/opt/localzet-os/scripts" \
     "$pkg/opt/localzet-os/packaging/nectarlink" "$pkg/usr/lib/localzet" "$pkg/usr/share/polkit-1/actions"
+containers_dep=""
+if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
+    containers_dep=", gir1.2-vte-3.91"
+fi
 cat > "$pkg/DEBIAN/control" <<EOF
 Package: localzet-desktop
 Version: $version
@@ -23,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec$containers_dep
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF

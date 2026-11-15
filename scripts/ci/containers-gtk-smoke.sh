@@ -20,6 +20,24 @@ done
 test -n "$window"
 sleep 3
 import -window "$window" "$OUT/window.png"
+# Exercise actual persistent navigation, even with no Docker daemon.
+for page in 2 3 4 5 1; do
+    xdotool windowfocus "$window" key "ctrl+$page"
+    sleep 2
+    case "$page" in
+        1) title="Контейнеры";;
+        2) title="Compose";;
+        3) title="Образы";;
+        4) title="Тома";;
+        5) title="Сети";;
+    esac
+    xdotool getwindowname "$window" | grep -F "$title"
+    import -window "$window" "$OUT/page-$page.png"
+    kill -0 "$pid"
+done
+gsettings set org.gnome.desktop.interface color-scheme prefer-light
+sleep 2
+import -window "$window" "$OUT/window-light.png"
 kill -0 "$pid"
 ! grep -q 'Traceback (most recent call last)' "$OUT/app.log"
 GTK_TEST
