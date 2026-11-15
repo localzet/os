@@ -96,7 +96,7 @@ def advance():
         elif phase == 6:
             dialog = app.window.get_visible_dialog()
             assert dialog is not None
-            dialog.response("confirm")
+            click_response(dialog, "Остановить")
         elif phase == 7:
             assert not app.last_error and state() == "exited"
             select_fixture()
