@@ -163,3 +163,12 @@ when possible, not the container; in-container processes can survive disconnect.
 The experimental desktop package depends on gir1.2-vte-3.91. CI exercises the
 shared VTE adapter with a real disposable Docker shell and verifies TTY and UID.
 Full interactive dialog, resize/disconnect and rootless acceptance remain open.
+
+Stage 18 adds a separate read-only SSH inventory using OpenSSH and a fixed
+remote Docker command on unix:///var/run/docker.sock. Existing host keys and
+keys/agent are required; BatchMode and strict host verification are enabled,
+user SSH config and forwarding disabled. No remote mutations, auto-trust,
+passwords or saved connections. Local engine selection remains unchanged.
+Unit tests verify command construction and rejection; actual remote SSH,
+TLS, remote rootless and interactive acceptance remain pending. Output length
+is checked after capture; streaming output bounds are future work.
