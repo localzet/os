@@ -130,7 +130,8 @@ def archive_candidate(cache, name: str) -> dict:
         candidate = None
     if candidate is None:
         return {"name": name, "status": "unavailable"}
-    origins = candidate.origins
+    origins = [origin for origin in candidate.origins
+               if not (origin.archive == "now" and origin.origin == "")]
     # Reject mixed origins and locally installed-only versions. Origin metadata
     # is a screening condition, not proof of an independently pinned key.
     trusted = bool(origins) and all(origin.trusted and origin.origin == "Ubuntu"
@@ -188,8 +189,8 @@ def nvidia_driver_targets(result: dict) -> tuple[str, ...]:
             "linux-modules-nvidia-" + suffix + "-" + kernel, driver)
 
 
-def simulate_packages(cache, targets: tuple[str, ...]) -> dict:
-    """Resolve a fresh APT cache in memory only; never call commit or update."""
+def simulate_packages(cache, targets: tuple[str, ...], *, retain_marks: bool = False) -> dict:
+    """Resolve APT in memory; retain reviewed marks only for an authorized caller."""
     import shutil
     if not targets or len(set(targets)) != len(targets) or not all(
             isinstance(name, str) and PACKAGE.fullmatch(name) for name in targets):
@@ -197,6 +198,7 @@ def simulate_packages(cache, targets: tuple[str, ...]) -> dict:
     if cache.broken_count or getattr(cache, "dpkg_journal_dirty", False):
         raise ValueError("APT or dpkg requires recovery before driver setup")
     changes = []
+    validated = False
     try:
         for name in targets:
             if archive_candidate(cache, name)["status"] != "ubuntu-candidate":
@@ -227,12 +229,14 @@ def simulate_packages(cache, targets: tuple[str, ...]) -> dict:
         # Conservative screening, not a reservation or per-mount calculation.
         free = min(shutil.disk_usage(path).free for path in ("/", "/var/cache/apt/archives", "/boot"))
         enough = free >= download + installed + 512 * 1024 * 1024
+        validated = enough
         return {"status": "simulated" if enough else "insufficient-space",
                 "targets": list(targets), "changes": sorted(changes, key=lambda row: row["name"]),
                 "download_bytes": download, "additional_installed_bytes": installed,
                 "minimum_free_bytes": free, "install_ready": False}
     finally:
-        cache.clear()
+        if not (retain_marks and validated):
+            cache.clear()
 
 
 def simulate_driver_setup(devices: tuple[PCIDevice, ...]) -> dict:
