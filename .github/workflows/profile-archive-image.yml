@@ -1,0 +1,50 @@
+name: Standard archive applications installed-image test
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/profile-archive-image.yml'
+      - 'config/profiles.json'
+      - 'scripts/check-profile-rootfs.py'
+permissions:
+  contents: read
+concurrency:
+  group: profile-archive-image-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  standard:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
+      - name: Build partial Standard archive image
+        run: |
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 LOCALZET_ARCHIVE_PROFILE=standard bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/standard-root"
+          sudo env PYTHONPATH=src python3 scripts/check-profile-rootfs.py "$RUNNER_TEMP/standard-root" "$RUNNER_TEMP/standard-root/usr/share/localzet/archive-profile-plan.json" | tee dist/verified-archive-profile.json
+          sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/standard-root" "$PWD/dist/localzet-standard-archive.iso"
+          (cd dist && sha256sum -c localzet-standard-archive.iso.sha256)
+      - name: Verify installed package inventory and desktop launches
+        run: |
+          printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
+          x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
+          python3 scripts/qemu-interactive-install-smoke.py dist/localzet-standard-archive.iso \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --boot-media usb --fixture "$RUNNER_TEMP/smoke.exe" --logs dist/profile-logs \
+            --expect-archive-profile standard
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: standard-archive-image-evidence
+          path: |
+            dist/verified-archive-profile.json
+            dist/localzet-standard-archive.iso.sha256
+            dist/profile-logs/
+          if-no-files-found: warn
+          retention-days: 7

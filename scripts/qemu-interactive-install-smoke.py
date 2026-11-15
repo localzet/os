@@ -206,8 +206,8 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script():
-    return r"""#!/bin/bash
+def installed_script(archive_profile=None):
+    script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
 trap 'printf "\nLOCALZET_CANDIDATE_FAILED line=%s status=%s\n" "$LINENO" "$?"' ERR
@@ -309,6 +309,32 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
 printf '\nLOCALZET_CANDIDATE_WINE_READY\n'
 """
 
+    if archive_profile:
+        check = r"""
+PYTHONPATH=/opt/localzet-os/src python3 - <<'PY'
+import json
+from pathlib import Path
+import subprocess
+from localzet.profiles import load_manifest, plan
+receipt = json.loads(Path("/usr/share/localzet/archive-profile-plan.json").read_text())
+expected = plan(load_manifest(Path("/opt/localzet-os/config/profiles.json")), ARCHIVE_PROFILE)
+assert receipt == expected
+packages = expected["ubuntu_package_candidates"]
+output = subprocess.check_output(["dpkg-query", "-W", "-f=${Package}\\t${db:Status-Abbrev}\\n", *packages], text=True)
+assert set(output.splitlines()) == {name + "\tii " for name in packages}, output
+assert not expected["install_ready"]
+print("PASS: installed archive profile package inventory; external components remain pending")
+PY
+pgrep -u localzet-test -x vlc >/dev/null
+pgrep -u localzet-test -x qbittorrent >/dev/null
+"""
+        # Constant, allowlisted profile name; no arbitrary shell interpolation.
+        assert archive_profile in ("standard", "complete")
+        check = check.replace("ARCHIVE_PROFILE", repr(archive_profile))
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+        assert "installed archive profile package inventory" in script
+    return script
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -318,6 +344,7 @@ def main():
     parser.add_argument("--logs", type=Path, required=True)
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
+    parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     args = parser.parse_args()
     for name in ("iso", "ovmf_code", "ovmf_vars"):
         path = getattr(args, name).resolve(strict=True)
@@ -352,7 +379,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script())
+        script.write_text(installed_script(args.expect_archive_profile))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -367,6 +394,9 @@ def main():
             installed.launch("localzet-settings")
             installed.launch("localzet-windows")
             installed.launch("localzet-connect")
+            if args.expect_archive_profile:
+                installed.launch("vlc")
+                installed.launch("qbittorrent")
             # Use a real text login instead of typing commands into the GNOME
             # overview. No autologin, no injected root service, no password in argv.
             installed.capture("desktop-before-console")

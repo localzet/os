@@ -30,6 +30,7 @@ EOF
 cp -a "$repo/src/localzet" "$pkg/opt/localzet-os/src/"
 find "$pkg/opt/localzet-os/src" -type d -name __pycache__ -prune -exec rm -rf -- {} +
 cp -a "$repo/config/modules" "$pkg/opt/localzet-os/config/"
+install -m 0644 "$repo/config/profiles.json" "$pkg/opt/localzet-os/config/profiles.json"
 cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/applications/"
