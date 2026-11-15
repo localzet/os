@@ -258,6 +258,7 @@ def main() -> int:
     parser.add_argument("--resolve", action="store_true", help="Inspect local Ubuntu recommendations and APT cache without network access")
     parser.add_argument("--simulate", action="store_true", help="Simulate a recommended NVIDIA driver transaction; never install")
     parser.add_argument("--cuda", action="store_true", help="Inspect compatible CUDA toolkit and simulate its installation")
+    parser.add_argument("--verify-cuda", action="store_true", help="Compile and execute an unprivileged CUDA GPU probe")
     args = parser.parse_args()
     try:
         devices = inventory()
@@ -267,6 +268,14 @@ def main() -> int:
     if args.cuda:
         from localzet.hardware_cuda import inspect_cuda
         result["cuda"] = inspect_cuda(devices)
+    if args.verify_cuda:
+        from localzet.hardware_compute import verify
+        try:
+            result["cuda_compute"] = verify()
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+            result["cuda_compute"] = {"status": "failed", "reason": str(error)}
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["cuda_compute"]["status"] == "compute-verified" else 1
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
