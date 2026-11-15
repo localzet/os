@@ -20,7 +20,7 @@ jobs:
       - name: Install static fixture binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y busybox-static
+          sudo apt-get install -y busybox-static python3-gi gir1.2-gtk-4.0 gir1.2-vte-3.91 xvfb xauth
           test -x /usr/bin/docker
       - name: Test actual engine without remote downloads
         run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/containers-engine-smoke.sh
