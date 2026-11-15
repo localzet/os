@@ -192,3 +192,11 @@ insecure fallback or TLS mutation. Unit tests cover transport configuration
 and persistence; real TLS server/certificate acceptance and GUI validation
 remain pending. Saved endpoint editing/removal, remote rootless and streaming
 bounds remain open.
+
+Stage 19 adds volume metadata, actual container references (including stopped
+and created containers), and typed-name confirmation for deletion of unused
+default local volumes. Deletion is irreversible and creates no backup. No force,
+prune, driver options or mountpoint access. References are checked again on
+execution; the daemon rejects in-use volume removal, but names are not immutable
+identifiers and concurrent clients can replace a volume. Backup/restore, clone,
+content browsing, size accounting and interactive/rootless QA remain pending.
