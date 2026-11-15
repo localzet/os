@@ -63,7 +63,12 @@ assert "localzet-rootless-ready" in engine.logs(cid)[0]
 assert engine.metrics(cid)["PIDs"]
 assert state(engine.action("restart", cid)) == "running"
 assert state(engine.action("stop", cid)) == "exited"
-engine._run("container", "rm", cid)
-assert engine.inventory() == ()
+assert state(engine.inventory()) == "exited"
 print("PASS: actual rootless Docker build, lifecycle, logs and metrics")
 PY
+
+# Keep the stopped fixture for the real GTK lifecycle test. Preserve the
+# user bus and runtime directory used by the rootless daemon.
+GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none xvfb-run -a -s '-screen 0 1440x900x24' \\
+    /usr/bin/python3 scripts/ci/containers-rootless-gtk.py "$out"
+/usr/bin/docker --host "unix://$socket" container rm localzet-rootless-ci
