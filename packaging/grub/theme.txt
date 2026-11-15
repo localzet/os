@@ -1,0 +1,63 @@
+# Aurora Professional — original Localzet GRUB theme.
+title-text: ""
+desktop-image: "background.png"
+desktop-image-scale-method: "stretch"
+desktop-color: "#10091e"
+terminal-font: "DejaVu Sans Regular 20"
+message-font: "DejaVu Sans Regular 20"
+message-color: "#f4eeff"
+message-bg-color: "#10091e"
+
++ image {
+    left = 50%-48
+    top = 7%
+    file = "logo.png"
+}
+
++ label {
+    left = 0
+    top = 23%
+    width = 100%
+    align = "center"
+    text = "Localzet OS  /  Aurora"
+    font = "DejaVu Sans Regular 24"
+    color = "#f4eeff"
+}
+
++ boot_menu {
+    left = 12%
+    top = 36%
+    width = 76%
+    height = 38%
+    item_font = "DejaVu Sans Regular 20"
+    selected_item_font = "DejaVu Sans Regular 20"
+    item_color = "#d8cbed"
+    selected_item_color = "#ffb46b"
+    item_height = 38
+    item_padding = 6
+    item_spacing = 4
+    icon_width = 0
+    icon_height = 0
+    item_icon_space = 0
+}
+
++ label {
+    left = 0
+    top = 80%
+    width = 100%
+    align = "center"
+    id = "__timeout__"
+    text = "Booting in %d seconds"
+    font = "DejaVu Sans Regular 20"
+    color = "#b9a5d5"
+}
+
++ label {
+    left = 0
+    top = 91%
+    width = 100%
+    align = "center"
+    text = "Enter: boot   |   e: edit   |   c: console"
+    font = "DejaVu Sans Regular 20"
+    color = "#b9a5d5"
+}

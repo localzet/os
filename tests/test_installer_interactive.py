@@ -65,6 +65,17 @@ class InteractiveInstallerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_request(request)
 
+    def test_hardware_authorization_requires_boolean(self):
+        for value in (False, True):
+            request = self.request()
+            request["automatic_hardware"] = value
+            validate_request(request)
+        for value in ("true", 1, None, []):
+            request = self.request()
+            request["automatic_hardware"] = value
+            with self.assertRaises(ValueError):
+                validate_request(request)
+
     def test_reserved_user_and_invalid_password(self):
         for field, value in (("username", "root"), ("username", "localzet"),
                              ("username", "../test"), ("password", "short"),

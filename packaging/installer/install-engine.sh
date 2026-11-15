@@ -2,12 +2,17 @@
 # Shared UEFI installation engine. The VM and interactive entry points use
 # this same implementation. Never execute against a nonblank target.
 set -Eeuo pipefail
-[[ $# == 5 ]] || exit 2
+[[ $# == 5 || $# == 6 ]] || exit 2
 mode="$1"
 byid="$2"
 username="$3"
 expected_disk="$4"
 expected_devno="$5"
+automatic_hardware="${6:-0}"
+[[ "$automatic_hardware" == 0 || "$automatic_hardware" == 1 ]] || exit 2
+if [[ "$automatic_hardware" == 1 ]]; then
+    [[ "$mode" == interactive && -f /usr/lib/localzet/hardware-auto-enabled ]] || exit 2
+fi
 IFS= read -r password
 [[ $EUID == 0 && -d /sys/firmware/efi ]] || exit 2
 grep -qw 'boot=casper' /proc/cmdline
@@ -123,6 +128,13 @@ chroot "$root" useradd -m -s /bin/bash -G sudo "$username"
 printf '%s:%s\n' "$username" "$password" | chroot "$root" chpasswd
 unset password
 chroot "$root" passwd -l root
+# Persist only the installer-authorized policy, never execute APT on the host.
+rm -f "$root/usr/lib/localzet/hardware-auto-enabled"
+if [[ "$automatic_hardware" == 1 ]]; then
+    install -d -m 0755 "$root/etc/localzet"
+    (umask 077; printf 'general-hardware-and-cuda-v2\n' > "$root/etc/localzet/hardware-auto")
+    systemctl --root="$root" enable localzet-hardware-firstboot.timer
+fi
 printf "localzet-pc\n" > "$root/etc/hostname"
 printf "127.0.0.1 localhost\n127.0.1.1 localzet-pc\n::1 localhost ip6-localhost ip6-loopback\n" > "$root/etc/hosts"
 chroot "$root" dpkg --purge casper
@@ -132,10 +144,16 @@ chroot "$root" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
     --bootloader-id=Localzet --removable --no-nvram
 mkdir -p "$root/etc/default/grub.d"
 printf 'GRUB_DISABLE_OS_PROBER=true\nGRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n' > "$root/etc/default/grub.d/90-localzet.cfg"
+# This is the target's own /boot, never an existing foreign EFI volume.
+for file in theme.txt background.png logo.png dejavu-20.pf2 dejavu-24.pf2; do
+    [[ -s "$root/boot/grub/themes/localzet-aurora/$file" ]]
+done
+printf 'GRUB_THEME="/boot/grub/themes/localzet-aurora/theme.txt"\nGRUB_GFXMODE=1024x768,auto\nGRUB_TIMEOUT_STYLE=menu\nGRUB_TIMEOUT=5\n' >> "$root/etc/default/grub.d/90-localzet.cfg"
 if [[ "$mode" == vm ]]; then
     printf '%s\n' 'GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200n8 systemd.show_status=1 systemd.mask=serial-getty@ttyS0.service"' > "$root/etc/default/grub.d/99-localzet-test.cfg"
 fi
 chroot "$root" update-grub
+chroot "$root" grub-script-check /boot/grub/grub.cfg
 [[ -f "$root/boot/efi/EFI/BOOT/BOOTX64.EFI" ]]
 # Installed boot verification exists only in the VM test image.
 if [[ "$mode" == vm ]]; then

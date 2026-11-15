@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule experimental Localzet hardware setup after boot
+ConditionPathExists=/etc/localzet/hardware-auto
+
+[Timer]
+OnBootSec=2min
+Unit=localzet-hardware-firstboot.service
+
+[Install]
+WantedBy=timers.target

@@ -16,6 +16,7 @@
 - [ ] Real dedicated-SSD hardware validation, failure recovery and update testing.
 - [ ] License/source inventory, signed artifacts and release documentation.
 - [ ] Secure Boot, encryption and wider installation options.
+- [ ] [Hardware Enablement](design/HARDWARE-ENABLEMENT.md): automatic driver detection, signed driver installation, conditional NVIDIA CUDA installation and recovery.
 
 ## P2 — coherent desktop
 - [x] Initial shell, dock, launcher and native settings.
@@ -29,4 +30,5 @@
 - [ ] Actual Android pairing and upstream package redistribution review.
 - [ ] Windows GUI manager, 32-bit and Proton/Steam GPU testing.
 - [ ] Containers, networking, NetBird, UserNet and gaming profiles.
+- [ ] NVIDIA GPU container runtime, CUDA validation and hybrid graphics/Proton acceptance.
 - [ ] Russian and English product documentation, localization QA.
