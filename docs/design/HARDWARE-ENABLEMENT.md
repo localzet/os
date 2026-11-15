@@ -167,3 +167,13 @@ logs: journalctl -u localzet-hardware-firstboot.service. CUDA completion require
 an unprivileged compute probe, not an automatic success claim. Other hardware,
 GUI progress, post-install verification automation and safe recovery remain
 pending; no unattended default for production or physical GPU acceptance yet.
+
+H4.2: Localzet Hardware Manager is a native GTK4/libadwaita window linked
+from Components. It displays PCI graphics, bound driver, running kernel,
+Secure Boot, Ubuntu recommendations and actual NVIDIA runtime capability.
+A sanitized root-written public status (only state and timestamp) is polled
+while the window is open; private receipts and errors stay root-only. CUDA
+compute verification runs asynchronously as the desktop user. Recovery and
+reboot guidance are informational; no GUI privilege escalation, automatic
+reboot or actual repair is implemented. Status is coarse phase progress,
+not byte-level APT progress. This is not yet a GNOME Control Center panel.
