@@ -149,7 +149,7 @@ result = []
 def exited(_, code):
     result.append(os.waitstatus_to_exitcode(code))
     loop.quit()
-def spawned(_, pid, error, *_):
+def spawned(_terminal, pid, error, *_):
     if error is not None:
         result.append(str(error))
         loop.quit()
