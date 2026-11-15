@@ -42,7 +42,8 @@ def main() -> int:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Containers")
-            self.window.set_default_size(1100, 720)
+            self.window.set_default_size(1220, 760)
+            self.window.set_size_request(900, 560)
             self.window.add_css_class("aurora-containers")
             style = Adw.StyleManager.get_default()
             def update_style(*_):
@@ -56,14 +57,19 @@ def main() -> int:
             update_style()
             provider = Gtk.CssProvider()
             provider.load_from_data(b"""
-                window.aurora-containers.aurora-dark { background-color: #171022; color: #f4eeff; }
-                .aurora-dark headerbar { background-color: #20152f; color: #f4eeff; }
-                .aurora-dark columnview { background-color: #21172f; }
-                .aurora-dark columnview header button { background-color: #2a1d3b; color: #d3c3ec; }
-                .aurora-dark columnview row:selected { background-color: #493064; color: #f4eeff; }
-                .aurora-dark .container-detail { background-color: #21172f; border-radius: 8px; padding: 10px; }
-                .aurora-dark textview, .aurora-dark textview text { background-color: #10091e; color: #f4eeff; }
-                .aurora-dark button.suggested-action { background-color: #ff7e00; color: #10091e; }
+                 .aurora-containers .workspace-sidebar { padding: 12px 8px; border-right: 1px solid alpha(currentColor, .12); }
+                .aurora-containers .workspace-sidebar button { border-radius: 5px; padding: 7px 9px; }
+                .aurora-containers .workspace-sidebar button.active { background-color: alpha(currentColor, .12); font-weight: 600; }
+                .aurora-containers .workspace-heading { font-size: 19px; font-weight: 600; }
+                .aurora-containers .container-detail { border: 1px solid alpha(currentColor, .12); border-radius: 6px; padding: 10px; }
+                .aurora-containers columnview { border: 1px solid alpha(currentColor, .12); }
+                window.aurora-containers.aurora-dark { background-color: #191820; color: #eeeaf4; }
+                .aurora-dark headerbar, .aurora-dark .workspace-sidebar { background-color: #201e29; color: #eeeaf4; }
+                .aurora-dark columnview, .aurora-dark .container-detail { background-color: #211f2b; }
+                .aurora-dark columnview header button { background-color: #292633; color: #cec7dc; }
+                .aurora-dark columnview row:selected, .aurora-dark .workspace-sidebar button.active { background-color: #3e3454; color: #f4eeff; }
+                .aurora-dark textview, .aurora-dark textview text { background-color: #17161f; color: #eeeaf4; }
+                .aurora-dark button.suggested-action { background-color: #a78bda; color: #18121f; }
             """)
             Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider,
                                                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -72,33 +78,71 @@ def main() -> int:
             title = Adw.WindowTitle(title="Containers", subtitle="Localzet OS")
             header.set_title_widget(title)
             self.refresh = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Обновить")
-            self.refresh.connect("clicked", lambda *_: self.load())
+            self.refresh.connect("clicked", lambda *_: self.refresh_page())
             header.pack_end(self.refresh)
             toolbar.add_top_bar(header)
             self.window.set_content(toolbar)
-            main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
-                           margin_top=16, margin_bottom=16, margin_start=18, margin_end=18)
-            toolbar.set_content(main)
-            top = Gtk.Box(spacing=12)
-            self.engine_label = Gtk.Label(label="Локальный rootless Docker", xalign=0, hexpand=True)
-            self.engine_label.add_css_class("heading")
-            top.append(self.engine_label)
+            shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            workspace = Gtk.Box(hexpand=True, vexpand=True)
+            shell.append(workspace)
+            toolbar.set_content(shell)
+            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, width_request=190)
+            sidebar.add_css_class("workspace-sidebar")
+            workspace.append(sidebar)
+            brand = Gtk.Label(label="WORKSPACE", xalign=0, margin_start=8, margin_bottom=8)
+            brand.add_css_class("dim-label")
+            sidebar.append(brand)
+            self.nav_buttons = {}
+            self.resource_buttons = []
+            for page, caption, icon in (("containers", "Контейнеры", "application-x-executable-symbolic"),
+                ("compose", "Compose", "view-list-symbolic"), ("images", "Образы", "drive-harddisk-symbolic"),
+                ("volumes", "Тома", "folder-symbolic"), ("networks", "Сети", "network-wired-symbolic")):
+                button = Gtk.Button()
+                row = Gtk.Box(spacing=9)
+                row.append(Gtk.Image.new_from_icon_name(icon))
+                row.append(Gtk.Label(label=caption, xalign=0, hexpand=True))
+                button.set_child(row)
+                button.add_css_class("flat")
+                button.connect("clicked", lambda _, page=page: self.navigate(page))
+                sidebar.append(button)
+                self.nav_buttons[page] = button
+                if page == "compose":
+                    self.stacks_button = button
+                elif page != "containers":
+                    self.resource_buttons.append(button)
+                action = Gio.SimpleAction.new("page-" + page, None)
+                action.connect("activate", lambda *_args, page=page: self.navigate(page))
+                self.add_action(action)
+                self.set_accels_for_action("app.page-" + page, ["<Control>" + str(len(self.nav_buttons))])
+            spacer = Gtk.Box(vexpand=True)
+            sidebar.append(spacer)
+            self.engine_label = Gtk.Label(label="Локальный rootless Docker", xalign=0, wrap=True, margin_start=8)
+            self.engine_label.add_css_class("dim-label")
+            sidebar.append(self.engine_label)
             self.engine_button = Gtk.Button(label="Выбрать движок")
             self.engine_button.connect("clicked", self.choose_engine)
-            top.append(self.engine_button)
-            self.stacks_button = Gtk.Button(label="Compose-проекты")
-            self.stacks_button.connect("clicked", self.show_stacks)
-            top.append(self.stacks_button)
-            self.resource_buttons = []
-            for kind, caption in (("images", "Образы"), ("volumes", "Тома"), ("networks", "Сети")):
-                button = Gtk.Button(label=caption)
-                button.connect("clicked", self.show_resources, kind, caption)
-                top.append(button)
-                self.resource_buttons.append(button)
-            main.append(top)
-            self.status = Gtk.Label(label="Подключение…", xalign=0, wrap=True, selectable=True)
+            sidebar.append(self.engine_button)
+            self.pages = Gtk.Stack(hexpand=True, vexpand=True)
+            workspace.append(self.pages)
+            self.active_page = "containers"
+            main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10,
+                           margin_top=16, margin_bottom=16, margin_start=16, margin_end=16)
+            self.pages.add_named(main, "containers")
+            heading = Gtk.Label(label="Контейнеры", xalign=0)
+            heading.add_css_class("workspace-heading")
+            main.append(heading)
+            self.overview = Gtk.Label(label="Контейнеров: —   ·   Запущено: —", xalign=0)
+            self.overview.add_css_class("dim-label")
+            main.append(self.overview)
+            self.resource_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10,
+                                         margin_top=16, margin_bottom=16, margin_start=16, margin_end=16)
+            self.pages.add_named(self.resource_page, "resources")
+            self.status = Gtk.Label(label="Подключение…", xalign=0, wrap=True, selectable=True,
+                                    margin_start=14, margin_end=14, margin_top=6, margin_bottom=6)
             self.status.add_css_class("dim-label")
-            main.append(self.status)
+            shell.append(Gtk.Separator())
+            shell.append(self.status)
+            self.nav_buttons["containers"].add_css_class("active")
             columns = Gtk.Box(spacing=12)
             self.search = Gtk.SearchEntry(placeholder_text="Поиск по имени, образу, ID", hexpand=True)
             self.search.connect("search-changed", lambda *_: self.render())
@@ -148,7 +192,7 @@ def main() -> int:
             detail_box.add_css_class("container-detail")
             detail_header = Gtk.Box(spacing=8)
             self.detail = Gtk.Label(label="Выберите контейнер", xalign=0, wrap=True, selectable=True, hexpand=True)
-            detail_header.append(self.detail)
+            detail_box.append(self.detail)
             self.metrics_button = Gtk.Button(label="Метрики")
             self.logs_button = Gtk.Button(label="Логи")
             self.metrics_button.connect("clicked", lambda *_: self.read_detail("metrics"))
@@ -173,6 +217,75 @@ def main() -> int:
             self.window.present()
             self.load()
 
+        def navigate(self, page):
+            if self.busy or page not in self.nav_buttons:
+                return
+            self.active_page = page
+            for key, button in self.nav_buttons.items():
+                (button.add_css_class if key == page else button.remove_css_class)("active")
+            caption = {"containers": "Контейнеры", "compose": "Compose", "images": "Образы", "volumes": "Тома", "networks": "Сети"}[page]
+            self.window.set_title("Localzet Containers — " + caption)
+            self.pages.set_visible_child_name("containers" if page == "containers" else "resources")
+            self.clear_detail()
+            if page == "containers":
+                self.load()
+            else:
+                self.clear_resource_page(caption, "Загрузка…")
+                if page == "compose":
+                    self.show_stacks()
+                else:
+                    self.show_resources(None, page, caption)
+
+        def refresh_page(self):
+            self.navigate(self.active_page)
+
+        def clear_resource_page(self, caption, summary):
+            child = self.resource_page.get_first_child()
+            while child is not None:
+                self.resource_page.remove(child)
+                child = self.resource_page.get_first_child()
+            heading = Gtk.Label(label=caption, xalign=0)
+            heading.add_css_class("workspace-heading")
+            self.resource_page.append(heading)
+            label = Gtk.Label(label=summary, xalign=0, wrap=True, selectable=True)
+            label.add_css_class("dim-label")
+            self.resource_page.append(label)
+            return self.resource_page
+
+        def resource_table(self, content, rows, fields):
+            store = Gio.ListStore.new(Row)
+            selection = Gtk.SingleSelection(model=store, autoselect=False, can_unselect=True)
+            table = Gtk.ColumnView(model=selection, show_row_separators=True, vexpand=True)
+            for key, caption in fields:
+                factory = Gtk.SignalListItemFactory()
+                def setup(_, item):
+                    item.set_child(Gtk.Label(xalign=0, ellipsize=Pango.EllipsizeMode.END,
+                                             margin_start=8, margin_end=8, margin_top=6, margin_bottom=6))
+                def bind(_, item, key=key):
+                    value = item.get_item().item[key] or "—"
+                    item.get_child().set_label(value)
+                    item.get_child().set_tooltip_text(value)
+                factory.connect("setup", setup)
+                factory.connect("bind", bind)
+                column = Gtk.ColumnViewColumn.new(caption, factory)
+                column.set_expand(True)
+                column.set_resizable(True)
+                table.append_column(column)
+            search = Gtk.SearchEntry(placeholder_text="Фильтр ресурсов")
+            content.append(search)
+            def filter_rows(*_):
+                query = search.get_text().casefold()
+                store.remove_all()
+                for row in rows:
+                    if not query or any(query in str(value).casefold() for value in row.values()):
+                        store.append(Row(row))
+            search.connect("search-changed", filter_rows)
+            filter_rows()
+            scroll = Gtk.ScrolledWindow(vexpand=True, min_content_height=140)
+            scroll.set_child(table)
+            content.append(scroll)
+            return selection
+
         def show_resources(self, _, kind, caption):
             if self.busy:
                 return
@@ -189,15 +302,6 @@ def main() -> int:
                 return GLib.SOURCE_REMOVE
             self.busy = False
             self.update_actions()
-            dialog = Adw.Dialog(title=caption, content_width=820, content_height=480)
-            toolbar = Adw.ToolbarView()
-            toolbar.add_top_bar(Adw.HeaderBar())
-            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
-                              margin_top=16, margin_bottom=16, margin_start=16, margin_end=16)
-            scroll = Gtk.ScrolledWindow(vexpand=True)
-            scroll.set_child(content)
-            toolbar.set_content(scroll)
-            dialog.set_child(toolbar)
             try:
                 rows = future.result()
                 summary = f"Ресурсов: {len(rows)}"
@@ -207,57 +311,64 @@ def main() -> int:
             except Exception:
                 rows = ()
                 summary = "Не удалось получить список ресурсов."
-            content.append(Gtk.Label(label=summary, xalign=0, wrap=True, selectable=True))
-            labels = {"Repository": "Репозиторий", "Tag": "Тег", "ID": "ID",
-                      "Size": "Размер", "Name": "Имя", "Driver": "Драйвер", "Scope": "Область"}
+            content = self.clear_resource_page(caption, summary)
+            parent = self.window
+            fields = {"images": (("Repository", "Репозиторий"), ("Tag", "Тег"), ("Size", "Размер"), ("ID", "ID")),
+                      "volumes": (("Name", "Имя"), ("Driver", "Драйвер"), ("Scope", "Область")),
+                      "networks": (("Name", "Имя"), ("Driver", "Драйвер"), ("Scope", "Область"), ("ID", "ID"))}[kind]
+            controls = Gtk.Box(spacing=6)
+            content.append(controls)
+            def button(label, callback):
+                widget = Gtk.Button(label=label)
+                widget.connect("clicked", callback)
+                controls.append(widget)
+                return widget
             if kind in ("volumes", "networks"):
-                create = Gtk.Button(label="Создать локальный том" if kind == "volumes" else "Создать изолированную сеть")
-                create.connect("clicked", lambda *_: self.confirm_resource(dialog, kind, caption, None))
-                content.append(create)
+                button("Создать том" if kind == "volumes" else "Создать сеть",
+                       lambda *_: self.confirm_resource(parent, kind, caption, None))
                 if kind == "volumes":
-                    restore = Gtk.Button(label="Восстановить в новый том")
-                    restore.connect("clicked", lambda *_: self.open_volume_archive(dialog, None))
-                    content.append(restore)
-            if kind == "images":
-                pull = Gtk.Button(label="Загрузить образ")
-                pull.connect("clicked", lambda *_: self.confirm_deployment(dialog, None))
-                content.append(pull)
-                build = Gtk.Button(label="Собрать образ")
-                build.connect("clicked", lambda *_: self.open_builder(dialog))
-                content.append(build)
-            for item in rows:
-                group = Adw.PreferencesGroup()
-                for key, value in item.items():
-                    row = Adw.ActionRow(title=labels[key])
-                    label = Gtk.Label(label=value or "—", selectable=True, wrap=True,
-                                      max_width_chars=64, xalign=1)
-                    row.add_suffix(label)
-                    group.add(row)
+                    button("Восстановить", lambda *_: self.open_volume_archive(parent, None))
+            else:
+                button("Загрузить образ", lambda *_: self.confirm_deployment(parent, None))
+                button("Собрать образ", lambda *_: self.open_builder(parent))
+            selection = self.resource_table(content, rows, fields)
+            inspector = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            inspector.add_css_class("container-detail")
+            detail = Gtk.Label(label="Выберите ресурс", xalign=0, wrap=True, selectable=True)
+            inspector.append(detail)
+            actions = Gtk.Box(spacing=6)
+            inspector.append(actions)
+            content.append(inspector)
+            def chosen(*_):
+                child = actions.get_first_child()
+                while child is not None:
+                    actions.remove(child)
+                    child = actions.get_first_child()
+                selected = selection.get_selected_item()
+                if selected is None:
+                    detail.set_label("Выберите ресурс")
+                    return
+                item = selected.item
+                detail.set_label(" · ".join(str(item[key]) for key, _ in fields))
+                def add(label, callback, destructive=False):
+                    widget = Gtk.Button(label=label)
+                    if destructive:
+                        widget.add_css_class("destructive-action")
+                    widget.connect("clicked", callback)
+                    actions.append(widget)
                 if kind == "volumes":
-                    details = Gtk.Button(label="Сведения и использование", halign=Gtk.Align.END)
-                    details.connect("clicked", lambda _, item=item: self.show_volume(dialog, item["Name"]))
-                    group.add(details)
-                    backup = Gtk.Button(label="Экспорт TAR", halign=Gtk.Align.END)
-                    backup.connect("clicked", lambda _, item=item: self.open_volume_archive(dialog, item["Name"]))
-                    group.add(backup)
+                    add("Сведения", lambda *_: self.show_volume(parent, item["Name"]))
+                    add("Экспорт TAR", lambda *_: self.open_volume_archive(parent, item["Name"]))
                 if kind == "images":
-                    create = Gtk.Button(label="Создать контейнер", halign=Gtk.Align.END)
-                    create.connect("clicked", lambda _, item=item: self.confirm_deployment(dialog, item))
-                    group.add(create)
-                    history = Gtk.Button(label="История слоёв", halign=Gtk.Align.END)
-                    history.connect("clicked", lambda _, item=item: self.show_image_history(dialog, item["ID"]))
-                    group.add(history)
-                    registry = Gtk.Button(label="Тег / Публикация", halign=Gtk.Align.END)
-                    registry.connect("clicked", lambda _, item=item: self.open_registry(dialog, item))
-                    group.add(registry)
+                    add("Создать контейнер", lambda *_: self.confirm_deployment(parent, item))
+                    add("История слоёв", lambda *_: self.show_image_history(parent, item["ID"]))
+                    add("Тег / Публикация", lambda *_: self.open_registry(parent, item))
                 if kind in ("images", "networks") and not (kind == "networks" and
                         (item["Name"] in ("bridge", "host", "none") or item["Scope"] != "local")):
-                    remove = Gtk.Button(label="Удалить", halign=Gtk.Align.END)
-                    remove.add_css_class("destructive-action")
-                    remove.connect("clicked", lambda _, item=item: self.confirm_resource(dialog, kind, caption, item))
-                    group.add(remove)
-                content.append(group)
-            dialog.present(self.window)
+                    add("Удалить", lambda *_: self.confirm_resource(parent, kind, caption, item), True)
+            selection.connect("notify::selected-item", chosen)
+            chosen()
+            self.status.set_label(summary)
             return GLib.SOURCE_REMOVE
 
         def open_registry(self, parent, item):
@@ -299,7 +410,8 @@ def main() -> int:
                 def run(_, choice):
                     if choice != "confirm" or self.busy or generation != self.generation or rootful != self.rootful:
                         return
-                    parent.close()
+                    if parent is not self.window:
+                        parent.close()
                     self.busy = True
                     self.generation += 1
                     current = self.generation
@@ -418,7 +530,8 @@ def main() -> int:
                 def run(_, response):
                     if response != "build" or self.busy or generation != self.generation or rootful != self.rootful:
                         return
-                    parent.close()
+                    if parent is not self.window:
+                        parent.close()
                     self.busy = True
                     self.generation += 1
                     current = self.generation
@@ -530,7 +643,8 @@ def main() -> int:
             def deploy(target, options):
                 if self.busy or generation != self.generation or rootful != self.rootful:
                     return
-                parent.close()
+                if parent is not self.window:
+                    parent.close()
                 self.busy = True
                 self.generation += 1
                 current = self.generation
@@ -605,7 +719,8 @@ def main() -> int:
                 def execute(_, result):
                     if result != "yes" or self.busy or generation != self.generation or rootful != self.rootful:
                         return
-                    parent.close()
+                    if parent is not self.window:
+                        parent.close()
                     self.busy = True
                     self.generation += 1
                     current = self.generation
@@ -683,7 +798,8 @@ def main() -> int:
             def confirmed(_, choice):
                 if choice != "confirm" or entry.get_text() != name or self.busy or generation != self.generation or rootful != self.rootful:
                     return
-                parent.close()
+                if parent is not self.window:
+                    parent.close()
                 self.busy = True
                 self.generation += 1
                 current = self.generation
@@ -718,7 +834,8 @@ def main() -> int:
                 if choice != "confirm" or self.busy or generation != self.generation or rootful != self.rootful:
                     return
                 target = item["ID"] if item else entry.get_text()
-                parent.close()
+                if parent is not self.window:
+                    parent.close()
                 self.busy = True
                 self.generation += 1
                 current = self.generation
@@ -747,49 +864,29 @@ def main() -> int:
                 return GLib.SOURCE_REMOVE
             self.busy = False
             self.update_actions()
-            dialog = Adw.Dialog(title="Compose-проекты", content_width=760, content_height=480)
-            toolbar = Adw.ToolbarView()
-            toolbar.add_top_bar(Adw.HeaderBar())
-            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
-                              margin_top=16, margin_bottom=16, margin_start=16, margin_end=16)
-            scroll = Gtk.ScrolledWindow(vexpand=True)
-            scroll.set_child(content)
-            toolbar.set_content(scroll)
-            dialog.set_child(toolbar)
             try:
-                rows = future.result()
-                summary = f"Проектов: {len(rows)} · Только просмотр"
+                rows = tuple({"name": row.name, "status": row.status, "files": row.config_files} for row in future.result())
+                summary = f"Проектов: {len(rows)} · Внешние проекты доступны для просмотра"
             except (EngineError, OSError, ValueError) as error:
                 rows = ()
                 summary = str(error)
             except Exception:
                 rows = ()
                 summary = "Не удалось получить список Compose-проектов."
-            label = Gtk.Label(label=summary, xalign=0, wrap=True, selectable=True)
-            label.add_css_class("heading")
-            content.append(label)
-            studio = Gtk.Button(label="Открыть Compose Studio")
-            studio.connect("clicked", lambda *_: self.compose_studio(dialog))
+            content = self.clear_resource_page("Compose", summary)
+            studio = Gtk.Button(label="Открыть Compose Studio", halign=Gtk.Align.START)
+            studio.add_css_class("suggested-action")
+            studio.connect("clicked", lambda *_: self.compose_studio(self.window))
             content.append(studio)
-            for item in rows:
-                group = Adw.PreferencesGroup()
-                for caption, value in (("Проект", item.name), ("Состояние", item.status),
-                                       ("Файлы конфигурации (метаданные)", item.config_files)):
-                    row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4,
-                                  margin_top=8, margin_bottom=8, margin_start=8, margin_end=8)
-                    heading = Gtk.Label(label=caption, xalign=0)
-                    heading.add_css_class("dim-label")
-                    row.append(heading)
-                    row.append(Gtk.Label(label=value or "—", xalign=0, wrap=True, selectable=True))
-                    group.add(row)
-                content.append(group)
-            dialog.present(self.window)
+            self.resource_table(content, rows, (("name", "Проект"), ("status", "Состояние"), ("files", "Файлы конфигурации")))
+            self.status.set_label(summary)
             return GLib.SOURCE_REMOVE
 
         def compose_studio(self, parent):
             if self.busy:
                 return
-            parent.close()
+            if parent is not self.window:
+                parent.close()
             dialog = Adw.Dialog(title="Compose Studio", content_width=940, content_height=640)
             toolbar = Adw.ToolbarView()
             header = Adw.HeaderBar()
@@ -1038,7 +1135,7 @@ def main() -> int:
             self.last_error = False
             self.clear_detail()
             self.render()
-            self.load()
+            self.navigate("containers")
 
         def open_remote(self):
             if self.busy:
@@ -1239,10 +1336,12 @@ def main() -> int:
                 self.rows = future.result()
                 self.last_error = False
                 running = sum(row.state == "running" for row in self.rows)
-                self.status.set_label(f"Контейнеров: {len(self.rows)}  ·  Запущено: {running}")
+                self.overview.set_label(f"Контейнеров: {len(self.rows)}   ·   Запущено: {running}   ·   Остальные: {len(self.rows) - running}")
+                self.status.set_label("Локальный движок · список обновлён")
             except (EngineError, OSError, ValueError) as error:
                 self.rows = ()
                 self.last_error = True
+                self.overview.set_label("Контейнеров: —   ·   Движок недоступен")
                 self.status.set_label(str(error))
             except Exception:
                 self.rows = ()
@@ -1561,6 +1660,9 @@ def main() -> int:
         def update_actions(self):
             item = self.selected()
             self.refresh.set_sensitive(not self.busy)
+            for button in self.nav_buttons.values():
+                button.set_sensitive(not self.busy)
+            self.resource_page.set_sensitive(not self.busy)
             self.engine_button.set_sensitive(not self.busy)
             self.stacks_button.set_sensitive(not self.busy)
             for button in self.resource_buttons:
