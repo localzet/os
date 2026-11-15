@@ -20,6 +20,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Reclaim disposable runner space for firmware dependency simulation
+        run: |
+          df -h / /boot /var/cache/apt/archives
+          # These preinstalled SDKs are not used by this job. Do not remove
+          # packages, kernels, boot files or change the transaction space guard.
+          sudo rm -rf -- /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h / /boot /var/cache/apt/archives
       - name: Install Ubuntu diagnostic tools only
         run: |
           sudo apt-get update
@@ -98,6 +105,11 @@ jobs:
           for vendor in ("GenuineIntel", "AuthenticAMD"):
               for name in common_targets(devices, vendor, True):
                   assert archive_candidate(cache, name)["status"] == "ubuntu-candidate", name
+          from localzet.hardware import simulate_packages, inventory
+          from localzet.hardware_common import cpu_vendor, physical_cpu
+          preview = simulate_packages(cache, common_targets(inventory(), cpu_vendor(), physical_cpu()))
+          Path("out/hardware/common-space-preview.json").write_text(json.dumps(preview, indent=2))
+          assert preview["status"] == "simulated", preview
           report = review_common(cache)
           cache.clear()
           Path("out/hardware/common-plan.json").write_text(json.dumps(report, indent=2))
