@@ -224,3 +224,15 @@ retain native system colors. Ctrl+1–5 selects sections. GTK CI captures dark/l
 and navigates all five sections without fake inventory. Compose editor, terminal,
 monitoring and operation forms remain dialogs. Full populated/rootless, responsive
 and visual acceptance still required; this is not a final Aurora design sign-off.
+
+Stage 21 integration gate: the real engine workflow now exercises the production
+GTK application factory, explicit system-engine response, actual fixture rows,
+selection and five workspace screenshots. This is widget-level integration,
+not end-to-end mouse automation. A partial Complete archive ISO can be built
+with LOCALZET_ARCHIVE_PROFILE=complete and LOCALZET_EXPERIMENTAL_CONTAINERS=1;
+Docker, Compose and VTE packages are verified in the rootfs, system daemon/socket
+and containerd are disabled, and no Docker group access is granted. The live
+workflow builds this candidate on the consolidated PR or by manual input and
+checks BIOS/UEFI boot; manual successful runs may upload a development ISO.
+Rootless setup, installed-system launch and full Complete external components
+remain acceptance gates. Do not label this a stable or complete release.
