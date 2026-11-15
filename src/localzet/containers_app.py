@@ -4,7 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
-from localzet.containers import Deployment, Engine, EngineError, StudioStore, deployment_args, metric_sample, build_argument_flags
+from localzet.containers import Deployment, Engine, EngineError, RemoteEngine, StudioStore, deployment_args, metric_sample, build_argument_flags
 
 
 def spawn_terminal(terminal, argv, cancellable, callback):
@@ -869,12 +869,16 @@ def main() -> int:
             dialog.add_response("cancel", "Отмена")
             dialog.add_response("rootless", "Rootless")
             dialog.add_response("rootful", "Системный Docker")
+            dialog.add_response("remote", "Удалённый SSH · просмотр")
             dialog.set_response_appearance("rootful", Adw.ResponseAppearance.DESTRUCTIVE)
             dialog.set_close_response("cancel")
             dialog.connect("response", self.engine_chosen)
             dialog.present(self.window)
 
         def engine_chosen(self, _, response):
+            if response == "remote" and not self.busy:
+                self.open_remote()
+                return
             if response not in ("rootless", "rootful") or self.busy:
                 return
             self.rootful = response == "rootful"
@@ -885,6 +889,69 @@ def main() -> int:
             self.clear_detail()
             self.render()
             self.load()
+
+        def open_remote(self):
+            if self.busy:
+                return
+            prompt = Adw.AlertDialog(heading="Удалённый Docker · SSH",
+                body="Только просмотр. Заранее настройте ключи и проверьте ключ сервера в known_hosts. Никаких паролей, автоматического принятия ключей или повышения привилегий.")
+            form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            host = Gtk.Entry(placeholder_text="server.example.org")
+            user = Gtk.Entry(placeholder_text="SSH user")
+            port = Gtk.SpinButton.new_with_range(1, 65535, 1)
+            port.set_value(22)
+            for label, widget in (("Хост", host), ("Пользователь", user), ("Порт", port)):
+                form.append(Gtk.Label(label=label, xalign=0))
+                form.append(widget)
+            prompt.set_extra_child(form)
+            prompt.add_response("cancel", "Отмена")
+            prompt.add_response("connect", "Подключиться")
+            prompt.set_default_response("cancel")
+            prompt.set_close_response("cancel")
+            def connect(_, choice):
+                if choice != "connect" or self.busy:
+                    return
+                remote = RemoteEngine(host.get_text(), user.get_text(), port.get_value_as_int())
+                self.busy = True
+                self.generation += 1
+                generation = self.generation
+                self.update_actions()
+                self.status.set_label("Получение удалённого списка…")
+                future = self.pool.submit(remote.inventory)
+                def complete():
+                    if generation != self.generation or not self.window:
+                        return GLib.SOURCE_REMOVE
+                    self.busy = False
+                    self.update_actions()
+                    dialog = Adw.Dialog(title=f"SSH · {remote.user}@{remote.host}:{remote.port}",
+                                        content_width=920, content_height=540)
+                    layout = Adw.ToolbarView()
+                    layout.add_top_bar(Adw.HeaderBar())
+                    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8,
+                                  margin_top=12, margin_bottom=12, margin_start=12, margin_end=12)
+                    box.append(Gtk.Label(label="Удалённый снимок · только чтение · локальный движок не изменён",
+                                         wrap=True, xalign=0))
+                    view = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.CHAR)
+                    scroll = Gtk.ScrolledWindow(vexpand=True)
+                    scroll.set_child(view)
+                    box.append(scroll)
+                    layout.set_content(box)
+                    dialog.set_child(layout)
+                    try:
+                        rows = future.result()
+                        value = "\n\n".join(f"{row.name} · {row.state} · {row.status}\n{row.image} · {row.ports}\n{row.id}" for row in rows)
+                        view.get_buffer().set_text(value or "Нет контейнеров.")
+                        self.status.set_label("Удалённый список получен. Локальный движок не изменён.")
+                    except (EngineError, OSError, ValueError) as error:
+                        view.get_buffer().set_text(str(error))
+                        self.status.set_label("Удалённое подключение не подтверждено.")
+                    except Exception:
+                        view.get_buffer().set_text("Не удалось получить список.")
+                    dialog.present(self.window)
+                    return GLib.SOURCE_REMOVE
+                future.add_done_callback(lambda _: GLib.idle_add(complete))
+            prompt.connect("response", connect)
+            prompt.present(self.window)
 
         def submit(self, action=None, cid=None):
             if self.busy:
