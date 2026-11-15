@@ -8,6 +8,9 @@ on:
       - 'src/localzet/hardware_install.py'
       - 'tests/test_hardware_install.py'
       - 'apps/localzet-hardware/**'
+      - 'packaging/hardware/**'
+      - 'packaging/installer/install-engine.sh'
+      - 'scripts/build-desktop-deb.sh'
       - '.github/workflows/hardware-recommendations.yml'
 permissions:
   contents: read
@@ -23,6 +26,20 @@ jobs:
           sudo apt-get install -y ubuntu-drivers-common python3-apt mokutil
       - name: Verify administrator transaction guards
         run: PYTHONPATH=src /usr/bin/python3 -m unittest discover -s tests -p 'test_hardware*.py' -v
+      - name: Verify first-boot package and disabled-by-default timer
+        run: |
+          bash scripts/build-desktop-deb.sh out/hardware-package
+          root="$(mktemp -d)"
+          dpkg-deb -x out/hardware-package/localzet-desktop_0.1.0~dev1_all.deb "$root"
+          test -x "$root/usr/lib/localzet/hardware-firstboot"
+          test -f "$root/usr/lib/systemd/system/localzet-hardware-firstboot.service"
+          test -f "$root/usr/lib/systemd/system/localzet-hardware-firstboot.timer"
+          test ! -e "$root/etc/localzet/hardware-auto"
+          test ! -d "$root/etc/systemd/system/timers.target.wants"
+          systemd-analyze verify "$root/usr/lib/systemd/system/localzet-hardware-firstboot.timer" "$root/usr/lib/systemd/system/localzet-hardware-firstboot.service"
+          sudo systemctl --root="$root" enable localzet-hardware-firstboot.timer
+          test -L "$root/etc/systemd/system/timers.target.wants/localzet-hardware-firstboot.timer"
+          sudo rm -rf -- "$root"
       - name: Observe actual runner hardware and archive
         run: |
           mkdir -p out/hardware
