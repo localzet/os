@@ -617,3 +617,38 @@ class ContainersTests(unittest.TestCase):
                 with self.assertRaises(EngineError):
                     engine.volume_info(name)
             run.assert_not_called()
+
+    def test_volume_archive_normalizes_and_rejects_unsafe_members(self):
+        import io
+        import tarfile
+        from localzet.containers import normalize_volume_archive
+        def archive(name, kind=tarfile.REGTYPE, mode=0o644):
+            stream = io.BytesIO()
+            with tarfile.open(fileobj=stream, mode="w") as tar:
+                info = tarfile.TarInfo(name)
+                info.type = kind
+                info.mode = mode
+                info.uid = 1234
+                info.gid = 5678
+                if kind == tarfile.REGTYPE:
+                    info.size = 4
+                    tar.addfile(info, io.BytesIO(b"data"))
+                else:
+                    info.linkname = "/etc/passwd"
+                    tar.addfile(info)
+            stream.seek(0)
+            return stream
+        clean = io.BytesIO()
+        normalize_volume_archive(archive("./folder/file"), clean)
+        clean.seek(0)
+        with tarfile.open(fileobj=clean, mode="r:") as tar:
+            member = tar.getmember("folder/file")
+            self.assertEqual((member.uid, member.gid), (0, 0))
+            self.assertEqual(tar.extractfile(member).read(), b"data")
+        for name, kind, mode in (("../outside", tarfile.REGTYPE, 0o644),
+                ("/etc/passwd", tarfile.REGTYPE, 0o644),
+                ("link", tarfile.SYMTYPE, 0o644),
+                ("hardlink", tarfile.LNKTYPE, 0o644),
+                ("setuid", tarfile.REGTYPE, 0o4755)):
+            with self.assertRaises(EngineError):
+                normalize_volume_archive(archive(name, kind, mode), io.BytesIO())
