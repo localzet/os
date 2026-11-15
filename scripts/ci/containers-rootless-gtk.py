@@ -58,14 +58,18 @@ def click_response(dialog, label):
                if isinstance(widget, Gtk.Button)
                and widget.get_label() == label
                and widget.get_mapped() and widget.get_sensitive()]
+    if not buttons:
+        # Adwaita may still be mapping the new dialog during its transition.
+        return False
     assert len(buttons) == 1, f"Expected one visible response button: {label}"
     buttons[0].emit("clicked")
+    return True
 
 
 def advance():
     global phase
     try:
-        assert time.monotonic() < deadline, "Rootless GTK timed out"
+        assert time.monotonic() < deadline, f"Rootless GTK timed out in phase {phase}"
         if app.busy:
             return GLib.SOURCE_CONTINUE
         if phase == 0:
@@ -77,16 +81,16 @@ def advance():
             app.start_button.emit("clicked")
         elif phase == 2:
             dialog = app.window.get_visible_dialog()
-            assert dialog is not None
-            click_response(dialog, "Отмена")
+            if dialog is None or not click_response(dialog, "Отмена"):
+                return GLib.SOURCE_CONTINUE
             assert state() == "exited"
         elif phase == 3:
             assert state() == "exited"
             app.start_button.emit("clicked")
         elif phase == 4:
             dialog = app.window.get_visible_dialog()
-            assert dialog is not None
-            click_response(dialog, "Запустить")
+            if dialog is None or not click_response(dialog, "Запустить"):
+                return GLib.SOURCE_CONTINUE
         elif phase == 5:
             assert not app.last_error and state() == "running"
             select_fixture()
@@ -95,8 +99,8 @@ def advance():
             app.stop_button.emit("clicked")
         elif phase == 6:
             dialog = app.window.get_visible_dialog()
-            assert dialog is not None
-            click_response(dialog, "Остановить")
+            if dialog is None or not click_response(dialog, "Остановить"):
+                return GLib.SOURCE_CONTINUE
         elif phase == 7:
             assert not app.last_error and state() == "exited"
             select_fixture()
