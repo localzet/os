@@ -150,3 +150,20 @@ Failure exits nonzero. Unit tests simulate process results, not actual GPU
 execution. Physical acceptance must run this command on the installed machine
 and retain the JSON output; no GPU success claim until then. No privileged
 receipt update, automatic setup orchestration or container GPU integration yet.
+
+H4.1: first-boot NVIDIA/CUDA orchestration is available only in explicitly
+experimental installer builds (LOCALZET_EXPERIMENTAL_HARDWARE_AUTO=1 and
+LOCALZET_INSTALLER=1). The checkbox is off by default until physical acceptance;
+only the selected target receives a root-owned policy and enabled timer.
+The timer starts after boot without waiting for packages in the desktop boot
+path. It refreshes signed archive indexes, detects NVIDIA graphics and either
+installs the reviewed driver or uses an already working runtime. Following a
+driver transaction it waits for a different boot ID and verifies the runtime
+before selecting/installing CUDA. No automatic reboot. Offline refresh is
+retryable next boot; interrupted/failed installation, changed PCI identity or
+unsupported runtime stops for review. Terminal states do not reinstall on
+later boots. State: /var/lib/localzet/hardware/first-boot.json (root only);
+logs: journalctl -u localzet-hardware-firstboot.service. CUDA completion requires
+an unprivileged compute probe, not an automatic success claim. Other hardware,
+GUI progress, post-install verification automation and safe recovery remain
+pending; no unattended default for production or physical GPU acceptance yet.
