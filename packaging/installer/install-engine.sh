@@ -133,7 +133,7 @@ rm -f "$root/usr/lib/localzet/hardware-auto-enabled"
 if [[ "$automatic_hardware" == 1 ]]; then
     install -d -m 0755 "$root/etc/localzet"
     (umask 077; printf 'nvidia-driver-and-cuda-v1\n' > "$root/etc/localzet/hardware-auto")
-    systemctl --root="$root" enable localzet-hardware-firstboot.service
+    systemctl --root="$root" enable localzet-hardware-firstboot.timer
 fi
 printf "localzet-pc\n" > "$root/etc/hostname"
 printf "127.0.0.1 localhost\n127.0.1.1 localzet-pc\n::1 localhost ip6-localhost ip6-loopback\n" > "$root/etc/hosts"
