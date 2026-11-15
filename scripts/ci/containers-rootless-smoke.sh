@@ -69,6 +69,6 @@ PY
 
 # Keep the stopped fixture for the real GTK lifecycle test. Preserve the
 # user bus and runtime directory used by the rootless daemon.
-GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none xvfb-run -a -s '-screen 0 1440x900x24' \\
+GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none xvfb-run -a -s '-screen 0 1440x900x24' \
     /usr/bin/python3 scripts/ci/containers-rootless-gtk.py "$out"
 /usr/bin/docker --host "unix://$socket" container rm localzet-rootless-ci
