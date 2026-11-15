@@ -10,6 +10,9 @@ from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 import re
+import os
+import platform
+import subprocess
 
 
 @dataclass(frozen=True)
@@ -73,14 +76,105 @@ def plan(devices: tuple[PCIDevice, ...]) -> dict:
             "tasks": tasks}
 
 
+PACKAGE = re.compile(r"[a-z0-9][a-z0-9+.-]{0,127}")
+NVIDIA_DRIVER = re.compile(r"nvidia-driver-[0-9]{3}(?:-open)?")
+
+
+def secure_boot(efi: Path = Path("/sys/firmware/efi")) -> str:
+    if not efi.is_dir():
+        return "not-uefi"
+    try:
+        # efivarfs stores four attribute bytes before the one-byte value.
+        value = (efi / "efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c").read_bytes()
+        if len(value) == 5 and value[4] in (0, 1):
+            return "enabled" if value[4] else "disabled"
+    except OSError:
+        pass
+    return "unknown"
+
+
+def parse_recommended(output: str) -> tuple[tuple[str, ...], ...]:
+    """Ubuntu 26.04 --recommended lists package and optional kernel module."""
+    rows = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        tokens = tuple(line.split())
+        if len(tokens) not in (1, 2) or not all(PACKAGE.fullmatch(token) for token in tokens):
+            raise ValueError("Unrecognized ubuntu-drivers recommendation")
+        if len(tokens) == 2 and not tokens[1].startswith("linux-modules-"):
+            raise ValueError("Unrecognized kernel module recommendation")
+        if tokens not in rows:
+            rows.append(tokens)
+    return tuple(rows)
+
+
+def recommendations() -> dict:
+    try:
+        proc = subprocess.run(["/usr/bin/ubuntu-drivers", "list", "--recommended"],
+            capture_output=True, text=True, check=True, timeout=45,
+            env={"PATH": "/usr/bin:/bin", "LC_ALL": "C.UTF-8", "HOME": str(Path.home())})
+        rows = parse_recommended(proc.stdout)
+        return {"status": "observed", "packages": [list(row) for row in rows],
+                "privileged_inventory": os.geteuid() == 0}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return {"status": "unavailable", "packages": [], "privileged_inventory": False}
+
+
+def archive_candidate(cache, name: str) -> dict:
+    if not PACKAGE.fullmatch(name):
+        raise ValueError("Invalid package name")
+    try:
+        candidate = cache[name].candidate
+    except KeyError:
+        candidate = None
+    if candidate is None:
+        return {"name": name, "status": "unavailable"}
+    origins = candidate.origins
+    # Reject mixed origins and locally installed-only versions. Origin metadata
+    # is a screening condition, not proof of an independently pinned key.
+    trusted = bool(origins) and all(origin.trusted and origin.origin == "Ubuntu"
+        and origin.archive in ("resolute", "resolute-updates", "resolute-security")
+        for origin in origins)
+    return {"name": name, "version": candidate.version,
+            "status": "ubuntu-candidate" if trusted else "review-origin",
+            "download_bytes": candidate.size, "installed_bytes": candidate.installed_size}
+
+
+def resolve_local(devices: tuple[PCIDevice, ...]) -> dict:
+    result = plan(devices)
+    result["kernel"] = platform.release()
+    result["secure_boot"] = secure_boot()
+    suggested = recommendations()
+    result["recommendations"] = suggested
+    nvidia = result["nvidia_gpu_detected"]
+    names = {name for row in suggested["packages"] for name in row}
+    if nvidia:
+        names.update(("cuda-toolkit", "cuda-toolkit-13-1", "nvidia-cuda-toolkit"))
+    try:
+        import apt
+        cache = apt.Cache()
+        result["archive_candidates"] = [archive_candidate(cache, name) for name in sorted(names)]
+        result["archive_status"] = "observed"
+    except (ImportError, OSError, RuntimeError, SystemError, ValueError):
+        result["archive_candidates"] = []
+        result["archive_status"] = "unavailable"
+    result["nvidia_desktop_recommendations"] = [row for row in suggested["packages"]
+        if nvidia and NVIDIA_DRIVER.fullmatch(row[0])]
+    result["cuda_compatible"] = None
+    result["install_ready"] = False
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.parse_args()
+    parser.add_argument("--resolve", action="store_true", help="Inspect local Ubuntu recommendations and APT cache without network access")
+    args = parser.parse_args()
     try:
         devices = inventory()
     except OSError as error:
         parser.exit(1, f"Hardware inventory unavailable: {error}\n")
-    print(json.dumps(plan(devices), ensure_ascii=False, indent=2))
+    print(json.dumps(resolve_local(devices) if args.resolve else plan(devices), ensure_ascii=False, indent=2))
     return 0
 
 
