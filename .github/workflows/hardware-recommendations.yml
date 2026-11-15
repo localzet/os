@@ -88,6 +88,21 @@ jobs:
               assert select_toolkit((GPU("0000:01:00.0", capability, "590.44.01"),), cache) == expected
           print("PASS: CUDA selector against real Ubuntu archive versions; no GPU execution")
           PY
+          PYTHONPATH=src /usr/bin/python3 - <<'PY'
+          import apt, json
+          from pathlib import Path
+          from localzet.hardware import PCIDevice, archive_candidate
+          from localzet.hardware_common import common_targets, review_common
+          devices = (PCIDevice("0000:01:00.0", "1002", "1234", "030000", "amdgpu"),)
+          cache = apt.Cache()
+          for vendor in ("GenuineIntel", "AuthenticAMD"):
+              for name in common_targets(devices, vendor, True):
+                  assert archive_candidate(cache, name)["status"] == "ubuntu-candidate", name
+          report = review_common(cache)
+          cache.clear()
+          Path("out/hardware/common-plan.json").write_text(json.dumps(report, indent=2))
+          print("PASS: actual archive general hardware dependency plan; no driver installation")
+          PY
           sha256sum -c out/hardware/dpkg-before.sha256
       - name: Exercise actual commit and system lock on disposable runner fixture
         run: |
