@@ -6,16 +6,16 @@ import {AuroraPanel} from './panel.js';
 // Do not duplicate them with a second menu on the top panel.
 export default class LocalzetShell extends Extension {
     enable() {
-        if (!this._panel)
-            this._panel = new AuroraPanel();
         if (!this._dock)
             this._dock = new LocalzetDock(this.path);
+        if (!this._panel)
+            this._panel = new AuroraPanel(this._dock);
     }
 
     disable() {
-        this._dock?.destroy();
-        this._dock = null;
         this._panel?.destroy();
         this._panel = null;
+        this._dock?.destroy();
+        this._dock = null;
     }
 }
