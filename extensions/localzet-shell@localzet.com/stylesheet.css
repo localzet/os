@@ -84,3 +84,12 @@
     box-shadow: inset 0 0 0 1px #9b72f2;
 }
 .localzet-launcher-empty { padding: 14px 8px; color: #b3b2bd; }
+
+/* Task dock: real window state, compact focus mark, no decorative glow. */
+.localzet-dock-apps { spacing: 4px; }
+.localzet-dock-item-content { spacing: 3px; }
+.localzet-dock-scroll { padding: 0; }
+.localzet-dock-indicator { width: 4px; height: 3px; border-radius: 1px; background-color: transparent; }
+.localzet-dock-indicator.running { background-color: #9696a2; }
+.localzet-dock-indicator.focused { width: 16px; background-color: #b1a1d0; }
+.localzet-dock-button.localzet-dock-focused { background-color: #353541; }
