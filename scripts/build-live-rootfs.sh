@@ -37,7 +37,7 @@ export LOCALZET_DESKTOP_DEB="$build/localzet-desktop_${LOCALZET_PACKAGE_VERSION}
 mkdir -p "$(dirname "$root")"
 # Use a minimal GNOME stack, not the Ubuntu-branded desktop metapackage.
 packages="ubuntu-keyring,ca-certificates,ubuntu-minimal,systemd-sysv,linux-generic,linux-firmware,casper,initramfs-tools,dbus,dbus-user-session,gdm3,gnome-session,gnome-shell,gnome-shell-extension-appindicator,gnome-control-center,gnome-settings-daemon,nautilus,ptyxis,network-manager,pipewire-audio,wireplumber,xwayland,libgl1-mesa-dri,fonts-dejavu-core,fonts-noto-core,dconf-cli,locales,language-pack-ru,language-pack-gnome-ru,python3,python3-gi,gir1.2-gtk-4.0,gir1.2-adw-1,pkexec,procps,pciutils,usbutils,nvme-cli,smartmontools,efibootmgr,gparted,gnome-disk-utility,ntfs-3g,exfatprogs,btrfs-progs,gnome-system-monitor,gnome-text-editor,gnome-calculator,gnome-software,file-roller,loupe,papers,epiphany-browser,adwaita-icon-theme,plymouth,plymouth-theme-spinner,librsvg2-bin,grub-common"
-packages+=",ubuntu-drivers-common,python3-apt,mokutil"
+packages+=",ubuntu-drivers-common,python3-apt,mokutil,budgie-wallpapers-resolute"
 # Private office visual verification requires real Xwayland window discovery.
 if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
     packages+=",xdotool"

@@ -172,3 +172,20 @@ files, power state or unsupported actions. System icons use filled silhouettes
 and restrained material shading; third-party brand artwork remains upstream.
 The remaining landscape wallpaper, rounded compositor glass, lock screen,
 third-party window styling and actual hardware acceptance are not complete.
+
+### Executive landscape — interim signed-archive asset
+
+New installations and the GNOME devkit use the same Mt Shuksan photograph by
+ezspain (CC BY-SA 4.0) from Ubuntu 26.04's signed archive package
+`budgie-wallpapers-resolute`. The file is unmodified and the package's original
+copyright is retained. No mutable external wallpaper download occurs during
+installation. The existing original Aurora SVG is still available in GNOME's
+background chooser; user overrides are not reset by the extension.
+Source: https://discourse.ubuntubudgie.org/t/ubuntu-budgie-26-04-wallpaper-contest/8474/13
+License: https://creativecommons.org/licenses/by-sa/4.0/
+Archive: https://packages.ubuntu.com/resolute/all/budgie-wallpapers-resolute/filelist
+
+This is a real 4K landscape candidate, not the final sunset/lake hero artwork.
+The devkit now installs actual Nautilus, Epiphany and Settings packages and
+uses the same four favorites as the installed image, rather than accidental
+runner applications. Native icon theme and compositor behavior remain intact.

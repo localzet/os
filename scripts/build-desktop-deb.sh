@@ -27,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec${containers_dep}
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, budgie-wallpapers-resolute${containers_dep}
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF
@@ -59,6 +59,7 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
 fi
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
+install -D -m 0644 "$repo/assets/wallpapers/localzet-wallpapers.xml" "$pkg/usr/share/gnome-background-properties/localzet-wallpapers.xml"
 python3 "$repo/scripts/build-aurora-icons.py" "$pkg/usr/share/icons"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet.svg"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"

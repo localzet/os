@@ -55,8 +55,9 @@ disable-user-extensions=false
 favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
-picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
+picture-uri='file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+picture-options='zoom'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
@@ -96,6 +97,8 @@ cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 [org/gnome/login-screen]
 logo='/usr/share/localzet/brand/localzet.svg'
 EOF
+test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
+test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
 test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"

@@ -58,7 +58,8 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gnome-extensions enable ubuntu-appindicators@ubuntu.com || exit 1
   # Use the actual shipped wallpaper and leave the startup overview before
   # capturing. The devkit's default blue test background is not Aurora.
-  wallpaper="file://$PWD/assets/wallpapers/aurora.svg"
+  test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
+  wallpaper="file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
@@ -72,7 +73,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.Ptyxis interface-style dark || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
-  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'google-chrome.desktop', 'firefox.desktop']" || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
