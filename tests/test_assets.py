@@ -28,6 +28,15 @@ class AssetsTests(unittest.TestCase):
             self.assertIn(data['colors'][name], css)
         self.assertLessEqual(data['radii']['lg'], 14)
 
+    def test_native_midnight_palette(self):
+        from localzet.appearance import MIDNIGHT_CSS
+        data = json.loads((ROOT / 'assets/design-tokens.json').read_text())
+        for key in ('background', 'surface', 'surfaceElevated', 'primary', 'textPrimary'):
+            self.assertIn(data['colors'][key].encode(), MIDNIGHT_CSS)
+        plymouth = (ROOT / 'packaging/live/aurora.plymouth').read_text()
+        for key in ('background', 'surface', 'accent'):
+            self.assertIn('0x' + data['colors'][key][1:], plymouth)
+
     def test_wallpaper_is_svg(self):
         root = ET.parse(ROOT / 'assets/wallpapers/aurora.svg').getroot()
         self.assertEqual(root.tag, '{http://www.w3.org/2000/svg}svg')
@@ -72,7 +81,7 @@ class AssetsTests(unittest.TestCase):
         theme = (ROOT / "packaging/grub/theme.txt").read_text()
         self.assertIn('desktop-image: "background.png"', theme)
         self.assertIn('file = "logo.png"', theme)
-        self.assertIn('selected_item_color = "#ffb46b"', theme)
+        self.assertIn('selected_item_color = "#78b8ff"', theme)
         cfg = (ROOT / "packaging/live/grub.cfg").read_text()
         self.assertIn("if terminal_output gfxterm; then", cfg)
         self.assertEqual(cfg.count("menuentry "), 3)
