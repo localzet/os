@@ -24,11 +24,12 @@ def main() -> int:
             self.window = None
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
-            Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Windows Runtime")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(650, 480)
             toolbar = Adw.ToolbarView()
             toolbar.add_top_bar(Adw.HeaderBar())

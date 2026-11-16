@@ -25,10 +25,12 @@ def main():
             self.busy = False
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Network")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(740, 680)
             toolbar = Adw.ToolbarView()
             header = Adw.HeaderBar()
