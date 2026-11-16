@@ -193,3 +193,35 @@ individual device functionality, additional proprietary Wi-Fi/DKMS packages,
 32-bit Vulkan, printers/scanners and actual physical tests remain open.
 References: https://packages.ubuntu.com/resolute/linux-firmware and
 https://packages.ubuntu.com/resolute/mesa-vulkan-drivers .
+
+## H5 — GPU Unlocker (Complete, read-only integration)
+
+Requested component: Zagitta/gpu-unlock (not vGPU or NVENC unlocking).
+Pinned compatibility reference: 7eb51bccae0a0b7e599e084d971170e9a1e82d0c, upstream recipes.c.
+Hardware Manager exposes candidate PCI IDs and observed module presence only.
+Ampere matches are candidates, Turing/Ada experimental; unknown cards,
+non-display PCI functions and RTX 50 are not candidates. No claim of measured
+speedup or activation from module presence. This upstream uses a GPU firmware
+security weakness and privileged early-boot code; source and security review,
+redistribution rights, actual kernel compatibility, signed boot and physical
+GPU acceptance are outstanding. It is separate from supported driver/CUDA
+setup. No automatic installation, firmware distribution, initramfs changes,
+Secure Boot changes, or activation are included in this tranche. Complete
+catalog records the upstream dependency as pending, not an APT package.
+A future release gate requires independent security assessment, safe recovery,
+thermal/compute correctness and physical hardware verification. No automatic
+activation on detected NVIDIA devices.
+
+### H5 UX acceptance — no terminal required
+
+Owner requirement: activation must be as simple as possible. The eventual
+approved user flow is Hardware Manager → GPU Unlocker → Enable → a single
+review and administrator authorization → user-chosen restart. Disable and
+recovery must be equally discoverable. There must be no manual commands,
+manual boot config edits, forced restart, or disabling Secure Boot. The
+release must distinguish eligibility, readiness, pending restart, observed
+activation, verified compute and recovery. A failed or unavailable review
+must explain the blocker without displaying a fake enabled toggle. The current
+implementation adds a real read-only readiness dialog; no enable action is
+exposed until an independently reviewed, supported backend and recovery
+path are available. This is UX acceptance criteria, not an activation recipe.

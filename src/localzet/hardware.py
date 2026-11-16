@@ -143,7 +143,9 @@ def archive_candidate(cache, name: str) -> dict:
 
 
 def resolve_local(devices: tuple[PCIDevice, ...]) -> dict:
+    from localzet.hardware_unlock import assess
     result = plan(devices)
+    result["gpu_unlocker"] = assess(devices)
     result["kernel"] = platform.release()
     result["secure_boot"] = secure_boot()
     suggested = recommendations()

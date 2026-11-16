@@ -64,7 +64,8 @@
         "usernet",
         "containers",
         "devtools",
-        "vscode"
+        "vscode",
+        "gpu-unlocker"
       ],
       "optional": [
         "discord"
@@ -245,6 +246,13 @@
         "code"
       ],
       "url": "https://code.visualstudio.com/download",
+      "review": "pending"
+    },
+    "gpu-unlocker": {
+      "title": "GPU Unlocker — compatibility review",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://github.com/Zagitta/gpu-unlock",
       "review": "pending"
     }
   }
