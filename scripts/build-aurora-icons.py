@@ -72,18 +72,15 @@ GLYPHS = {
 GROUPS = {
     "apps": {
         "browser": "org.gnome.Epiphany web-browser epiphany",
-        "chrome": "google-chrome google-chrome-stable",
-        "edge": "microsoft-edge microsoft-edge-stable",
-        "firefox": "firefox org.mozilla.firefox",
         "files": "org.gnome.Nautilus system-file-manager nautilus",
         "terminal": "org.gnome.Ptyxis org.gnome.Terminal utilities-terminal ptyxis",
         "settings": "org.gnome.Settings preferences-system gnome-control-center",
         "language": "language-selector preferences-desktop-locale",
         "components": "com.localzet.Settings localzet-components",
         "hardware": "com.localzet.Hardware localzet-hardware",
-        "containers": "com.localzet.Containers localzet-containers docker",
-        "windows": "com.localzet.WindowsRuntime localzet-windows wine",
-        "connect": "com.localzet.Connect localzet-connect nectarlink nectarlink-desktop",
+        "containers": "com.localzet.Containers localzet-containers",
+        "windows": "com.localzet.WindowsRuntime localzet-windows",
+        "connect": "com.localzet.Connect localzet-connect",
         "installer": "com.localzet.Installer localzet-installer",
         "store": "org.gnome.Software system-software-install gnome-software",
         "monitor": "org.gnome.SystemMonitor utilities-system-monitor htop",
@@ -94,27 +91,17 @@ GROUPS = {
         "document": "org.gnome.Papers org.gnome.Evince document-viewer",
         "archive": "org.gnome.FileRoller file-roller utilities-archive-manager",
         "disk": "org.gnome.DiskUtility org.gnome.GParted gparted",
-        "media": "vlc org.videolan.VLC org.gnome.Totem multimedia-video-player",
-        "music": "yandex-music org.gnome.Music multimedia-audio-player",
-        "torrent": "qbittorrent org.qbittorrent.qBittorrent",
-        "paint": "gimp gimp-3.0 org.gimp.GIMP",
+        "media": "org.gnome.Totem multimedia-video-player",
+        "music": "org.gnome.Music multimedia-audio-player",
         "scanner": "org.gnome.SimpleScan simple-scan",
         "printer": "system-config-printer",
-        "office": "onlyoffice-desktopeditors desktopeditors ONLYOFFICE",
-        "telegram": "org.telegram.desktop telegram telegram-desktop",
-        "discord": "discord com.discordapp.Discord",
-        "code": "code visual-studio-code com.visualstudio.code gvim vim CMakeSetup",
+        "code": "gvim vim CMakeSetup",
         "vm": "virt-manager org.virt_manager.virt-manager",
-        "netbird": "netbird netbird-ui org.wails.netbird",
         "network": "com.localzet.Network localzet-network",
-        "usernet": "usernet localzet-usernet com.localzet.usernet",
-        "steam": "steam com.valvesoftware.Steam",
-        "games": "lutris net.lutris.Lutris",
-        "capture": "com.obsproject.Studio obs obs-studio",
         "help": "org.gnome.Yelp help-browser dialog-information",
         "clock": "org.gnome.clocks",
         "calendar": "org.gnome.Calendar",
-        "mail": "org.gnome.Evolution thunderbird",
+        "mail": "org.gnome.Evolution",
     },
     "places": {
         "files": "folder folder-open folder-documents folder-publicshare folder-templates",
@@ -170,35 +157,59 @@ CONTEXTS = {"apps": "Applications", "places": "Places", "devices": "Devices",
             "categories": "Categories", "mimetypes": "MimeTypes", "status": "Status"}
 
 
+# Original optical silhouettes. Each subject owns its silhouette instead of
+# stamping a white line drawing onto the same colored square.
+FOLDER = (
+    '<path d="M6 17a5 5 0 0 1 5-5h16l7 7h19a5 5 0 0 1 5 5v26H6z" fill="#16447c"/>'
+    '<path d="M6 24h52v25a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5z" fill="url(#blue)"/>'
+    '<path d="M8 25h48" stroke="#a8d5ff" stroke-opacity=".72" stroke-width="1.4"/>'
+)
+MATERIAL = {
+    "files": FOLDER,
+    "terminal": '<rect x="6" y="9" width="52" height="46" rx="8" fill="url(#graphite)" stroke="#69778b" stroke-width="1.2"/><path d="M9 17h46" stroke="#8492a6" stroke-opacity=".35"/><path d="m16 26 9 8-9 8m15 0h15" fill="none" stroke="#f2f5fa" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    "settings": '<path d="m27 5 10 0 2 7 5 3 7-2 5 9-5 6v8l5 6-5 9-7-2-5 3-2 7H27l-2-7-5-3-7 2-5-9 5-6v-8l-5-6 5-9 7 2 5-3z" fill="url(#silver)"/><circle cx="32" cy="32" r="15" fill="#26364d"/><circle cx="32" cy="32" r="9" fill="#a9b9ce"/><circle cx="32" cy="32" r="5" fill="#43546b"/>',
+    "image": '<rect x="6" y="8" width="52" height="48" rx="8" fill="url(#violet)"/><circle cx="43" cy="21" r="5" fill="#f4dcff"/><path d="m8 47 15-18 11 13 8-8 14 14v1a5 5 0 0 1-5 5H13a5 5 0 0 1-5-5z" fill="#8dc9ff"/><path d="m8 47 15-18 11 13 8-8 14 14" fill="none" stroke="#e6edff" stroke-width="1.2"/>',
+    "media": '<rect x="8" y="8" width="48" height="48" rx="10" fill="url(#violet)"/><path d="m26 20 19 12-19 12z" fill="#f5f0ff"/>',
+    "music": '<rect x="8" y="8" width="48" height="48" rx="10" fill="url(#rose)"/><path d="M27 42V23l18-4v19" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><ellipse cx="21" cy="43" rx="7" ry="5" fill="#fff"/><ellipse cx="39" cy="39" rx="7" ry="5" fill="#fff"/>',
+    "editor": '<path d="M14 6h30l7 7v44H14z" fill="url(#paper)"/><path d="M44 6v8h7" fill="#fff0c5"/><path d="M21 24h23m-23 8h23m-23 8h17m-17 8h20" stroke="#88603c" stroke-width="2" stroke-linecap="round"/>',
+    "calculator": '<rect x="14" y="5" width="36" height="54" rx="7" fill="url(#graphite)"/><rect x="20" y="11" width="24" height="13" rx="2" fill="#a9d6c1"/><path d="M22 32h5m10 0h5m-20 8h5m10 0h5m-20 8h5m10 0h5" stroke="#f3f6fb" stroke-width="4" stroke-linecap="round"/>',
+    "archive": '<rect x="9" y="13" width="46" height="43" rx="6" fill="url(#paper)"/><rect x="7" y="9" width="50" height="14" rx="4" fill="#f3bf7a"/><path d="M29 10h6v32h-6z" fill="#9c6839"/><rect x="27" y="40" width="10" height="9" rx="2" fill="#57483b"/>',
+    "store": '<path d="M13 22h38l5 29a5 5 0 0 1-5 6H13a5 5 0 0 1-5-6z" fill="url(#blue)"/><path d="M23 27V17a9 9 0 0 1 18 0v10" fill="none" stroke="#d6edff" stroke-width="3.5" stroke-linecap="round"/><path d="M25 40h14m-7-7v14" stroke="#d6edff" stroke-width="3" stroke-linecap="round"/>',
+    "containers": '<path d="m32 5 25 14v27L32 60 7 46V19z" fill="#183f69"/><path d="M32 5 57 19 32 33 7 19z" fill="#75b9f3"/><path d="M7 19 32 33v27L7 46z" fill="#327bb9"/><path d="M32 33 57 19v27L32 60z" fill="#20558a"/><path d="m20 12 25 14v11" fill="none" stroke="#d5ecff" stroke-width="2.5" stroke-linejoin="round"/>',
+    "hardware": '<rect x="14" y="14" width="36" height="36" rx="6" fill="url(#silver)"/><rect x="21" y="21" width="22" height="22" rx="3" fill="#26364d"/><rect x="26" y="26" width="12" height="12" rx="2" fill="#8cc5d7"/><path d="M22 8v6m10-6v6m10-6v6M22 50v6m10-6v6m10-6v6M8 22h6m-6 10h6m-6 10h6m36-20h6m-6 10h6m-6 10h6" stroke="#91a7bd" stroke-width="3" stroke-linecap="round"/>',
+    "windows": '<path d="m7 13 23-4v21H7zm27-5 23-4v26H34zM7 34h23v21L7 51zm27 0h23v26l-23-4z" fill="url(#blue)"/>',
+    "connect": '<rect x="10" y="6" width="29" height="52" rx="6" fill="url(#graphite)" stroke="#899aaf" stroke-width="1.2"/><rect x="14" y="13" width="21" height="37" rx="2" fill="#255a83"/><path d="M23 54h4m18-33 10 10-10 10m-6-10h16" fill="none" stroke="#9ee2ef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+    "trash": '<path d="M15 19h34l-3 34a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z" fill="url(#silver)"/><rect x="11" y="14" width="42" height="6" rx="2" fill="#c8d6e4"/><path d="M25 14V8h14v6M26 27v22m12-22v22" fill="none" stroke="#52667f" stroke-width="2.5" stroke-linecap="round"/>',
+}
+DEFS = '<defs>' + ''.join(
+    f'<linearGradient id="{key}" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{top}"/><stop offset="1" stop-color="{bottom}"/></linearGradient>'
+    for key, top, bottom in (
+        ("blue", "#55b2fb", "#2064bc"), ("graphite", "#414e64", "#17202e"),
+        ("silver", "#c4d1df", "#7689a1"), ("violet", "#8b8fdf", "#4c4ba4"),
+        ("rose", "#d885a9", "#a24774"), ("paper", "#f5d6a3", "#d49b5e"),
+    )
+) + '</defs>'
+
+
 def render(kind, group, name):
-    tile = group == "apps"
     accent, glyph = GLYPHS[kind]
-    background = ('<rect x="3" y="3" width="58" height="58" rx="11" fill="#262831" '
-                  'stroke="#434653" stroke-width="1.5"/>') if tile else ''
-    if tile:
-        # Differentiated jewel-toned surfaces; app identities remain recognizable.
-        family = {"browser": "#235e9b", "chrome": "#396a45", "edge": "#136c84",
-                  "firefox": "#9d4c27", "files": "#175ab1", "terminal": "#25344b",
-                  "code": "#1762a5", "settings": "#43556d", "office": "#874741",
-                  "games": "#53438a", "media": "#87542c", "music": "#78436f",
-                  "image": "#514d9a", "containers": "#185c8b", "windows": "#265998",
-                  "network": "#20678d", "language": "#345c8c"}.get(kind, "#334a63")
-        background = (f'<rect x="3" y="3" width="58" height="58" rx="10" fill="{family}" '
-                      'stroke="#ffffff" stroke-opacity=".15" stroke-width="1.4"/>')
-        accent = "#edf5ff"
-        glyph = glyph.replace("#262831", family)
-    if group == "places" and name.startswith("folder") and kind != "files":
-        # Keep the folder silhouette recognizable in file managers.
-        background = ('<path d="M5 19a4 4 0 0 1 4-4h19l6 6h21a4 4 0 0 1 4 4v29H5z" '
-                      'fill="#174d89" stroke="' + accent + '" stroke-width="2.5"/>')
-        glyph = '<g transform="translate(19 17) scale(.45)">' + glyph + '</g>'
-    if group == "places" and kind == "files":
-        accent = "#8cc5ff"
-        glyph = glyph.replace('<path d="M12 23', '<path fill="#2469bd" d="M12 23', 1)
+    if group == "places" and name.startswith("folder"):
+        art = FOLDER
+        if kind != "files":
+            art += ('<g transform="translate(16 20) scale(.50)" color="#edf6ff" '
+                    'stroke="#edf6ff" fill="none" stroke-width="4" stroke-linecap="round" '
+                    'stroke-linejoin="round">' + glyph + '</g>')
+    elif group == "apps" and kind in MATERIAL:
+        art = MATERIAL[kind]
+    elif group == "places" and kind == "trash":
+        art = MATERIAL["trash"]
+    else:
+        # Secondary pictograms retain their unique geometry without a
+        # mandatory squircle. These are not yet final bespoke art.
+        art = (f'<g color="{accent}" stroke="{accent}" fill="none" stroke-width="3.2" '
+               f'stroke-linecap="round" stroke-linejoin="round">{glyph}</g>')
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
-            f'<title>Aurora {kind}</title>{background}'
-            f'<g color="{accent}" stroke="{accent}" fill="none" stroke-width="3" '
-            f'stroke-linecap="round" stroke-linejoin="round">{glyph}</g></svg>\n')
+            f'<title>Aurora {kind}</title>{DEFS}{art}</svg>\n')
 
 
 def build(destination):

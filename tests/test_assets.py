@@ -74,6 +74,10 @@ class AssetsTests(unittest.TestCase):
             for name in ("Settings", "Hardware", "WindowsRuntime", "Containers", "Connect", "Installer", "Network"):
                 icon = "com.localzet." + name
                 self.assertTrue((theme / "scalable/apps" / (icon + ".svg")).is_file())
+            self.assertIn("url(#blue)", (theme / "scalable/places/folder.svg").read_text())
+            self.assertIn("url(#graphite)", (theme / "scalable/apps/org.gnome.Ptyxis.svg").read_text())
+            for upstream in ("firefox", "google-chrome", "microsoft-edge", "steam", "netbird", "nectarlink"):
+                self.assertFalse((theme / "scalable/apps" / (upstream + ".svg")).exists())
             with self.assertRaises(FileExistsError):
                 module.build(directory)
 
