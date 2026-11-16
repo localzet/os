@@ -13,7 +13,10 @@ MODULES = Path(__file__).resolve().parents[1] / "config" / "modules"
 class ModuleTests(unittest.TestCase):
     def test_all_manifests_load(self):
         catalog = load_catalog(MODULES)
-        self.assertEqual(len(catalog), 9)
+        self.assertTrue({"ai-development", "developer", "usernet", "office", "phone"} <= set(catalog))
+        self.assertEqual(catalog["ai-development"].depends_on, ("developer", "usernet"))
+        self.assertEqual([m.id for m in resolve(catalog, ("ai-development",))],
+                         ["developer", "usernet", "ai-development"])
         self.assertEqual(catalog['office'].packages, ('onlyoffice-desktopeditors',))
         self.assertEqual(catalog['office'].status, 'planned')
         self.assertEqual(catalog['phone'].status, 'prototype')
