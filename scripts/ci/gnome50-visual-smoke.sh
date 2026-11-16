@@ -106,6 +106,24 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[01] focused=0$" || exit 1
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
+  # The panel is still the real GNOME panel. Exercise the real menus and
+  # deliver an original notification through the session's standard bus.
+  grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
+  width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
+  xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-quick-settings.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
+  notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
+  sleep 2
+  xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-notifications.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
   xdotool windowfocus --sync "$window" key super+a || exit 1
   sleep 5
   import -window root "$OUT/aurora-app-grid.png" || exit 1
