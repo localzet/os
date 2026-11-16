@@ -20,6 +20,8 @@ def spec(manifest):
         raise ValueError("Unexpected UserNet manifest")
     version, asset = manifest["version"], manifest["asset"]
     if (not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+\.\d+", version)
+            or not isinstance(manifest.get("deb_version"), str)
+            or not re.fullmatch(re.escape(version) + r"\.\d{10}", manifest["deb_version"])
             or asset["name"] != "UserNet-linux.deb"
             or type(asset["size"]) is not int or not 0 < asset["size"] <= 256 * 1024**2
             or not re.fullmatch(r"[0-9a-f]{64}", asset["sha256"])):
@@ -34,7 +36,7 @@ def verify(path, manifest):
     with path.open("rb") as stream:
         if hashlib.file_digest(stream, "sha256").hexdigest() != asset["sha256"]:
             raise ValueError("Artifact SHA-256 mismatch")
-    for field, expected in (("Package", "usernet"), ("Version", manifest["version"]), ("Architecture", "amd64")):
+    for field, expected in (("Package", "usernet"), ("Version", manifest["deb_version"]), ("Architecture", "amd64")):
         actual = subprocess.check_output(["/usr/bin/dpkg-deb", "-f", str(path), field], text=True).strip()
         if actual != expected:
             raise ValueError("Unexpected UserNet package " + field + ": " + actual)
