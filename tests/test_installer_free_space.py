@@ -136,3 +136,30 @@ class FreeSpaceTests(unittest.TestCase):
         p["blockdevices"][0]["children"][1]["start"] += 2048
         with self.assertRaisesRegex(ValueError, "changed since review"):
             revalidate_extent(p, t, selected, "/dev/sdb", source_known=True)
+
+    def test_reject_gpt_metadata_overlap(self):
+        for sector in (512, 4096):
+            for field in ("firstlba", "lastlba"):
+                with self.subTest(sector=sector, field=field):
+                    p, t = fixture(sector)
+                    table = t["partitiontable"]
+                    total = p["blockdevices"][0]["size"] // sector
+                    reserved = 16 * 1024 // sector
+                    table[field] = (1 + reserved if field == "firstlba"
+                                    else total - 1 - reserved)
+                    with self.assertRaisesRegex(ValueError, "GPT bounds"):
+                        self.plan(p, t)
+
+    def test_reject_matching_nil_disk_or_partition_uuid(self):
+        nil = "00000000-0000-0000-0000-000000000000"
+        for disk_id in (True, False):
+            with self.subTest(disk_id=disk_id):
+                p, t = fixture()
+                disk = p["blockdevices"][0]
+                table = t["partitiontable"]
+                if disk_id:
+                    disk["ptuuid"] = table["id"] = nil
+                else:
+                    disk["children"][0]["partuuid"] = table["partitions"][0]["uuid"] = nil
+                with self.assertRaises(ValueError):
+                    self.plan(p, t)

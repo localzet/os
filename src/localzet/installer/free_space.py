@@ -26,7 +26,10 @@ def _integer(value, name):
 
 def _guid(value, name):
     try:
-        return str(uuid.UUID(value))
+        parsed = uuid.UUID(value)
+        if parsed.int == 0:
+            raise ValueError("Nil UUID")
+        return str(parsed)
     except (ValueError, TypeError, AttributeError):
         raise ValueError(f"Missing or invalid {name}") from None
 
@@ -58,7 +61,11 @@ def inspect_free_space(payload: dict, selected: str, live_disk: str | None,
         raise ValueError("Disk size is not sector aligned")
     first = _integer(table.get("firstlba"), "first usable LBA")
     last = _integer(table.get("lastlba"), "last usable LBA")
-    if not 2 <= first <= last < capacity // sector - 1:
+    # GPT reserves at least 16 KiB for each partition entry array,
+    # in addition to the primary and backup headers (UEFI GPT layout).
+    # Larger arrays are possible; this is only a conservative lower bound.
+    entry_sectors = (16 * 1024 + sector - 1) // sector
+    if not 2 + entry_sectors <= first <= last <= capacity // sector - 2 - entry_sectors:
         raise ValueError("Invalid usable GPT bounds")
     table_id = _guid(table.get("id"), "GPT disk UUID")
     if table_id != _guid(disk.get("ptuuid"), "lsblk GPT disk UUID"):
