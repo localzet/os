@@ -48,7 +48,7 @@
     box-shadow: 0 6px 16px rgba(0,0,0,.36);
 }
 .localzet-launcher { spacing: 11px; padding: 12px; color: #e7edf7; }
-.localzet-launcher-heading { spacing: 8px; padding: 3px 4px 5px; }
+.localzet-launcher-heading { spacing: 8px; padding: 2px 4px 4px; }
 .localzet-launcher-title { font-size: 14px; font-weight: 600; }
 .localzet-launcher-caption { color: #a4b6cc; font-size: 11px; }
 .localzet-launcher-search {
@@ -229,7 +229,17 @@
     background-color: #101b2d;
     border-radius: 12px;
     border: 1px solid rgba(167, 191, 223, .36);
-    box-shadow: 0 8px 22px rgba(0,0,0,.48);
+    /* St's offscreen shadow around an image-backed menu produced a dark
+     * rectangular halo in the real devkit capture. Keep the rounded border,
+     * but do not draw that shadow until the renderer is verified. */
+    box-shadow: none;
+}
+.localzet-wallpaper-glass.popup-menu-boxpointer {
+    background-color: transparent;
+    box-shadow: none;
+    -arrow-background-color: transparent;
+    -arrow-border-color: transparent;
+    -arrow-border-width: 0px;
 }
 .localzet-wallpaper-glass .localzet-launcher-search { background-color: #101c2c; }
 .localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #204d82; }

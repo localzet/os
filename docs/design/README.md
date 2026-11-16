@@ -317,3 +317,21 @@ stored by the extension. The existing dynamic panel experiment is unchanged.
 This is wallpaper-only glass, not dynamic live-window glass. The CI now
 requires actual optical detail reduction, not just successful effect
 attachment; failures block visual acceptance. No full reference parity claim.
+
+### Executive Complete engineering preview
+
+The c8eadee optical test passed with a tint-normalized detail ratio 0.033
+(versus 0.991 previously). The real image-backed menu still showed a
+rectangular shadow halo; remove the shadow and outer arrow background
+rather than claim a rounded dynamic compositor effect. Keep the genuine
+native Nautilus, which now rendered dark in the devkit.
+
+The separate integration/executive-complete-preview branch uses the
+existing Complete archive + Containers + ONLYOFFICE + Wine installer
+workflow, adds an installed-session wallpaper/material verification and
+native lock-state check after the Wine fixture. Publish the exact ISO,
+checksum, checked-out commit and actual archive plan only after a
+successful trusted same-repository PR run. This is an engineering
+candidate, not a release or physical SSD acceptance. Pending external
+clients, GPU unlock and licensed desktop Microsoft Office are not
+represented as installed. No lock bypass or authentication changes.

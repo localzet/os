@@ -22,6 +22,7 @@ LIVE = b"LOCALZET_LIVE_READY"
 INSTALL = b"LOCALZET_CANDIDATE_INSTALLED"
 READY = b"LOCALZET_CANDIDATE_DESKTOP"
 WINE_READY = b"LOCALZET_CANDIDATE_WINE_READY"
+LOCK_READY = b"LOCALZET_CANDIDATE_LOCKED"
 FAIL = b"LOCALZET_CANDIDATE_FAILED"
 
 
@@ -207,7 +208,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False):
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -429,6 +430,22 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed native ONLYOFFICE launched" in script
+    if executive_review:
+        script += r"""
+# Verify the native lock in the installed, authenticated Wayland session.
+# No unlock bypass, no fake login UI and no password entered on camera.
+test -s /usr/share/backgrounds/localzet/executive-dusk.jpg
+test -s /usr/share/backgrounds/localzet/executive-dusk-glass.jpg
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
+loginctl lock-session "$session"
+for attempt in $(seq 1 30); do
+    [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]] && break
+    sleep 1
+done
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+printf '\nLOCALZET_CANDIDATE_LOCKED\n'
+"""
     return script
 
 
@@ -443,6 +460,7 @@ def main():
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     parser.add_argument("--expect-containers", action="store_true")
     parser.add_argument("--expect-office", action="store_true")
+    parser.add_argument("--expect-executive-review", action="store_true")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
         parser.error("Office candidate requires Standard or Complete archive profile")
@@ -484,7 +502,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -526,6 +544,10 @@ def main():
             if args.expect_office:
                 installed.capture("office-installed")
             installed.wait(WINE_READY, 360)
+            if args.expect_executive_review:
+                installed.wait(LOCK_READY, 45)
+                time.sleep(3)
+                installed.capture("native-lock")
         finally:
             installed.close()
     return 0
