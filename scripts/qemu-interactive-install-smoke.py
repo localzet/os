@@ -397,8 +397,33 @@ test -s /opt/onlyoffice/desktopeditors/LICENSE.txt
 test -s /usr/share/localzet/office-review/upstream.json
 test -x /usr/bin/onlyoffice-desktopeditors
 launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
-sleep 10
-pgrep -u localzet-test -f 'DesktopEditors|onlyoffice-desktopeditors' >/dev/null
+cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+window=""
+for attempt in $(seq 1 90); do
+    window="$(xdotool search --onlyvisible --class '[Dd]esktop[Ee]ditors|[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]' 2>/dev/null | head -n1 || true)"
+    if [[ -z "$window" ]]; then
+        window="$(xdotool search --onlyvisible --name '[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]|Desktop Editors' 2>/dev/null | head -n1 || true)"
+    fi
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+test -n "$window"
+timeout 15 xdotool windowactivate --sync "$window"
+xdotool getwindowname "$window"
+geometry="$(xdotool getwindowgeometry --shell "$window")"
+width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+[[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
+(( width >= 400 && height >= 300 ))
+printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
+OFFICETEST
+chmod 0755 /run/localzet-candidate-check/office-window.sh
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh
 printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\n'
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
