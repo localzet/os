@@ -18,9 +18,14 @@ class AssetsTests(unittest.TestCase):
 
     def test_design_tokens(self):
         data = json.loads((ROOT / 'assets/design-tokens.json').read_text())
-        self.assertEqual(data['colors']['accent'], '#FF7E00')
-        self.assertEqual(data['colors']['primary'], '#9B72F2')
-        self.assertEqual(data['density']['panelHeight'], 32)
+        self.assertEqual(data['colors']['accent'], '#4c9aff')
+        self.assertEqual(data['colors']['primary'], '#2874c8')
+        self.assertEqual(data['density']['panelHeight'], 30)
+        self.assertEqual(data['colors']['surface'], '#101b2d')
+        self.assertEqual(data['glass']['opaqueFallback'], data['colors']['surface'])
+        css = (ROOT / 'extensions/localzet-shell@localzet.com/stylesheet.css').read_text()
+        for name in ('accent', 'surface', 'background', 'textPrimary'):
+            self.assertIn(data['colors'][name], css)
         self.assertLessEqual(data['radii']['lg'], 14)
 
     def test_wallpaper_is_svg(self):
