@@ -478,3 +478,23 @@ The preceding PR96 installed-image job failed inside the rootfs hook
 without a specific diagnostic. Add explicit checkout, checksum and source
 version mismatch errors; do not bypass verification. The exact rootfs
 failure cause remains unconfirmed. Preserve existing document-gate runs.
+
+### Soft native applications and canonical package manifest
+
+The actual owner screenshot has dominant colors #1d1d20, #393939 and
+#3b3b3d. Extend the Soft Graphite approach to process-local native Localzet
+applications using the existing appearance provider: neutral graphite
+background, quiet cards, subtle row separators and blue primary actions/focus.
+Settings uses the same lighter sidebar and soft selection as Files. Keep
+upstream light/high contrast, keyboard focus and text legibility. CI tests
+must confirm actual Settings pixels; other native applications share the
+provider but remain pending their own visual review.
+
+PR96 and PR97 package jobs passed but their rootfs hooks failed before the
+Nautilus version log. The downloaded PR97 artifact proves the mismatch:
+SHA256SUMS uses ./libnautilus-extension4... while the installer generates
+libnautilus-extension4... without ./; the string manifests differ despite
+identical hashes. Use a single canonical basename generator in both paths,
+reject symlinks and unexpected file count, and test tampering. No checksum,
+source version or exact checkout checks are relaxed. This separate branch
+preserves PR98's actual Files appearance review.

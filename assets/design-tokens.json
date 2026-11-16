@@ -1,6 +1,6 @@
 {
   "name": "Localzet Aurora — Executive",
-  "status": "Soft graphite native Files correction following owner screenshot; shell palette unchanged pending review",
+  "status": "Soft graphite native Files and Localzet applications; desktop shell remains Executive Midnight",
   "colors": {
     "background": "#091321",
     "surface": "#101b2d",
@@ -55,5 +55,18 @@
     "rowRadius": 9,
     "pathRadius": 9,
     "notes": "Neutral application surfaces, quiet accent, preserve upstream light and contrast. Separate from shell glass palette."
+  },
+  "nativeApplications": {
+    "background": "#202124",
+    "header": "#292a2e",
+    "sidebar": "#343539",
+    "card": "#2f3034",
+    "text": "#f0f0f2",
+    "textSecondary": "#c4c5ca",
+    "selection": "#45464b",
+    "focus": "#78b8ff",
+    "cardRadius": 10,
+    "rowRadius": 8,
+    "notes": "Neutral application surfaces, blue only for explicit primary actions and focus; preserve native light/high contrast."
   }
 }

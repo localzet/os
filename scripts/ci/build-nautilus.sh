@@ -60,7 +60,7 @@ for f in ./*.deb; do
     esac
 done
 [[ ${#debs[@]} == 3 ]]
-(cd "$out"; sha256sum ./*.deb) > "$out/SHA256SUMS"
+bash "$repo/scripts/nautilus-bundle-checksums.sh" "$out" > "$out/SHA256SUMS"
 git -C "$repo" rev-parse HEAD > "$out/BUILD-COMMIT"
 sudo apt-get install -y "${debs[@]}"
 test "$(dpkg-query -W -f='${Version}' nautilus)" = "$new_version"

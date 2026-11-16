@@ -52,13 +52,13 @@ if len(set(im.resize((80, 50)).getdata())) < 20:
     raise SystemExit("Blank/undrawn GTK window")
 from collections import Counter
 pixels = Counter(im.getdata())
-for color in ("091321", "101b2d"):
+for color in ("202124", "292a2e", "343539"):
     count = pixels[tuple(bytes.fromhex(color))]
-    print("Midnight", color, "pixels:", count)
+    print("Soft Graphite", color, "pixels:", count)
     if count < 1000:
-        raise SystemExit("Missing actual Midnight surface: " + color)
+        raise SystemExit("Missing actual Soft Graphite surface: " + color)
 # Secondary text must not fade into the card background.
-secondary = pixels[tuple(bytes.fromhex("b8c9dd"))]
+secondary = pixels[tuple(bytes.fromhex("c4c5ca"))]
 print("Executive secondary text pixels:", secondary)
 if secondary < 20:
     raise SystemExit("Secondary text did not render with the intended contrast")

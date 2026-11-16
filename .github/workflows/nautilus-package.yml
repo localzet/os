@@ -10,6 +10,8 @@ on:
       - 'scripts/ci/nautilus-appearance-smoke.sh'
       - 'tests/test_nautilus_style.py'
       - 'scripts/install-branded-nautilus.sh'
+      - 'scripts/nautilus-bundle-checksums.sh'
+      - 'tests/test_nautilus_bundle_checksums.py'
       - 'packaging/live/customize-rootfs.sh'
 permissions:
   contents: read
@@ -23,7 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify source patch
-        run: python3 -m unittest discover -s tests -p test_nautilus_style.py -v
+        run: |
+          python3 -m unittest discover -s tests -p test_nautilus_style.py -v
+          python3 -m unittest discover -s tests -p test_nautilus_bundle_checksums.py -v
       - name: Rebuild from signed Ubuntu source and inspect real windows
         run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/build-nautilus.sh
       - name: Upload package evidence
@@ -37,7 +41,7 @@ jobs:
 
   installed-image:
     needs: package
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'integration/executive-native-files' || github.head_ref == 'fix/executive-office-rendering' || github.head_ref == 'integration/executive-document-gate' || github.head_ref == 'design/executive-soft-graphite')
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'integration/executive-native-files' || github.head_ref == 'fix/executive-office-rendering' || github.head_ref == 'integration/executive-document-gate' || github.head_ref == 'design/executive-soft-graphite' || github.head_ref == 'design/executive-soft-native-apps')
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     steps:
