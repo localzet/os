@@ -2,6 +2,16 @@
 <!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
 <wallpapers>
   <wallpaper deleted="false">
+    <name>Executive — Alpine Dusk</name>
+    <name xml:lang="ru">Executive — альпийские сумерки</name>
+    <filename>/usr/share/backgrounds/localzet/executive-dusk.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/localzet/executive-dusk.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#091321</pcolor>
+    <scolor>#091321</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
     <name>Executive — Mt Shuksan</name>
     <name xml:lang="ru">Executive — гора Шуксан</name>
     <filename>/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg</filename>

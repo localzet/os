@@ -55,8 +55,8 @@ disable-user-extensions=false
 favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
-picture-uri-dark='file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-options='zoom'
 
 [org/gnome/desktop/interface]
@@ -99,6 +99,9 @@ cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 logo='/usr/share/localzet/brand/localzet.svg'
 EOF
 test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
+test -s "$root/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg"
+chroot "$root" /usr/bin/python3 /opt/localzet-os/scripts/build-executive-wallpaper.py "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "/usr/share/backgrounds/localzet/executive-dusk.jpg"
+test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
 test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
 test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"

@@ -41,12 +41,15 @@ class AssetsTests(unittest.TestCase):
         registry = ET.parse(ROOT / "assets/wallpapers/localzet-wallpapers.xml").getroot()
         paths = {node.findtext("filename") for node in registry.findall("wallpaper")}
         self.assertEqual(paths, {"/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg",
+                                 "/usr/share/backgrounds/localzet/executive-dusk.jpg",
                                  "/usr/share/backgrounds/localzet/aurora.svg"})
         for path in ("scripts/build-desktop-deb.sh", "scripts/build-live-rootfs.sh",
                      ".github/workflows/gnome-visual-smoke.yml"):
             self.assertIn("budgie-wallpapers-resolute", (ROOT / path).read_text())
         for path in ("packaging/live/customize-rootfs.sh", "scripts/ci/gnome50-visual-smoke.sh"):
             self.assertIn("/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg", (ROOT / path).read_text())
+            self.assertIn("/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg", (ROOT / path).read_text())
+        self.assertIn("CC BY-SA 4.0", (ROOT / "assets/wallpapers/ATTRIBUTION.txt").read_text())
 
     def test_wallpaper_is_svg(self):
         root = ET.parse(ROOT / 'assets/wallpapers/aurora.svg').getroot()

@@ -60,6 +60,8 @@ fi
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
 install -D -m 0644 "$repo/assets/wallpapers/localzet-wallpapers.xml" "$pkg/usr/share/gnome-background-properties/localzet-wallpapers.xml"
+install -m 0644 "$repo/assets/wallpapers/ATTRIBUTION.txt" "$pkg/usr/share/doc/localzet-desktop/wallpaper-attribution.txt"
+install -m 0644 "$repo/scripts/build-executive-wallpaper.py" "$pkg/opt/localzet-os/scripts/"
 python3 "$repo/scripts/build-aurora-icons.py" "$pkg/usr/share/icons"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet.svg"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"

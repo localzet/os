@@ -59,7 +59,9 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   # Use the actual shipped wallpaper and leave the startup overview before
   # capturing. The devkit's default blue test background is not Aurora.
   test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
-  wallpaper="file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
+  test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
+  python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
+  wallpaper="file://$OUT/executive-dusk.jpg"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1

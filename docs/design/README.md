@@ -222,3 +222,15 @@ installed apps appear once, in a smaller and denser grid. Search is global
 across categories and includes desktop keywords. No fabricated recommendations
 or recent history. Keyboard navigation accounts for the pinned row. The visual
 smoke verifies that the actual four favorites are rendered separately.
+
+### Executive Alpine Dusk
+
+The brighter Mt Shuksan review was not accepted as the final look. New images
+use a deterministic 3840×2160 dusk colorway of Mont Blanc from Arpy Lake by
+puffettacicciottella, sourced from the same signed Ubuntu package. The
+photograph is cropped and color-graded, not AI-generated or a copy of the
+reference. Source and derived artwork are CC BY-SA 4.0; explicit attribution
+ships with the package. The original Aurora and Mt Shuksan backgrounds remain
+selectable. The build and devkit run the same offline generator; actual visual
+acceptance is pending. Standalone desktop overlay users need the image build
+step to produce the new derived wallpaper; existing preferences are unchanged.
