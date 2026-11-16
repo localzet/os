@@ -24,6 +24,7 @@ test -f "$work/control/postrm"
 for script in preinst postinst prerm config; do
     test ! -e "$work/control/$script"
 done
+test -s "$root/etc/ssl/certs/ca-certificates.crt"
 install -m 0644 "$deb" "$asset"
 # No external source/key or recommends, including proprietary font EULAs.
 chroot "$root" apt-get -o APT::Get::AllowUnauthenticated=false --simulate --no-install-recommends install /tmp/localzet-onlyoffice-review.deb > "$work/plan"
