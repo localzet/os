@@ -30,3 +30,14 @@ def meaningful(metrics):
     # Reject a powered-off display, blank white application or isolated text
     # on a flat frame. Not a substitute for human visual acceptance.
     return metrics["dominance"] < .97 and metrics["detailed_tiles"] >= 6 and metrics["colors"] >= 12
+
+
+def document_ink(path: Path):
+    """Count the original fixture's blue heading ink, away from editor chrome."""
+    from PIL import Image
+    with Image.open(path) as original:
+        image = original.convert("RGB")
+    w, h = image.size
+    page = image.crop((w//8, h//3, w*7//8, h*4//5))
+    return sum(20 <= r <= 65 and 65 <= g <= 125 and 130 <= b <= 205
+               and b > g+35 and g > r+25 for r,g,b in page.getdata())

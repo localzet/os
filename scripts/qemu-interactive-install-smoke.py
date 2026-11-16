@@ -8,6 +8,7 @@ candidate ISO contains no automatic test installer or credentials.
 from __future__ import annotations
 
 import argparse
+import base64
 import importlib.util
 import json
 import os
@@ -157,6 +158,27 @@ class Guest:
             if evidence.meaningful(metrics):
                 return
         raise RuntimeError(f"{stage}: blank or insufficient screenshot evidence")
+
+    def office_document(self):
+        # The guest captures the editor's own X11 drawable, not the host
+        # screen region. Transfer only this synthetic test document window.
+        prefix = b"LOCALZET_CANDIDATE_OFFICE_PNG "
+        lines = self.serial.read_bytes().splitlines()
+        matches = [line[len(prefix):] for line in lines if line.startswith(prefix)]
+        if len(matches) != 1 or len(matches[0]) > 2 * 1024**2:
+            raise RuntimeError("Missing, duplicate or oversized Office window evidence")
+        image = base64.b64decode(matches[0], validate=True)
+        if not image.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError("Invalid Office PNG evidence")
+        path = self.screen.with_name(f"{self.screen.stem}-office-document.png")
+        path.write_bytes(image)
+        evidence = evidence_module()
+        metrics = evidence.visual_metrics(path)
+        ink = evidence.document_ink(path)
+        print("Office document drawable:", metrics, "blue fixture ink:", ink, flush=True)
+        if not evidence.meaningful(metrics) or ink < 250:
+            raise RuntimeError("Office document pixels missing")
+        return path
 
     def office_region(self):
         lines = self.serial.read_text(errors="replace").splitlines()
@@ -475,6 +497,74 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed native ONLYOFFICE launched" in script
+    if executive_review and office:
+        # Use exactly the same original DOCX as the successful offline matrix.
+        spec = importlib.util.spec_from_file_location("office_fixture", Path(__file__).with_name("ci") / "office-fixture.py")
+        fixture_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixture_module)
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "Localzet-offline-review.docx"
+            fixture_module.build(fixture)
+            encoded = base64.b64encode(fixture.read_bytes()).decode("ascii")
+        launch = r"""
+# Avoid late activation by earlier test applications; stop only transient
+# units created by this disposable validation session.
+for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus; do
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemctl --user stop "localzet-candidate-$app.service" || true
+done
+printf '%s' 'FIXTURE_BASE64' | base64 -d > /run/localzet-candidate-check/Localzet-offline-review.docx
+chmod 0644 /run/localzet-candidate-check/Localzet-offline-review.docx
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --collect --unit=localzet-candidate-onlyoffice-desktopeditors \
+    /usr/bin/onlyoffice-desktopeditors /run/localzet-candidate-check/Localzet-offline-review.docx
+"""
+        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
+        assert script.count(marker) == 1
+        script = script.replace(marker, launch.replace("FIXTURE_BASE64", encoded))
+        first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
+        last = script.index("\nOFFICETEST", first)
+        script = script[:first] + r"""window=""
+for attempt in $(seq 1 90); do
+    window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+test -n "$window"
+xdotool getwindowname "$window" | grep -F Localzet-offline-review
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+for attempt in $(seq 1 30); do
+    timeout 15 xdotool windowactivate --sync "$window" || continue
+    sleep 2
+    [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
+    import -window "$window" "$work/document.png" || continue
+    [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
+    if python3 - "$work/document.png" <<'PY'
+from PIL import Image
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+w, h = im.size
+assert w >= 400 and h >= 300
+# Restrict the ink check to the document page, not the ribbon or titlebar.
+page = im.crop((w//8, h//3, w*7//8, h*4//5))
+ink = sum(20 <= r <= 65 and 65 <= g <= 125 and 130 <= b <= 205
+          and b > g+35 and g > r+25 for r,g,b in page.getdata())
+print("Fixture heading ink:", ink)
+assert ink >= 250
+PY
+    then
+        test "$(stat -c %s "$work/document.png")" -lt 1572864
+        printf 'LOCALZET_CANDIDATE_OFFICE_PNG '
+        base64 -w0 "$work/document.png"
+        printf '\nPASS: actual ONLYOFFICE document drawable captured\n'
+        exit 0
+    fi
+done
+echo "No rendered fixture heading in named document window" >&2
+exit 1""" + script[last:]
     if native_files:
         check = r"""
 for package in nautilus nautilus-data libnautilus-extension4; do
@@ -625,7 +715,8 @@ def main():
                 installed.capture("containers-installed")
             if args.expect_office:
                 if args.expect_executive_review:
-                    installed.visual_capture("office-installed", installed.office_region())
+                    installed.office_document()
+                    installed.capture("office-installed")
                 else:
                     installed.capture("office-installed")
             installed.wait(WINE_READY, 360)

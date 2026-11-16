@@ -31,3 +31,19 @@ class VisualEvidenceTests(unittest.TestCase):
             self.assertTrue(module.meaningful(module.visual_metrics(path)))
             with self.assertRaises(ValueError):
                 module.visual_metrics(path, (800, 800, 400, 300))
+
+    def test_document_ink_ignores_chrome(self):
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            self.skipTest("Pillow unavailable on source-only runner")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "document.png"
+            image = Image.new("RGB", (640, 400), "white")
+            draw = ImageDraw.Draw(image)
+            draw.rectangle((10, 0, 630, 80), fill="#205ea8")
+            image.save(path)
+            self.assertEqual(module.document_ink(path), 0)
+            draw.rectangle((160, 160, 340, 180), fill="#205ea8")
+            image.save(path)
+            self.assertGreater(module.document_ink(path), 250)
