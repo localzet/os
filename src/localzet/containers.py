@@ -1077,13 +1077,18 @@ class Engine:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Localzet Containers local engine")
     parser.add_argument("--rootful", action="store_true", help="Explicitly use privileged system Docker socket")
-    parser.add_argument("action", choices=("list", "stacks", "start", "stop", "restart"))
+    parser.add_argument("action", choices=("list", "stacks", "start", "stop", "restart", "gpu-status", "gpu-probe"))
     parser.add_argument("container_id", nargs="?")
     args = parser.parse_args()
-    if (args.action in ("list", "stacks")) != (args.container_id is None):
+    if (args.action in ("list", "stacks", "gpu-status")) != (args.container_id is None):
         parser.error("Actions require exactly one full container ID")
     try:
         engine = Engine(rootful=args.rootful)
+        if args.action in ("gpu-status", "gpu-probe"):
+            from localzet.containers_gpu import gpu_status, probe_gpu
+            result = gpu_status(engine) if args.action == "gpu-status" else probe_gpu(engine, args.container_id)
+            print(json.dumps(result, indent=2))
+            return 0
         rows = (engine.inventory() if args.action == "list" else engine.stacks() if args.action == "stacks"
                 else engine.action(args.action, args.container_id))
         print(json.dumps([asdict(row) for row in rows], ensure_ascii=False, indent=2))
