@@ -1,6 +1,6 @@
 {
   "name": "Localzet Aurora — Executive",
-  "status": "Midnight reference correction; review and visual acceptance pending",
+  "status": "Soft graphite native Files correction following owner screenshot; shell palette unchanged pending review",
   "colors": {
     "background": "#091321",
     "surface": "#101b2d",
@@ -44,5 +44,16 @@
     "dockIcon": 38,
     "dockHeight": 62,
     "accessibleScale": true
+  },
+  "nativeFiles": {
+    "background": "#202124",
+    "sidebar": "#343539",
+    "pathbar": "#303136",
+    "text": "#f0f0f2",
+    "selectionBase": "#3b3c40",
+    "selectionAccentMix": 0.09,
+    "rowRadius": 9,
+    "pathRadius": 9,
+    "notes": "Neutral application surfaces, quiet accent, preserve upstream light and contrast. Separate from shell glass palette."
   }
 }
