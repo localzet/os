@@ -148,18 +148,21 @@ export class LocalzetDock {
     _updateIndicators() {
         const focus = this._tracker.focus_app;
         let running = 0;
+        let focused = 0;
         for (const row of this._rows.values()) {
             const count = this._windows(row.app).length;
             const active = count > 0 && row.app === focus;
             if (count)
                 running++;
+            if (active)
+                focused++;
             row.dot[count ? 'add_style_class_name' : 'remove_style_class_name']('running');
             row.dot[active ? 'add_style_class_name' : 'remove_style_class_name']('focused');
             row.button[active ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-focused');
             row.button.accessible_name = row.app.get_name() + (count ? ' · ' + count + ' окон' : '');
         }
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
-            console.log('Localzet Dock: running=' + running + ' items=' + this._rows.size);
+            console.log('Localzet Dock: running=' + running + ' items=' + this._rows.size + ' focused=' + focused);
     }
 
     _place() {
