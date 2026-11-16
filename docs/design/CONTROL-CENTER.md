@@ -36,3 +36,8 @@ remains unchanged unless explicitly given LOCALZET_CONTROL_CENTER_BUNDLE.
 No package is pinned or held. The exact image is tested via the interactive
 USB/QEMU installation path, without uploading a public release. Actual
 installed About screenshot and maintained signed repository are still gates.
+
+The About-only presentation derives a transparent SVG by removing exactly
+one reviewed background rectangle. All other artwork bytes and the canonical
+installed SVG remain unchanged. The rebuilt package uses +localzet2; visual
+acceptance remains pending.

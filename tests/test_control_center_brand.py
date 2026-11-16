@@ -39,3 +39,19 @@ class ControlCenterBrandTests(unittest.TestCase):
         self.assertIn("height-request: 144", result)
         with self.assertRaises(ValueError):
             module.patch_about("upstream changed")
+
+
+class AboutLogoTests(unittest.TestCase):
+    def test_only_background_removed(self):
+        root = PATH.parents[1]
+        spec = importlib.util.spec_from_file_location(
+            "derive_about_logo", root / "scripts/derive-about-logo.py")
+        derive = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(derive)
+        original = (root / "assets/brand/localzet.svg").read_bytes()
+        result = derive.transparent_logo(original)
+        self.assertNotIn(derive.BACKGROUND, result)
+        self.assertEqual(result, original.replace(derive.BACKGROUND, b"", 1))
+        for invalid in (b"", original + derive.BACKGROUND):
+            with self.assertRaises(ValueError):
+                derive.transparent_logo(invalid)
