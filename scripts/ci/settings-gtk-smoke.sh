@@ -57,6 +57,11 @@ for color in ("091321", "101b2d"):
     print("Midnight", color, "pixels:", count)
     if count < 1000:
         raise SystemExit("Missing actual Midnight surface: " + color)
+# Secondary text must not fade into the card background.
+secondary = pixels[tuple(bytes.fromhex("b8c9dd"))]
+print("Executive secondary text pixels:", secondary)
+if secondary < 20:
+    raise SystemExit("Secondary text did not render with the intended contrast")
 print("GTK window captured", im.size)
 PY
 '

@@ -247,3 +247,18 @@ and readable secondary text; explicit light and high contrast continue to
 use the native style. No user-wide GTK stylesheet is installed. The actual
 GTK smoke checks navigation and captures all three views. This is not a
 Nautilus or third-party window theme.
+
+### Executive material experiment and readability
+
+The 97089bf GNOME visual run passed, including real Nautilus, and 9bc96c0
+Settings GTK navigation passed. Review revealed low-contrast secondary text
+and poorly legible stroke-based symbolic icons. Use filled monochrome shapes,
+larger category symbols, explicit secondary text opacity, real row separators
+and consistent Settings icons. The Command Hub can now attach a real
+Shell.BlurEffect BACKGROUND to its rectangular menu content allocation in the
+existing opt-in experimental session. No default enablement or rounded
+clipping claim: the experiment is explicitly square and reverts to opaque
+on high contrast or effect initialization failure. CI verifies effect
+lifecycle and captures the actual menu; pixel-level blur validation,
+physical GPU performance, lock-screen styling and final rounded glass remain
+outstanding.

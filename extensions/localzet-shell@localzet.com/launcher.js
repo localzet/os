@@ -1,5 +1,6 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -31,6 +32,11 @@ export class AuroraLauncher {
         this._menu.actor.add_style_class_name('localzet-launcher-popup');
         Main.uiGroup.add_child(this._menu.actor);
         this._menu.actor.hide();
+        this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
+        this._glass = null;
+        this._glassExperimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
+        this._contrastId = this._contrast.connect('changed::high-contrast', () => this._refreshMaterial());
+        this._refreshMaterial();
         this._manager = new PopupMenu.PopupMenuManager(anchor);
         this._manager.addMenu(this._menu);
         const section = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
@@ -48,7 +54,7 @@ export class AuroraLauncher {
         const categoryIcons = {"all":"view-app-grid-symbolic","system":"preferences-system-symbolic","utility":"applications-utilities-symbolic","development":"applications-development-symbolic","media":"applications-multimedia-symbolic","internet":"applications-internet-symbolic","office":"applications-office-symbolic","games":"applications-games-symbolic"};
         for (const [id, label] of FILTERS) {
             const categoryContent = new St.BoxLayout({style_class: 'localzet-category-content', x_expand: true, x_align: Clutter.ActorAlign.START});
-            categoryContent.add_child(new St.Icon({icon_name: categoryIcons[id], icon_size: 15}));
+            categoryContent.add_child(new St.Icon({icon_name: categoryIcons[id], icon_size: 18}));
             categoryContent.add_child(new St.Label({text: label, y_align: Clutter.ActorAlign.CENTER}));
             const button = new St.Button({child: categoryContent, accessible_name: label, can_focus: true, reactive: true,
                 x_expand: true, style_class: 'localzet-launcher-category'});
@@ -130,6 +136,40 @@ export class AuroraLauncher {
             if (this._menu.isOpen)
                 this._refresh();
         });
+    }
+
+    _refreshMaterial() {
+        if (this._glass) {
+            this._menu.box.remove_effect(this._glass);
+            this._glass = null;
+        }
+        this._menu.actor.remove_style_class_name('localzet-launcher-glass');
+        const highContrast = this._contrast.get_boolean('high-contrast');
+        this._menu.actor[highContrast ? 'add_style_class_name' : 'remove_style_class_name']('localzet-launcher-contrast');
+        if (highContrast || !this._glassExperimental) {
+            if (this._glassExperimental)
+                console.log('Localzet Glass: launcher opaque fallback');
+            return;
+        }
+        // A real background-sampling compositor effect on the rectangular
+        // content allocation. Deliberately square until rounded clipping is
+        // implemented. Never blur the icon/text foreground.
+        try {
+            const effect = new Shell.BlurEffect({
+                radius: 24, brightness: 0.80, mode: Shell.BlurMode.BACKGROUND,
+            });
+            this._menu.box.add_effect_with_name('localzet-launcher-background', effect);
+            this._glass = effect;
+            this._menu.actor.add_style_class_name('localzet-launcher-glass');
+            console.log('Localzet Glass: launcher background effect active');
+        } catch (error) {
+            if (this._glass) {
+                this._menu.box.remove_effect(this._glass);
+                this._glass = null;
+            }
+            this._menu.actor.remove_style_class_name('localzet-launcher-glass');
+            console.warn('Localzet Glass: launcher opaque fallback: ' + error);
+        }
     }
 
     _activate(app) {
@@ -251,6 +291,11 @@ export class AuroraLauncher {
     }
 
     destroy() {
+        this._contrast.disconnect(this._contrastId);
+        if (this._glass) {
+            this._menu.box.remove_effect(this._glass);
+            this._glass = null;
+        }
         this._appSystem.disconnect(this._appsId);
         this._favorites.disconnect(this._favoritesId);
         this._menu.disconnect(this._openId);

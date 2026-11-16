@@ -93,6 +93,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: launcher background effect active" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=4 " || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
@@ -200,6 +201,7 @@ PY
   # Exercise teardown/re-enable, including the accessibility fallback.
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
   sleep 2
+  grep -F "Localzet Glass: launcher opaque fallback" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
   gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
   gnome-extensions disable localzet-shell@localzet.com || exit 1

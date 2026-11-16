@@ -51,8 +51,7 @@ def main() -> int:
         def _overview_page(self):
             page = Adw.PreferencesPage()
             system = Adw.PreferencesGroup(
-                title="Рабочая среда",
-                description="Основные настройки устройства и рабочего стола.",
+                title="Основные настройки",
             )
             system.add_css_class("localzet-summary")
             for name, subtitle, command, icon in (
@@ -66,14 +65,14 @@ def main() -> int:
             page.add(system)
             apps = Adw.PreferencesGroup(title="Приложения и инструменты")
             apps.add(self._row("Файлы", "Папки и накопители", ["nautilus"], "folder-symbolic"))
-            apps.add(self._row("Терминал", "Командная строка", ["ptyxis"]))
-            apps.add(self._row("Частные сети", "NetBird · состояние VPN и подключение", ["localzet-network"]))
-            apps.add(self._row("Оборудование", "Драйверы, GPU и состояние CUDA", ["localzet-hardware-manager"]))
-            apps.add(self._row("Windows-приложения", "Localzet Windows Runtime · Wine", ["localzet-windows"]))
+            apps.add(self._row("Терминал", "Командная строка", ["ptyxis"], "utilities-terminal-symbolic"))
+            apps.add(self._row("Частные сети", "NetBird · состояние VPN и подключение", ["localzet-network"], "network-vpn-symbolic"))
+            apps.add(self._row("Оборудование", "Драйверы, GPU и состояние CUDA", ["localzet-hardware-manager"], "computer-symbolic"))
+            apps.add(self._row("Windows-приложения", "Localzet Windows Runtime · Wine", ["localzet-windows"], "application-x-executable-symbolic"))
             phone = Adw.PreferencesGroup(title="NectarLink")
             client = Path("/usr/bin/nectarlink-desktop")
             status = "Android · NectarLink" if client.is_file() and os.access(client, os.X_OK) else "Настроить связь с Android"
-            phone.add(self._row("Связь с телефоном", status, ["localzet-connect"]))
+            phone.add(self._row("Связь с телефоном", status, ["localzet-connect"], "phone-symbolic"))
             page.add(apps)
             page.add(phone)
             return page

@@ -34,8 +34,17 @@ window.localzet-midnight {
 .localzet-midnight .boxed-list > row:hover {
     background-color: #233953;
 }
-.localzet-midnight .boxed-list > row .subtitle {
-    color: #a4b6cc;
+.localzet-midnight .boxed-list > row .subtitle,
+.localzet-midnight .dim-label {
+    color: #b8c9dd;
+    opacity: 1;
+}
+.localzet-midnight .boxed-list > row + row {
+    border-top: 1px solid #293b52;
+}
+.localzet-midnight .boxed-list > row:focus-visible {
+    outline: 2px solid #78b8ff;
+    outline-offset: -2px;
 }
 .localzet-midnight .boxed-list > row image {
     color: #b4cae4;
