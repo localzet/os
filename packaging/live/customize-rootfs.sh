@@ -6,6 +6,9 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
+    bash "$LOCALZET_REPO/scripts/install-onlyoffice-rootfs.sh" "$root"
+fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     # Do not activate a privileged daemon or grant docker-group membership.
     for unit in docker.service docker.socket containerd.service; do
