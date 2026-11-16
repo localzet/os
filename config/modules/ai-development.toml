@@ -1,0 +1,6 @@
+id = "ai-development"
+title = "AI Development"
+description = "Codex, Claude Code, MCP and mandatory UserNet proxy policy"
+status = "prototype"
+packages = ["bubblewrap", "socat", "nodejs", "npm", "python3-venv", "ripgrep", "jq"]
+depends_on = ["developer", "usernet"]

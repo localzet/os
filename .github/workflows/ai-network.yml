@@ -1,0 +1,23 @@
+name: AI proxy namespace smoke
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/ai_*.py'
+      - 'apps/localzet-ai/**'
+      - 'tests/test_ai_*.py'
+      - 'scripts/ci/ai-network-smoke.py'
+      - '.github/workflows/ai-network.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  proxy:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y bubblewrap socat
+      - name: Protocol and policy tests
+        run: PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_ai_*.py'
+      - name: Real network namespace and relay, no provider credentials
+        run: python3 scripts/ci/ai-network-smoke.py

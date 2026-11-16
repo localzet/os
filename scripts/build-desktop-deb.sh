@@ -38,6 +38,8 @@ install -m 0644 "$repo/config/profiles.json" "$pkg/opt/localzet-os/config/profil
 cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0755 "$repo/apps/localzet-network/localzet-network" "$pkg/usr/bin/localzet-network"
+install -m 0755 "$repo/apps/localzet-ai/localzet-ai" "$pkg/usr/bin/localzet-ai"
+install -m 0755 "$repo/apps/localzet-ai/localzet-mcp" "$pkg/usr/bin/localzet-mcp"
 install -m 0644 "$repo/packaging/com.localzet.Network.desktop" "$pkg/usr/share/applications/"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware" "$pkg/usr/bin/localzet-hardware"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware-manager" "$pkg/usr/bin/localzet-hardware-manager"
