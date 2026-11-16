@@ -41,8 +41,9 @@ export class LocalzetDock {
             [this._favorites, this._favorites.connect('changed::favorite-apps', () => this._schedule())],
             [this._appSystem, this._appSystem.connect('installed-changed', () => this._schedule())],
             [this._appSystem, this._appSystem.connect('app-state-changed', () => this._schedule())],
-            [this._tracker, this._tracker.connect('notify::focus-app', () => this._updateIndicators())],
-            [global.display, global.display.connect('notify::focus-window', () => this._updateIndicators())],
+            [this._tracker, this._tracker.connect('notify::focus-app', () => this._schedule())],
+            [global.display, global.display.connect('notify::focus-window', () => this._schedule())],
+            [global.display, global.display.connect('window-created', () => this._schedule())],
             [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._place())],
             [Main.overview, Main.overview.connect('showing', () => {
                 this._launcher.close(); this._actor.hide();
