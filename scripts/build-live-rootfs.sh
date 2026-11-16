@@ -26,6 +26,12 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     }
     export LOCALZET_EXPERIMENTAL_CONTAINERS
 fi
+if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
+    [[ "${LOCALZET_ARCHIVE_PROFILE:-}" == standard || "${LOCALZET_ARCHIVE_PROFILE:-}" == complete ]] || {
+        echo "Experimental ONLYOFFICE requires Standard or Complete" >&2; exit 2;
+    }
+    export LOCALZET_EXPERIMENTAL_ONLYOFFICE LOCALZET_ARCHIVE_PROFILE LOCALZET_DISPOSABLE_VM
+fi
 bash "$repo/scripts/build-desktop-deb.sh" "$build"
 export LOCALZET_DESKTOP_DEB="$build/localzet-desktop_${LOCALZET_PACKAGE_VERSION}_all.deb"
 mkdir -p "$(dirname "$root")"
