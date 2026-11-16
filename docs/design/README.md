@@ -137,3 +137,16 @@ palette and watermark rendered from the canonical Localzet SVG. The build
 checks the theme and logo in initramfs. This does not establish that the
 splash is visible on every GPU/firmware; capture boot and verify password
 prompts/recovery before acceptance. No foreign bootloader is modified.
+
+## Midnight desktop correction (2026-11-16)
+
+The owner supplied a blue/graphite desktop reference and rejected the flat
+violet/grey engineering screenshot. This supersedes the earlier palette for
+this candidate, not the functional acceptance contract. The proposed visual
+baseline uses midnight blue surfaces, clear blue selection, a four-column
+application grid with category navigation, larger identifiable color icons,
+and a compact native panel. Preserve XTerm, original Localzet logo, actual
+GNOME controls and installed app actions. Do not copy the reference's invented
+hardware values, version labels or logos. A detailed alpine wallpaper, unified
+native GTK/libadwaita windows, glass clipping, lock screen and installer remain
+separate acceptance work. This change is not visual approval or a finished ISO.

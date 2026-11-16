@@ -72,7 +72,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.Ptyxis interface-style dark || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
-  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'google-chrome.desktop', 'firefox.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
@@ -136,7 +136,7 @@ for color in ("cd0000", "00cd00", "cdcd00", "0000ee", "cd00cd", "00cdcd"):
 PY
   pkill -x ptyxis || true
   sleep 5
-  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[01] focused=0$" || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[1-9][0-9]* focused=0$" || exit 1
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   # The panel is still the real GNOME panel. Exercise the real menus and
   # deliver an original notification through the session's standard bus.
