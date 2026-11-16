@@ -1,0 +1,33 @@
+name: NetBird upstream review
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'config/upstream/netbird.json'
+      - 'scripts/fetch-netbird.py'
+      - 'scripts/ci/netbird-review.sh'
+      - 'tests/test_netbird_review.py'
+      - '.github/workflows/netbird-review.yml'
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install review dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl libgtk-4-1 libwebkitgtk-6.0-4 xdg-utils xvfb xauth dbus-x11 xdotool imagemagick
+      - name: Verify original packages without executing maintainer scripts
+        run: |
+          mkdir -p out/netbird
+          python3 scripts/fetch-netbird.py "$RUNNER_TEMP/netbird"
+          bash scripts/ci/netbird-review.sh "$RUNNER_TEMP/netbird" out/netbird
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: netbird-review-evidence
+          path: out/netbird/
+          retention-days: 7

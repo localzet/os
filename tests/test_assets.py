@@ -57,7 +57,7 @@ class AssetsTests(unittest.TestCase):
                 root = ET.parse(path).getroot()
                 self.assertEqual(root.attrib["viewBox"], "0 0 64 64")
                 self.assertTrue(all("href" not in key for node in root.iter() for key in node.attrib))
-            for name in ("Settings", "Hardware", "WindowsRuntime", "Containers", "Connect", "Installer"):
+            for name in ("Settings", "Hardware", "WindowsRuntime", "Containers", "Connect", "Installer", "Network"):
                 icon = "com.localzet." + name
                 self.assertTrue((theme / "scalable/apps" / (icon + ".svg")).is_file())
             with self.assertRaises(FileExistsError):
