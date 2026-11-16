@@ -63,6 +63,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
+  gsettings set org.gnome.desktop.interface accent-color blue || exit 1
   gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
   install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
   profile=4e6f25d9af1244aa896f5b028bf7a020
@@ -91,6 +92,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=4 " || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
@@ -164,6 +166,17 @@ PY
   xdotool windowfocus --sync "$window" key Escape || exit 1
   sleep 3
   xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
+  # Capture the real GTK file manager with the shipped icon theme.
+  # Use a disposable directory, not a user's actual files.
+  mkdir -p "$HOME/Localzet-visual-review"/{Documents,Projects,Downloads}
+  nautilus --new-window "$HOME/Localzet-visual-review" > "$OUT/nautilus.log" 2>&1 &
+  sleep 5
+  pgrep -x nautilus || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  import -window root "$OUT/aurora-nautilus.png" || exit 1
+  nautilus -q || exit 1
+  rm -rf "$HOME/Localzet-visual-review"
   sleep 3
   # Exercise teardown/re-enable, including the accessibility fallback.
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1

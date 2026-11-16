@@ -61,6 +61,7 @@ picture-options='zoom'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
+accent-color='blue'
 icon-theme='Aurora'
 
 [org/gnome/Ptyxis]

@@ -24,6 +24,8 @@ export class LocalzetDock {
         });
         this._anchor.set_child(this._launcherIcon());
         this._actor.add_child(this._anchor);
+        this._divider = new St.Widget({style_class: 'localzet-dock-divider', y_align: Clutter.ActorAlign.CENTER});
+        this._actor.add_child(this._divider);
         this._launcher = new AuroraLauncher(this._anchor);
         this._anchor.connect('clicked', () => this._launcher.toggle());
         this._scroll = new St.ScrollView({style_class: 'localzet-dock-scroll',
@@ -142,6 +144,8 @@ export class LocalzetDock {
             this._apps.set_child_at_index(row.button, index++);
             row.button[favorites.has(id) ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-favorite');
         }
+        this._divider.visible = this._rows.size > 0;
+        this._actor[this._settings.get_boolean('high-contrast') ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-high-contrast');
         this._updateIndicators();
         this._place();
     }
@@ -174,7 +178,8 @@ export class LocalzetDock {
         // width per app. Show horizontal scrolling only on real overflow.
         const [, anchorWidth] = this._anchor.get_preferred_width(-1);
         const [, appWidth] = this._apps.get_preferred_width(-1);
-        const natural = Math.max(64, Math.ceil(anchorWidth + appWidth + 32));
+        const [, dividerWidth] = this._divider.get_preferred_width(-1);
+        const natural = Math.max(64, Math.ceil(anchorWidth + appWidth + (this._divider.visible ? dividerWidth : 0) + 40));
         const width = Math.min(monitor.width - 24, natural);
         this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
             St.PolicyType.NEVER);

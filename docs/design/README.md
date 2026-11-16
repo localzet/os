@@ -189,3 +189,15 @@ This is a real 4K landscape candidate, not the final sunset/lake hero artwork.
 The devkit now installs actual Nautilus, Epiphany and Settings packages and
 uses the same four favorites as the installed image, rather than accidental
 runner applications. Native icon theme and compositor behavior remain intact.
+
+### Executive system controls and file manager review
+
+Native GNOME Quick Settings now uses explicit split-toggle geometry,
+RTL-aware corners, separate checked/hover/disabled/focus states, compact
+sliders and notification actions. No fake controls or hardware states are
+introduced. Dock separates the launcher from actual favorite/running tasks,
+with an explicit high-contrast outline. New profiles use GNOME's supported
+blue accent (not global GTK CSS). Visual smoke requires all four default
+favorites and captures the real Nautilus window with disposable folders.
+Nautilus keeps upstream libadwaita window chrome; no full custom window theme
+or rounded compositor blur is claimed. Fresh visual acceptance required.
