@@ -119,6 +119,18 @@ export class AuroraLauncher {
                 this._refresh();
                 global.stage.set_key_focus(this._entry.clutter_text);
                 console.log('Localzet Launcher: opened');
+                // Report geometry after the menu allocation/animation.
+                if (this._glassExperimental && !this._geometrySource)
+                    this._geometrySource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 450, () => {
+                        this._geometrySource = 0;
+                        if (this._menu?.isOpen) {
+                            const [x, y] = this._menu.actor.get_transformed_position();
+                            const [w, h] = this._menu.actor.get_transformed_size();
+                            console.log('Localzet Launcher: bounds=' +
+                                [x, y, w, h].map(Math.round).join(','));
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
             } else {
                 console.log('Localzet Launcher: closed');
             }
@@ -134,7 +146,7 @@ export class AuroraLauncher {
 
     _refreshMaterial() {
         if (this._glass) {
-            this._menu.box.remove_effect(this._glass);
+            this._menu.actor.remove_effect(this._glass);
             this._glass = null;
         }
         this._menu.actor.remove_style_class_name('localzet-launcher-glass');
@@ -152,13 +164,13 @@ export class AuroraLauncher {
             const effect = new Shell.BlurEffect({
                 radius: 24, brightness: 0.80, mode: Shell.BlurMode.BACKGROUND,
             });
-            this._menu.box.add_effect_with_name('localzet-launcher-background', effect);
+            this._menu.actor.add_effect_with_name('localzet-launcher-background', effect);
             this._glass = effect;
             this._menu.actor.add_style_class_name('localzet-launcher-glass');
             console.log('Localzet Glass: launcher background effect active');
         } catch (error) {
             if (this._glass) {
-                this._menu.box.remove_effect(this._glass);
+                this._menu.actor.remove_effect(this._glass);
                 this._glass = null;
             }
             this._menu.actor.remove_style_class_name('localzet-launcher-glass');
@@ -270,9 +282,12 @@ export class AuroraLauncher {
     }
 
     destroy() {
+        if (this._geometrySource)
+            GLib.source_remove(this._geometrySource);
+        this._geometrySource = 0;
         this._contrast.disconnect(this._contrastId);
         if (this._glass) {
-            this._menu.box.remove_effect(this._glass);
+            this._menu.actor.remove_effect(this._glass);
             this._glass = null;
         }
         this._appSystem.disconnect(this._appsId);

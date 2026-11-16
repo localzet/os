@@ -25,6 +25,13 @@ export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
 export GDK_BACKEND=x11
 export GTK_A11Y=none
+# Test-only override inherited by the isolated D-Bus activation services too.
+export ADW_DEBUG_COLOR_SCHEME=prefer-dark
+# A nested devkit does not run the installed session's XSettings service.
+# Apply the same icon theme to GTK in this disposable runner only.
+mkdir -p "$HOME/.config/gtk-4.0"
+test ! -e "$HOME/.config/gtk-4.0/settings.ini" || exit 2
+printf '[Settings]\ngtk-icon-theme-name=Aurora\n' > "$HOME/.config/gtk-4.0/settings.ini"
 Xvfb :99 -screen 0 1440x900x24 -nolisten tcp > "$OUT/xvfb.log" 2>&1 &
 xvfb_pid=$!
 trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
@@ -42,7 +49,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 3
   # Devkit lacks the installed session's Settings portal. Use libadwaita's
   # documented debug preference ONLY in this isolated test, never in ISO.
-  ADW_DEBUG_COLOR_SCHEME=prefer-dark LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
+  LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
   trap "kill $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   for i in $(seq 1 30); do
@@ -111,6 +118,43 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=3" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
+  # Capture a blank catalogue for a reproducible optical comparison.
+  xdotool type --clearmodifiers localzet-no-such-app-1739 || exit 1
+  sleep 2
+  grep -F "Localzet Launcher: results=0" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-glass-empty.png" || exit 1
+  bounds="$(sed -n 's/.*Localzet Launcher: bounds=\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$bounds" || exit 1
+  # Compare spatial detail to the original screen, not darkness alone.
+  # Mutter devkit screenshot content is offset by its outer window frame.
+  python3 - "$OUT" "$bounds" <<'PY' > "$OUT/glass-quality.txt" || exit 1
+from PIL import Image
+from pathlib import Path
+from statistics import fmean
+import sys
+out = Path(sys.argv[1])
+x, y, w, h = map(int, sys.argv[2].split(","))
+# Blank right pane, well inside the rectangular menu, away from text.
+region = (x + int(w*.48) + 5, y + int(h*.48) + 51,
+          x + int(w*.89) + 5, y + int(h*.77) + 51)
+base = Image.open(out / "aurora-panel-experimental.png").convert("L").crop(region)
+glass = Image.open(out / "aurora-glass-empty.png").convert("L").crop(region)
+a, b = list(base.getdata()), list(glass.getdata())
+ma, mb = fmean(a), fmean(b)
+variance = sum((v-ma)**2 for v in a)
+if variance <= 0:
+    raise SystemExit("Insufficient wallpaper detail in sample")
+slope = sum((u-ma)*(v-mb) for u,v in zip(a,b))/variance
+def detail(values, width):
+    return fmean(abs(values[i+1]-values[i]) for i in range(len(values)-1)
+                 if (i+1)%width)
+ratio = detail(b, glass.width)/max(.001, detail(a, base.width)*abs(slope))
+print("Tint-normalized horizontal detail ratio:", round(ratio, 3))
+print("Experimental visual verdict:", "detail-reduction candidate" if ratio < .65
+      else "unverified blur; do not promote")
+PY
+  cat "$OUT/glass-quality.txt"
+  xdotool key --clearmodifiers ctrl+a || exit 1
   xdotool type --clearmodifiers ptyxis || exit 1
   sleep 2
   grep -F "Localzet Launcher: results=1" "$OUT/gnome-shell.log" || exit 1

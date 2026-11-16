@@ -278,3 +278,17 @@ GNOME Settings portal in the image. Devkit dark preference is an explicit
 CI-only libadwaita override because its session is not the installed session;
 verify real dark pixels, not just process existence. This does not yet
 implement bespoke Nautilus chrome, the exact hero wallpaper, or lock design.
+
+### Glass optical verification correction
+
+cf38abf's visual test passed the effect attachment/lifecycle checks, but the
+actual screenshot showed essentially unblurred wallpaper: a blank-menu ROI
+had tint-normalized horizontal edge standard-deviation ratio about 1.02 and
+luminance correlation 0.996 against the idle frame. This is not accepted as
+true visual glass. Attach the experimental effect to the outer PopupMenu
+actor (matching the panel's top-level background sampling) and capture an
+empty-menu diagnostic against the idle image. Record a tint-normalized
+spatial-detail metric; it is diagnostic, not a validated acceptance threshold.
+No default enablement until optical and hardware validation. The devkit-only
+GTK dark/icon settings are inherited by D-Bus activation, and the trash
+shortcut explicitly opens the installed Nautilus app with a trash URI.

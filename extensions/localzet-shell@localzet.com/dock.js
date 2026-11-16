@@ -43,7 +43,10 @@ export class LocalzetDock {
         this._trash.connect('clicked', () => {
             try {
                 const context = global.create_app_launch_context(0, -1);
-                Gio.AppInfo.launch_default_for_uri('trash:///', context);
+                const app = this._appSystem.lookup_app('org.gnome.Nautilus.desktop');
+                if (!app)
+                    throw new Error('Nautilus unavailable');
+                app.get_app_info().launch([Gio.File.new_for_uri('trash:///')], context);
                 console.log('Localzet Dock: trash opened');
             } catch (error) {
                 console.error('Localzet Dock: trash open failed: ' + error);
