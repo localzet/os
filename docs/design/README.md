@@ -201,3 +201,16 @@ blue accent (not global GTK CSS). Visual smoke requires all four default
 favorites and captures the real Nautilus window with disposable folders.
 Nautilus keeps upstream libadwaita window chrome; no full custom window theme
 or rounded compositor blur is claimed. Fresh visual acceptance required.
+
+### Executive visual review correction
+
+The aa1fdec devkit artifact 14222776153 captured actual launcher, Quick Settings,
+notifications and XTerm, with four real pinned applications. The Nautilus
+check failed because it launched via the outer Xvfb display, not nested Shell.
+Launch Nautilus through the Command Hub and verify its real focused dock state
+before navigating to the disposable folder and capturing. The launcher now
+anchors to the full dock, icon size is 38 logical px, dock height 62, and the
+launcher uses a filled, blue-neutral four-cell mark. Reduce oversized shadow
+extents and align the native Quick Settings header controls. The landscape
+is still brighter than the target artwork; this iteration does not assert
+final visual parity or genuine rounded blur.

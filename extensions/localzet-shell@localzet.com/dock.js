@@ -26,7 +26,8 @@ export class LocalzetDock {
         this._actor.add_child(this._anchor);
         this._divider = new St.Widget({style_class: 'localzet-dock-divider', y_align: Clutter.ActorAlign.CENTER});
         this._actor.add_child(this._divider);
-        this._launcher = new AuroraLauncher(this._anchor);
+        // Anchor the popup to the whole centered dock, not its first button.
+        this._launcher = new AuroraLauncher(this._actor);
         this._anchor.connect('clicked', () => this._launcher.toggle());
         this._scroll = new St.ScrollView({style_class: 'localzet-dock-scroll',
             overlay_scrollbars: true, x_expand: true});
@@ -59,11 +60,11 @@ export class LocalzetDock {
     }
 
     _launcherIcon() {
-        const fallback = () => new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 25});
+        const fallback = () => new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 29});
         if (this._settings.get_boolean('high-contrast'))
             return fallback();
         const file = Gio.File.new_for_path(GLib.build_filenamev([this._path, 'icons', 'launcher.svg']));
-        return file.query_exists(null) ? new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 25}) : fallback();
+        return file.query_exists(null) ? new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 29}) : fallback();
     }
 
     _schedule() {
@@ -92,7 +93,7 @@ export class LocalzetDock {
     }
 
     _newRow(app) {
-        const icon = app.create_icon_texture(34);
+        const icon = app.create_icon_texture(38);
         const dot = new St.Widget({style_class: 'localzet-dock-indicator',
             x_align: Clutter.ActorAlign.CENTER});
         const content = new St.BoxLayout({vertical: true, style_class: 'localzet-dock-item-content',
@@ -183,7 +184,7 @@ export class LocalzetDock {
         const width = Math.min(monitor.width - 24, natural);
         this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
             St.PolicyType.NEVER);
-        const height = 56;
+        const height = 62;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
         const y = monitor.y + monitor.height - height - 12;

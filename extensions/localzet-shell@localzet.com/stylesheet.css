@@ -9,8 +9,8 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
 }
 .localzet-dock-button {
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 40px;
+    min-height: 40px;
     padding: 3px;
     border-radius: 5px;
     color: #edf4ff;
@@ -45,7 +45,7 @@
     border: 1px solid rgba(137, 161, 194, .24);
     border-radius: 12px;
     padding: 0;
-    box-shadow: 0 12px 32px rgba(0,0,0,.48);
+    box-shadow: 0 6px 16px rgba(0,0,0,.36);
 }
 .localzet-launcher { spacing: 13px; padding: 14px; color: #e7edf7; }
 .localzet-launcher-heading { spacing: 8px; padding: 3px 4px 5px; }
@@ -95,7 +95,7 @@
     border: 1px solid rgba(137, 161, 194, .27);
     border-radius: 11px;
     padding: 8px;
-    box-shadow: 0 12px 32px rgba(0,0,0,.46);
+    box-shadow: 0 6px 16px rgba(0,0,0,.36);
 }
 .localzet-system-surface .quick-settings {
     padding: 9px;
@@ -185,3 +185,12 @@
 .localzet-dock-high-contrast .localzet-dock-divider { background-color: #ffffff; }
 .localzet-dock.localzet-dock-high-contrast { background-color: #000000; border: 2px solid #ffffff; }
 .localzet-dock-high-contrast .localzet-dock-button:focus { box-shadow: inset 0 0 0 2px #ffffff; }
+
+/* Consistent header actions; native lock/power semantics are unchanged. */
+.localzet-system-surface .quick-settings-system-item .icon-button {
+    background-color: #1b2c43;
+    color: #e7edf7;
+}
+.localzet-system-surface .quick-settings-system-item .icon-button:hover { background-color: #29415d; }
+.localzet-system-surface .quick-settings-system-item .icon-button:focus { box-shadow: inset 0 0 0 2px #59a8ff; }
+.localzet-system-surface .quick-settings-system-item .icon-button:insensitive { color: #8c9bae; }

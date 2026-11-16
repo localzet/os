@@ -170,12 +170,28 @@ PY
   # Capture the real GTK file manager with the shipped icon theme.
   # Use a disposable directory, not a user's actual files.
   mkdir -p "$HOME/Localzet-visual-review"/{Documents,Projects,Downloads}
-  nautilus --new-window "$HOME/Localzet-visual-review" > "$OUT/nautilus.log" 2>&1 &
-  sleep 5
+  # Launch through the nested shell, not the outer Xvfb DISPLAY inherited
+  # by this script (the previous test opened Nautilus outside the devkit).
+  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  IFS=, read -r dock_x dock_y <<< "$dock"
+  xdotool windowfocus --sync "$window" mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  sleep 2
+  xdotool type --clearmodifiers nautilus || exit 1
+  sleep 2
+  xdotool key Return || exit 1
+  for attempt in $(seq 1 25); do
+    if grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -Eq "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Launcher: activated org.gnome.Nautilus.desktop" "$OUT/gnome-shell.log" || exit 1
   pgrep -x nautilus || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  xdotool key --clearmodifiers ctrl+l || exit 1
+  xdotool type --clearmodifiers "$HOME/Localzet-visual-review" || exit 1
+  xdotool key Return || exit 1
+  sleep 3
   import -window root "$OUT/aurora-nautilus.png" || exit 1
-  nautilus -q || exit 1
+  xdotool key --clearmodifiers alt+F4 || exit 1
   rm -rf "$HOME/Localzet-visual-review"
   sleep 3
   # Exercise teardown/re-enable, including the accessibility fallback.
