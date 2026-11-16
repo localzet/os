@@ -32,20 +32,35 @@ gsettings set org.gnome.nautilus.preferences default-folder-viewer icon-view
 # A dedicated runner-only configuration is not shipped in the image.
 mkdir -p "$HOME/.config/gtk-4.0"
 printf '[Settings]\ngtk-icon-theme-name=Aurora\n' > "$HOME/.config/gtk-4.0/settings.ini"
-nautilus --new-window "$work" > "$OUT/nautilus-$mode.log" 2>&1 &
-pid=$!
-window=""
-for attempt in $(seq 1 40); do
-    window="$(xdotool search --onlyvisible --pid "$pid" 2>/dev/null | head -n1 || true)"
-    [[ -n "$window" ]] && break
-    kill -0 "$pid" 2>/dev/null || break
-    sleep 1
-done
-test -n "$window"
-xdotool windowsize "$window" 1000 650
-xdotool windowmove "$window" 180 100
-xdotool windowfocus --sync "$window"
-sleep 2
+start_window() {
+    local view="$1" directory="$2"
+    gsettings set org.gnome.nautilus.preferences default-folder-viewer "$view"
+    test "$(gsettings get org.gnome.nautilus.preferences default-folder-viewer)" = "'$view'"
+    # Use a fresh process so the view preference is read on construction.
+    nautilus --new-window "$directory" >> "$OUT/nautilus-$mode.log" 2>&1 &
+    pid=$!
+    window=""
+    for attempt in $(seq 1 40); do
+        window="$(xdotool search --onlyvisible --pid "$pid" 2>/dev/null | head -n1 || true)"
+        [[ -n "$window" ]] && break
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 1
+    done
+    test -n "$window"
+    xdotool windowsize "$window" 1000 650
+    xdotool windowmove "$window" 180 100
+    xdotool windowactivate --sync "$window"
+    sleep 3
+}
+stop_window() {
+    if [[ -n "$pid" ]]; then
+        kill "$pid" 2>/dev/null || true
+        wait "$pid" 2>/dev/null || true
+        pid=""
+    fi
+    sleep 2
+}
+start_window icon-view "$work"
 import -window "$window" "$OUT/nautilus-$mode.png"
 python3 - "$OUT/nautilus-$mode.png" "$mode" <<'PY'
 import sys
@@ -63,50 +78,51 @@ with Image.open(sys.argv[1]) as im:
         assert all(n < 1000 for n in counts), counts
 PY
 ! grep -Ei 'theme parser error|css parser error|Gtk-CRITICAL|segmentation fault' "$OUT/nautilus-$mode.log"
-# Capture list view as well: the owner's reference is a detailed file list.
-# Native Nautilus 50 uses Ctrl+2 for list view and Ctrl+1 for grid view.
-xdotool windowactivate --sync "$window"
-# Wait for native view switching rather than label a grid image "list".
-# Four original blue folder glyphs occupy separate rows in list mode.
-for attempt in $(seq 1 6); do
-    xdotool windowactivate --sync "$window"
-    xdotool key --clearmodifiers ctrl+2
-    sleep 3
-    import -window "$window" "$OUT/nautilus-$mode-list.png"
-    if python3 - "$OUT/nautilus-$mode-list.png" <<'PY'
-from PIL import Image
-import sys
-im = Image.open(sys.argv[1]).convert("RGB")
-w,h = im.size
-# Find blue folder icon bands in the first column of the file area.
-rows = []
-for y in range(int(h*.12), int(h*.53)):
-    count = sum(b > r+30 and b > g+12 and g > r+10
-                for r,g,b in (im.getpixel((x,y)) for x in range(int(w*.22),int(w*.29))))
-    if count >= 5:
-        rows.append(y)
-bands = sum(i == 0 or y > rows[i-1]+1 for i,y in enumerate(rows))
-print("List view folder bands:", bands)
-assert bands >= 4
-PY
-    then
-        list_ready=1
-        break
-    fi
-done
-test "${list_ready:-0}" = 1
-if [[ "$mode" == dark ]]; then
-    python3 - "$OUT/nautilus-$mode-list.png" <<'PY'
-from PIL import Image
+# Capture a separately constructed native list view. The earlier Ctrl+2
+# shortcut produced identical grid screenshots even after six attempts.
+# Use a fresh folder (no saved folder metadata), containing the same data.
+list_root="$work/list-fixture"
+mkdir -p "$list_root"/{Documents,Projects,Downloads,Pictures}
+cp "$work"/*.txt "$work"/*.md "$work"/*.json "$work"/*.tsv "$list_root/"
+stop_window
+start_window list-view "$list_root"
+import -window "$window" "$OUT/nautilus-$mode-list.png"
+python3 - "$OUT/nautilus-$mode.png" "$OUT/nautilus-$mode-list.png" "$mode" <<'PY'
+from PIL import Image, ImageChops, ImageStat
 from collections import Counter
 import sys
-im = Image.open(sys.argv[1]).convert("RGB")
-counts = Counter(im.getdata())
-assert counts[(32,33,36)] > 1000 and counts[(52,53,57)] > 1000
+grid = Image.open(sys.argv[1]).convert("RGB")
+view = Image.open(sys.argv[2]).convert("RGB")
+assert grid.size == view.size, (grid.size, view.size)
+w,h = view.size
+region = (int(w*.21), int(h*.08), int(w*.97), int(h*.9))
+diff = ImageStat.Stat(ImageChops.difference(grid.crop(region), view.crop(region))).mean
+print("Grid/list content mean absolute RGB difference:", diff)
+assert max(diff) > 3, "List screenshot is still the grid"
+if sys.argv[3] == "dark":
+    pixels = Counter(view.getdata())
+    assert pixels[(32,33,36)] > 1000 and pixels[(52,53,57)] > 1000
+    # The actual grid has folder glyphs centered around x=280,407,...
+    # List icons must occupy multiple vertical rows near the sidebar.
+    # Search a broad strip, then cluster contiguous nonempty scan lines.
+    rows = []
+    for y in range(int(h*.10), int(h*.85)):
+        n = sum(b > r+30 and b > g+12 and g > r+10
+                for r,g,b in (view.getpixel((x,y)) for x in range(int(w*.205),int(w*.31))))
+        if n >= 4:
+            rows.append(y)
+    bands = []
+    for y in rows:
+        if not bands or y > bands[-1][-1]+2:
+            bands.append([y])
+        else:
+            bands[-1].append(y)
+    bands = [band for band in bands if len(band) >= 3]
+    print("Native list blue folder bands:", [(b[0],b[-1]) for b in bands])
+    assert len(bands) >= 4, "No four separate folder rows"
 PY
-fi
-xdotool key --clearmodifiers ctrl+1
-sleep 2
+echo "PASS: $mode independently launched native list view"
+# Keep the native list open for navigation and tab tests.
 # Native Nautilus 50 documents Alt+1..9 via win.go-to-tab. Use
 # explicit tab indices, not a toolkit-dependent Ctrl+Shift+Tab gesture.
 wait_title() {
@@ -127,7 +143,7 @@ navigate() {
     # Paste one complete URI after selecting the current entry. Typing
     # character-by-character races Nautilus' async path autocompletion.
     xdotool key --clearmodifiers ctrl+a
-    printf '%s' "$work/$name" | xclip -selection clipboard
+    printf '%s' "$list_root/$name" | xclip -selection clipboard
     xdotool key --clearmodifiers ctrl+v
     sleep 1
     xdotool key Return
@@ -145,4 +161,5 @@ wait_title Documents
 xdotool key --clearmodifiers alt+2
 wait_title Projects
 import -window "$window" "$OUT/nautilus-$mode-tabs.png"
-echo "PASS: $mode palette, navigation and two native tabs"
+! grep -Ei 'theme parser error|css parser error|Gtk-CRITICAL|segmentation fault' "$OUT/nautilus-$mode.log"
+echo "PASS: $mode palette, grid, list, navigation and two native tabs"

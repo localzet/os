@@ -534,3 +534,18 @@ installed candidate continues to require default rendering. No sandbox
 disable, no global renderer override. A diagnostic success is not a release
 pass. Host wait now allows the bounded guest test to finish. PR99 package
 build remains independent; no earlier test is cancelled.
+
+### Reliable native list review
+
+PR100 rebuilt the signed-source Nautilus 50.2.2-0ubuntu0.2+localzet1
+successfully, with canonical checksum manifest. The dark palette was
+confirmed, but the visual list check rejected six identical grid captures.
+The two PNGs are byte-for-byte identical. Do not weaken this gate.
+Instead, launch a fresh Nautilus process on a fresh directory using the
+upstream default-folder-viewer=list-view setting, independently of the
+grid process, and require changed content pixels plus four vertical blue
+folder rows in the dark capture. Keep the list open for actual directory
+navigation and tab switching. Light and high contrast still require
+distinct grid/list captures and native navigation. No user preference is
+changed by the shipped image; this is a disposable runner test only.
+The current installed office diagnostic remains in progress on PR100.
