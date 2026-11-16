@@ -59,9 +59,20 @@ picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
 color-scheme='prefer-dark'
 icon-theme='Aurora'
 
+[org/gnome/Ptyxis]
+default-profile-uuid='4e6f25d9af1244aa896f5b028bf7a020'
+profile-uuids=['4e6f25d9af1244aa896f5b028bf7a020']
+interface-style='system'
+
+[org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020]
+label='Aurora'
+palette='Aurora'
+opacity=1.0
+
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]
 EOF
+install -D -m 0644 "$LOCALZET_REPO/assets/terminal/aurora.palette" "$root/etc/skel/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
 # Preserve the distribution's GDM profile; add a separate branding DB.
 # GNOME's supported login-screen.logo key does not replace auth UI.
 gdm_profile="$root/etc/dconf/profile/gdm"
