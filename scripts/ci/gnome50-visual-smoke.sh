@@ -13,6 +13,8 @@ if [[ -e "$EXT_DEST" ]]; then
 fi
 mkdir -p "$(dirname "$EXT_DEST")"
 cp -R "$EXT_SOURCE" "$EXT_DEST"
+mkdir -p "$HOME/.local/share/icons"
+python3 "$ROOT/scripts/build-aurora-icons.py" "$HOME/.local/share/icons"
 if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "$XDG_RUNTIME_DIR" ]]; then
   export XDG_RUNTIME_DIR="$(mktemp -d /tmp/localzet-xdg.XXXXXX)"
   chmod 700 "$XDG_RUNTIME_DIR"
@@ -60,6 +62,8 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
+  gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
+  test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
   xwininfo -root -tree > "$OUT/xwindows.txt"
@@ -77,6 +81,13 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
+  xdotool windowfocus --sync "$window" key super+a || exit 1
+  sleep 5
+  import -window root "$OUT/aurora-app-grid.png" || exit 1
+  xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
+  xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
   # Exercise teardown/re-enable, including the accessibility fallback.
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
   sleep 2
