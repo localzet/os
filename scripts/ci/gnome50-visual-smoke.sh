@@ -103,6 +103,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   xdotool mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Launcher: pinned=4 catalogue=[0-9]+" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   xdotool type --clearmodifiers ptyxis || exit 1
   sleep 2

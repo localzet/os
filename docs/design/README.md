@@ -214,3 +214,11 @@ launcher uses a filled, blue-neutral four-cell mark. Reduce oversized shadow
 extents and align the native Quick Settings header controls. The landscape
 is still brighter than the target artwork; this iteration does not assert
 final visual parity or genuine rounded blur.
+
+### Executive launcher composition
+
+Separate real pinned apps from the catalogue on the default view. The remaining
+installed apps appear once, in a smaller and denser grid. Search is global
+across categories and includes desktop keywords. No fabricated recommendations
+or recent history. Keyboard navigation accounts for the pinned row. The visual
+smoke verifies that the actual four favorites are rendered separately.
