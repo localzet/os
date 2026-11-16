@@ -48,6 +48,17 @@ def main() -> int:
                 wrap=True, xalign=0)
             description.add_css_class("dim-label")
             page.append(description)
+            office = Adw.PreferencesGroup(title="Microsoft 365",
+                description="Настольный Office требует лицензии и совместимого Windows-окружения. "
+                            "Работа современной версии через Wine не подтверждена.")
+            web = Gtk.LinkButton(uri="https://www.microsoft365.com/",
+                                 label="Открыть Microsoft 365 в браузере", halign=Gtk.Align.START)
+            office.add(web)
+            official = Gtk.LinkButton(
+                uri="https://support.microsoft.com/ru-ru/office/lifecycle/officeinstall/use-the-office-offline-installer",
+                label="Официальная установка и активация Office", halign=Gtk.Align.START)
+            office.add(official)
+            page.append(office)
             group = Adw.PreferencesGroup(title="Приложение")
             self.file_row = Adw.ActionRow(title="Выберите файл EXE или MSI")
             choose = Gtk.Button(label="Выбрать")
