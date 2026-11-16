@@ -360,6 +360,11 @@ test ! -e /usr/lib/localzet/hardware-auto-enabled
 if systemctl is-enabled --quiet localzet-hardware-firstboot.timer; then
     echo "Unexpected automatic hardware setup without consent"; exit 2
 fi
+test -s /usr/share/icons/Aurora/index.theme
+for icon in com.localzet.Settings com.localzet.Hardware com.localzet.Containers org.gnome.Nautilus org.gnome.Ptyxis; do
+    test -s "/usr/share/icons/Aurora/scalable/apps/$icon.svg"
+done
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'"
 for glyph in launcher browser files terminal settings; do
     test -s "/usr/share/gnome-shell/extensions/localzet-shell@localzet.com/icons/$glyph.svg"
 done
