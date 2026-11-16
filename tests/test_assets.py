@@ -28,6 +28,16 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(root.attrib['width'], '3840')
         self.assertEqual(root.attrib['height'], '2160')
 
+    def test_original_dock_glyphs(self):
+        folder = ROOT / "extensions/localzet-shell@localzet.com/icons"
+        expected = {"launcher.svg", "browser.svg", "files.svg", "terminal.svg", "settings.svg"}
+        self.assertEqual({path.name for path in folder.glob("*.svg")}, expected)
+        for path in folder.glob("*.svg"):
+            root = ET.parse(path).getroot()
+            self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
+            self.assertEqual(root.attrib["viewBox"], "0 0 64 64")
+            self.assertTrue(all("href" not in key for node in root.iter() for key in node.attrib))
+
     def test_grub_branding(self):
         theme = (ROOT / "packaging/grub/theme.txt").read_text()
         self.assertIn('desktop-image: "background.png"', theme)

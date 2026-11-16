@@ -9,7 +9,7 @@ export default class LocalzetShell extends Extension {
         if (!this._panel)
             this._panel = new AuroraPanel();
         if (!this._dock)
-            this._dock = new LocalzetDock();
+            this._dock = new LocalzetDock(this.path);
     }
 
     disable() {

@@ -56,3 +56,14 @@ manual dispatch. No stable release based on synthetic tests or placeholder
 artwork. A physical retest and explicit review of the visual baseline and
 installer safety are required. The original Alpha artifacts remain historical
 engineering builds and should not be used for installation on valuable disks.
+
+## Aurora desktop candidate — visual review
+
+The requested engineering candidate uses a lower-saturation graphite wallpaper,
+compact dock and five original dock glyphs, with native high-contrast icons.
+This is an incremental desktop polish, not a complete replacement icon theme.
+The explicitly requested same-repository feat/aurora-desktop-candidate PR may
+retain the exact tested ISO as a seven-day engineering artifact after USB
+installation, login, Windows fixture and Containers/Hardware Manager checks.
+It is not a public/stable release; never install it on valuable disks.
+The physical storage, full profile, GPU, and visual release gates above remain.

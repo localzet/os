@@ -1,18 +1,23 @@
 import Shell from 'gi://Shell';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // Dock buttons always launch existing apps. Optional apps only appear when
 // actually installed; there are no placeholders or inert icons.
 const PINNED = [
-    'org.gnome.Epiphany.desktop',
-    'org.gnome.Nautilus.desktop',
-    'org.gnome.Ptyxis.desktop',
-    'org.gnome.Settings.desktop',
+    ['org.gnome.Epiphany.desktop', 'browser'],
+    ['org.gnome.Nautilus.desktop', 'files'],
+    ['org.gnome.Ptyxis.desktop', 'terminal'],
+    ['org.gnome.Settings.desktop', 'settings'],
 ];
 
 export class LocalzetDock {
-    constructor() {
+    constructor(path) {
+        this._path = path;
+        this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
+        this._contrastId = this._settings.connect('changed::high-contrast', () => this._rebuild());
         this._appSystem = Shell.AppSystem.get_default();
         this._actor = new St.BoxLayout({
             style_class: 'localzet-dock',
@@ -58,21 +63,30 @@ export class LocalzetDock {
         this._actor.add_child(button);
     }
 
+    _icon(name, fallback) {
+        if (this._settings.get_boolean('high-contrast'))
+            return fallback();
+        const file = Gio.File.new_for_path(GLib.build_filenamev([this._path, 'icons', name + '.svg']));
+        if (!file.query_exists(null))
+            return fallback();
+        return new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 25});
+    }
+
     _rebuild() {
         if (!this._actor)
             return;
         this._actor.destroy_all_children();
-        this._addButton(new St.Icon({
-            icon_name: 'view-app-grid-symbolic', icon_size: 28,
-        }), () => Main.overview.show(), 'Приложения');
+        this._addButton(this._icon('launcher', () => new St.Icon({
+            icon_name: 'view-app-grid-symbolic', icon_size: 25,
+        })), () => Main.overview.show(), 'Приложения');
 
         const installed = new Set();
-        for (const id of PINNED) {
+        for (const [id, icon] of PINNED) {
             const app = this._appSystem.lookup_app(id);
             if (!app || !app.get_app_info().should_show() || installed.has(app.get_id()))
                 continue;
             installed.add(app.get_id());
-            this._addButton(app.create_icon_texture(28),
+            this._addButton(this._icon(icon, () => app.create_icon_texture(25)),
                 () => app.activate(), app.get_name());
         }
         this._place();
@@ -95,6 +109,8 @@ export class LocalzetDock {
     }
 
     destroy() {
+        this._settings.disconnect(this._contrastId);
+        this._settings = null;
         if (this._monitorsChanged) {
             Main.layoutManager.disconnect(this._monitorsChanged);
             this._monitorsChanged = 0;
