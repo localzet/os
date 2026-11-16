@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Microsoft 365 (Web)
+Name[ru]=Microsoft 365 (в браузере)
+Comment=Open the official Microsoft 365 web apps; account and Internet required
+Comment[ru]=Официальные веб-приложения Microsoft 365; необходимы учётная запись и Интернет
+Exec=xdg-open https://www.microsoft365.com/
+Icon=applications-office
+Terminal=false
+Categories=Office;
+Keywords=Word;Excel;PowerPoint;Office;
+StartupNotify=false

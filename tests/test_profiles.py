@@ -46,6 +46,15 @@ class ProfileTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 plan(self.data, "complete", browser="chrome", extras=extras)
 
+    def test_microsoft_office_optional_and_not_an_ubuntu_package(self):
+        default = plan(self.data, "complete")
+        self.assertNotIn("microsoft-365-desktop", default["external_or_localzet_pending"])
+        selected = plan(self.data, "complete", extras=["microsoft-365-desktop"])
+        self.assertIn("microsoft-365-desktop", selected["external_or_localzet_pending"])
+        self.assertEqual(default["ubuntu_package_candidates"], selected["ubuntu_package_candidates"])
+        self.assertIn("office", selected["external_or_localzet_pending"])
+        self.assertFalse(selected["install_ready"])
+
     def test_untrusted_package_rejected(self):
         changed = deepcopy(self.data)
         changed["applications"]["desktop"]["packages"] = ["git;rm"]
