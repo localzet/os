@@ -69,7 +69,7 @@ interface-style='system'
 
 [org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020]
 label='Aurora'
-palette='aurora'
+palette='xterm'
 opacity=1.0
 
 [org/gnome/desktop/input-sources]

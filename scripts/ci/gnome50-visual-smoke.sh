@@ -70,7 +70,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   # The nested devkit lacks the full desktop settings portal. Test the dark
   # palette explicitly here; the installed system follows the system preference.
   gsettings set org.gnome.Ptyxis interface-style dark || exit 1
-  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette aurora || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
@@ -115,22 +115,24 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-dock-running.png" || exit 1
-  # Check the rendered terminal background, not just the GSettings string.
-  # An unknown palette ID falls back silently to the upstream default.
-  python3 - "$OUT/aurora-dock-running.png" "$PWD/assets/terminal/aurora.palette" <<'PY' || exit 1
-import configparser
+  # Verify the built-in XTerm palette using actual ANSI background swatches.
+  # Black pixels alone would also match the compositor's outer background.
+  xdotool type --clearmodifiers --delay 1 "printf '\\033[41m        \\033[42m        \\033[43m        \\033[44m        \\033[45m        \\033[46m        \\033[0m\\n'" || exit 1
+  xdotool key Return || exit 1
+  sleep 2
+  import -window root "$OUT/aurora-terminal-xterm.png" || exit 1
+  python3 - "$OUT/aurora-terminal-xterm.png" <<'PY' || exit 1
 import sys
 from collections import Counter
-from PIL import Image, ImageColor
-palette = configparser.ConfigParser()
-palette.read(sys.argv[2])
-expected = ImageColor.getrgb(palette["Dark"]["Background"])
+from PIL import Image
+# XTerm's built-in ANSI colors (Ptyxis 50), not a copied palette file.
 with Image.open(sys.argv[1]) as screenshot:
     counts = Counter(screenshot.convert("RGB").getdata())
-pixels = counts[expected]
-print("Aurora terminal background pixels:", pixels, "expected RGB:", expected)
-if pixels < 10000:
-    raise SystemExit("Aurora terminal palette did not render")
+for color in ("cd0000", "00cd00", "cdcd00", "0000ee", "cd00cd", "00cdcd"):
+    rgb = tuple(bytes.fromhex(color))
+    print("XTerm ANSI background", color, "pixels:", counts[rgb])
+    if counts[rgb] < 100:
+        raise SystemExit("XTerm terminal palette did not render: " + color)
 PY
   pkill -x ptyxis || true
   sleep 5
