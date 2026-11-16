@@ -1,0 +1,55 @@
+[Plymouth Theme]
+Name=Localzet Aurora
+Description=Localzet OS Aurora boot splash using the upstream two-step renderer
+ModuleName=two-step
+
+[two-step]
+Font=Cantarell 12
+TitleFont=Cantarell 26
+ImageDir=/usr/share/plymouth/themes/localzet-aurora
+DialogHorizontalAlignment=.5
+DialogVerticalAlignment=.5
+TitleHorizontalAlignment=.5
+TitleVerticalAlignment=.35
+HorizontalAlignment=.5
+VerticalAlignment=.67
+WatermarkHorizontalAlignment=.5
+WatermarkVerticalAlignment=.40
+Transition=none
+TransitionDuration=0.0
+BackgroundStartColor=0x10091e
+BackgroundEndColor=0x28183f
+ProgressBarBackgroundColor=0x34234f
+ProgressBarForegroundColor=0xff7e00
+DialogClearsFirmwareBackground=true
+MessageBelowAnimation=true
+
+[boot-up]
+UseEndAnimation=false
+UseFirmwareBackground=false
+
+[shutdown]
+UseEndAnimation=false
+UseFirmwareBackground=false
+
+[reboot]
+UseEndAnimation=false
+UseFirmwareBackground=false
+
+[updates]
+UseProgressBar=true
+ProgressBarShowPercentComplete=true
+Title=Installing updates
+SubTitle=Do not turn off your computer
+
+[system-upgrade]
+UseProgressBar=true
+ProgressBarShowPercentComplete=true
+Title=Upgrading system
+SubTitle=Do not turn off your computer
+
+[firmware-upgrade]
+UseProgressBar=true
+ProgressBarShowPercentComplete=true
+Title=Upgrading firmware
+SubTitle=Do not turn off your computer

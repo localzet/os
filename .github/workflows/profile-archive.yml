@@ -1,0 +1,40 @@
+name: Profile package archive validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'config/profiles.json'
+      - 'src/localzet/profiles.py'
+      - 'tests/test_profiles.py'
+      - '.github/workflows/profile-archive.yml'
+permissions:
+  contents: read
+jobs:
+  archive:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Profile selection tests
+        run: python3 -m unittest discover -s tests -p test_profiles.py -v
+      - name: Resolve signed Ubuntu package candidates without installation
+        run: |
+          sudo apt-get -o Acquire::Retries=3 update
+          mkdir -p out/profiles
+          for profile in minimal standard complete; do
+            PYTHONPATH=src python3 -m localzet.profiles --manifest config/profiles.json "$profile" > "out/profiles/$profile.json"
+            mapfile -t packages < <(python3 -c 'import json,sys; print("\n".join(json.load(open(sys.argv[1]))["ubuntu_package_candidates"]))' "out/profiles/$profile.json")
+            test "${#packages[@]}" -gt 0
+            for package in "${packages[@]}"; do
+              apt-cache policy "$package"
+              candidate="$(apt-cache policy "$package" | awk '/Candidate:/{print $2}')"
+              test -n "$candidate" && test "$candidate" != '(none)'
+            done > "out/profiles/$profile-policy.txt"
+            apt-get --simulate --no-install-recommends install "${packages[@]}" > "out/profiles/$profile-simulation.txt"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: profile-archive-evidence
+          path: out/profiles/
+          retention-days: 7

@@ -65,8 +65,9 @@ def main() -> int:
             apps = Adw.PreferencesGroup(title="Приложения")
             apps.add(self._row("Файлы", "Папки и накопители", ["nautilus"]))
             apps.add(self._row("Терминал", "Командная строка", ["ptyxis"]))
+            apps.add(self._row("Оборудование", "Драйверы, GPU и состояние CUDA", ["localzet-hardware-manager"]))
             apps.add(self._row("Windows-приложения", "Localzet Windows Runtime · Wine", ["localzet-windows"]))
-            phone = Adw.PreferencesGroup(title="Localzet Connect")
+            phone = Adw.PreferencesGroup(title="NectarLink")
             client = Path("/usr/bin/nectarlink-desktop")
             status = "Android · NectarLink" if client.is_file() and os.access(client, os.X_OK) else "Настроить связь с Android"
             phone.add(self._row("Связь с телефоном", status, ["localzet-connect"]))

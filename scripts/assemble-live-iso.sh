@@ -12,7 +12,7 @@ out="$(realpath -m -- "$2")"
 [[ "$root" != / && -d "$root" && "$out" == *.iso && "$out" != "$root/"* && ! -e "$out" ]] || {
     echo "Unsafe rootfs or output path; use a new ISO outside rootfs" >&2; exit 2;
 }
-for cmd in mksquashfs grub-mkrescue xorriso dpkg-query findmnt; do
+for cmd in mksquashfs grub-mkrescue grub-script-check xorriso dpkg-query findmnt; do
     command -v "$cmd" >/dev/null || { echo "Missing $cmd" >&2; exit 2; }
 done
 for platform in i386-pc x86_64-efi; do
@@ -62,6 +62,11 @@ mkdir -p "$stage/tree/casper" "$stage/tree/boot/grub" "$stage/tree/.disk"
 install -m 0644 "$kernel" "$stage/tree/casper/vmlinuz"
 install -m 0644 "$initrd" "$stage/tree/casper/initrd"
 install -m 0644 "$repo/packaging/live/grub.cfg" "$stage/tree/boot/grub/grub.cfg"
+theme="$root/boot/grub/themes/localzet-aurora"
+for file in theme.txt background.png logo.png dejavu-20.pf2 dejavu-24.pf2; do
+    [[ -f "$theme/$file" && ! -L "$theme/$file" && -s "$theme/$file" ]]
+    install -D -m 0644 "$theme/$file" "$stage/tree/boot/grub/themes/localzet-aurora/$file"
+done
 if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then
     [[ -f "$root/usr/lib/localzet/vm-install-test.sh" ]]
     sed -i 's/boot=casper /boot=casper localzet.install-test=1 /g' "$stage/tree/boot/grub/grub.cfg"
@@ -73,6 +78,7 @@ else
     [[ ! -e "$root/usr/lib/localzet/vm-install-test.sh" && ! -e "$root/usr/lib/localzet/installer-enabled" ]]
     printf 'Localzet OS development Live amd64\n' > "$stage/tree/.disk/info"
 fi
+grub-script-check "$stage/tree/boot/grub/grub.cfg"
 dpkg-query --admindir="$root/var/lib/dpkg" -W -f='${Package} ${Version}\n' > "$stage/tree/casper/filesystem.manifest"
 mksquashfs "$root" "$stage/tree/casper/filesystem.squashfs" -noappend -comp zstd -one-file-system
 du -sb "$root" | cut -f1 > "$stage/tree/casper/filesystem.size"

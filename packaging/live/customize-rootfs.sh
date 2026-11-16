@@ -6,6 +6,28 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
+    # Do not activate a privileged daemon or grant docker-group membership.
+    for unit in docker.service docker.socket containerd.service; do
+        systemctl --root="$root" disable "$unit"
+        if systemctl --root="$root" is-enabled --quiet "$unit"; then
+            echo "Unexpected enabled Docker unit: $unit" >&2; exit 2
+        fi
+    done
+    test -x "$root/usr/bin/localzet-containers"
+    test -f "$root/usr/share/applications/com.localzet.Containers.desktop"
+    chroot "$root" /usr/bin/docker compose version
+    chroot "$root" /usr/bin/python3 -c 'import gi; gi.require_version("Vte", "3.91"); from gi.repository import Vte'
+    chroot "$root" dpkg-query -W -f='${Package}\t${Version}\n' docker.io docker-compose-v2 gir1.2-vte-3.91 \
+        > "$root/usr/share/localzet/containers-candidate-packages.tsv"
+fi
+if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
+    bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
+fi
+if [[ -n "${LOCALZET_PROFILE_PLAN:-}" ]]; then
+    install -D -m 0644 "$LOCALZET_PROFILE_PLAN" "$root/usr/share/localzet/archive-profile-plan.json"
+    PYTHONPATH="$LOCALZET_REPO/src" python3 "$LOCALZET_REPO/scripts/check-profile-rootfs.py" "$root" "$LOCALZET_PROFILE_PLAN"
+fi
 cat > "$root/usr/lib/os-release" <<'EOF'
 NAME="Localzet OS"
 PRETTY_NAME="Localzet OS (development)"
@@ -13,6 +35,7 @@ ID=localzet
 ID_LIKE="ubuntu debian"
 VERSION_ID="0.1"
 VERSION_CODENAME=aurora
+LOGO=localzet-logo
 UBUNTU_CODENAME=resolute
 HOME_URL="https://github.com/localzet/os"
 EOF
@@ -24,7 +47,7 @@ mkdir -p "$root/etc/dconf/profile" "$root/etc/dconf/db/localzet.d"
 printf 'user-db:user\nsystem-db:localzet\n' > "$root/etc/dconf/profile/user"
 cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
-enabled-extensions=['localzet-shell@localzet.com']
+enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
 
 [org/gnome/desktop/background]
@@ -33,11 +56,34 @@ picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
+icon-theme='Papirus-Dark'
 
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]
 EOF
+# Preserve the distribution's GDM profile; add a separate branding DB.
+# GNOME's supported login-screen.logo key does not replace auth UI.
+gdm_profile="$root/etc/dconf/profile/gdm"
+if [[ ! -f "$gdm_profile" ]]; then
+    if [[ -f "$root/usr/share/dconf/profile/gdm" ]]; then
+        cp -L "$root/usr/share/dconf/profile/gdm" "$gdm_profile"
+    else
+        test -f "$root/usr/share/gdm/greeter-dconf-defaults"
+        printf 'user-db:user\nfile-db:/usr/share/gdm/greeter-dconf-defaults\n' > "$gdm_profile"
+    fi
+fi
+grep -qxF 'user-db:user' "$gdm_profile"
+if ! grep -qxF 'system-db:localzet-gdm' "$gdm_profile"; then
+    sed -i '/^user-db:user$/a system-db:localzet-gdm' "$gdm_profile"
+fi
+mkdir -p "$root/etc/dconf/db/localzet-gdm.d"
+cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
+[org/gnome/login-screen]
+logo='/usr/share/localzet/brand/localzet.svg'
+EOF
 chroot "$root" dconf update
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"
+test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
 systemctl --root="$root" enable localzet-live-ready.service NetworkManager.service
@@ -52,6 +98,49 @@ done
 [[ -L "$root/etc/systemd/system/display-manager.service" ]] || {
     echo "GDM display-manager alias missing" >&2; exit 2;
 }
+# Include storage modules early, including Intel VMD-remapped NVMe.
+# modinfo accepts built-in drivers as well as loadable modules.
+kernels=("$root"/boot/vmlinuz-*)
+[[ ${#kernels[@]} == 1 ]]
+kernel="${kernels[0]##*/vmlinuz-}"
+for driver in vmd nvme nvme_core ahci; do
+    chroot "$root" modinfo -k "$kernel" "$driver" >/dev/null
+    if ! grep -qxF "$driver" "$root/etc/initramfs-tools/modules"; then
+        printf '%s\n' "$driver" >> "$root/etc/initramfs-tools/modules"
+    fi
+done
+# Generate a separate boot menu theme from original, packaged artwork.
+# GRUB requires raster PNG assets and PFF2 fonts, not desktop SVGs.
+grub_theme=/boot/grub/themes/localzet-aurora
+mkdir -p "$root$grub_theme"
+install -m 0644 "$LOCALZET_REPO/packaging/grub/theme.txt" "$root$grub_theme/theme.txt"
+install -m 0644 "$LOCALZET_REPO/assets/brand/grub-background.svg" "$root$grub_theme/background.svg"
+chroot "$root" rsvg-convert -w 1024 -h 768 -o "$grub_theme/background.png" "$grub_theme/background.svg"
+chroot "$root" rsvg-convert -w 96 -h 96 -o "$grub_theme/logo.png" /usr/share/localzet/brand/localzet.svg
+for size in 20 24; do
+    chroot "$root" grub-mkfont -s "$size" -o "$grub_theme/dejavu-$size.pf2" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+done
+for file in theme.txt background.png logo.png dejavu-20.pf2 dejavu-24.pf2; do
+    test -s "$root$grub_theme/$file"
+done
+# Keep the upstream two-step renderer and its password/message assets.
+# Create our own theme rather than changing distribution-owned files.
+test -f "$root/usr/share/plymouth/themes/spinner/spinner.plymouth"
+theme=/usr/share/plymouth/themes/localzet-aurora
+test ! -e "$root$theme"
+chroot "$root" cp -aL /usr/share/plymouth/themes/spinner "$theme"
+install -m 0644 "$LOCALZET_REPO/packaging/live/aurora.plymouth" "$root$theme/localzet-aurora.plymouth"
+rm -f "$root$theme/spinner.plymouth" "$root$theme/watermark.png"
+chroot "$root" rsvg-convert -w 220 -h 220 -o "$theme/watermark.png" /usr/share/localzet/brand/localzet.svg
+test -s "$root$theme/watermark.png"
+chroot "$root" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$theme/localzet-aurora.plymouth" 150
+chroot "$root" update-alternatives --set default.plymouth "$theme/localzet-aurora.plymouth"
+# Select the theme explicitly as well; Ubuntu's default config can otherwise
+# prefer BGRT even when the alternatives symlink has changed.
+mkdir -p "$root/etc/plymouth"
+printf '[Daemon]\nTheme=localzet-aurora\n' > "$root/etc/plymouth/plymouthd.conf"
+test -f "$root/usr/share/gnome-shell/extensions/ubuntu-appindicators@ubuntu.com/metadata.json"
+test -f "$root/usr/share/icons/Papirus-Dark/index.theme"
 # Ensure the initramfs contains the Casper hooks installed by apt.
 chroot "$root" update-initramfs -u -k all
 # Fail before ISO assembly if initramfs lacks the Live boot script.
@@ -62,6 +151,20 @@ initrd_list="$(chroot "$root" lsinitramfs "/boot/${initrds[0]##*/}")"
 grep -Eq '(^|/)scripts/casper$' <<< "$initrd_list" || {
     echo "Initramfs has no Casper boot script" >&2; exit 2;
 }
+# Verify the selected custom theme and its real logo are shipped in the boot image.
+grep -Fq 'plymouth/themes/localzet-aurora/localzet-aurora.plymouth' <<< "$initrd_list" || { echo "Missing Aurora theme in initramfs" >&2; exit 2; }
+grep -Fq 'plymouth/themes/localzet-aurora/watermark.png' <<< "$initrd_list" || { echo "Missing Aurora logo in initramfs" >&2; exit 2; }
+# Each modular storage driver must actually be present in the initramfs.
+for driver in vmd nvme nvme_core ahci; do
+    module="$(chroot "$root" modinfo -k "$kernel" -F filename "$driver")"
+    if [[ "$module" != '(builtin)' ]]; then
+        basename="${module##*/}"
+        basename="${basename%%.ko*}.ko"
+        grep -Fq "/$basename" <<< "$initrd_list" || {
+            echo "Initramfs missing storage driver: $driver" >&2; exit 2;
+        }
+    fi
+done
 # The Live user is generated by Casper at boot.
 if grep -q '^localzet:' "$root/etc/passwd"; then
     echo 'Unexpected pre-created Live user' >&2; exit 2
@@ -85,4 +188,7 @@ if [[ "${LOCALZET_INSTALLER:-0}" == 1 ]]; then
     install -D -m 0755 "$LOCALZET_REPO/packaging/installer/installer-backend" "$root/usr/lib/localzet/installer-backend"
     install -D -m 0644 "$LOCALZET_REPO/packaging/installer/com.localzet.Installer.desktop" "$root/usr/share/applications/com.localzet.Installer.desktop"
     touch "$root/usr/lib/localzet/installer-enabled"
+    if [[ "${LOCALZET_EXPERIMENTAL_HARDWARE_AUTO:-0}" == 1 ]]; then
+        touch "$root/usr/lib/localzet/hardware-auto-enabled"
+    fi
 fi

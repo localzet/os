@@ -29,7 +29,7 @@ trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
 export OUT
 set +e
-dbus-run-session -- bash -c '
+dbus-run-session -- bash -s <<'GNOME_TEST'
   set -u
   # Mutter devkit displays the nested desktop through PipeWire.
   pipewire > "$OUT/pipewire.log" 2>&1 &
@@ -38,9 +38,9 @@ dbus-run-session -- bash -c '
   wireplumber_pid=$!
   trap "kill $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   sleep 3
-  gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
+  LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
-  trap "kill $shell_pid 2>/dev/null || true" EXIT
+  trap "kill $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   for i in $(seq 1 30); do
     if ! kill -0 "$shell_pid" 2>/dev/null; then
       echo "GNOME Shell exited early" >&2
@@ -53,12 +53,62 @@ dbus-run-session -- bash -c '
   done
   grep -Fxq localzet-shell@localzet.com "$OUT/extensions.txt" || { echo "Extension undiscoverable" >&2; exit 1; }
   gnome-extensions enable localzet-shell@localzet.com
+  gnome-extensions enable ubuntu-appindicators@ubuntu.com || exit 1
+  # Use the actual shipped wallpaper and leave the startup overview before
+  # capturing. The devkit's default blue test background is not Aurora.
+  wallpaper="file://$PWD/assets/wallpapers/aurora.svg"
+  gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
+  gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
+  gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   sleep 16
+  # Xvfb has no outer window manager; use direct focus rather than EWMH.
+  xwininfo -root -tree > "$OUT/xwindows.txt"
+  window="$(xdotool search --onlyvisible --name 'Mutter|GNOME Shell' | head -n 1)"
+  if [[ -z "$window" ]]; then
+    cat "$OUT/xwindows.txt"
+    echo "No nested compositor window" >&2
+    exit 1
+  fi
+  xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
+  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
+  grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-panel-experimental.png" || exit 1
+  cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
+  # Exercise teardown/re-enable, including the accessibility fallback.
+  gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
+  sleep 2
+  import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
+  gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
+  gnome-extensions disable localzet-shell@localzet.com || exit 1
+  sleep 2
+  gnome-extensions enable localzet-shell@localzet.com || exit 1
+  sleep 3
+  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
+  test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
+  gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com || exit 1
+  gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
+  # The official Qt client registers its own tray menu. Do not create a second
+  # paired identity or fake the connection/battery state.
+  nectar_data="$(mktemp -d)"
+  QT_QPA_PLATFORM=xcb QT_QUICK_BACKEND=software LC_ALL=C.UTF-8 \
+    /usr/bin/nectarlink-desktop --data-dir "$nectar_data" > "$OUT/nectarlink.log" 2>&1 &
+  nectar_pid=$!
+  trap "kill $nectar_pid $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true; wait $nectar_pid 2>/dev/null || true; rm -rf -- \"$nectar_data\"" EXIT
+  if ! python3 "$PWD/scripts/ci/check-nectarlink-tray.py" > "$OUT/nectarlink-tray.txt" 2>&1; then
+    cat "$OUT/nectarlink-tray.txt"
+    exit 1
+  fi
+  cat "$OUT/nectarlink-tray.txt"
   import -window root "$OUT/gnome-running.png"
+  # Do not upload private node identity even from an ephemeral test.
+  kill "$nectar_pid" 2>/dev/null || true
+  wait "$nectar_pid" 2>/dev/null || true
+  rm -rf -- "$nectar_data"
   echo "GNOME Shell devkit running with Localzet Shell enabled" > "$OUT/result.txt"
-'
+GNOME_TEST
 rc=$?
 set -e
 DISPLAY=:99 import -window root "$OUT/after-exit.png" || true

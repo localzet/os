@@ -23,6 +23,8 @@ class ShellBundleTests(unittest.TestCase):
             "metadata.json": json.dumps({"uuid": uuid, "shell-version": [version]}),
             "extension.js": "export default class Shell {}",
             "stylesheet.css": ".localzet-indicator {}",
+            "dock.js": "export class LocalzetDock {}",
+            "panel.js": "export class AuroraPanel {}",
         }
         if extra:
             files.update(extra)
@@ -49,6 +51,11 @@ class ShellBundleTests(unittest.TestCase):
     def test_missing_source(self):
         self.bundle(omit="extension.js")
         with self.assertRaisesRegex(ValueError, "missing"):
+            module.validate(self.path)
+
+    def test_missing_imported_module(self):
+        self.bundle(omit='panel.js')
+        with self.assertRaisesRegex(ValueError, 'missing'):
             module.validate(self.path)
 
     def test_reject_path_traversal(self):

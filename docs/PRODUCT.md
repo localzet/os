@@ -4,11 +4,14 @@ Localzet OS is a Russian-first independent desktop product built on Ubuntu
 LTS and GNOME. Russian origin and localization are product goals, not a claim
 of wholly domestic source code, official registration or certification.
 
+The owner-approved [Aurora Professional specification](design/README.md)
+supersedes earlier draft visual and feature choices.
+
 ## Differentiation
 
 - Aurora: one consistent desktop, settings, launcher, notifications, dock,
   accessible themes and system applications; no fake controls.
-- Localzet Connect: Android phone integration via NectarLink, local-first and
+- NectarLink by thtbee: Android phone integration through the original client, local-first and
   explicitly paired. No cloud account required for core OS functionality.
 - Windows compatibility: Wine/Proton with isolated per-app prefixes, a tested
   compatibility catalog and honest limits; no promise of universal support.

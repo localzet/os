@@ -1,22 +1,22 @@
 /* Localzet Aurora Dark, scoped to our application. GTK CSS, not web CSS. */
-@define-color accent_bg_color #6c92ed;
-@define-color accent_fg_color #ffffff;
-@define-color window_bg_color #0a1120;
-@define-color window_fg_color #f1f5ff;
-@define-color card_bg_color #13203a;
-@define-color card_fg_color #f1f5ff;
+@define-color accent_bg_color #9b72f2;
+@define-color accent_fg_color #10091e;
+@define-color window_bg_color #10091e;
+@define-color window_fg_color #f4eeff;
+@define-color card_bg_color #28183f;
+@define-color card_fg_color #f4eeff;
 
 window.localzet-settings {
-    color: #f1f5ff;
-    background-color: #0a1120;
+    color: #f4eeff;
+    background-color: #10091e;
 }
 window.localzet-settings headerbar {
-    background-color: #101a30;
+    background-color: #28183f;
 }
 window.localzet-settings .localzet-summary {
-    border-radius: 14px;
-    background-color: alpha(#6c92ed, 0.08);
+    border-radius: 8px;
+    background-color: alpha(#9b72f2, 0.08);
 }
 window.localzet-settings .heading {
-    font-weight: 700;
+    font-weight: 600;
 }

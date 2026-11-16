@@ -6,6 +6,8 @@ on:
       - '.github/workflows/gnome-visual-smoke.yml'
       - 'scripts/ci/gnome50-visual-smoke.sh'
       - 'extensions/localzet-shell@localzet.com/**'
+      - 'assets/wallpapers/**'
+      - 'scripts/ci/check-nectarlink-tray.py'
 concurrency:
   group: gnome-visual-${{ github.ref }}
   cancel-in-progress: true
@@ -22,7 +24,7 @@ jobs:
           installed=0
           for attempt in 1 2 3; do
             sudo apt-get -o Acquire::Retries=2 update
-            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis; then
+            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell gnome-shell-extension-appindicator mutter-dev-bin xdotool xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis; then
               installed=1
               break
             fi
@@ -31,6 +33,11 @@ jobs:
           done
           test "$installed" -eq 1
           gnome-shell --version
+      - name: Install verified upstream NectarLink for tray integration test
+        run: |
+          python3 scripts/fetch-nectarlink-deb.py --output out/nectarlink
+          python3 scripts/check-nectarlink-control.py out/nectarlink/nectarlink_0.1.5_amd64.deb
+          sudo apt-get install -y --no-install-recommends "$PWD/out/nectarlink/nectarlink_0.1.5_amd64.deb"
       - name: Launch GNOME 50 and capture actual screen
         timeout-minutes: 7
         run: bash scripts/ci/gnome50-visual-smoke.sh

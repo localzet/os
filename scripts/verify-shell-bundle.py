@@ -10,7 +10,7 @@ import stat
 import zipfile
 
 UUID = "localzet-shell@localzet.com"
-REQUIRED = {"metadata.json", "extension.js", "stylesheet.css"}
+REQUIRED = {"metadata.json", "extension.js", "stylesheet.css", "dock.js", "panel.js"}
 MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 
 def validate(path: Path) -> str:
@@ -40,8 +40,9 @@ def validate(path: Path) -> str:
         versions = metadata.get("shell-version")
         if not isinstance(versions, list) or "50" not in versions:
             raise ValueError("GNOME Shell 50 is not declared")
-        if not bundle.read("extension.js").strip():
-            raise ValueError("extension.js is empty")
+        for source in ("extension.js", "dock.js", "panel.js"):
+            if not bundle.read(source).strip():
+                raise ValueError(f"{source} is empty")
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def main() -> None:

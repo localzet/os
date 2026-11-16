@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet Containers
+Name[ru]=Контейнеры
+Comment=Manage local Docker containers
+Comment[ru]=Управление локальными Docker-контейнерами
+Exec=localzet-containers
+Icon=applications-development
+Terminal=false
+Categories=Development;System;
+StartupNotify=true

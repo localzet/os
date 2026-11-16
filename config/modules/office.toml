@@ -1,0 +1,6 @@
+id = "office"
+title = "ONLYOFFICE"
+description = "ONLYOFFICE Desktop Editors — офисный пакет по умолчанию; официальный источник и лицензия требуют проверки"
+status = "planned"
+packages = ["onlyoffice-desktopeditors"]
+depends_on = []

@@ -1,0 +1,40 @@
+# Profile implementation: selection and source boundaries
+
+The approved product matrix is now machine-readable in config/profiles.json.
+The read-only planner selects required and optional applications and a single
+Chrome/Edge choice, retains mandatory Telegram and ONLYOFFICE for Standard and
+Complete, and keeps Ubuntu package candidates separate from external and
+Localzet-specific components. No installation, network calls or privileges
+are used by the planner. The existing ISO remains unchanged.
+
+CI checks package candidates and dependency resolution against Ubuntu 26.04's
+signed archive, without installation. A passing simulation is not a license,
+runtime or redistribution review. Every entry remains pending until actual
+installation, launch, licensing, updates and profile tests pass.
+
+External links are official-source references, not executable download URLs.
+ONLYOFFICE and proprietary apps must be separately reviewed and verified.
+Gaming, Containers, Windows Runtime and UserNet still require their integration
+gates. Discord stays optional and proxy-only readiness is not claimed.
+Next: verified source-specific provisioning, installer selection UI, package
+size/license display, explicit consent and actual installed-profile QA.
+
+Ubuntu 26.04 archive check 43636150161 found no telegram-desktop candidate.
+Telegram remains mandatory in Standard and Complete; select the original
+Telegram Desktop distribution via https://desktop.telegram.org/ as an
+upstream source. Verify artifact identity, installation/update method and
+license before enabling provisioning. No third-party repack or unverified
+download is substituted for it.
+
+## Archive image integration (engineering)
+
+Set LOCALZET_ARCHIVE_PROFILE=standard only in a disposable build VM to
+include the approved Ubuntu archive portion using mmdebstrap's existing
+signed archive. The image contains a read-only plan, and package status
+and versions are checked against it before ISO assembly. The installed
+QEMU test checks the same inventory and launches VLC and qBittorrent.
+No network acquisition of third-party apps or external credentials occurs.
+The Standard archive image is **partial**: ONLYOFFICE, Telegram, NectarLink
+and browser choice remain pending, as do actual media/printing/scanning
+workflows and licensing review. Not a release or a completed profile.
+Existing default build and disk-write policies are unchanged.
