@@ -67,3 +67,16 @@ retain the exact tested ISO as a seven-day engineering artifact after USB
 installation, login, Windows fixture and Containers/Hardware Manager checks.
 It is not a public/stable release; never install it on valuable disks.
 The physical storage, full profile, GPU, and visual release gates above remain.
+
+### Aurora native launcher candidate
+
+The dock launcher opens an original compact St/PopupMenu application menu,
+with categories based on installed desktop metadata, localized names and
+search, keyboard activation, and a workspace overview action. Existing GNOME
+Overview remains available through upstream controls; Quick Settings and
+notifications are not replaced. The original Aurora theme is used for themed
+application icons. GTK inventory gaps are tracked, not hidden by a generic
+icon for every app. DevKit smoke clicks the actual dock, enters a query,
+opens the selected real application and captures screenshots. Installed ISO
+candidate retains engineering-only status; physical review and full profile
+provisioning remain release gates.

@@ -37,3 +37,50 @@
     /* Only enabled with a real Shell.BlurEffect, never on its own. */
     background-color: rgba(23, 24, 30, 0.82);
 }
+
+/* Aurora launcher uses native popup input/grab and scroll semantics. */
+.localzet-launcher-popup .popup-menu-content {
+    background-color: #202128;
+    border: 1px solid #41434e;
+    border-radius: 10px;
+    padding: 4px;
+}
+.localzet-launcher {
+    width: 460px;
+    spacing: 10px;
+    padding: 8px;
+    color: #e8e8ee;
+}
+.localzet-launcher-heading { spacing: 12px; }
+.localzet-launcher-title { font-size: 17px; font-weight: bold; color: #e8e8ee; }
+.localzet-launcher-caption { color: #b3b2bd; font-size: 11px; }
+.localzet-launcher-search {
+    border-radius: 6px;
+    border: 1px solid #41434e;
+    background-color: #191a20;
+    padding: 7px 9px;
+    color: #f1f0f5;
+}
+.localzet-launcher-content { spacing: 10px; }
+.localzet-launcher-categories { width: 126px; spacing: 3px; }
+.localzet-launcher-category, .localzet-launcher-overview {
+    border-radius: 5px;
+    padding: 8px 10px;
+    text-align: left;
+    color: #e0dfe7;
+}
+.localzet-launcher-category:checked {
+    background-color: #383344;
+    color: #e9ddff;
+}
+.localzet-launcher-scroll { height: 302px; }
+.localzet-launcher-list { spacing: 2px; }
+.localzet-launcher-row { spacing: 10px; }
+.localzet-launcher-app { padding: 4px 8px; border-radius: 5px; }
+.localzet-launcher-app:hover, .localzet-launcher-category:hover,
+.localzet-launcher-overview:hover { background-color: #343541; }
+.localzet-launcher-app:focus, .localzet-launcher-category:focus,
+.localzet-launcher-overview:focus, .localzet-launcher-search:focus {
+    box-shadow: inset 0 0 0 1px #9b72f2;
+}
+.localzet-launcher-empty { padding: 14px 8px; color: #b3b2bd; }

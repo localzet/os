@@ -81,6 +81,25 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
+  # Devkit window content starts under its title bar; use the actual
+  # dock position reported by the extension, not fixed monitor coordinates.
+  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$dock" || exit 1
+  IFS=, read -r dock_x dock_y <<< "$dock"
+  xdotool mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-launcher.png" || exit 1
+  xdotool type --clearmodifiers ptyxis || exit 1
+  sleep 2
+  grep -F "Localzet Launcher: results=1" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-launcher-search.png" || exit 1
+  xdotool key Return || exit 1
+  sleep 5
+  grep -F "Localzet Launcher: activated org.gnome.Ptyxis.desktop" "$OUT/gnome-shell.log" || exit 1
+  pgrep -x ptyxis || exit 1
+  pkill -x ptyxis || true
+  sleep 2
   xdotool windowfocus --sync "$window" key super+a || exit 1
   sleep 5
   import -window root "$OUT/aurora-app-grid.png" || exit 1
