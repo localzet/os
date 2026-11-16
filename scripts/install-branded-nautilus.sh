@@ -16,8 +16,8 @@ shopt -s nullglob
 files=("$bundle"/*.deb)
 [[ ${#files[@]} == 3 && -f "$bundle/SHA256SUMS" && ! -L "$bundle/SHA256SUMS" ]]
 for f in "${files[@]}"; do [[ -f "$f" && ! -L "$f" ]]; done
-expected="$(cd "$bundle"; for f in "${files[@]}"; do sha256sum -- "${f##*/}"; done | sort)"
-[[ "$(sort "$bundle/SHA256SUMS")" == "$expected" ]] || {
+expected="$(bash "$repo/scripts/nautilus-bundle-checksums.sh" "$bundle")"
+[[ "$(LC_ALL=C sort "$bundle/SHA256SUMS")" == "$expected" ]] || {
     echo "Nautilus artifact checksum manifest mismatch" >&2
     exit 2
 }

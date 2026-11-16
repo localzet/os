@@ -6,7 +6,7 @@ window.localzet-settings .executive-nav {
     background: transparent;
 }
 window.localzet-settings .executive-nav row {
-    border-radius: 6px;
+    border-radius: 8px;
     margin: 2px 0;
 }
 window.localzet-settings .executive-nav row:selected {
@@ -18,16 +18,16 @@ window.localzet-settings .executive-page-heading .title-1 {
 }
 window.localzet-settings .heading { font-weight: 600; }
 window.localzet-settings.localzet-midnight .executive-sidebar {
-    background-color: #101b2d;
-    color: #e7edf7;
+    background-color: #343539;
+    color: #f0f0f2;
 }
 window.localzet-settings.localzet-midnight .executive-nav row:hover {
-    background-color: #192a40;
+    background-color: #414247;
 }
 window.localzet-settings.localzet-midnight .executive-nav row:selected {
-    background-color: #205ea8;
+    background-color: #45464b;
     color: #ffffff;
 }
 window.localzet-settings.localzet-midnight separator {
-    background-color: #273950;
+    background-color: #414247;
 }

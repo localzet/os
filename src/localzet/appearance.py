@@ -1,58 +1,59 @@
-"""Shared, process-local Midnight appearance for native Localzet applications."""
+"""Shared, process-local Executive Soft Graphite appearance for native Localzet applications."""
 from __future__ import annotations
 
 MIDNIGHT_CSS = b"""
-@define-color window_bg_color #091321;
-@define-color window_fg_color #e7edf7;
-@define-color headerbar_bg_color #101b2d;
-@define-color headerbar_fg_color #e7edf7;
-@define-color view_bg_color #0b1524;
-@define-color view_fg_color #e7edf7;
-@define-color card_bg_color #192a40;
-@define-color card_fg_color #e7edf7;
+@define-color window_bg_color #202124;
+@define-color window_fg_color #f0f0f2;
+@define-color headerbar_bg_color #292a2e;
+@define-color headerbar_fg_color #f0f0f2;
+@define-color view_bg_color #202124;
+@define-color view_fg_color #f0f0f2;
+@define-color card_bg_color #2f3034;
+@define-color card_fg_color #f0f0f2;
 @define-color accent_bg_color #2874c8;
 @define-color accent_fg_color #ffffff;
 @define-color accent_color #78b8ff;
 window.localzet-midnight {
-    background-color: #091321;
-    color: #e7edf7;
+    background-color: #202124;
+    color: #f0f0f2;
 }
 .localzet-midnight headerbar {
-    background-color: #101b2d;
-    color: #e7edf7;
-    border-bottom: 1px solid #273950;
+    background-color: #292a2e;
+    color: #f0f0f2;
+    border-bottom: none;
+    box-shadow: none;
 }
 .localzet-midnight .boxed-list {
-    background-color: #192a40;
-    color: #e7edf7;
-    border-radius: 8px;
-    border: 1px solid #293b52;
+    background-color: #2f3034;
+    color: #f0f0f2;
+    border-radius: 10px;
+    border: none;
 }
 .localzet-midnight .boxed-list > row {
-    border-radius: 6px;
+    border-radius: 8px;
 }
 .localzet-midnight .boxed-list > row:hover {
-    background-color: #233953;
+    background-color: #3c3d42;
 }
 .localzet-midnight .boxed-list > row .subtitle,
 .localzet-midnight .dim-label {
-    color: #b8c9dd;
+    color: #c4c5ca;
     opacity: 1;
 }
 .localzet-midnight .boxed-list > row + row {
-    border-top: 1px solid #293b52;
+    border-top: 1px solid #3b3c40;
 }
 .localzet-midnight .boxed-list > row:focus-visible {
     outline: 2px solid #78b8ff;
     outline-offset: -2px;
 }
 .localzet-midnight .boxed-list > row image {
-    color: #b4cae4;
+    color: #d2d3d8;
 }
 .localzet-midnight entry {
-    background-color: #0b1524;
-    color: #e7edf7;
-    border-radius: 6px;
+    background-color: #202124;
+    color: #f0f0f2;
+    border-radius: 8px;
 }
 .localzet-midnight button.suggested-action {
     background-color: #2874c8;

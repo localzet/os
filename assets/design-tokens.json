@@ -1,6 +1,6 @@
 {
   "name": "Localzet Aurora — Executive",
-  "status": "Soft graphite native Files correction following owner screenshot; shell palette unchanged pending review",
+  "status": "Executive Soft Graphite application and shell correction; visual review pending",
   "colors": {
     "background": "#091321",
     "surface": "#101b2d",
@@ -28,15 +28,15 @@
   "glass": {
     "surfaceOpacity": 0.78,
     "borderOpacity": 0.22,
-    "opaqueFallback": "#101b2d",
+    "opaqueFallback": "#292a2e",
     "qualityGate": "real compositor-backed background sampling and blur; no flat alpha-only imitation",
     "edgeTreatment": "subtle directional highlight, no uniform conspicuous outline",
     "depth": "soft ambient and contact shadow, layered tint, legible foreground",
     "refraction": "optional shader-based edge distortion only where supported and performant",
-    "fallback": "opaque midnight blue surface with equivalent contrast; reduced transparency and motion options",
+    "fallback": "Opaque soft graphite surface; wallpaper-only blurred material on empty desktop. Dynamic window blur remains pending.",
     "verification": "actual GNOME session captures over light, dark and detailed wallpapers; GPU and software-rendering performance checks"
   },
-  "notes": "Blue graphite surfaces, blue selection, semantic status colors; no uniform monochrome app tiles. Original brand mark retained. Owner review pending.",
+  "notes": "Neutral graphite native apps and shell surfaces; blue action accents, semantic status colors; original boot palette retained.",
   "density": {
     "panelHeight": 30,
     "tableRowMin": 32,
@@ -55,5 +55,28 @@
     "rowRadius": 9,
     "pathRadius": 9,
     "notes": "Neutral application surfaces, quiet accent, preserve upstream light and contrast. Separate from shell glass palette."
+  },
+  "nativeApplications": {
+    "background": "#202124",
+    "header": "#292a2e",
+    "sidebar": "#343539",
+    "card": "#2f3034",
+    "text": "#f0f0f2",
+    "textSecondary": "#c4c5ca",
+    "selection": "#45464b",
+    "focus": "#78b8ff",
+    "cardRadius": 10,
+    "rowRadius": 8,
+    "notes": "Neutral application surfaces, blue only for explicit primary actions and focus; preserve native light/high contrast."
+  },
+  "shellSurfaces": {
+    "panel": "#202124",
+    "surface": "#292a2e",
+    "card": "#343539",
+    "text": "#f0f0f2",
+    "textSecondary": "#c4c5ca",
+    "border": "#45464b",
+    "selection": "#45464b",
+    "notes": "Neutral menu and dock surfaces; blue for actual enabled controls, focus and active window. Boot palette remains unchanged."
   }
 }

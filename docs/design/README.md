@@ -478,3 +478,41 @@ The preceding PR96 installed-image job failed inside the rootfs hook
 without a specific diagnostic. Add explicit checkout, checksum and source
 version mismatch errors; do not bypass verification. The exact rootfs
 failure cause remains unconfirmed. Preserve existing document-gate runs.
+
+### Soft native applications and canonical package manifest
+
+The actual owner screenshot has dominant colors #1d1d20, #393939 and
+#3b3b3d. Extend the Soft Graphite approach to process-local native Localzet
+applications using the existing appearance provider: neutral graphite
+background, quiet cards, subtle row separators and blue primary actions/focus.
+Settings uses the same lighter sidebar and soft selection as Files. Keep
+upstream light/high contrast, keyboard focus and text legibility. CI tests
+must confirm actual Settings pixels; other native applications share the
+provider but remain pending their own visual review.
+
+PR96 and PR97 package jobs passed but their rootfs hooks failed before the
+Nautilus version log. The downloaded PR97 artifact proves the mismatch:
+SHA256SUMS uses ./libnautilus-extension4... while the installer generates
+libnautilus-extension4... without ./; the string manifests differ despite
+identical hashes. Use a single canonical basename generator in both paths,
+reject symlinks and unexpected file count, and test tampering. No checksum,
+source version or exact checkout checks are relaxed. This separate branch
+preserves PR98's actual Files appearance review.
+
+### Soft shell correction and real list-view evidence
+
+PR99 Settings visual smoke passed, all three pages and real neutral palette
+pixels. Source checks failed because an old test still required the boot
+Midnight palette in the native provider. Split native application, shell
+surface and boot token assertions; retain the original boot/GRUB colors.
+Apply neutral graphite to dock, panel, launcher, quick settings and calendar
+surfaces, leaving real enabled controls, focus and active window indicators
+blue. The wallpaper-only blurred derivative receives the same graphite tint;
+the optical test must still pass. No dynamic blur claim.
+PR98 dark and light palette/tab checks passed, but high-contrast navigation
+failed with an autocomplete-generated Documents... typo. Its dark list
+capture was actually a grid. Require four blue folder glyph rows before
+accepting list evidence, and use clipboard paste rather than per-character
+typing in the location field. Keep high-contrast palette and navigation
+checks. Update PR99 in place since its source gate is already red. Earlier
+PR97 installed test remains separate. New appearance still needs visual CI.
