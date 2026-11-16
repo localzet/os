@@ -47,6 +47,10 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   wireplumber_pid=$!
   trap "kill $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   sleep 3
+  # Configure before startup; do not race the extension manager's initial
+  # enable pass with another gnome-extensions enable request.
+  gsettings set org.gnome.shell disable-user-extensions false || exit 1
+  gsettings set org.gnome.shell enabled-extensions "['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']" || exit 1
   # Devkit lacks the installed session's Settings portal. Use libadwaita's
   # documented debug preference ONLY in this isolated test, never in ISO.
   LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
@@ -63,8 +67,6 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
     sleep 2
   done
   grep -Fxq localzet-shell@localzet.com "$OUT/extensions.txt" || { echo "Extension undiscoverable" >&2; exit 1; }
-  gnome-extensions enable localzet-shell@localzet.com
-  gnome-extensions enable ubuntu-appindicators@ubuntu.com || exit 1
   # Use the actual shipped wallpaper and leave the startup overview before
   # capturing. The devkit's default blue test background is not Aurora.
   test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
@@ -267,6 +269,7 @@ PY
   sleep 3
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
+  if grep -F "Extension point conflict" "$OUT/gnome-shell.log"; then exit 1; fi
   gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com || exit 1
   gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
   # The official Qt client registers its own tray menu. Do not create a second

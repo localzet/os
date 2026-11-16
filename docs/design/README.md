@@ -292,3 +292,14 @@ spatial-detail metric; it is diagnostic, not a validated acceptance threshold.
 No default enablement until optical and hardware validation. The devkit-only
 GTK dark/icon settings are inherited by D-Bus activation, and the trash
 shortcut explicitly opens the installed Nautilus app with a trash URI.
+
+### Extension lifecycle correction
+
+The de6512d visual run failed before its first capture: duplicate extension
+activation registered localzetExecutive twice. Five real pinned apps did
+resolve. Configure the devkit's extensions before GNOME starts, remove the
+initial racing enable requests, retain the deliberate disable/re-enable
+check, and reject indicator conflicts in the log. The extension now owns
+one complete instance per panel and rolls back its own actors on a failed
+activation; the panel constructor cleans up on failure. No new visual
+acceptance claim is made until the corrected run passes.
