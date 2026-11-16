@@ -211,3 +211,17 @@ catalog records the upstream dependency as pending, not an APT package.
 A future release gate requires independent security assessment, safe recovery,
 thermal/compute correctness and physical hardware verification. No automatic
 activation on detected NVIDIA devices.
+
+### H5 UX acceptance — no terminal required
+
+Owner requirement: activation must be as simple as possible. The eventual
+approved user flow is Hardware Manager → GPU Unlocker → Enable → a single
+review and administrator authorization → user-chosen restart. Disable and
+recovery must be equally discoverable. There must be no manual commands,
+manual boot config edits, forced restart, or disabling Secure Boot. The
+release must distinguish eligibility, readiness, pending restart, observed
+activation, verified compute and recovery. A failed or unavailable review
+must explain the blocker without displaying a fake enabled toggle. The current
+implementation adds a real read-only readiness dialog; no enable action is
+exposed until an independently reviewed, supported backend and recovery
+path are available. This is UX acceptance criteria, not an activation recipe.

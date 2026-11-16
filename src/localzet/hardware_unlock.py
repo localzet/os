@@ -26,3 +26,24 @@ def assess(devices, module_root=Path("/sys/module")):
             "reference": REFERENCE, "devices": rows,
             "module_present": (module_root / "gpu_unlock").is_dir(),
             "activation_available": False, "speedup_verified": False}
+
+
+def review_status(assessment, boot_state):
+    """User-facing readiness only; a PCI match never authorizes activation."""
+    devices = assessment["devices"]
+    if not devices:
+        compatibility = "no-gpu"
+    elif all(row["status"] == "unsupported" for row in devices):
+        compatibility = "unsupported"
+    elif any(row["status"] == "unsupported" for row in devices):
+        compatibility = "mixed"
+    elif any(row["status"] == "experimental" for row in devices):
+        compatibility = "experimental"
+    else:
+        compatibility = "candidate"
+    return {"compatibility": compatibility,
+            "secure_boot": boot_state if boot_state in ("enabled", "disabled", "not-uefi") else "unknown",
+            "module_present": assessment["module_present"],
+            "activation_available": False,
+            "blocker": "release-review-required",
+            "speedup_verified": False}

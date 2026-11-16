@@ -92,6 +92,13 @@ def create_application():
             self.page.add(self.cuda_group)
             self.unlock_group = Adw.PreferencesGroup(title="GPU Unlocker",
                 description="Экспериментальная оптимизация Tensor Cores. Не является драйвером CUDA и не увеличивает FPS в играх.")
+            self.unlock_summary = self.row("Готовность", "Проверка оборудования…")
+            self.unlock_group.add(self.unlock_summary)
+            self.unlock_review = Gtk.Button(label="Проверить готовность", halign=Gtk.Align.START)
+            self.unlock_review.set_sensitive(False)
+            self.unlock_review.connect("clicked", lambda *_: self.review_unlock())
+            self.unlock_group.add(self.unlock_review)
+            self.unlock_report = None
             self.page.add(self.unlock_group)
             self.help_group = Adw.PreferencesGroup(title="Восстановление", description="При сбое не запускайте повторную установку вслепую.")
             self.help_group.add(self.row("Журнал для администратора", "journalctl -u localzet-hardware-firstboot.service"))
@@ -128,6 +135,7 @@ def create_application():
             generation = self.generation
             self.refresh_button.set_sensitive(False)
             self.verify_button.set_sensitive(False)
+            self.unlock_review.set_sensitive(False)
             future = self.pool.submit(work)
             def finished():
                 if self.window is None or generation != self.generation:
@@ -136,6 +144,7 @@ def create_application():
                 self.refresh_button.set_sensitive(True)
                 self.verify_button.set_sensitive(self.nvidia)
                 callback(future)
+                self.unlock_review.set_sensitive(self.unlock_report is not None)
                 return GLib.SOURCE_REMOVE
             future.add_done_callback(lambda _: GLib.idle_add(finished))
 
@@ -146,6 +155,8 @@ def create_application():
             for group, row in self.rows:
                 group.remove(row)
             self.rows.clear()
+            self.unlock_report = None
+            self.unlock_summary.set_subtitle("Диагностика недоступна")
             def add(group, title, detail):
                 row = self.row(title, detail)
                 group.add(row)
@@ -165,7 +176,9 @@ def create_application():
                     ", ".join(" ".join(row) for row in recommended["packages"]) or
                     ("Нет рекомендаций" if recommended["status"] == "observed" else "Недоступны"))
                 unlock = report["gpu_unlocker"]
-                add(self.unlock_group, "Интеграция", "Диагностика; установка и активация недоступны")
+                from localzet.hardware_unlock import review_status
+                self.unlock_report = review_status(unlock, report["secure_boot"])
+                self.unlock_summary.set_subtitle(self.unlock_summary_text(self.unlock_report))
                 add(self.unlock_group, "Модуль ядра", "Обнаружен; ускорение не подтверждено" if unlock["module_present"] else "Не загружен")
                 for gpu in unlock["devices"]:
                     labels = {"upstream-candidate": "Ampere · кандидат по PCI ID",
@@ -185,6 +198,34 @@ def create_application():
                 self.nvidia = False
                 add(self.system_group, "Диагностика недоступна", str(error))
             self.verify_button.set_sensitive(self.nvidia)
+
+        @staticmethod
+        def unlock_summary_text(report):
+            return {
+                "no-gpu": "NVIDIA GPU не обнаружена",
+                "unsupported": "Совместимые PCI ID не обнаружены",
+                "mixed": "Смешанная конфигурация; требуется проверка",
+                "experimental": "Экспериментальная совместимость",
+                "candidate": "Совпадение PCI ID; активация пока недоступна",
+            }[report["compatibility"]]
+
+        def review_unlock(self):
+            if self.busy or self.unlock_report is None:
+                return
+            report = self.unlock_report
+            boot = {"enabled": "включён", "disabled": "выключен",
+                    "not-uefi": "не UEFI", "unknown": "не определён"}[report["secure_boot"]]
+            module = "обнаружен" if report["module_present"] else "не загружен"
+            dialog = Adw.AlertDialog(heading="GPU Unlocker · готовность",
+                body=self.unlock_summary_text(report) + "\n\nSecure Boot: " + boot +
+                "\nМодуль: " + module +
+                "\nУскорение: не подтверждено" +
+                "\n\nАктивация недоступна до проверки безопасности и совместимости. " +
+                "Настройки загрузки и драйверы не изменяются.")
+            dialog.add_response("close", "Закрыть")
+            dialog.set_default_response("close")
+            dialog.set_close_response("close")
+            dialog.present(self.window)
 
         def verify_cuda(self):
             if self.busy or not self.nvidia:

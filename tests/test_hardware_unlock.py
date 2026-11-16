@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from localzet.hardware import PCIDevice
-from localzet.hardware_unlock import assess
+from localzet.hardware_unlock import assess, review_status
 
 
 class GPUUnlockTests(unittest.TestCase):
@@ -31,3 +31,19 @@ class GPUUnlockTests(unittest.TestCase):
 
     def test_no_gpu(self):
         self.assertEqual(assess(())["devices"], [])
+
+    def test_readiness_never_confuses_pci_match_with_activation(self):
+        ampere = PCIDevice("0000:01:00.0", "10de", "2204", "030000", "nvidia")
+        ada = PCIDevice("0000:02:00.0", "10de", "2684", "030000", "nvidia")
+        unknown = PCIDevice("0000:03:00.0", "10de", "ffff", "030000", "nvidia")
+        for devices, expected in (((), "no-gpu"), ((unknown,), "unsupported"),
+                ((ampere, unknown), "mixed"), ((ampere, ada), "experimental"),
+                ((ampere,), "candidate")):
+            for boot in ("enabled", "disabled", "not-uefi", "unknown"):
+                with self.subTest(devices=devices, boot=boot):
+                    result = review_status(assess(devices), boot)
+                    self.assertEqual(result["compatibility"], expected)
+                    self.assertEqual(result["secure_boot"], boot)
+                    self.assertFalse(result["activation_available"])
+                    self.assertFalse(result["speedup_verified"])
+                    self.assertEqual(result["blocker"], "release-review-required")
