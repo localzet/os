@@ -263,7 +263,7 @@ launch_app() {
 home="$(getent passwd localzet-test | cut -d: -f6)"
 test -s "$home/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis default-profile-uuid)" = "'4e6f25d9af1244aa896f5b028bf7a020'"
-test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020/ palette)" = "'Aurora'"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020/ palette)" = "'aurora'"
 launch_app localzet-settings /usr/bin/localzet-settings
 launch_app localzet-windows /usr/bin/localzet-windows
 launch_app localzet-connect /usr/bin/localzet-connect

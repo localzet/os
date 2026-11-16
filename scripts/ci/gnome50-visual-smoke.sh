@@ -67,8 +67,10 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   profile=4e6f25d9af1244aa896f5b028bf7a020
   gsettings set org.gnome.Ptyxis profile-uuids "['$profile']" || exit 1
   gsettings set org.gnome.Ptyxis default-profile-uuid "$profile" || exit 1
-  gsettings set org.gnome.Ptyxis interface-style system || exit 1
-  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette Aurora || exit 1
+  # The nested devkit lacks the full desktop settings portal. Test the dark
+  # palette explicitly here; the installed system follows the system preference.
+  gsettings set org.gnome.Ptyxis interface-style dark || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette aurora || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
@@ -113,6 +115,23 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-dock-running.png" || exit 1
+  # Check the rendered terminal background, not just the GSettings string.
+  # An unknown palette ID falls back silently to the upstream default.
+  python3 - "$OUT/aurora-dock-running.png" "$PWD/assets/terminal/aurora.palette" <<'PY' || exit 1
+import configparser
+import sys
+from collections import Counter
+from PIL import Image, ImageColor
+palette = configparser.ConfigParser()
+palette.read(sys.argv[2])
+expected = ImageColor.getrgb(palette["Dark"]["Background"])
+with Image.open(sys.argv[1]) as screenshot:
+    counts = Counter(screenshot.convert("RGB").getdata())
+pixels = counts[expected]
+print("Aurora terminal background pixels:", pixels, "expected RGB:", expected)
+if pixels < 10000:
+    raise SystemExit("Aurora terminal palette did not render")
+PY
   pkill -x ptyxis || true
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[01] focused=0$" || exit 1
