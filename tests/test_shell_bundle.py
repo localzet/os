@@ -25,6 +25,8 @@ class ShellBundleTests(unittest.TestCase):
             "stylesheet.css": ".localzet-indicator {}",
             "dock.js": "export class LocalzetDock {}",
             "panel.js": "export class AuroraPanel {}",
+            "launcher.js": "export class AuroraLauncher {}",
+            **{name: "<svg/>" for name in module.ICONS},
         }
         if extra:
             files.update(extra)
@@ -55,6 +57,11 @@ class ShellBundleTests(unittest.TestCase):
 
     def test_missing_imported_module(self):
         self.bundle(omit='panel.js')
+        with self.assertRaisesRegex(ValueError, 'missing'):
+            module.validate(self.path)
+
+    def test_missing_icon(self):
+        self.bundle(omit='icons/launcher.svg')
         with self.assertRaisesRegex(ValueError, 'missing'):
             module.validate(self.path)
 
