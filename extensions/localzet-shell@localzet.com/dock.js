@@ -3,6 +3,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {AuroraLauncher} from './launcher.js';
 
 // Dock buttons always launch existing apps. Optional apps only appear when
 // actually installed; there are no placeholders or inert icons.
@@ -31,7 +32,7 @@ export class LocalzetDock {
         this._appsChanged = this._appSystem.connect(
             'installed-changed', () => this._rebuild());
         this._overviewShowing = Main.overview.connect(
-            'showing', () => this._actor?.hide());
+            'showing', () => { this._launcher?.close(); this._actor?.hide(); });
         this._overviewHidden = Main.overview.connect(
             'hidden', () => this._actor?.show());
 
@@ -61,6 +62,7 @@ export class LocalzetDock {
             }
         });
         this._actor.add_child(button);
+        return button;
     }
 
     _icon(name, fallback) {
@@ -75,10 +77,13 @@ export class LocalzetDock {
     _rebuild() {
         if (!this._actor)
             return;
+        this._launcher?.destroy();
+        this._launcher = null;
         this._actor.destroy_all_children();
-        this._addButton(this._icon('launcher', () => new St.Icon({
+        const anchor = this._addButton(this._icon('launcher', () => new St.Icon({
             icon_name: 'view-app-grid-symbolic', icon_size: 25,
-        })), () => Main.overview.show(), 'Приложения');
+        })), () => this._launcher.toggle(), 'Приложения');
+        this._launcher = new AuroraLauncher(anchor);
 
         const installed = new Set();
         for (const [id, icon] of PINNED) {
@@ -102,13 +107,16 @@ export class LocalzetDock {
         const width = Math.min(monitor.width - 24, Math.max(64, 16 + count * 46));
         const height = 48;
         this._actor.set_size(width, height);
-        this._actor.set_position(
-            monitor.x + Math.round((monitor.width - width) / 2),
-            monitor.y + monitor.height - height - 12,
-        );
+        const x = monitor.x + Math.round((monitor.width - width) / 2);
+        const y = monitor.y + monitor.height - height - 12;
+        this._actor.set_position(x, y);
+        if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
+            console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
 
     destroy() {
+        this._launcher?.destroy();
+        this._launcher = null;
         this._settings.disconnect(this._contrastId);
         this._settings = null;
         if (this._monitorsChanged) {
