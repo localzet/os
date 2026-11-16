@@ -47,7 +47,7 @@
     padding: 4px;
 }
 .localzet-launcher {
-    width: 570px;
+    width: 620px;
     spacing: 10px;
     padding: 8px;
     color: #e7edf7;
@@ -63,7 +63,7 @@
     color: #f1f6ff;
 }
 .localzet-launcher-content { spacing: 10px; }
-.localzet-launcher-categories { width: 142px; spacing: 3px; padding-right: 8px; border-right: 1px solid #273950; }
+.localzet-launcher-categories { width: 168px; spacing: 3px; padding-right: 8px; border-right: 1px solid #273950; }
 .localzet-category-content { spacing: 8px; }
 .localzet-category-content StIcon { color: #9ab7d8; }
 .localzet-launcher-category, .localzet-launcher-overview {
@@ -77,10 +77,11 @@
     color: #e5f1ff;
 }
 .localzet-launcher-scroll { height: 304px; }
+.localzet-launcher-category .localzet-category-content { text-align: left; }
 .localzet-launcher-list { spacing: 5px; }
 .localzet-launcher-row { spacing: 5px; }
 .localzet-launcher-tile { spacing: 5px; }
-.localzet-launcher-app { width: 83px; height: 80px; padding: 4px; border-radius: 6px; }
+.localzet-launcher-app { width: 92px; height: 85px; padding: 4px; border-radius: 6px; }
 .localzet-launcher-label { font-size: 11px; color: #dce8f7; text-align: center; }
 .localzet-launcher-app:hover, .localzet-launcher-category:hover,
 .localzet-launcher-overview:hover { background-color: #1e304a; }

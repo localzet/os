@@ -170,7 +170,14 @@ export class LocalzetDock {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
-        const width = Math.min(monitor.width - 24, Math.max(64, 16 + (1 + this._rows.size) * 48));
+        // Size from the actual themed actor requisitions, not an assumed
+        // width per app. Show horizontal scrolling only on real overflow.
+        const [, anchorWidth] = this._anchor.get_preferred_width(-1);
+        const [, appWidth] = this._apps.get_preferred_width(-1);
+        const natural = Math.max(64, Math.ceil(anchorWidth + appWidth + 32));
+        const width = Math.min(monitor.width - 24, natural);
+        this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
+            St.PolicyType.NEVER);
         const height = 54;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
