@@ -18,7 +18,7 @@ class ModuleTests(unittest.TestCase):
         self.assertEqual(catalog['office'].status, 'planned')
         self.assertEqual(catalog['phone'].status, 'prototype')
         self.assertEqual(catalog['phone'].packages, ('nectarlink',))
-        self.assertEqual(catalog["usernet"].status, "planned")
+        self.assertEqual(catalog["usernet"].status, "prototype")
 
     def test_dependency_order(self):
         catalog = load_catalog(MODULES)

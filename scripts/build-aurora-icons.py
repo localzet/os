@@ -105,7 +105,7 @@ GROUPS = {
         "vm": "virt-manager org.virt_manager.virt-manager",
         "netbird": "netbird netbird-ui org.wails.netbird",
         "network": "com.localzet.Network localzet-network",
-        "usernet": "usernet localzet-usernet",
+        "usernet": "usernet localzet-usernet com.localzet.usernet",
         "steam": "steam com.valvesoftware.Steam",
         "games": "lutris net.lutris.Lutris",
         "capture": "com.obsproject.Studio obs obs-studio",
