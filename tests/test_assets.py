@@ -75,6 +75,11 @@ class AssetsTests(unittest.TestCase):
                 icon = "com.localzet." + name
                 self.assertTrue((theme / "scalable/apps" / (icon + ".svg")).is_file())
             self.assertIn("url(#blue)", (theme / "scalable/places/folder.svg").read_text())
+            for name in module.SYMBOLIC:
+                icon = ET.parse(theme / "scalable/categories" / (name + ".svg")).getroot()
+                self.assertEqual(icon.attrib["width"], "16")
+            for name in ("drive-harddisk", "media-flash-usb"):
+                self.assertIn("url(#", (theme / "scalable/devices" / (name + ".svg")).read_text())
             self.assertIn("url(#graphite)", (theme / "scalable/apps/org.gnome.Ptyxis.svg").read_text())
             for upstream in ("firefox", "google-chrome", "microsoft-edge", "steam", "netbird", "nectarlink"):
                 self.assertFalse((theme / "scalable/apps" / (upstream + ".svg")).exists())

@@ -125,14 +125,14 @@ GROUPS = {
         "audio": "audio-card audio-speakers audio-headphones",
     },
     "categories": {
-        "components": "applications-other applications-utilities",
-        "settings": "applications-system preferences-desktop",
-        "code": "applications-development",
-        "games": "applications-games",
+        "components": "applications-other applications-utilities applications-utilities-symbolic",
+        "settings": "applications-system preferences-desktop preferences-system-symbolic",
+        "code": "applications-development applications-development-symbolic",
+        "games": "applications-games applications-games-symbolic",
         "image": "applications-graphics",
-        "network": "applications-internet",
-        "media": "applications-multimedia",
-        "office": "applications-office",
+        "network": "applications-internet applications-internet-symbolic",
+        "media": "applications-multimedia applications-multimedia-symbolic",
+        "office": "applications-office applications-office-symbolic",
         "help": "applications-education",
     },
     "mimetypes": {
@@ -165,6 +165,15 @@ FOLDER = (
     '<path d="M8 25h48" stroke="#a8d5ff" stroke-opacity=".72" stroke-width="1.4"/>'
 )
 MATERIAL = {
+    "browser": '<circle cx="32" cy="32" r="25" fill="url(#blue)"/><circle cx="32" cy="32" r="19" fill="#163f76"/><path d="M13 32h38M32 13c-12 10-12 28 0 38m0-38c12 10 12 28 0 38" fill="none" stroke="#a9d7ff" stroke-width="2.3"/><circle cx="32" cy="32" r="19" fill="none" stroke="#a9d7ff" stroke-width="1.8"/>',
+    "components": '<rect x="7" y="7" width="22" height="22" rx="5" fill="url(#silver)"/><rect x="35" y="7" width="22" height="22" rx="5" fill="url(#blue)"/><rect x="7" y="35" width="22" height="22" rx="5" fill="url(#blue)"/><rect x="35" y="35" width="22" height="22" rx="5" fill="url(#graphite)"/><path d="M46 40v12m-6-6h12" stroke="#eaf1fb" stroke-width="2.5" stroke-linecap="round"/>',
+    "network": '<path d="M32 17v13H16v13m16-13h16v13" fill="none" stroke="#7baad5" stroke-width="3.5" stroke-linejoin="round"/><rect x="21" y="5" width="22" height="19" rx="4" fill="url(#blue)"/><rect x="5" y="40" width="22" height="19" rx="4" fill="url(#graphite)"/><rect x="37" y="40" width="22" height="19" rx="4" fill="url(#graphite)"/><path d="M26 11h12M10 46h12m20 0h12" stroke="#c4d9ec" stroke-width="2" stroke-linecap="round"/><circle cx="38" cy="18" r="1.5" fill="#b1f1ce"/><circle cx="22" cy="53" r="1.5" fill="#b1f1ce"/><circle cx="54" cy="53" r="1.5" fill="#b1f1ce"/>',
+    "monitor": '<rect x="5" y="9" width="54" height="40" rx="6" fill="url(#graphite)" stroke="#8296ac" stroke-width="1.2"/><path d="M12 32h9l5-12 8 18 6-9h12" fill="none" stroke="#8ce0c6" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M26 49v6h12v-6m-20 6h28" stroke="#9baac0" stroke-width="2.5" stroke-linecap="round"/>',
+    "code": '<rect x="7" y="8" width="50" height="48" rx="8" fill="url(#graphite)"/><path d="m23 20-12 12 12 12m18-24 12 12-12 12M36 16 28 48" stroke="#8acaff" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+    "disk": '<rect x="12" y="6" width="40" height="52" rx="7" fill="url(#silver)" stroke="#c4d1df" stroke-width="1"/><rect x="16" y="10" width="32" height="35" rx="4" fill="url(#graphite)"/><circle cx="32" cy="27" r="11" fill="#9aafc2"/><circle cx="32" cy="27" r="3" fill="#34465b"/><path d="m43 42-11-15" stroke="#e1eaf5" stroke-width="2.8" stroke-linecap="round"/><path d="M19 51h12" stroke="#495a70" stroke-width="2.5" stroke-linecap="round"/><circle cx="44" cy="51" r="2" fill="#28856c"/>',
+    "usb": '<rect x="21" y="4" width="22" height="20" rx="2" fill="url(#silver)"/><path d="M27 9v8m10-8v8" stroke="#4b6076" stroke-width="3"/><rect x="16" y="21" width="32" height="39" rx="6" fill="url(#graphite)"/><path d="M24 26h16" stroke="#8398b2" stroke-width="1.5"/><path d="M32 33v17m0-9 7-5m-7 9-7-5" stroke="#96c8f7" stroke-width="2.5" fill="none" stroke-linecap="round"/><circle cx="32" cy="51" r="2" fill="#96c8f7"/>',
+    "document": '<path d="M13 5h27l12 12v42H13z" fill="url(#silver)"/><path d="M40 5v12h12" fill="#eef4fc"/><path d="M20 26h24m-24 8h24m-24 8h18" stroke="#52677f" stroke-width="2.4" stroke-linecap="round"/>',
+    "language": '<rect x="6" y="9" width="52" height="46" rx="8" fill="url(#graphite)"/><path d="M13 23h22m-11-6v6m0 0c0 10-6 16-11 20m7-17c2 6 7 11 14 14m1-15 11 22m-16-8h12" stroke="#b6d8f6" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
     "files": FOLDER,
     "terminal": '<rect x="6" y="9" width="52" height="46" rx="8" fill="url(#graphite)" stroke="#69778b" stroke-width="1.2"/><path d="M9 17h46" stroke="#8492a6" stroke-opacity=".35"/><path d="m16 26 9 8-9 8m15 0h15" fill="none" stroke="#f2f5fa" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>',
     "settings": '<path d="m27 5 10 0 2 7 5 3 7-2 5 9-5 6v8l5 6-5 9-7-2-5 3-2 7H27l-2-7-5-3-7 2-5-9 5-6v-8l-5-6 5-9 7 2 5-3z" fill="url(#silver)"/><circle cx="32" cy="32" r="15" fill="#26364d"/><circle cx="32" cy="32" r="9" fill="#a9b9ce"/><circle cx="32" cy="32" r="5" fill="#43546b"/>',
@@ -191,7 +200,23 @@ DEFS = '<defs>' + ''.join(
 ) + '</defs>'
 
 
+# Separate small monochrome navigation family. GNOME recolors symbolic
+# icons; no multicolor app artwork is reused at 15 logical pixels.
+SYMBOLIC = {
+    "applications-utilities-symbolic": '<path d="M7 7h18v18H7zM39 7h18v18H39zM7 39h18v18H7zM48 39v18m-9-9h18"/>',
+    "applications-development-symbolic": '<path d="m23 13-18 19 18 19m18-38 18 19-18 19M36 8 28 56"/>',
+    "applications-multimedia-symbolic": '<path d="M23 44V15l29-6v29M23 22l29-6"/><ellipse cx="15" cy="45" rx="8" ry="6" fill="#2e3436"/><ellipse cx="44" cy="39" rx="8" ry="6" fill="#2e3436"/>',
+    "applications-internet-symbolic": '<circle cx="32" cy="32" r="25"/><path d="M7 32h50M32 7c-15 15-15 35 0 50m0-50c15 15 15 35 0 50"/>',
+    "applications-office-symbolic": '<path d="M13 6h27l11 11v41H13zM40 6v11h11M22 29h20m-20 10h20m-20 10h13"/>',
+    "applications-games-symbolic": '<path d="M20 18h24c8 0 12 11 14 23 2 11-7 12-13 5l-5-5H24l-5 5C13 53 4 52 6 41c2-12 6-23 14-23zM14 30h14m-7-7v14"/><circle cx="44" cy="28" r="3" fill="#2e3436"/><circle cx="51" cy="35" r="3" fill="#2e3436"/>',
+    "preferences-system-symbolic": '<path d="M7 14h50M7 32h50M7 50h50"/><circle cx="21" cy="14" r="5" fill="#2e3436"/><circle cx="42" cy="32" r="5" fill="#2e3436"/><circle cx="26" cy="50" r="5" fill="#2e3436"/>',
+}
+
 def render(kind, group, name):
+    if name in SYMBOLIC:
+        return ('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 64 64">'
+                '<g stroke="#2e3436" fill="none" stroke-width="5" stroke-linecap="round" '
+                'stroke-linejoin="round">' + SYMBOLIC[name] + '</g></svg>\n')
     accent, glyph = GLYPHS[kind]
     if group == "places" and name.startswith("folder"):
         art = FOLDER
@@ -199,7 +224,7 @@ def render(kind, group, name):
             art += ('<g transform="translate(16 20) scale(.50)" color="#edf6ff" '
                     'stroke="#edf6ff" fill="none" stroke-width="4" stroke-linecap="round" '
                     'stroke-linejoin="round">' + glyph + '</g>')
-    elif group == "apps" and kind in MATERIAL:
+    elif group in ("apps", "devices", "mimetypes", "places") and kind in MATERIAL:
         art = MATERIAL[kind]
     elif group == "places" and kind == "trash":
         art = MATERIAL["trash"]
