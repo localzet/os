@@ -1,8 +1,33 @@
-/* Layout-only rules; the shared application provider owns Midnight colors. */
-window.localzet-settings .localzet-summary {
-    border-radius: 8px;
-    background-color: alpha(currentColor, 0.06);
+/* Executive layout: colors only in process-local dark appearance. */
+window.localzet-settings .executive-sidebar {
+    padding: 0 8px;
 }
-window.localzet-settings .heading {
+window.localzet-settings .executive-nav {
+    background: transparent;
+}
+window.localzet-settings .executive-nav row {
+    border-radius: 6px;
+    margin: 2px 0;
+}
+window.localzet-settings .executive-nav row:selected {
     font-weight: 600;
+}
+window.localzet-settings .executive-page-heading .title-1 {
+    font-size: 23px;
+    font-weight: 650;
+}
+window.localzet-settings .heading { font-weight: 600; }
+window.localzet-settings.localzet-midnight .executive-sidebar {
+    background-color: #101b2d;
+    color: #e7edf7;
+}
+window.localzet-settings.localzet-midnight .executive-nav row:hover {
+    background-color: #192a40;
+}
+window.localzet-settings.localzet-midnight .executive-nav row:selected {
+    background-color: #205ea8;
+    color: #ffffff;
+}
+window.localzet-settings.localzet-midnight separator {
+    background-color: #273950;
 }

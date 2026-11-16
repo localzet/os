@@ -11,7 +11,7 @@ import tempfile
 
 
 def render(source, output):
-    from PIL import Image, ImageOps, ImageEnhance
+    from PIL import Image, ImageOps, ImageEnhance, ImageFilter
     with Image.open(source) as original:
         if original.width < 1920 or original.height < 1080:
             raise ValueError("Wallpaper source resolution below Full HD")
@@ -38,7 +38,17 @@ def render(source, output):
                             light.resize(image.size, Image.Resampling.BICUBIC))
     image = Image.composite(Image.new("RGB", image.size, "#091321"), image,
                             shadow.resize(image.size, Image.Resampling.BICUBIC))
+    # Preblur in image space, with sufficient radius at 4K. The derivative
+    # is tinted here, not by translucent CSS over an unblurred desktop.
+    glass = image.resize((960, 540), Image.Resampling.LANCZOS).filter(
+        ImageFilter.GaussianBlur(14)).resize(image.size, Image.Resampling.BICUBIC)
+    glass = Image.blend(glass, Image.new("RGB", image.size, "#101b2d"), .72)
     output = Path(output)
+    save_jpeg(image, output)
+    save_jpeg(glass, output.with_name(output.stem + "-glass.jpg"))
+
+
+def save_jpeg(image, output):
     output.parent.mkdir(parents=True, exist_ok=True)
     fd, temp = tempfile.mkstemp(prefix=".executive-", suffix=".jpg", dir=output.parent)
     os.close(fd)

@@ -25,7 +25,12 @@ export class AuroraPanel {
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
         this._contrastId = this._settings.connect('changed::high-contrast', () => this._refresh());
         this._experimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
-        this._refresh();
+        try {
+            this._refresh();
+        } catch (error) {
+            this.destroy();
+            throw error;
+        }
     }
 
     _clear() {
@@ -117,8 +122,8 @@ export class AuroraPanel {
             activate();
             return Clutter.EVENT_STOP;
         });
-        this._panel.addToStatusArea('localzetExecutive', item, 1, 'left');
         this._navigation = item;
+        this._panel.addToStatusArea('localzetExecutive', item, 1, 'left');
         if (this._experimental)
             console.log('Localzet Panel: executive navigation ready');
     }

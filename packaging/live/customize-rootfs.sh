@@ -52,7 +52,7 @@ cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
 enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
-favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
+favorite-apps=['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
 picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
@@ -63,6 +63,9 @@ picture-options='zoom'
 color-scheme='prefer-dark'
 accent-color='blue'
 icon-theme='Aurora'
+
+[org/gnome/nautilus/icon-view]
+default-zoom-level='small-plus'
 
 [org/gnome/Ptyxis]
 default-profile-uuid='4e6f25d9af1244aa896f5b028bf7a020'

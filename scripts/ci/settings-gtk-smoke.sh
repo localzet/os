@@ -29,6 +29,19 @@ dbus-run-session -- bash -eu -c '
   fi
   sleep 3
   import -window root out/settings/live-window.png
+  window=$(head -n 1 out/settings/windows.txt)
+  xdotool windowfocus --sync "$window" key ctrl+2
+  sleep 2
+  grep -F "Localzet Settings: page=modules" out/settings/application.log
+  import -window root out/settings/modules.png
+  xdotool key ctrl+3
+  sleep 2
+  grep -F "Localzet Settings: page=system" out/settings/application.log
+  import -window root out/settings/system.png
+  xdotool key ctrl+1
+  sleep 1
+  test "$(grep -F "Localzet Settings: page=" out/settings/application.log | tail -n 1)" = "Localzet Settings: page=home"
+  ! grep -E "Traceback|Gtk-CRITICAL|Theme parser error" out/settings/application.log
   python3 - <<'"'"'PY'"'"'
 from pathlib import Path
 from PIL import Image
@@ -44,6 +57,11 @@ for color in ("091321", "101b2d"):
     print("Midnight", color, "pixels:", count)
     if count < 1000:
         raise SystemExit("Missing actual Midnight surface: " + color)
+# Secondary text must not fade into the card background.
+secondary = pixels[tuple(bytes.fromhex("b8c9dd"))]
+print("Executive secondary text pixels:", secondary)
+if secondary < 20:
+    raise SystemExit("Secondary text did not render with the intended contrast")
 print("GTK window captured", im.size)
 PY
 '

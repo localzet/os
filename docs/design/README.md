@@ -235,3 +235,85 @@ selectable. The build and devkit run the same offline generator; actual visual
 acceptance is pending. The desktop package now generates the derived asset in postinst after its
 archive and Pillow dependencies are configured; removal cleans up only the
 generated asset. Existing preferences are unchanged.
+
+### Executive native window language — Settings
+
+Localzet Settings uses a real persistent navigation sidebar, separate page
+headings and concise native preference rows. Home, Components and System
+are keyboard-accessible via Ctrl+1/2/3; appearance launches the upstream
+GNOME settings panel. No fake installation switches or telemetry. Shared
+process-local dark provider adds restrained card borders, compact corners
+and readable secondary text; explicit light and high contrast continue to
+use the native style. No user-wide GTK stylesheet is installed. The actual
+GTK smoke checks navigation and captures all three views. This is not a
+Nautilus or third-party window theme.
+
+### Executive material experiment and readability
+
+The 97089bf GNOME visual run passed, including real Nautilus, and 9bc96c0
+Settings GTK navigation passed. Review revealed low-contrast secondary text
+and poorly legible stroke-based symbolic icons. Use filled monochrome shapes,
+larger category symbols, explicit secondary text opacity, real row separators
+and consistent Settings icons. The Command Hub can now attach a real
+Shell.BlurEffect BACKGROUND to its rectangular menu content allocation in the
+existing opt-in experimental session. No default enablement or rounded
+clipping claim: the experiment is explicitly square and reverts to opaque
+on high contrast or effect initialization failure. CI verifies effect
+lifecycle and captures the actual menu; pixel-level blur validation,
+physical GPU performance, lock-screen styling and final rounded glass remain
+outstanding.
+
+### Direct reference alignment — first poster / mountain Executive
+
+Reopened both owner-supplied design references. The first is the shell target:
+compact category sidebar and four-column application grid; central dock with
+terminal, browser, folders, images, settings and trash; dark file manager
+with smaller blue folders. The second supplies the application information
+architecture (Containers, Windows/Gaming, Network), not a competing palette.
+The prior pinned-card section diverged from the first reference; remove it,
+retain real favorite ordering and global search. Add a real non-destructive
+trash URI shortcut and five default app favorites. No fake VS Code icon when
+it is not installed. Nautilus uses smaller upstream zoom and the proper
+GNOME Settings portal in the image. Devkit dark preference is an explicit
+CI-only libadwaita override because its session is not the installed session;
+verify real dark pixels, not just process existence. This does not yet
+implement bespoke Nautilus chrome, the exact hero wallpaper, or lock design.
+
+### Glass optical verification correction
+
+cf38abf's visual test passed the effect attachment/lifecycle checks, but the
+actual screenshot showed essentially unblurred wallpaper: a blank-menu ROI
+had tint-normalized horizontal edge standard-deviation ratio about 1.02 and
+luminance correlation 0.996 against the idle frame. This is not accepted as
+true visual glass. Attach the experimental effect to the outer PopupMenu
+actor (matching the panel's top-level background sampling) and capture an
+empty-menu diagnostic against the idle image. Record a tint-normalized
+spatial-detail metric; it is diagnostic, not a validated acceptance threshold.
+No default enablement until optical and hardware validation. The devkit-only
+GTK dark/icon settings are inherited by D-Bus activation, and the trash
+shortcut explicitly opens the installed Nautilus app with a trash URI.
+
+### Extension lifecycle correction
+
+The de6512d visual run failed before its first capture: duplicate extension
+activation registered localzetExecutive twice. Five real pinned apps did
+resolve. Configure the devkit's extensions before GNOME starts, remove the
+initial racing enable requests, retain the deliberate disable/re-enable
+check, and reject indicator conflicts in the log. The extension now owns
+one complete instance per panel and rolls back its own actors on a failed
+activation; the panel constructor cleans up on failure. No new visual
+acceptance claim is made until the corrected run passes.
+
+### Reference material: static wallpaper glass
+
+1bbcd4e passed GNOME visual smoke and Live ISO, but the dynamic blur diagnostic
+was 0.991: no meaningful optical detail reduction. Remove that experiment from
+the launcher. Generate a separate 4K preblurred/tinted derivative of the exact
+shipped Alpine Dusk wallpaper (same attribution), use a native rounded St
+background image with monitor-aligned zoom coordinates, and reject it for
+other wallpapers, visible windows, high contrast, multiple monitors and
+non-1x scaling. No screenshots of private desktop content are captured or
+stored by the extension. The existing dynamic panel experiment is unchanged.
+This is wallpaper-only glass, not dynamic live-window glass. The CI now
+requires actual optical detail reduction, not just successful effect
+attachment; failures block visual acceptance. No full reference parity claim.

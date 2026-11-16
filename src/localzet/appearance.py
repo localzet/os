@@ -25,6 +25,34 @@ window.localzet-midnight {
 .localzet-midnight .boxed-list {
     background-color: #192a40;
     color: #e7edf7;
+    border-radius: 8px;
+    border: 1px solid #293b52;
+}
+.localzet-midnight .boxed-list > row {
+    border-radius: 6px;
+}
+.localzet-midnight .boxed-list > row:hover {
+    background-color: #233953;
+}
+.localzet-midnight .boxed-list > row .subtitle,
+.localzet-midnight .dim-label {
+    color: #b8c9dd;
+    opacity: 1;
+}
+.localzet-midnight .boxed-list > row + row {
+    border-top: 1px solid #293b52;
+}
+.localzet-midnight .boxed-list > row:focus-visible {
+    outline: 2px solid #78b8ff;
+    outline-offset: -2px;
+}
+.localzet-midnight .boxed-list > row image {
+    color: #b4cae4;
+}
+.localzet-midnight entry {
+    background-color: #0b1524;
+    color: #e7edf7;
+    border-radius: 6px;
 }
 .localzet-midnight button.suggested-action {
     background-color: #2874c8;

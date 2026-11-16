@@ -203,20 +203,19 @@ DEFS = '<defs>' + ''.join(
 # Separate small monochrome navigation family. GNOME recolors symbolic
 # icons; no multicolor app artwork is reused at 15 logical pixels.
 SYMBOLIC = {
-    "applications-utilities-symbolic": '<path d="M7 7h18v18H7zM39 7h18v18H39zM7 39h18v18H7zM48 39v18m-9-9h18"/>',
-    "applications-development-symbolic": '<path d="m23 13-18 19 18 19m18-38 18 19-18 19M36 8 28 56"/>',
-    "applications-multimedia-symbolic": '<path d="M23 44V15l29-6v29M23 22l29-6"/><ellipse cx="15" cy="45" rx="8" ry="6" fill="#2e3436"/><ellipse cx="44" cy="39" rx="8" ry="6" fill="#2e3436"/>',
-    "applications-internet-symbolic": '<circle cx="32" cy="32" r="25"/><path d="M7 32h50M32 7c-15 15-15 35 0 50m0-50c15 15 15 35 0 50"/>',
-    "applications-office-symbolic": '<path d="M13 6h27l11 11v41H13zM40 6v11h11M22 29h20m-20 10h20m-20 10h13"/>',
-    "applications-games-symbolic": '<path d="M20 18h24c8 0 12 11 14 23 2 11-7 12-13 5l-5-5H24l-5 5C13 53 4 52 6 41c2-12 6-23 14-23zM14 30h14m-7-7v14"/><circle cx="44" cy="28" r="3" fill="#2e3436"/><circle cx="51" cy="35" r="3" fill="#2e3436"/>',
-    "preferences-system-symbolic": '<path d="M7 14h50M7 32h50M7 50h50"/><circle cx="21" cy="14" r="5" fill="#2e3436"/><circle cx="42" cy="32" r="5" fill="#2e3436"/><circle cx="26" cy="50" r="5" fill="#2e3436"/>',
+    "applications-utilities-symbolic": '<path d="M4 4h24v24H4zM36 4h24v24H36zM4 36h24v24H4zM44 36h8v8h8v8h-8v8h-8v-8h-8v-8h8z"/>',
+    "applications-development-symbolic": '<path d="M22 9l6 6-17 17 17 17-6 6L0 32zM42 9l22 23-22 23-6-6 17-17-17-17zM34 4l7 2-11 54-7-2z"/>',
+    "applications-multimedia-symbolic": '<path d="M22 13l32-7v34c0 7-7 13-15 13-6 0-10-4-10-9 0-6 7-12 15-12h3V18l-18 4v26c0 7-7 13-15 13C8 61 4 57 4 52c0-7 7-13 15-13h3z"/>',
+    "applications-internet-symbolic": '<path fill-rule="evenodd" d="M32 2a30 30 0 1 0 0 60 30 30 0 0 0 0-60zM9 28h13c1-8 4-14 7-19C18 10 11 18 9 28zm33 0h13C53 18 46 10 35 9c3 5 6 11 7 19zM9 36c2 10 9 18 20 19-3-5-6-11-7-19zm33 0c-1 8-4 14-7 19 11-1 18-9 20-19zM30 28h4c0-6-1-12-2-17-1 5-2 11-2 17zm0 8c0 6 1 12 2 17 1-5 2-11 2-17z"/>',
+    "applications-office-symbolic": '<path fill-rule="evenodd" d="M12 3h28l13 13v45H12zm7 7v44h27V22H35V10zm5 18h17v6H24zm0 10h17v6H24z"/>',
+    "applications-games-symbolic": '<path fill-rule="evenodd" d="M18 16h28c9 0 13 12 17 29 3 12-7 17-16 7l-8-8H25l-8 8C8 62-2 57 1 45c4-17 8-29 17-29zm-2 8v7H9v6h7v7h6v-7h7v-6h-7v-7zm28 1a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 10a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>',
+    "preferences-system-symbolic": '<path d="M3 11h15V6h9v5h34v7H27v5h-9v-5H3zM3 29h33v-5h9v5h16v7H45v5h-9v-5H3zM3 47h21v-5h9v5h28v7H33v5h-9v-5H3z"/>',
 }
 
 def render(kind, group, name):
     if name in SYMBOLIC:
         return ('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 64 64">'
-                '<g stroke="#2e3436" fill="none" stroke-width="5" stroke-linecap="round" '
-                'stroke-linejoin="round">' + SYMBOLIC[name] + '</g></svg>\n')
+                '<g fill="#2e3436">' + SYMBOLIC[name] + '</g></svg>\n')
     accent, glyph = GLYPHS[kind]
     if group == "places" and name.startswith("folder"):
         art = FOLDER
