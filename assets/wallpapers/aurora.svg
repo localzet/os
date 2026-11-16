@@ -2,15 +2,15 @@
   <title>Aurora — Violet and Ember</title>
   <desc>Restrained violet ribbons on a deep dark field, with a small ember highlight. Original scalable Localzet wallpaper.</desc>
   <defs>
-    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10091E"/><stop offset=".48" stop-color="#20122F"/><stop offset="1" stop-color="#10091E"/></linearGradient>
-    <radialGradient id="atmosphere" cx=".68" cy=".44" r=".66"><stop stop-color="#4E2785" stop-opacity=".55"/><stop offset=".58" stop-color="#28183F" stop-opacity=".24"/><stop offset="1" stop-color="#10091E" stop-opacity="0"/></radialGradient>
-    <linearGradient id="rear" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#28183F"/><stop offset=".46" stop-color="#6436B5" stop-opacity=".7"/><stop offset="1" stop-color="#10091E" stop-opacity=".08"/></linearGradient>
-    <linearGradient id="main" x1="0" y1=".8" x2="1" y2=".15"><stop stop-color="#180D2B"/><stop offset=".33" stop-color="#51338E"/><stop offset=".58" stop-color="#6436B5"/><stop offset=".76" stop-color="#3C255D"/><stop offset="1" stop-color="#21132F"/></linearGradient>
-    <linearGradient id="face" x1=".2" y1="0" x2=".65" y2="1"><stop stop-color="#9B72F2" stop-opacity=".23"/><stop offset=".43" stop-color="#6436B5" stop-opacity=".08"/><stop offset="1" stop-color="#10091E" stop-opacity=".78"/></linearGradient>
-    <linearGradient id="edge" x1="0" y1=".7" x2="1" y2=".2"><stop stop-color="#9B72F2" stop-opacity="0"/><stop offset=".28" stop-color="#9B72F2" stop-opacity=".32"/><stop offset=".54" stop-color="#C4A8FF" stop-opacity=".56"/><stop offset=".74" stop-color="#FF7E00" stop-opacity=".75"/><stop offset="1" stop-color="#FF7E00" stop-opacity="0"/></linearGradient>
-    <radialGradient id="ember" cx=".78" cy=".46" r=".31"><stop stop-color="#FF7E00" stop-opacity=".24"/><stop offset=".38" stop-color="#B45D43" stop-opacity=".08"/><stop offset="1" stop-color="#10091E" stop-opacity="0"/></radialGradient>
-    <linearGradient id="foreground" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3D255E" stop-opacity=".4"/><stop offset=".5" stop-color="#28183F" stop-opacity=".72"/><stop offset="1" stop-color="#10091E" stop-opacity=".98"/></linearGradient>
-    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#10091E" stop-opacity=".46"/><stop offset=".27" stop-color="#10091E" stop-opacity="0"/><stop offset=".72" stop-color="#10091E" stop-opacity="0"/><stop offset="1" stop-color="#10091E" stop-opacity=".52"/></linearGradient>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#101116"/><stop offset=".48" stop-color="#191b23"/><stop offset="1" stop-color="#101116"/></linearGradient>
+    <radialGradient id="atmosphere" cx=".68" cy=".44" r=".66"><stop stop-color="#322b49" stop-opacity=".32"/><stop offset=".58" stop-color="#242333" stop-opacity=".12"/><stop offset="1" stop-color="#101116" stop-opacity="0"/></radialGradient>
+    <linearGradient id="rear" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#242333"/><stop offset=".46" stop-color="#48405e" stop-opacity=".7"/><stop offset="1" stop-color="#101116" stop-opacity=".08"/></linearGradient>
+    <linearGradient id="main" x1="0" y1=".8" x2="1" y2=".15"><stop stop-color="#181923"/><stop offset=".33" stop-color="#363247"/><stop offset=".58" stop-color="#48405e"/><stop offset=".76" stop-color="#2c2a3a"/><stop offset="1" stop-color="#1c1c26"/></linearGradient>
+    <linearGradient id="face" x1=".2" y1="0" x2=".65" y2="1"><stop stop-color="#8b7aaa" stop-opacity=".23"/><stop offset=".43" stop-color="#48405e" stop-opacity=".08"/><stop offset="1" stop-color="#101116" stop-opacity=".78"/></linearGradient>
+    <linearGradient id="edge" x1="0" y1=".7" x2="1" y2=".2"><stop stop-color="#8b7aaa" stop-opacity="0"/><stop offset=".28" stop-color="#8b7aaa" stop-opacity=".32"/><stop offset=".54" stop-color="#b3a3d0" stop-opacity=".56"/><stop offset=".74" stop-color="#c28a58" stop-opacity=".36"/><stop offset="1" stop-color="#c28a58" stop-opacity="0"/></linearGradient>
+    <radialGradient id="ember" cx=".78" cy=".46" r=".31"><stop stop-color="#c28a58" stop-opacity=".24"/><stop offset=".38" stop-color="#795848" stop-opacity=".08"/><stop offset="1" stop-color="#101116" stop-opacity="0"/></radialGradient>
+    <linearGradient id="foreground" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#30303e" stop-opacity=".4"/><stop offset=".5" stop-color="#242333" stop-opacity=".72"/><stop offset="1" stop-color="#101116" stop-opacity=".98"/></linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#101116" stop-opacity=".46"/><stop offset=".27" stop-color="#101116" stop-opacity="0"/><stop offset=".72" stop-color="#101116" stop-opacity="0"/><stop offset="1" stop-color="#101116" stop-opacity=".52"/></linearGradient>
   </defs>
   <rect width="1920" height="1080" fill="url(#base)"/>
   <rect width="1920" height="1080" fill="url(#atmosphere)"/>
@@ -20,6 +20,6 @@
   <path d="M-80 704 C 301 659 443 340 842 346 C 1200 351 1302 590 2000 302" fill="none" stroke="url(#edge)" stroke-width="3"/>
   <rect width="1920" height="1080" fill="url(#ember)"/>
   <path d="M-80 855 C 413 955 539 603 914 648 C 1312 696 1485 853 2000 518 L2000 1130 H-80 Z" fill="url(#foreground)"/>
-  <path d="M-80 855 C 413 955 539 603 914 648 C 1312 696 1485 853 2000 518" fill="none" stroke="#9B72F2" stroke-opacity=".13" stroke-width="2"/>
+  <path d="M-80 855 C 413 955 539 603 914 648 C 1312 696 1485 853 2000 518" fill="none" stroke="#8b7aaa" stroke-opacity=".13" stroke-width="2"/>
   <rect width="1920" height="1080" fill="url(#shade)"/>
 </svg>
