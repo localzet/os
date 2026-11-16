@@ -5,12 +5,13 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
+const COLUMNS = 4;
 const FILTERS = [
-    ['all', 'Все', []],
+    ['all', 'Все приложения', []],
     ['system', 'Система', ['System', 'Settings', 'Utility']],
     ['development', 'Разработка', ['Development']],
     ['media', 'Медиа', ['AudioVideo', 'Graphics', 'Audio', 'Video']],
-    ['internet', 'Сеть', ['Network']],
+    ['internet', 'Интернет', ['Network']],
     ['office', 'Офис', ['Office']],
     ['games', 'Игры', ['Game']],
 ];
@@ -42,8 +43,12 @@ export class AuroraLauncher {
         this._categories = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher-categories'});
         content.add_child(this._categories);
         this._buttons = new Map();
+        const categoryIcons = {"all":"view-app-grid-symbolic","system":"preferences-system-symbolic","development":"applications-development-symbolic","media":"applications-multimedia-symbolic","internet":"applications-internet-symbolic","office":"applications-office-symbolic","games":"applications-games-symbolic"};
         for (const [id, label] of FILTERS) {
-            const button = new St.Button({label, can_focus: true, reactive: true,
+            const categoryContent = new St.BoxLayout({style_class: 'localzet-category-content'});
+            categoryContent.add_child(new St.Icon({icon_name: categoryIcons[id], icon_size: 15}));
+            categoryContent.add_child(new St.Label({text: label, y_align: Clutter.ActorAlign.CENTER}));
+            const button = new St.Button({child: categoryContent, accessible_name: label, can_focus: true, reactive: true,
                 x_expand: true, style_class: 'localzet-launcher-category'});
             button.connect('clicked', () => {
                 this._category = id;
@@ -72,8 +77,8 @@ export class AuroraLauncher {
                 this._activate(this._results[0]);
         });
         this._entry.clutter_text.connect('key-press-event', (_actor, event) => {
-            if (event.get_key_symbol() === Clutter.KEY_Down && this._list.get_first_child()?.can_focus) {
-                global.stage.set_key_focus(this._list.get_first_child());
+            if (event.get_key_symbol() === Clutter.KEY_Down && this._firstResult?.can_focus) {
+                global.stage.set_key_focus(this._firstResult);
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
@@ -123,18 +128,30 @@ export class AuroraLauncher {
                 .filter(Boolean).join(' ').toLocaleLowerCase();
             return query.split(/\s+/).every(word => text.includes(word));
         }).sort((a, b) => a.get_name().localeCompare(b.get_name()));
+        this._firstResult = null;
         this._list.destroy_all_children();
-        for (const app of this._results) {
-            const row = new St.BoxLayout({style_class: 'localzet-launcher-row', x_expand: true, x_align: Clutter.ActorAlign.FILL});
-            row.add_child(app.create_icon_texture(28));
-            const label = new St.Label({text: app.get_name(), x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+        let row;
+        for (const [index, app] of this._results.entries()) {
+            if (index % COLUMNS === 0) {
+                row = new St.BoxLayout({style_class: 'localzet-launcher-row'});
+                this._list.add_child(row);
+            }
+            const tile = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher-tile',
+                x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
+            const icon = app.create_icon_texture(40);
+            icon.set_x_align(Clutter.ActorAlign.CENTER);
+            tile.add_child(icon);
+            const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
+                x_align: Clutter.ActorAlign.CENTER});
+            label.set_width(83);
             label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-            row.add_child(label);
-            const button = new St.Button({child: row, can_focus: true, reactive: true, x_expand: true,
+            tile.add_child(label);
+            const button = new St.Button({child: tile, can_focus: true, reactive: true,
                 style_class: 'localzet-launcher-app', accessible_name: app.get_name()});
-            button.set_x_align(Clutter.ActorAlign.FILL);
             button.connect('clicked', () => this._activate(app));
-            this._list.add_child(button);
+            row.add_child(button);
+            if (!this._firstResult)
+                this._firstResult = button;
         }
         if (!this._results.length)
             this._list.add_child(new St.Label({text: 'Приложения не найдены', style_class: 'localzet-launcher-empty'}));

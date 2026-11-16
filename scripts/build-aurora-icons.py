@@ -4,10 +4,11 @@ from pathlib import Path
 import argparse
 import re
 
-# Consistent 64-unit optical grid. Application tiles use a graphite surface,
-# a single restrained accent and a unique pictogram. Places/devices use
+# Consistent 64-unit optical grid. App tiles use distinct color families
+# and recognizable pictograms. Places/devices use
 # freestanding silhouettes rather than putting every file in a square.
 GLYPHS = {
+    "language": ('#8ab5eb', '<path d="M15 15h34v34H15zM21 26h15m-7-7v7c0 8-4 12-9 16m5-12c2 5 6 9 11 12m2-12 9 19m-13-6h11"/>'),
     "browser": ('#9e9ccd', '<circle cx="32" cy="32" r="18"/><path d="M14 32h36M32 14c-9 10-9 26 0 36m0-36c9 10 9 26 0 36"/>'),
     "chrome": ('#9eaf93', '<circle cx="32" cy="32" r="20"/><circle cx="32" cy="32" r="8"/><path d="M14 23h18m4 16 9 15M42 15l-10 17"/>'),
     "edge": ('#85b4cb', '<path d="M49 43c-4 5-10 8-18 8-12 0-20-9-20-19s8-20 20-20c11 0 20 8 20 19H23c0 7 4 11 11 11 5 0 9-2 15-5z"/>'),
@@ -76,7 +77,8 @@ GROUPS = {
         "firefox": "firefox org.mozilla.firefox",
         "files": "org.gnome.Nautilus system-file-manager nautilus",
         "terminal": "org.gnome.Ptyxis org.gnome.Terminal utilities-terminal ptyxis",
-        "settings": "org.gnome.Settings preferences-system gnome-control-center language-selector",
+        "settings": "org.gnome.Settings preferences-system gnome-control-center",
+        "language": "language-selector preferences-desktop-locale",
         "components": "com.localzet.Settings localzet-components",
         "hardware": "com.localzet.Hardware localzet-hardware",
         "containers": "com.localzet.Containers localzet-containers docker",
@@ -173,11 +175,26 @@ def render(kind, group, name):
     accent, glyph = GLYPHS[kind]
     background = ('<rect x="3" y="3" width="58" height="58" rx="11" fill="#262831" '
                   'stroke="#434653" stroke-width="1.5"/>') if tile else ''
+    if tile:
+        # Differentiated jewel-toned surfaces; app identities remain recognizable.
+        family = {"browser": "#235e9b", "chrome": "#396a45", "edge": "#136c84",
+                  "firefox": "#9d4c27", "files": "#175ab1", "terminal": "#25344b",
+                  "code": "#1762a5", "settings": "#43556d", "office": "#874741",
+                  "games": "#53438a", "media": "#87542c", "music": "#78436f",
+                  "image": "#514d9a", "containers": "#185c8b", "windows": "#265998",
+                  "network": "#20678d", "language": "#345c8c"}.get(kind, "#334a63")
+        background = (f'<rect x="3" y="3" width="58" height="58" rx="10" fill="{family}" '
+                      'stroke="#ffffff" stroke-opacity=".15" stroke-width="1.4"/>')
+        accent = "#edf5ff"
+        glyph = glyph.replace("#262831", family)
     if group == "places" and name.startswith("folder") and kind != "files":
         # Keep the folder silhouette recognizable in file managers.
         background = ('<path d="M5 19a4 4 0 0 1 4-4h19l6 6h21a4 4 0 0 1 4 4v29H5z" '
-                      'fill="#30313d" stroke="' + accent + '" stroke-width="2.5"/>')
+                      'fill="#174d89" stroke="' + accent + '" stroke-width="2.5"/>')
         glyph = '<g transform="translate(19 17) scale(.45)">' + glyph + '</g>'
+    if group == "places" and kind == "files":
+        accent = "#8cc5ff"
+        glyph = glyph.replace('<path d="M12 23', '<path fill="#2469bd" d="M12 23', 1)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
             f'<title>Aurora {kind}</title>{background}'
             f'<g color="{accent}" stroke="{accent}" fill="none" stroke-width="3" '

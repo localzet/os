@@ -90,7 +90,7 @@ export class LocalzetDock {
     }
 
     _newRow(app) {
-        const icon = app.create_icon_texture(26);
+        const icon = app.create_icon_texture(32);
         const dot = new St.Widget({style_class: 'localzet-dock-indicator',
             x_align: Clutter.ActorAlign.CENTER});
         const content = new St.BoxLayout({vertical: true, style_class: 'localzet-dock-item-content',
@@ -170,8 +170,8 @@ export class LocalzetDock {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
-        const width = Math.min(monitor.width - 24, Math.max(64, 16 + (1 + this._rows.size) * 46));
-        const height = 52;
+        const width = Math.min(monitor.width - 24, Math.max(64, 16 + (1 + this._rows.size) * 48));
+        const height = 54;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
         const y = monitor.y + monitor.height - height - 12;

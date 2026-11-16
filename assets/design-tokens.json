@@ -1,18 +1,17 @@
 {
-  "name": "Localzet Aurora — Violet × Ember",
-  "status": "owner-approved Professional visual direction; implementation pending",
+  "name": "Localzet Aurora — Midnight Blue",
+  "status": "Midnight reference correction; review and visual acceptance pending",
   "colors": {
-    "background": "#10091E",
-    "surface": "#28183F",
-    "surfaceElevated": "#34234F",
-    "accent": "#FF7E00",
-    "textPrimary": "#F4EEFF",
-    "textSecondary": "#B9A5D5",
+    "background": "#091321",
+    "surface": "#101b2d",
+    "surfaceElevated": "#192a40",
+    "accent": "#4c9aff",
+    "textPrimary": "#e7edf7",
+    "textSecondary": "#a4b6cc",
     "success": "#4fc6a8",
     "warning": "#e6b66b",
-    "violetDeep": "#6436B5",
-    "primary": "#9B72F2",
-    "onAccent": "#10091E"
+    "primary": "#2874c8",
+    "onAccent": "#091321"
   },
   "radii": {
     "sm": 6,
@@ -29,21 +28,21 @@
   "glass": {
     "surfaceOpacity": 0.78,
     "borderOpacity": 0.22,
-    "opaqueFallback": "#28183F",
+    "opaqueFallback": "#101b2d",
     "qualityGate": "real compositor-backed background sampling and blur; no flat alpha-only imitation",
     "edgeTreatment": "subtle directional highlight, no uniform conspicuous outline",
     "depth": "soft ambient and contact shadow, layered tint, legible foreground",
     "refraction": "optional shader-based edge distortion only where supported and performant",
-    "fallback": "opaque violet surface with equivalent contrast; reduced transparency and motion options",
+    "fallback": "opaque midnight blue surface with equivalent contrast; reduced transparency and motion options",
     "verification": "actual GNOME session captures over light, dark and detailed wallpapers; GPU and software-rendering performance checks"
   },
-  "notes": "Dominant violet and restrained orange. Approved Professional poster and functional scope: docs/design/README.md. Genuine compositor glass and opaque accessibility fallback; no thick outlines.",
+  "notes": "Blue graphite surfaces, blue selection, semantic status colors; no uniform monochrome app tiles. Original brand mark retained. Owner review pending.",
   "density": {
-    "panelHeight": 32,
+    "panelHeight": 30,
     "tableRowMin": 32,
     "tableRowMax": 36,
-    "dockIcon": 28,
-    "dockHeight": 48,
+    "dockIcon": 32,
+    "dockHeight": 54,
     "accessibleScale": true
   }
 }
