@@ -6,6 +6,9 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
+    bash "$LOCALZET_REPO/scripts/install-onlyoffice-rootfs.sh" "$root"
+fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     # Do not activate a privileged daemon or grant docker-group membership.
     for unit in docker.service docker.socket containerd.service; do
@@ -152,7 +155,8 @@ chroot "$root" update-alternatives --set default.plymouth "$theme/localzet-auror
 mkdir -p "$root/etc/plymouth"
 printf '[Daemon]\nTheme=localzet-aurora\n' > "$root/etc/plymouth/plymouthd.conf"
 test -f "$root/usr/share/gnome-shell/extensions/ubuntu-appindicators@ubuntu.com/metadata.json"
-test -f "$root/usr/share/icons/Papirus-Dark/index.theme"
+test -f "$root/usr/share/icons/Aurora/index.theme"
+test -f "$root/usr/share/icons/Adwaita/index.theme"
 # Ensure the initramfs contains the Casper hooks installed by apt.
 chroot "$root" update-initramfs -u -k all
 # Fail before ISO assembly if initramfs lacks the Live boot script.

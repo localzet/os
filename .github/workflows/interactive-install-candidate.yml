@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     env:
-      CONTAINERS_CANDIDATE: ${{ inputs.containers_candidate || github.head_ref == 'feat/containers-aurora-workspace' || github.head_ref == 'feat/aurora-icon-theme' || github.head_ref == 'feat/aurora-launcher' || github.head_ref == 'feat/aurora-dock' || github.head_ref == 'feat/aurora-system-surfaces' }}
+      CONTAINERS_CANDIDATE: ${{ inputs.containers_candidate || github.head_ref == 'feat/containers-aurora-workspace' || github.head_ref == 'feat/aurora-icon-theme' || github.head_ref == 'feat/aurora-launcher' || github.head_ref == 'feat/aurora-dock' || github.head_ref == 'feat/aurora-system-surfaces' || github.head_ref == 'integration/aurora-complete-candidate' }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate source
@@ -77,7 +77,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
       - name: Upload explicitly requested engineering candidate (not a release)
-        if: success() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (github.head_ref == 'feat/aurora-icon-theme' || github.head_ref == 'feat/aurora-launcher' || github.head_ref == 'feat/aurora-dock' || github.head_ref == 'feat/aurora-system-surfaces') && github.event.pull_request.head.repo.full_name == github.repository))
+        if: success() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && (github.head_ref == 'feat/aurora-icon-theme' || github.head_ref == 'feat/aurora-launcher' || github.head_ref == 'feat/aurora-dock' || github.head_ref == 'feat/aurora-system-surfaces' || github.head_ref == 'integration/aurora-complete-candidate') && github.event.pull_request.head.repo.full_name == github.repository))
         uses: actions/upload-artifact@v4
         with:
           name: localzet-uefi-install-candidate

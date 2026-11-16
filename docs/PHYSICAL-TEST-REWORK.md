@@ -90,3 +90,14 @@ notification actions remain upstream. Styling and menu signal subscriptions
 are removed on extension disable or high contrast. DevKit tests must open
 both actual menus and submit a real session notification. This change does
 not replace the GNOME system controllers or claim a new notification daemon.
+
+### Dedicated SSD isolation test extension
+
+The private VM installation smoke now generates a bootable GPT foreign disk
+with an existing FAT32 ESP, fallback BOOTX64.EFI, separate EFI loader path,
+and ext4 data partition. It boots the original GRUB serial fixture before
+and after installation on a distinct blank target, and compares the whole
+foreign disk SHA-256. This tests the shared VM-only writer; it does not enable
+physical multi-disk installation, prove actual Windows/Linux boot preservation,
+validate existing firmware NVRAM entries or authorize shared-ESP writes.
+The interactive installer restriction remains unchanged.

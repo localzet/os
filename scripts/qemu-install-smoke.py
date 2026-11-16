@@ -12,12 +12,51 @@ import tempfile
 import time
 
 SIZE = 32 * 1024**3
-KEEP_SIZE = 64 * 1024**2
+KEEP_SIZE = 128 * 1024**2
+FOREIGN_READY = 'LOCALZET_FOREIGN_EFI_READY'
 
 
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def foreign_disk(scratch: Path, path: Path) -> None:
+    """Build an original bootable EFI fixture on a regular file only."""
+    mib = 1024**2
+    with path.open("xb") as stream:
+        stream.truncate(KEEP_SIZE)
+    subprocess.run(["sgdisk", "--clear", "--new=1:2048:+64M", "--typecode=1:ef00",
+                    "--change-name=1:FOREIGN_ESP", "--new=2:0:+32M", "--typecode=2:8300",
+                    "--change-name=2:FOREIGN_DATA", str(path)], check=True)
+    esp = scratch / "foreign-esp.img"
+    with esp.open("xb") as stream:
+        stream.truncate(64 * mib)
+    subprocess.run(["mkfs.vfat", "-F", "32", "-n", "FOREIGN", str(esp)], check=True)
+    config = scratch / "foreign-grub.cfg"
+    config.write_text("serial --unit=0 --speed=115200\nterminal_output serial\necho\necho " + FOREIGN_READY + "\nsleep 120\n")
+    loader = scratch / "foreign-bootx64.efi"
+    subprocess.run(["grub-mkstandalone", "-O", "x86_64-efi", "-o", str(loader),
+                    "boot/grub/grub.cfg=" + str(config)], check=True)
+    subprocess.run(["mmd", "-i", str(esp), "::/EFI", "::/EFI/BOOT", "::/EFI/Foreign"], check=True)
+    subprocess.run(["mcopy", "-i", str(esp), str(loader), "::/EFI/BOOT/BOOTX64.EFI"], check=True)
+    subprocess.run(["mcopy", "-i", str(esp), str(loader), "::/EFI/Foreign/foreign.efi"], check=True)
+    data = scratch / "foreign-data.img"
+    with data.open("xb") as stream:
+        stream.truncate(32 * mib)
+    subprocess.run(["mkfs.ext4", "-q", "-F", "-L", "FOREIGN_DATA", str(data)], check=True)
+    # sgdisk default alignment is 2048 sectors, second partition follows
+    # the exact 64 MiB first partition. Verify before writing either fixture.
+    for number, first, last in ((1, 2048, 133119), (2, 133120, 198655)):
+        report = subprocess.check_output(["sgdisk", "-i", str(number), str(path)], text=True)
+        if f"First sector: {first} " not in report or f"Last sector: {last} " not in report:
+            raise RuntimeError("Unexpected fixture partition boundaries")
+    with path.open("r+b") as stream:
+        for first, image in ((2048, esp), (133120, data)):
+            stream.seek(first * 512)
+            with image.open("rb") as source:
+                shutil.copyfileobj(source, stream)
+    subprocess.run(["sgdisk", "--verify", str(path)], check=True)
 
 
 def drive(path: Path, name: str, serial: str) -> list[str]:
@@ -99,10 +138,11 @@ def main() -> int:
         sentinel = scratch / "untouched.raw"
         with target.open("xb") as stream:
             stream.truncate(SIZE)
-        with sentinel.open("xb") as stream:
-            for _ in range(KEEP_SIZE // (1024**2)):
-                stream.write(os.urandom(1024**2))
+        foreign_disk(scratch, sentinel)
         before = digest(sentinel)
+        boot(args, scratch, sentinel, None, FOREIGN_READY, "foreign-before", 180)
+        if digest(sentinel) != before:
+            raise RuntimeError("Foreign boot fixture modified its own disk")
         try:
             boot(args, scratch, target, sentinel,
                  "LOCALZET_INSTALL_COMPLETE", "installation", 1200)
@@ -114,6 +154,10 @@ def main() -> int:
             if before != after:
                 raise RuntimeError("Non-target disk was modified")
         print("PASS: non-target disk SHA-256 unchanged", flush=True)
+        boot(args, scratch, sentinel, None, FOREIGN_READY, "foreign-after", 180)
+        if digest(sentinel) != before:
+            raise RuntimeError("Foreign disk changed during post-install boot")
+        print("PASS: existing EFI fixture boots before and after installation", flush=True)
         # New firmware variables, no installation ISO, no other disk.
         boot(args, scratch, target, None,
              "LOCALZET_INSTALLED_READY", "installed-boot", 480)
