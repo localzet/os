@@ -6,11 +6,12 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import {WallpaperGlass} from './wallpaper-glass.js';
 
 const MAX_COLUMNS = 4;
 const TILE_WIDTH = 96;
 const FILTERS = [
-    ['all', 'Все приложения', []],
+    ['all', 'Все', []],
     ['system', 'Система', ['System', 'Settings']],
     ['utility', 'Утилиты', ['Utility']],
     ['development', 'Разработка', ['Development']],
@@ -37,6 +38,7 @@ export class AuroraLauncher {
         this._glassExperimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
         this._contrastId = this._contrast.connect('changed::high-contrast', () => this._refreshMaterial());
         this._refreshMaterial();
+        this._wallpaperGlass = new WallpaperGlass(this._menu);
         this._manager = new PopupMenu.PopupMenuManager(anchor);
         this._manager.addMenu(this._menu);
         const section = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
@@ -157,25 +159,9 @@ export class AuroraLauncher {
                 console.log('Localzet Glass: launcher opaque fallback');
             return;
         }
-        // A real background-sampling compositor effect on the rectangular
-        // content allocation. Deliberately square until rounded clipping is
-        // implemented. Never blur the icon/text foreground.
-        try {
-            const effect = new Shell.BlurEffect({
-                radius: 24, brightness: 0.80, mode: Shell.BlurMode.BACKGROUND,
-            });
-            this._menu.actor.add_effect_with_name('localzet-launcher-background', effect);
-            this._glass = effect;
-            this._menu.actor.add_style_class_name('localzet-launcher-glass');
-            console.log('Localzet Glass: launcher background effect active');
-        } catch (error) {
-            if (this._glass) {
-                this._menu.actor.remove_effect(this._glass);
-                this._glass = null;
-            }
-            this._menu.actor.remove_style_class_name('localzet-launcher-glass');
-            console.warn('Localzet Glass: launcher opaque fallback: ' + error);
-        }
+        // Do not enable the failed dynamic effect. WallpaperGlass provides
+        // a separately identified, clipped static material on empty desktops.
+        console.log('Localzet Glass: launcher wallpaper candidate');
     }
 
     _activate(app) {
@@ -211,7 +197,7 @@ export class AuroraLauncher {
         // Reference composition: a single real application grid with
         // favorites first, no duplicate cards or empty promotional panels.
         this._heading.set_text(query ? 'Результаты поиска' :
-            FILTERS.find(row => row[0] === this._category)[1]);
+            this._category === 'all' ? 'Все приложения' : FILTERS.find(row => row[0] === this._category)[1]);
         this._tiles = [];
         this._firstResult = null;
         this._list.destroy_all_children();
@@ -282,6 +268,7 @@ export class AuroraLauncher {
     }
 
     destroy() {
+        this._wallpaperGlass.destroy();
         if (this._geometrySource)
             GLib.source_remove(this._geometrySource);
         this._geometrySource = 0;

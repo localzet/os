@@ -37,6 +37,7 @@ xvfb_pid=$!
 trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
 export OUT
+export LOCALZET_TEST_WALLPAPER="$OUT/executive-dusk.jpg"
 set +e
 dbus-run-session -- bash -s <<'GNOME_TEST'
   set -u
@@ -75,6 +76,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   wallpaper="file://$OUT/executive-dusk.jpg"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
+  gsettings set org.gnome.desktop.background picture-options zoom || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   gsettings set org.gnome.desktop.interface accent-color blue || exit 1
   gsettings set org.gnome.nautilus.icon-view default-zoom-level small-plus || exit 1
@@ -105,7 +107,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: launcher background effect active" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: launcher wallpaper candidate" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
@@ -119,6 +121,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=3" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper material active" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   # Capture a blank catalogue for a reproducible optical comparison.
   xdotool type --clearmodifiers localzet-no-such-app-1739 || exit 1
@@ -152,8 +155,10 @@ def detail(values, width):
                  if (i+1)%width)
 ratio = detail(b, glass.width)/max(.001, detail(a, base.width)*abs(slope))
 print("Tint-normalized horizontal detail ratio:", round(ratio, 3))
-print("Experimental visual verdict:", "detail-reduction candidate" if ratio < .65
+print("Wallpaper-only visual verdict:", "detail-reduction candidate" if ratio < .65
       else "unverified blur; do not promote")
+if ratio >= .65:
+    raise SystemExit("Wallpaper material has insufficient optical detail reduction")
 PY
   cat "$OUT/glass-quality.txt"
   xdotool key --clearmodifiers ctrl+a || exit 1

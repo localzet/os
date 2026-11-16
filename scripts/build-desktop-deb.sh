@@ -87,7 +87,7 @@ cat > "$pkg/DEBIAN/postrm" <<'POSTRM'
 #!/bin/sh
 set -eu
 case "$1" in
-    remove|purge) rm -f /usr/share/backgrounds/localzet/executive-dusk.jpg ;;
+    remove|purge) rm -f /usr/share/backgrounds/localzet/executive-dusk.jpg /usr/share/backgrounds/localzet/executive-dusk-glass.jpg ;;
 esac
 POSTRM
 chmod 0755 "$pkg/DEBIAN/postinst" "$pkg/DEBIAN/postrm"

@@ -221,3 +221,15 @@
 .localzet-dock-trash { margin-left: 3px; }
 .localzet-dock-trash StIcon { color: #b8c9dd; }
 .localzet-dock-high-contrast .localzet-dock-trash StIcon { color: #ffffff; }
+
+/* Preblurred and tinted wallpaper, aligned to the monitor's exact zoom crop.
+ * St paints the background inside its native rounded border. Opaque when
+ * other windows, another wallpaper, scaling or high contrast are present. */
+.localzet-wallpaper-glass .popup-menu-content {
+    background-color: #101b2d;
+    border-radius: 12px;
+    border: 1px solid rgba(167, 191, 223, .36);
+    box-shadow: 0 8px 22px rgba(0,0,0,.48);
+}
+.localzet-wallpaper-glass .localzet-launcher-search { background-color: #101c2c; }
+.localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #204d82; }

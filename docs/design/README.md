@@ -303,3 +303,17 @@ check, and reject indicator conflicts in the log. The extension now owns
 one complete instance per panel and rolls back its own actors on a failed
 activation; the panel constructor cleans up on failure. No new visual
 acceptance claim is made until the corrected run passes.
+
+### Reference material: static wallpaper glass
+
+1bbcd4e passed GNOME visual smoke and Live ISO, but the dynamic blur diagnostic
+was 0.991: no meaningful optical detail reduction. Remove that experiment from
+the launcher. Generate a separate 4K preblurred/tinted derivative of the exact
+shipped Alpine Dusk wallpaper (same attribution), use a native rounded St
+background image with monitor-aligned zoom coordinates, and reject it for
+other wallpapers, visible windows, high contrast, multiple monitors and
+non-1x scaling. No screenshots of private desktop content are captured or
+stored by the extension. The existing dynamic panel experiment is unchanged.
+This is wallpaper-only glass, not dynamic live-window glass. The CI now
+requires actual optical detail reduction, not just successful effect
+attachment; failures block visual acceptance. No full reference parity claim.
