@@ -430,3 +430,18 @@ graphics acceleration settings: https://helpcenter.onlyoffice.com/desktop/gettin
 No default flags are changed before comparing real evidence. Add source tests
 for generated installed-script assertions, and fail if injection markers
 are absent or duplicated. Preserve the active Native Files ISO build.
+
+### Native rendering dependency and navigation correction
+
+The first isolated office run failed before graphics initialization:
+libxcb-shape.so.0 was missing. Reuse the full explicit Ubuntu graphical
+runtime already exercised by the upstream office workflow, in both the
+isolated test and rootfs dependency transaction. Record ldd output and
+reject missing libraries; the white installed window is not yet diagnosed
+by this fact alone. Capture missing-window diagnostics and fail fast if
+editor exits. No sandbox changes or forced software mode in the image.
+The Native Files build validated dark navigation and two tabs, and light
+palette contained zero Executive pixels. Its light navigation then failed.
+Use Nautilus 50's explicit Alt+1/Alt+2 tab shortcuts and bounded title polling,
+with failure screenshots. The latest branch can run the same trusted
+Nautilus installed-image gate after all three modes pass.

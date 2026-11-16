@@ -59,24 +59,37 @@ with Image.open(sys.argv[1]) as im:
         assert all(n < 1000 for n in counts), counts
 PY
 ! grep -Ei 'theme parser error|css parser error|Gtk-CRITICAL|segmentation fault' "$OUT/nautilus-$mode.log"
-# Preserve original tab and file operations; exercise a real navigation path.
-xdotool key ctrl+l
-xdotool type --clearmodifiers "$work/Documents"
-xdotool key Return
-sleep 2
-xdotool getwindowname "$window" | grep -F Documents
-xdotool windowactivate --sync "$window"
+# Native Nautilus 50 documents Alt+1..9 via win.go-to-tab. Use
+# explicit tab indices, not a toolkit-dependent Ctrl+Shift+Tab gesture.
+wait_title() {
+    local name="$1"
+    for attempt in $(seq 1 20); do
+        if xdotool getwindowname "$window" | grep -F "$name"; then return 0; fi
+        sleep 1
+    done
+    echo "Expected $name; actual: $(xdotool getwindowname "$window")" >&2
+    import -window "$window" "$OUT/nautilus-$mode-navigation-failure.png" || true
+    return 1
+}
+navigate() {
+    local name="$1"
+    xdotool windowactivate --sync "$window"
+    xdotool key --clearmodifiers ctrl+l
+    sleep 1
+    xdotool type --clearmodifiers "$work/$name"
+    xdotool key Return
+    wait_title "$name"
+}
+navigate Documents
 xdotool key --clearmodifiers ctrl+t
-sleep 2
-xdotool key --clearmodifiers ctrl+l
-xdotool type --clearmodifiers "$work/Projects"
-xdotool key Return
-sleep 2
-xdotool getwindowname "$window" | grep -F Projects
-xdotool key --clearmodifiers ctrl+shift+Tab
-sleep 2
-xdotool getwindowname "$window" | grep -F Documents
+sleep 3
+# Explicitly activate the second tab and wait for focus to settle.
+xdotool key --clearmodifiers alt+2
+sleep 1
+navigate Projects
+xdotool key --clearmodifiers alt+1
+wait_title Documents
+xdotool key --clearmodifiers alt+2
+wait_title Projects
 import -window "$window" "$OUT/nautilus-$mode-tabs.png"
 echo "PASS: $mode palette, navigation and two native tabs"
-# Cleanup is best effort; quitting the last window may already end the app.
-# Do not treat a second quit invocation as a visual regression.

@@ -32,15 +32,28 @@ wm=$!
 sleep 2
 python3 "$repo/scripts/ci/office-fixture.py" "$work/Localzet-offline-review.docx"
 glxinfo -B > "$out/graphics.txt" 2>&1 || true
+# Diagnose loader failures directly, without waiting for a window that
+# cannot appear. Use the application's bundled library directory.
+LD_LIBRARY_PATH=/opt/onlyoffice/desktopeditors ldd /opt/onlyoffice/desktopeditors/DesktopEditors > "$out/loader.txt"
+if grep -F 'not found' "$out/loader.txt"; then exit 1; fi
 setsid /usr/bin/onlyoffice-desktopeditors "${flags[@]}" "$work/Localzet-offline-review.docx" > "$out/editor.log" 2>&1 &
 pid=$!
 window=""
 for attempt in $(seq 1 90); do
     window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
     [[ -n "$window" ]] && break
+    if ! kill -0 "$pid" 2>/dev/null; then
+        cat "$out/editor.log"
+        exit 1
+    fi
     sleep 1
 done
-test -n "$window"
+if [[ -z "$window" ]]; then
+    xwininfo -root -tree > "$out/window-tree.txt" || true
+    import -window root "$out/root.png" || true
+    cat "$out/editor.log"
+    exit 1
+fi
 xdotool windowactivate --sync "$window"
 xdotool windowsize "$window" 1100 760
 xdotool windowmove "$window" 80 60
