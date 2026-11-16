@@ -207,7 +207,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False):
+def installed_script(archive_profile=None, containers=False, office=False):
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -369,6 +369,19 @@ printf 'PASS: installed Containers launched unprivileged; system daemon disabled
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed Containers launched" in script
+    if office:
+        check = r"""
+test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
+test -s /opt/onlyoffice/desktopeditors/LICENSE.txt
+test -s /usr/share/localzet/office-review/upstream.json
+test -x /usr/bin/onlyoffice-desktopeditors
+launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
+sleep 10
+pgrep -u localzet-test -f 'DesktopEditors|onlyoffice-desktopeditors' >/dev/null
+printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\n'
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+        assert "installed native ONLYOFFICE launched" in script
     return script
 
 
@@ -382,7 +395,10 @@ def main():
     parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     parser.add_argument("--expect-containers", action="store_true")
+    parser.add_argument("--expect-office", action="store_true")
     args = parser.parse_args()
+    if args.expect_office and not args.expect_archive_profile:
+        parser.error("Office candidate requires Standard or Complete archive profile")
     if args.expect_containers and args.expect_archive_profile != "complete":
         parser.error("Containers candidate requires complete archive profile")
     for name in ("iso", "ovmf_code", "ovmf_vars"):
@@ -421,7 +437,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -460,6 +476,8 @@ def main():
             installed.capture("desktop-verified")
             if args.expect_containers:
                 installed.capture("containers-installed")
+            if args.expect_office:
+                installed.capture("office-installed")
             installed.wait(WINE_READY, 360)
         finally:
             installed.close()
