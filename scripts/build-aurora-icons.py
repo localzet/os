@@ -9,6 +9,14 @@ import re
 # freestanding silhouettes rather than putting every file in a square.
 GLYPHS = {
     "browser": ('#9e9ccd', '<circle cx="32" cy="32" r="18"/><path d="M14 32h36M32 14c-9 10-9 26 0 36m0-36c9 10 9 26 0 36"/>'),
+    "chrome": ('#9eaf93', '<circle cx="32" cy="32" r="20"/><circle cx="32" cy="32" r="8"/><path d="M14 23h18m4 16 9 15M42 15l-10 17"/>'),
+    "edge": ('#85b4cb', '<path d="M49 43c-4 5-10 8-18 8-12 0-20-9-20-19s8-20 20-20c11 0 20 8 20 19H23c0 7 4 11 11 11 5 0 9-2 15-5z"/>'),
+    "firefox": ('#d0ad84', '<circle cx="33" cy="33" r="17"/><path d="M17 15c-7 9-8 21-1 30 8 10 26 11 34-1M13 24l10 3 6-9m14-3c7 5 10 10 10 17"/>'),
+    "telegram": ('#85b4cb', '<path d="m12 29 41-16-10 39-13-13-8 6 1-13zM23 32l21-12-14 19"/>'),
+    "discord": ('#9e9ccd', '<path d="M20 17c-6 5-9 14-10 26l11 6 4-6m19-26c6 5 9 14 10 26l-11 6-4-6M19 21c7-5 19-5 26 0M20 42c7 5 17 5 24 0"/><circle cx="25" cy="32" r="3" fill="currentColor"/><circle cx="39" cy="32" r="3" fill="currentColor"/>'),
+    "steam": ('#85b4cb', '<circle cx="42" cy="22" r="12"/><circle cx="42" cy="22" r="6"/><circle cx="24" cy="43" r="7"/><path d="m11 36 13 7 18-21M28 36l5-10"/>'),
+    "netbird": ('#8fb7aa', '<path d="M13 22l20 12 17-15-8 25-20 7 7-17M13 22l16 4 21-7"/>'),
+    "usernet": ('#b1a1d0', '<circle cx="19" cy="18" r="5"/><circle cx="45" cy="18" r="5"/><circle cx="32" cy="47" r="5"/><path d="M24 18h16M22 23l8 19m12-19-8 19"/>'),
     "files": ('#b1a1d0', '<path d="M12 23v-5a3 3 0 0 1 3-3h13l5 5h16a3 3 0 0 1 3 3v24a3 3 0 0 1-3 3H15a3 3 0 0 1-3-3z"/><path d="M12 28h40"/>'),
     "terminal": ('#8fb7aa', '<rect x="12" y="15" width="40" height="34" rx="4"/><path d="m19 25 8 7-8 7m14 0h12"/>'),
     "settings": ('#b1a1d0', '<path d="M14 20h36M14 32h36M14 44h36"/><circle cx="25" cy="20" r="4" fill="#262831"/><circle cx="39" cy="32" r="4" fill="#262831"/><circle cx="28" cy="44" r="4" fill="#262831"/>'),
@@ -62,7 +70,10 @@ GLYPHS = {
 # replacement desktop launcher. Absolute-path upstream icons remain intact.
 GROUPS = {
     "apps": {
-        "browser": "org.gnome.Epiphany web-browser epiphany google-chrome google-chrome-stable microsoft-edge microsoft-edge-stable firefox",
+        "browser": "org.gnome.Epiphany web-browser epiphany",
+        "chrome": "google-chrome google-chrome-stable",
+        "edge": "microsoft-edge microsoft-edge-stable",
+        "firefox": "firefox org.mozilla.firefox",
         "files": "org.gnome.Nautilus system-file-manager nautilus",
         "terminal": "org.gnome.Ptyxis org.gnome.Terminal utilities-terminal ptyxis",
         "settings": "org.gnome.Settings preferences-system gnome-control-center",
@@ -88,11 +99,14 @@ GROUPS = {
         "scanner": "org.gnome.SimpleScan simple-scan",
         "printer": "system-config-printer",
         "office": "onlyoffice-desktopeditors desktopeditors ONLYOFFICE",
-        "chat": "org.telegram.desktop telegram telegram-desktop discord com.discordapp.Discord",
+        "telegram": "org.telegram.desktop telegram telegram-desktop",
+        "discord": "discord com.discordapp.Discord",
         "code": "code visual-studio-code com.visualstudio.code",
         "vm": "virt-manager org.virt_manager.virt-manager",
-        "vpn": "netbird netbird-ui usernet localzet-usernet",
-        "games": "steam com.valvesoftware.Steam lutris net.lutris.Lutris",
+        "netbird": "netbird netbird-ui",
+        "usernet": "usernet localzet-usernet",
+        "steam": "steam com.valvesoftware.Steam",
+        "games": "lutris net.lutris.Lutris",
         "capture": "com.obsproject.Studio obs obs-studio",
         "help": "org.gnome.Yelp help-browser",
         "clock": "org.gnome.clocks",
@@ -153,10 +167,16 @@ CONTEXTS = {"apps": "Applications", "places": "Places", "devices": "Devices",
             "categories": "Categories", "mimetypes": "MimeTypes", "status": "Status"}
 
 
-def render(kind, tile):
+def render(kind, group, name):
+    tile = group == "apps"
     accent, glyph = GLYPHS[kind]
     background = ('<rect x="3" y="3" width="58" height="58" rx="11" fill="#262831" '
                   'stroke="#434653" stroke-width="1.5"/>') if tile else ''
+    if group == "places" and name.startswith("folder") and kind != "files":
+        # Keep the folder silhouette recognizable in file managers.
+        background = ('<path d="M5 19a4 4 0 0 1 4-4h19l6 6h21a4 4 0 0 1 4 4v29H5z" '
+                      'fill="#30313d" stroke="' + accent + '" stroke-width="2.5"/>')
+        glyph = '<g transform="translate(19 17) scale(.45)">' + glyph + '</g>'
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
             f'<title>Aurora {kind}</title>{background}'
             f'<g color="{accent}" stroke="{accent}" fill="none" stroke-width="3" '
@@ -181,7 +201,7 @@ def build(destination):
                 if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or name in seen:
                     raise ValueError("Duplicate or invalid icon name: " + name)
                 seen.add(name)
-                (directory / (name + ".svg")).write_text(render(kind, group == "apps"), encoding="utf-8")
+                (directory / (name + ".svg")).write_text(render(kind, group, name), encoding="utf-8")
                 count += 1
     (theme / "index.theme").write_text("\n".join(lines), encoding="utf-8")
     print(f"Aurora: {count} icon names, {len(GLYPHS)} original glyphs")
