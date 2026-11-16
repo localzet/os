@@ -445,3 +445,19 @@ palette contained zero Executive pixels. Its light navigation then failed.
 Use Nautilus 50's explicit Alt+1/Alt+2 tab shortcuts and bounded title polling,
 with failure screenshots. The latest branch can run the same trusted
 Nautilus installed-image gate after all three modes pass.
+
+### Office window evidence: exact drawable, not overlapping screen
+
+144cf70 passed both offline document render modes with identical metrics
+(0.7534 dominance, 25 detail tiles, 32 colors), and the real screenshot shows
+the fixture document. No software rendering default is needed. PR 94 passed
+its numeric screen gate and native lock wake/recheck; manual review confirmed
+the real lock clock but the alleged office screenshot instead shows Hardware
+over a white editor. Reject this as an office false positive. Open the same
+synthetic DOCX in the installed guest, stop only earlier transient test units,
+require its title and focus, capture the exact X11 drawable, require the blue
+heading ink inside the page region, and transfer the bounded PNG to the host
+for independent validation. Do not inspect real user files or change security
+settings. Existing PR 96 runs remain intact; this branch can build a new
+Native Files candidate only after all gates succeed. The QEMU document gate
+is still pending; isolated X11 success alone is not installed OS acceptance.

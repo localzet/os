@@ -40,7 +40,7 @@ packages="ubuntu-keyring,ca-certificates,ubuntu-minimal,systemd-sysv,linux-gener
 packages+=",ubuntu-drivers-common,python3-apt,mokutil,budgie-wallpapers-resolute,python3-pil"
 # Private office visual verification requires real Xwayland window discovery.
 if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
-    packages+=",xdotool"
+    packages+=",xdotool,imagemagick"
 fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     packages+=",docker.io,docker-compose-v2,gir1.2-vte-3.91,openssh-client,uidmap,slirp4netns,fuse-overlayfs"

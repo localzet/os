@@ -13,7 +13,7 @@ class CandidateScriptTests(unittest.TestCase):
     def test_full_candidate_assertions_are_present(self):
         script = module.installed_script("complete", True, True, True, True)
         for marker in ("installed Executive Files package launched", "sleep 30", "LOCALZET_CANDIDATE_STILL_LOCKED",
-                       "LOCALZET_CANDIDATE_OFFICE_GEOMETRY", "installed native ONLYOFFICE launched"):
+                       "LOCALZET_CANDIDATE_OFFICE_PNG", "installed native ONLYOFFICE launched", "Localzet-offline-review.docx", "Fixture heading ink"):
             self.assertIn(marker, script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
