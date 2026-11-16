@@ -1,0 +1,56 @@
+name: ONLYOFFICE offline rendering matrix
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/onlyoffice-render-smoke.yml'
+      - 'scripts/ci/onlyoffice-render-smoke.sh'
+      - 'scripts/ci/office-fixture.py'
+      - 'scripts/visual-evidence.py'
+      - 'scripts/fetch-onlyoffice.py'
+      - 'config/upstream/onlyoffice.json'
+permissions:
+  contents: read
+concurrency:
+  group: onlyoffice-render-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+jobs:
+  render:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [default, software]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install reviewed package in disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl xvfb xauth xdotool imagemagick dbus-x11 openbox mesa-utils python3-pil
+          deb="$(python3 scripts/fetch-onlyoffice.py deb "$RUNNER_TEMP/office")"
+          test "$(dpkg-deb -f "$deb" Package)" = onlyoffice-desktopeditors
+          test "$(dpkg-deb -f "$deb" Version)" = 10.0.0-169
+          test "$(dpkg-deb -f "$deb" Architecture)" = amd64
+          dpkg-deb -e "$deb" "$RUNNER_TEMP/office-control"
+          for script in preinst postinst prerm config; do
+            test ! -e "$RUNNER_TEMP/office-control/$script"
+          done
+          sudo apt-get --simulate --no-install-recommends install "$deb" > "$RUNNER_TEMP/office-plan"
+          if grep -Eq '^(Remv |Inst (ttf-mscorefonts-installer|ubuntu-restricted-extras)( |:))' "$RUNNER_TEMP/office-plan"; then exit 2; fi
+          sudo apt-get install -y --no-remove --no-install-recommends "$deb"
+      - name: Render a real document without network access
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          # New network namespace for the entire unprivileged test session.
+          # No changes to the real app or its installed desktop entry.
+          sudo unshare --net -- runuser -u "$(id -un)" -- env LOCALZET_DISPOSABLE_VM=1 PATH="$PATH" \
+            xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash scripts/ci/onlyoffice-render-smoke.sh "$MODE"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: onlyoffice-render-${{ matrix.mode }}
+          path: out/office-render/
+          if-no-files-found: warn
+          retention-days: 7

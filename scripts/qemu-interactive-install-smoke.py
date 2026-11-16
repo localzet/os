@@ -485,11 +485,16 @@ launch_app nautilus /usr/bin/nautilus
 printf '\nPASS: installed Executive Files package launched\n'
 """
         marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated installed Files insertion marker")
         script = script.replace(marker, check + marker)
+        assert "installed Executive Files package launched" in script
     if executive_review and office:
         # Keep the foreground editor available while the host checks actual
         # content. This is a test delay, not a change to shipped software.
         marker = r"printf '\nLOCALZET_CANDIDATE_WINE_START\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated office visual wait marker")
         script = script.replace(marker, "sleep 30\n" + marker)
     if executive_review:
         script += r"""
