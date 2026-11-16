@@ -80,3 +80,13 @@ icon for every app. DevKit smoke clicks the actual dock, enters a query,
 opens the selected real application and captures screenshots. Installed ISO
 candidate retains engineering-only status; physical review and full profile
 provisioning remain release gates.
+
+### Aurora system surfaces
+
+The native GNOME Quick Settings and date/notification menu receive scoped
+Aurora graphite surfaces, compact controls, focus marks, and calendar/message
+styling. The underlying network, volume, power, authentication, calendar and
+notification actions remain upstream. Styling and menu signal subscriptions
+are removed on extension disable or high contrast. DevKit tests must open
+both actual menus and submit a real session notification. This change does
+not replace the GNOME system controllers or claim a new notification daemon.
