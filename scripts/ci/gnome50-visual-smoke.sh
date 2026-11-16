@@ -63,6 +63,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
@@ -98,8 +99,13 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 5
   grep -F "Localzet Launcher: activated org.gnome.Ptyxis.desktop" "$OUT/gnome-shell.log" || exit 1
   pgrep -x ptyxis || exit 1
+  sleep 3
+  grep -E "Localzet Dock: running=[1-9][0-9]* items=" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-dock-running.png" || exit 1
   pkill -x ptyxis || true
-  sleep 2
+  sleep 5
+  grep -E "Localzet Dock: running=0 items=[01]$" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-dock-idle.png" || exit 1
   xdotool windowfocus --sync "$window" key super+a || exit 1
   sleep 5
   import -window root "$OUT/aurora-app-grid.png" || exit 1
