@@ -37,6 +37,14 @@ class NetBirdReviewTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 parse_status(json.dumps(data))
 
+    def test_missing_peer_summary_is_not_zero(self):
+        self.assertEqual(parse_status('{"daemonStatus":"Connected"}'), {"state": "Connected"})
+        self.assertEqual(parse_status('{"daemonStatus":"Idle","peers":{"total":0,"connected":0}}'),
+                         {"state": "Idle", "total": 0, "connected": 0})
+        for peers in (None, {}, {"total": 0}, {"connected": 0}):
+            with self.subTest(peers=peers), self.assertRaises(ValueError):
+                parse_status(json.dumps({"daemonStatus": "Connected", "peers": peers}))
+
     def test_missing_client_does_not_spawn_process(self):
         with patch("localzet.netbird.installed", return_value=False), patch("localzet.netbird.subprocess.run") as run:
             self.assertEqual(status(), {"state": "not-installed"})

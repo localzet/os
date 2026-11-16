@@ -22,10 +22,12 @@ def parse_status(raw):
     if not isinstance(data, dict) or data.get("daemonStatus") not in STATES:
         raise ValueError("Unrecognized NetBird daemon status")
     state = data["daemonStatus"]
-    peers = data.get("peers", {})
+    peers = data.get("peers")
+    if peers is None and "peers" not in data:
+        return {"state": state}
     if not isinstance(peers, dict):
         raise ValueError("Invalid NetBird peer summary")
-    total, connected = peers.get("total", 0), peers.get("connected", 0)
+    total, connected = peers.get("total"), peers.get("connected")
     if (type(total) is not int or type(connected) is not int
             or not 0 <= connected <= total <= 1000000):
         raise ValueError("Invalid NetBird peer counts")
