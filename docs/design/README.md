@@ -235,3 +235,15 @@ selectable. The build and devkit run the same offline generator; actual visual
 acceptance is pending. The desktop package now generates the derived asset in postinst after its
 archive and Pillow dependencies are configured; removal cleans up only the
 generated asset. Existing preferences are unchanged.
+
+### Executive native window language — Settings
+
+Localzet Settings uses a real persistent navigation sidebar, separate page
+headings and concise native preference rows. Home, Components and System
+are keyboard-accessible via Ctrl+1/2/3; appearance launches the upstream
+GNOME settings panel. No fake installation switches or telemetry. Shared
+process-local dark provider adds restrained card borders, compact corners
+and readable secondary text; explicit light and high contrast continue to
+use the native style. No user-wide GTK stylesheet is installed. The actual
+GTK smoke checks navigation and captures all three views. This is not a
+Nautilus or third-party window theme.
