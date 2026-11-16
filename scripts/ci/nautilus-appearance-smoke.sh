@@ -10,7 +10,17 @@ case "$mode" in
     *) exit 2 ;;
 esac
 work="$(mktemp -d)"
-trap 'nautilus -q >/dev/null 2>&1 || true; rm -rf -- "$work"' EXIT
+pid=""
+wm=""
+cleanup() {
+    if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+    if [[ -n "$wm" ]]; then kill "$wm" 2>/dev/null || true; wait "$wm" 2>/dev/null || true; fi
+    rm -rf -- "$work"
+}
+trap cleanup EXIT
+openbox > "$OUT/window-manager-$mode.log" 2>&1 &
+wm=$!
+sleep 2
 mkdir -p "$work"/{Documents,Projects,Downloads,Pictures}
 printf 'Localzet native file manager review\n' > "$work/README.txt"
 gsettings set org.gnome.desktop.interface icon-theme Aurora
@@ -55,7 +65,18 @@ xdotool type --clearmodifiers "$work/Documents"
 xdotool key Return
 sleep 2
 xdotool getwindowname "$window" | grep -F Documents
-xdotool key ctrl+t
-sleep 1
-xdotool key ctrl+w
-nautilus -q
+xdotool windowactivate --sync "$window"
+xdotool key --clearmodifiers ctrl+t
+sleep 2
+xdotool key --clearmodifiers ctrl+l
+xdotool type --clearmodifiers "$work/Projects"
+xdotool key Return
+sleep 2
+xdotool getwindowname "$window" | grep -F Projects
+xdotool key --clearmodifiers ctrl+shift+Tab
+sleep 2
+xdotool getwindowname "$window" | grep -F Documents
+import -window "$window" "$OUT/nautilus-$mode-tabs.png"
+echo "PASS: $mode palette, navigation and two native tabs"
+# Cleanup is best effort; quitting the last window may already end the app.
+# Do not treat a second quit invocation as a visual regression.

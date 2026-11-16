@@ -248,7 +248,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False, executive_review=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False):
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -475,6 +475,17 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed native ONLYOFFICE launched" in script
+    if native_files:
+        check = r"""
+for package in nautilus nautilus-data libnautilus-extension4; do
+    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet1 ]]
+done
+test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
+launch_app nautilus /usr/bin/nautilus
+printf '\nPASS: installed Executive Files package launched\n'
+"""
+        marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
+        script = script.replace(marker, check + marker)
     if executive_review and office:
         # Keep the foreground editor available while the host checks actual
         # content. This is a test delay, not a change to shipped software.
@@ -526,6 +537,7 @@ def main():
     parser.add_argument("--expect-containers", action="store_true")
     parser.add_argument("--expect-office", action="store_true")
     parser.add_argument("--expect-executive-review", action="store_true")
+    parser.add_argument("--expect-native-files", action="store_true")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
         parser.error("Office candidate requires Standard or Complete archive profile")
@@ -567,7 +579,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()

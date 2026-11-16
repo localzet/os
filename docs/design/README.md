@@ -399,3 +399,19 @@ review. Keep the verified preview available while this separate branch runs.
 The dock now reserves a native bottom workarea strip to prevent maximized
 windows overlapping the floating dock; fullscreen behavior remains native
 and needs visual verification.
+
+### Native Files integration candidate
+
+PR 93 built and installed all three Nautilus 50.2.2 packages and verified
+actual dark palette pixels and directory navigation. The test failed after
+navigation during tab/quit handling in the unmanaged Xvfb session; light and
+high-contrast were not reached. Use a disposable Openbox window manager,
+verify two real tab locations and treat teardown separately from acceptance.
+Only after all three visual tests pass, build an exact source-matched Complete
+candidate using the same workflow's Nautilus package artifact and checksum.
+Reject version drift; keep Ubuntu updates unpinned. Verify installed versions
+and process launch, Wine, office visual gate and lock state before upload.
+The already published PR 91 snapshot is unchanged. New installed lock logs
+from PR 92 confirm the visual-only extension active and desktop extension
+inactive, but its screen capture was still inactive; office remains blank.
+Neither is considered visually accepted.
