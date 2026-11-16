@@ -63,6 +63,13 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
+  install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
+  profile=4e6f25d9af1244aa896f5b028bf7a020
+  gsettings set org.gnome.Ptyxis profile-uuids "['$profile']" || exit 1
+  gsettings set org.gnome.Ptyxis default-profile-uuid "$profile" || exit 1
+  gsettings set org.gnome.Ptyxis interface-style system || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette Aurora || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
@@ -106,6 +113,24 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[01] focused=0$" || exit 1
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
+  # The panel is still the real GNOME panel. Exercise the real menus and
+  # deliver an original notification through the session's standard bus.
+  grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
+  width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
+  xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-quick-settings.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
+  notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
+  sleep 2
+  xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-notifications.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
   xdotool windowfocus --sync "$window" key super+a || exit 1
   sleep 5
   import -window root "$OUT/aurora-app-grid.png" || exit 1
