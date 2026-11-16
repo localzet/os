@@ -1,21 +1,7 @@
-/* Localzet Aurora Dark, scoped to our application. GTK CSS, not web CSS. */
-@define-color accent_bg_color #9b72f2;
-@define-color accent_fg_color #10091e;
-@define-color window_bg_color #10091e;
-@define-color window_fg_color #f4eeff;
-@define-color card_bg_color #28183f;
-@define-color card_fg_color #f4eeff;
-
-window.localzet-settings {
-    color: #f4eeff;
-    background-color: #10091e;
-}
-window.localzet-settings headerbar {
-    background-color: #28183f;
-}
+/* Layout-only rules; the shared application provider owns Midnight colors. */
 window.localzet-settings .localzet-summary {
     border-radius: 8px;
-    background-color: alpha(#9b72f2, 0.08);
+    background-color: alpha(currentColor, 0.06);
 }
 window.localzet-settings .heading {
     font-weight: 600;

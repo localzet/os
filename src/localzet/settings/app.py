@@ -21,8 +21,6 @@ def main() -> int:
         print(f"Localzet Settings requires GTK4, libadwaita and python3-gi: {exc}", file=sys.stderr)
         return 2
 
-    # Localzet Aurora is dark-first. Expose a theme switch in a later milestone.
-    Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
 
     class SettingsApp(Adw.Application):
         def __init__(self):
@@ -118,12 +116,14 @@ def main() -> int:
             return page
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(
                 application=self, title="Localzet Settings",
             )
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(930, 650)
             self.window.add_css_class("localzet-settings")
             stack = Adw.ViewStack()

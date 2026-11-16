@@ -150,3 +150,14 @@ GNOME controls and installed app actions. Do not copy the reference's invented
 hardware values, version labels or logos. A detailed alpine wallpaper, unified
 native GTK/libadwaita windows, glass clipping, lock screen and installer remain
 separate acceptance work. This change is not visual approval or a finished ISO.
+
+### Midnight native application and boot palette
+
+All seven Localzet GTK/libadwaita windows use a shared process-local provider
+in dark mode only. Light mode and high contrast retain upstream colors;
+no global GTK CSS, GTK_THEME override or external application patch is used.
+Containers retains its compact workspace layout. GRUB and Plymouth use the
+same blue/graphite palette and canonical logo; disk/authentication logic is
+unchanged. Settings CI checks actual painted surface colors. External GTK
+applications (including Nautilus) and lock-screen glass still need separate
+review. This is a candidate, not a claim of finished visual acceptance.

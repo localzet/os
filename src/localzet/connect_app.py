@@ -24,11 +24,12 @@ def main() -> int:
             self.running = False
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
-            Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
             self.window = Adw.ApplicationWindow(application=self, title="NectarLink — настройка")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(650, 460)
             self.window.connect("close-request", lambda *_: self.running)
             toolbar = Adw.ToolbarView()

@@ -58,10 +58,12 @@ def create_application():
             self.last_state = None
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Hardware")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(780, 640)
             toolbar = Adw.ToolbarView()
             header = Adw.HeaderBar()

@@ -45,7 +45,7 @@ export class AuroraLauncher {
         this._buttons = new Map();
         const categoryIcons = {"all":"view-app-grid-symbolic","system":"preferences-system-symbolic","development":"applications-development-symbolic","media":"applications-multimedia-symbolic","internet":"applications-internet-symbolic","office":"applications-office-symbolic","games":"applications-games-symbolic"};
         for (const [id, label] of FILTERS) {
-            const categoryContent = new St.BoxLayout({style_class: 'localzet-category-content'});
+            const categoryContent = new St.BoxLayout({style_class: 'localzet-category-content', x_expand: true, x_align: Clutter.ActorAlign.START});
             categoryContent.add_child(new St.Icon({icon_name: categoryIcons[id], icon_size: 15}));
             categoryContent.add_child(new St.Label({text: label, y_align: Clutter.ActorAlign.CENTER}));
             const button = new St.Button({child: categoryContent, accessible_name: label, can_focus: true, reactive: true,
@@ -143,7 +143,11 @@ export class AuroraLauncher {
             tile.add_child(icon);
             const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
                 x_align: Clutter.ActorAlign.CENTER});
-            label.set_width(83);
+            label.set_width(92);
+            label.set_height(30);
+            label.clutter_text.set_line_alignment(Pango.Alignment.CENTER);
+            label.clutter_text.set_line_wrap(true);
+            label.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
             label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             tile.add_child(label);
             const button = new St.Button({child: tile, can_focus: true, reactive: true,

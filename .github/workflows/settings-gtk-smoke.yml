@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'src/localzet/settings/**'
+      - 'src/localzet/appearance.py'
       - 'apps/localzet-settings/**'
       - 'packaging/com.localzet.Settings.desktop'
       - 'scripts/ci/settings-gtk-smoke.sh'

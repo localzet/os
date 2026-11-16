@@ -37,6 +37,13 @@ if im.width < 900 or im.height < 600:
     raise SystemExit("Unexpected framebuffer size")
 if len(set(im.resize((80, 50)).getdata())) < 20:
     raise SystemExit("Blank/undrawn GTK window")
+from collections import Counter
+pixels = Counter(im.getdata())
+for color in ("091321", "101b2d"):
+    count = pixels[tuple(bytes.fromhex(color))]
+    print("Midnight", color, "pixels:", count)
+    if count < 1000:
+        raise SystemExit("Missing actual Midnight surface: " + color)
 print("GTK window captured", im.size)
 PY
 '
