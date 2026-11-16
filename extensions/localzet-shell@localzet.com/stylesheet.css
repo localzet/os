@@ -3,15 +3,16 @@
 .localzet-dock {
     padding: 4px 8px;
     spacing: 4px;
-    border-radius: 12px;
-    background-color: #28183f;
-    box-shadow: 0 5px 18px rgba(16, 9, 30, 0.48);
+    border-radius: 9px;
+    background-color: #202128;
+    border: 1px solid #3c3d48;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
 }
 .localzet-dock-button {
     min-width: 36px;
     min-height: 36px;
     padding: 3px;
-    border-radius: 7px;
+    border-radius: 5px;
     color: #f4eeff;
     background-color: transparent;
 }
@@ -29,10 +30,10 @@
 /* Native panel controls retain the upstream input and popup behavior. */
 #panel.localzet-panel {
     height: 32px;
-    background-color: #10091e;
-    color: #f4eeff;
+    background-color: #17181e;
+    color: #e8e8ee;
 }
 #panel.localzet-panel.localzet-panel-glass {
     /* Only enabled with a real Shell.BlurEffect, never on its own. */
-    background-color: rgba(40, 24, 63, 0.66);
+    background-color: rgba(23, 24, 30, 0.82);
 }
