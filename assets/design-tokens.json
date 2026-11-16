@@ -1,5 +1,5 @@
 {
-  "name": "Localzet Aurora — Midnight Blue",
+  "name": "Localzet Aurora — Executive",
   "status": "Midnight reference correction; review and visual acceptance pending",
   "colors": {
     "background": "#091321",
@@ -41,8 +41,8 @@
     "panelHeight": 30,
     "tableRowMin": 32,
     "tableRowMax": 36,
-    "dockIcon": 32,
-    "dockHeight": 54,
+    "dockIcon": 38,
+    "dockHeight": 62,
     "accessibleScale": true
   }
 }

@@ -172,3 +172,66 @@ files, power state or unsupported actions. System icons use filled silhouettes
 and restrained material shading; third-party brand artwork remains upstream.
 The remaining landscape wallpaper, rounded compositor glass, lock screen,
 third-party window styling and actual hardware acceptance are not complete.
+
+### Executive landscape — interim signed-archive asset
+
+New installations and the GNOME devkit use the same Mt Shuksan photograph by
+ezspain (CC BY-SA 4.0) from Ubuntu 26.04's signed archive package
+`budgie-wallpapers-resolute`. The file is unmodified and the package's original
+copyright is retained. No mutable external wallpaper download occurs during
+installation. The existing original Aurora SVG is still available in GNOME's
+background chooser; user overrides are not reset by the extension.
+Source: https://discourse.ubuntubudgie.org/t/ubuntu-budgie-26-04-wallpaper-contest/8474/13
+License: https://creativecommons.org/licenses/by-sa/4.0/
+Archive: https://packages.ubuntu.com/resolute/all/budgie-wallpapers-resolute/filelist
+
+This is a real 4K landscape candidate, not the final sunset/lake hero artwork.
+The devkit now installs actual Nautilus, Epiphany and Settings packages and
+uses the same four favorites as the installed image, rather than accidental
+runner applications. Native icon theme and compositor behavior remain intact.
+
+### Executive system controls and file manager review
+
+Native GNOME Quick Settings now uses explicit split-toggle geometry,
+RTL-aware corners, separate checked/hover/disabled/focus states, compact
+sliders and notification actions. No fake controls or hardware states are
+introduced. Dock separates the launcher from actual favorite/running tasks,
+with an explicit high-contrast outline. New profiles use GNOME's supported
+blue accent (not global GTK CSS). Visual smoke requires all four default
+favorites and captures the real Nautilus window with disposable folders.
+Nautilus keeps upstream libadwaita window chrome; no full custom window theme
+or rounded compositor blur is claimed. Fresh visual acceptance required.
+
+### Executive visual review correction
+
+The aa1fdec devkit artifact 14222776153 captured actual launcher, Quick Settings,
+notifications and XTerm, with four real pinned applications. The Nautilus
+check failed because it launched via the outer Xvfb display, not nested Shell.
+Launch Nautilus through the Command Hub and verify its real focused dock state
+before navigating to the disposable folder and capturing. The launcher now
+anchors to the full dock, icon size is 38 logical px, dock height 62, and the
+launcher uses a filled, blue-neutral four-cell mark. Reduce oversized shadow
+extents and align the native Quick Settings header controls. The landscape
+is still brighter than the target artwork; this iteration does not assert
+final visual parity or genuine rounded blur.
+
+### Executive launcher composition
+
+Separate real pinned apps from the catalogue on the default view. The remaining
+installed apps appear once, in a smaller and denser grid. Search is global
+across categories and includes desktop keywords. No fabricated recommendations
+or recent history. Keyboard navigation accounts for the pinned row. The visual
+smoke verifies that the actual four favorites are rendered separately.
+
+### Executive Alpine Dusk
+
+The brighter Mt Shuksan review was not accepted as the final look. New images
+use a deterministic 3840×2160 dusk colorway of Mont Blanc from Arpy Lake by
+puffettacicciottella, sourced from the same signed Ubuntu package. The
+photograph is cropped and color-graded, not AI-generated or a copy of the
+reference. Source and derived artwork are CC BY-SA 4.0; explicit attribution
+ships with the package. The original Aurora and Mt Shuksan backgrounds remain
+selectable. The build and devkit run the same offline generator; actual visual
+acceptance is pending. The desktop package now generates the derived asset in postinst after its
+archive and Pillow dependencies are configured; removal cleans up only the
+generated asset. Existing preferences are unchanged.

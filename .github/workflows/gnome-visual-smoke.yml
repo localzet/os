@@ -7,6 +7,7 @@ on:
       - 'scripts/ci/gnome50-visual-smoke.sh'
       - 'extensions/localzet-shell@localzet.com/**'
       - 'assets/wallpapers/**'
+      - 'scripts/build-executive-wallpaper.py'
       - 'assets/terminal/**'
       - 'scripts/build-aurora-icons.py'
       - 'scripts/ci/check-nectarlink-tray.py'
@@ -26,7 +27,7 @@ jobs:
           installed=0
           for attempt in 1 2 3; do
             sudo apt-get -o Acquire::Retries=2 update
-            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell gnome-shell-extension-appindicator mutter-dev-bin xdotool xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis libnotify-bin; then
+            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell gnome-shell-extension-appindicator mutter-dev-bin xdotool xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis libnotify-bin nautilus epiphany-browser gnome-control-center budgie-wallpapers-resolute; then
               installed=1
               break
             fi

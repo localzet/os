@@ -58,10 +58,14 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gnome-extensions enable ubuntu-appindicators@ubuntu.com || exit 1
   # Use the actual shipped wallpaper and leave the startup overview before
   # capturing. The devkit's default blue test background is not Aurora.
-  wallpaper="file://$PWD/assets/wallpapers/aurora.svg"
+  test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
+  test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
+  python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
+  wallpaper="file://$OUT/executive-dusk.jpg"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
+  gsettings set org.gnome.desktop.interface accent-color blue || exit 1
   gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
   install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
   profile=4e6f25d9af1244aa896f5b028bf7a020
@@ -72,7 +76,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.Ptyxis interface-style dark || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
-  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'google-chrome.desktop', 'firefox.desktop']" || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
@@ -90,6 +94,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=4 " || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
@@ -100,6 +105,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   xdotool mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Launcher: pinned=4 catalogue=[0-9]+" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   xdotool type --clearmodifiers ptyxis || exit 1
   sleep 2
@@ -163,6 +169,33 @@ PY
   xdotool windowfocus --sync "$window" key Escape || exit 1
   sleep 3
   xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
+  # Capture the real GTK file manager with the shipped icon theme.
+  # Use a disposable directory, not a user's actual files.
+  mkdir -p "$HOME/Localzet-visual-review"/{Documents,Projects,Downloads}
+  # Launch through the nested shell, not the outer Xvfb DISPLAY inherited
+  # by this script (the previous test opened Nautilus outside the devkit).
+  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  IFS=, read -r dock_x dock_y <<< "$dock"
+  xdotool windowfocus --sync "$window" mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  sleep 2
+  xdotool type --clearmodifiers nautilus || exit 1
+  sleep 2
+  xdotool key Return || exit 1
+  for attempt in $(seq 1 25); do
+    if grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -Eq "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Launcher: activated org.gnome.Nautilus.desktop" "$OUT/gnome-shell.log" || exit 1
+  pgrep -x nautilus || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  xdotool key --clearmodifiers ctrl+l || exit 1
+  xdotool type --clearmodifiers "$HOME/Localzet-visual-review" || exit 1
+  xdotool key Return || exit 1
+  sleep 3
+  import -window root "$OUT/aurora-nautilus.png" || exit 1
+  xdotool key --clearmodifiers alt+F4 || exit 1
+  rm -rf "$HOME/Localzet-visual-review"
   sleep 3
   # Exercise teardown/re-enable, including the accessibility fallback.
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
