@@ -5,7 +5,7 @@
     spacing: 4px;
     border-radius: 9px;
     background-color: #101b2d;
-    border: 1px solid #2d425d;
+    border: 1px solid rgba(137, 161, 194, .24);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
 }
 .localzet-dock-button {
@@ -162,3 +162,8 @@
 
 #panel.localzet-panel .panel-button { padding: 0 8px; font-weight: 500; }
 #panel.localzet-panel .panel-button:hover { background-color: #1e304a; }
+
+/* Executive navigation, native panel button. */
+#panel.localzet-panel .localzet-panel-navigation { padding: 0 9px; }
+.localzet-panel-brand { spacing: 6px; font-size: 12px; font-weight: 600; }
+.localzet-panel-brand StIcon { color: #a9c7e9; }

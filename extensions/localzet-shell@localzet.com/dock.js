@@ -187,6 +187,11 @@ export class LocalzetDock {
             console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
 
+    toggleLauncher() {
+        if (this._actor.visible)
+            this._launcher.toggle();
+    }
+
     destroy() {
         if (this._idle)
             GLib.source_remove(this._idle);
