@@ -382,3 +382,20 @@ No global CSS override, no dpkg diversion, no replacement file manager.
 Package experiment only: integration into the ISO and security-update path
 require successful native build and visual review first. Complete candidate
 continues separately on PR 91, without cancellation.
+
+### Installed visual acceptance correction
+
+PR 91's Complete engineering ISO passed USB install, authenticated Wayland,
+archive package inventory, unprivileged Containers, a native ONLYOFFICE
+window and Wine fixture exit 42. Artifact 14226327961 is an engineering
+snapshot, not a release. On manual image review the ONLYOFFICE screenshot
+was effectively blank white and the lock frame showed QEMU display inactive.
+Those screenshots do not prove usable rendering or lock appearance. Require
+a nonblank central application region, multiple detailed image tiles and
+color diversity, plus actual lock display wake via pointer motion and a
+second LockedHint check. These metrics reject obvious blank captures, not
+all rendering faults. No password or unlock input is generated during lock
+review. Keep the verified preview available while this separate branch runs.
+The dock now reserves a native bottom workarea strip to prevent maximized
+windows overlapping the floating dock; fullscreen behavior remains native
+and needs visual verification.
