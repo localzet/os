@@ -88,8 +88,17 @@ def main():
             if installed(UI):
                 self.launch(["/usr/bin/env", "WEBKIT_DISABLE_DMABUF_RENDERER=1", str(UI)])
 
+        @staticmethod
+        def usernet_app():
+            # PyGObject raises TypeError for a NULL constructor result when
+            # the optional desktop entry is not installed.
+            try:
+                return Gio.DesktopAppInfo.new("com.localzet.usernet.desktop")
+            except TypeError:
+                return None
+
         def open_usernet(self, *_):
-            app = Gio.DesktopAppInfo.new("com.localzet.usernet.desktop")
+            app = self.usernet_app()
             if app:
                 try:
                     app.launch([], None)
@@ -102,7 +111,7 @@ def main():
             self.busy = True
             self.refresh_button.set_sensitive(False)
             self.open_button.set_sensitive(installed(UI))
-            self.usernet_button.set_sensitive(Gio.DesktopAppInfo.new('com.localzet.usernet.desktop') is not None)
+            self.usernet_button.set_sensitive(self.usernet_app() is not None)
             proxy = proxy_status()
             self.proxy_row.set_subtitle({'none': 'Выключен', 'auto': 'Автоматический (PAC)', 'manual': 'Ручной', 'unavailable': 'Недоступен'}[proxy['mode']])
             self.endpoint_row.set_subtitle(f"Локальные: {proxy['local']} · внешние: {proxy['remote']}" if proxy['mode'] == 'manual' else '—')
