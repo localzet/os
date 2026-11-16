@@ -1,7 +1,8 @@
+import json
 import unittest
 from unittest.mock import patch
 from localzet.hardware import PCIDevice
-from localzet.hardware_firstboot import identity, next_step
+from localzet.hardware_firstboot import decode_state, identity, next_step
 
 
 GPU = PCIDevice("0000:01:00.0", "10de", "1234", "030000", "nouveau")
@@ -47,5 +48,43 @@ class FirstBootTests(unittest.TestCase):
                 "localzet.hardware_firstboot.transaction") as transaction:
             with self.assertRaisesRegex(ValueError, "authorization"):
                 run()
+            update.assert_not_called()
+            transaction.assert_not_called()
+
+    def test_general_policy_baseline_and_reboot(self):
+        hardware = (GPU, AUDIO)
+        state = {"schema": 1, "state": "base-awaiting-reboot",
+                 "hardware": identity(hardware, True), "boot_id": "first"}
+        self.assertEqual(next_step(None, hardware, "first", False, True), "base")
+        self.assertEqual(next_step(state, hardware, "first", True, True), "base-awaiting-reboot")
+        self.assertEqual(next_step(state, hardware, "second", False, True), "driver")
+        self.assertEqual(next_step(state, hardware, "second", True, True), "cuda")
+        self.assertEqual(next_step(state, (GPU,), "second", True, True), "blocked")
+
+    def test_receipt_validation(self):
+        valid = self.previous("offline", phase="driver")
+        self.assertEqual(decode_state(json.dumps(valid).encode()), valid)
+        self.assertIsNone(decode_state(None))
+        for value in (None, [], {}, {**valid, "schema": True},
+                      {**valid, "state": []}, {**valid, "state": "unknown"},
+                      {**valid, "boot_id": ""}, {**valid, "hardware": ["bad"]},
+                      {**valid, "phase": []}, {**valid, "phase": "unknown"}):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "receipt"):
+                decode_state(json.dumps(value).encode())
+        with self.assertRaisesRegex(ValueError, "receipt"):
+            decode_state(b"not-json")
+
+    def test_invalid_receipt_never_touches_apt(self):
+        from localzet.hardware_firstboot import run
+        with patch("localzet.hardware_firstboot.installed_system"), patch(
+                "localzet.hardware_firstboot.authorized", return_value="general"), patch(
+                "localzet.hardware_firstboot.read_private", return_value=b"{}"), patch(
+                "localzet.hardware_firstboot.inventory") as inventory, patch(
+                "localzet.hardware_firstboot.update_cache") as update, patch(
+                "localzet.hardware_firstboot.transaction") as transaction, patch.dict(
+                "os.environ", {}, clear=False):
+            with self.assertRaisesRegex(ValueError, "receipt"):
+                run()
+            inventory.assert_not_called()
             update.assert_not_called()
             transaction.assert_not_called()
