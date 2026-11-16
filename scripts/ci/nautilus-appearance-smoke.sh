@@ -23,8 +23,12 @@ wm=$!
 sleep 2
 mkdir -p "$work"/{Documents,Projects,Downloads,Pictures}
 printf 'Localzet native file manager review\n' > "$work/README.txt"
+for name in build-notes.txt release-notes.md manifest.json packages.tsv screenshot-review.txt; do
+    printf 'Original Localzet test fixture\n' > "$work/$name"
+done
 gsettings set org.gnome.desktop.interface icon-theme Aurora
 gsettings set org.gnome.nautilus.icon-view default-zoom-level small-plus
+gsettings set org.gnome.nautilus.preferences default-folder-viewer icon-view
 # A dedicated runner-only configuration is not shipped in the image.
 mkdir -p "$HOME/.config/gtk-4.0"
 printf '[Settings]\ngtk-icon-theme-name=Aurora\n' > "$HOME/.config/gtk-4.0/settings.ini"
@@ -51,7 +55,7 @@ with Image.open(sys.argv[1]) as im:
     im = im.convert("RGB")
     pixels = Counter(im.getdata())
     assert im.width >= 800 and im.height >= 500, im.size
-    counts = [pixels[tuple(bytes.fromhex(c))] for c in ("0e1928", "15243a", "142337")]
+    counts = [pixels[tuple(bytes.fromhex(c))] for c in ("202124", "343539", "303136")]
     print(sys.argv[2], "Executive palette pixels:", counts)
     if sys.argv[2] == "dark":
         assert all(n > 1000 for n in counts), counts
@@ -59,6 +63,24 @@ with Image.open(sys.argv[1]) as im:
         assert all(n < 1000 for n in counts), counts
 PY
 ! grep -Ei 'theme parser error|css parser error|Gtk-CRITICAL|segmentation fault' "$OUT/nautilus-$mode.log"
+# Capture list view as well: the owner's reference is a detailed file list.
+# Native Nautilus 50 uses Ctrl+2 for list view and Ctrl+1 for grid view.
+xdotool windowactivate --sync "$window"
+xdotool key --clearmodifiers ctrl+2
+sleep 3
+import -window "$window" "$OUT/nautilus-$mode-list.png"
+if [[ "$mode" == dark ]]; then
+    python3 - "$OUT/nautilus-$mode-list.png" <<'PY'
+from PIL import Image
+from collections import Counter
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+counts = Counter(im.getdata())
+assert counts[(32,33,36)] > 1000 and counts[(52,53,57)] > 1000
+PY
+fi
+xdotool key --clearmodifiers ctrl+1
+sleep 2
 # Native Nautilus 50 documents Alt+1..9 via win.go-to-tab. Use
 # explicit tab indices, not a toolkit-dependent Ctrl+Shift+Tab gesture.
 wait_title() {

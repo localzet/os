@@ -7,13 +7,20 @@ bundle="$(realpath -e -- "$2")"
 repo="$(realpath -e -- "$3")"
 [[ "$root" != / && -d "$root/var/lib/dpkg" && -d "$bundle" ]]
 [[ -f "$bundle/BUILD-COMMIT" && ! -L "$bundle/BUILD-COMMIT" ]]
-[[ "$(cat "$bundle/BUILD-COMMIT")" == "$(git -c "safe.directory=$repo" -C "$repo" rev-parse HEAD)" ]]
+expected_commit="$(git -c "safe.directory=$repo" -C "$repo" rev-parse HEAD)"
+actual_commit="$(cat "$bundle/BUILD-COMMIT")"
+[[ "$actual_commit" == "$expected_commit" ]] || {
+    echo "Nautilus checkout mismatch: bundle=$actual_commit checkout=$expected_commit" >&2; exit 2;
+}
 shopt -s nullglob
 files=("$bundle"/*.deb)
 [[ ${#files[@]} == 3 && -f "$bundle/SHA256SUMS" && ! -L "$bundle/SHA256SUMS" ]]
 for f in "${files[@]}"; do [[ -f "$f" && ! -L "$f" ]]; done
 expected="$(cd "$bundle"; for f in "${files[@]}"; do sha256sum -- "${f##*/}"; done | sort)"
-[[ "$(sort "$bundle/SHA256SUMS")" == "$expected" ]]
+[[ "$(sort "$bundle/SHA256SUMS")" == "$expected" ]] || {
+    echo "Nautilus artifact checksum manifest mismatch" >&2
+    exit 2
+}
 stage="$(mktemp -d "$root/tmp/localzet-nautilus.XXXXXXXX")"
 trap 'rm -rf -- "$stage"' EXIT
 rel="/tmp/${stage##*/}"
@@ -27,7 +34,11 @@ for f in "${files[@]}"; do
         *) echo "Unexpected package: $package:$arch" >&2; exit 2 ;;
     esac
     old="$(chroot "$root" dpkg-query -W -f='${Version}' "$package")"
-    [[ "$old" =~ ^([0-9]+:)?50\. && "$version" == "$old+localzet1" ]]
+    printf 'Nautilus package version: %s rootfs=%s bundle=%s\n' "$package" "$old" "$version"
+    [[ "$old" =~ ^([0-9]+:)?50\. && "$version" == "$old+localzet1" ]] || {
+        echo "Nautilus source version mismatch; rebuild from current archive" >&2
+        exit 2
+    }
     [[ ! -e "$stage/$package.deb" ]]
     install -m 0644 "$f" "$stage/$package.deb"
     names+=("$rel/$package.deb")

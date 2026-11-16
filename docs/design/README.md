@@ -461,3 +461,20 @@ for independent validation. Do not inspect real user files or change security
 settings. Existing PR 96 runs remain intact; this branch can build a new
 Native Files candidate only after all gates succeed. The QEMU document gate
 is still pending; isolated X11 success alone is not installed OS acceptance.
+
+### Soft graphite — owner screenshot correction
+
+The owner supplied their Ubuntu Files screenshot and preferred the softer
+Ubuntu/Zorin style. Actual dominant screenshot colors are approximately
+#1d1d20 content, #393939 sidebar and #3b3b3d selection. Replace the previous
+saturated navy Native Files material with slightly cool graphite #202124,
+#343539, #303136, and a nearly neutral accent-tinted selection. Restore
+9px corners, remove the hard header and breadcrumb borders, retain native
+spacing and user accent. Keep light/high contrast untouched. Add actual
+list-view captures in addition to grids and tab navigation. This is a
+source-level visual correction, pending real package screenshots. The shell
+and other application palettes are unchanged until the Files review.
+The preceding PR96 installed-image job failed inside the rootfs hook
+without a specific diagnostic. Add explicit checkout, checksum and source
+version mismatch errors; do not bypass verification. The exact rootfs
+failure cause remains unconfirmed. Preserve existing document-gate runs.

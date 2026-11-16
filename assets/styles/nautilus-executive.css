@@ -1,29 +1,31 @@
 /* Localzet Executive: only the native Files window, never a global GTK theme.
- * Preserve upstream light and high-contrast styling and the user's accent.
+ * Soft graphite, inspired by the owner's Ubuntu screenshot. Preserve native
+ * light/high-contrast modes, accent and normal GTK accessibility states.
  */
 @media (prefers-color-scheme: dark) and (prefers-contrast: no-preference) {
   window.nautilus-window {
-    --window-bg-color: #0e1928;
-    --window-fg-color: #e7edf7;
-    --view-bg-color: #0e1928;
-    --view-fg-color: #e7edf7;
-    --headerbar-bg-color: #142337;
-    --headerbar-fg-color: #e7edf7;
-    --headerbar-backdrop-color: #142337;
-    --sidebar-bg-color: #15243a;
-    --sidebar-fg-color: #dce8f7;
-    --sidebar-backdrop-color: #15243a;
-    --sidebar-border-color: #344860;
-    --card-bg-color: #192a40;
-    --card-fg-color: #e7edf7;
-    --border-color: #344860;
+    --window-bg-color: #202124;
+    --window-fg-color: #f0f0f2;
+    --view-bg-color: #202124;
+    --view-fg-color: #f0f0f2;
+    --headerbar-bg-color: #202124;
+    --headerbar-fg-color: #f0f0f2;
+    --headerbar-backdrop-color: #202124;
+    --sidebar-bg-color: #343539;
+    --sidebar-fg-color: #e6e6e9;
+    --sidebar-backdrop-color: #343539;
+    --sidebar-border-color: #414247;
+    --card-bg-color: #2f3034;
+    --card-fg-color: #f0f0f2;
+    --border-color: #424349;
     background-color: var(--view-bg-color);
     color: var(--view-fg-color);
   }
   window.nautilus-window headerbar {
     background-color: var(--headerbar-bg-color);
     color: var(--headerbar-fg-color);
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: none;
+    box-shadow: none;
   }
   window.nautilus-window placessidebar {
     background-color: var(--sidebar-bg-color);
@@ -34,31 +36,31 @@
     padding: 6px;
   }
   window.nautilus-window placessidebar .navigation-sidebar > row {
-    border-radius: 5px;
+    border-radius: 8px;
     margin: 1px 0;
   }
   window.nautilus-window placessidebar .navigation-sidebar > row:selected {
-    background-color: color-mix(in srgb, var(--accent-bg-color) 38%, var(--sidebar-bg-color));
-    color: #f1f6ff;
+    background-color: color-mix(in srgb, var(--accent-bg-color) 12%, #45464b);
+    color: #ffffff;
   }
   window.nautilus-window .nautilus-pathbar {
-    background-color: #0c1726;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+    background-color: #303136;
+    border: none;
+    border-radius: 9px;
   }
-  window.nautilus-window .nautilus-path-button { border-radius: 4px; }
+  window.nautilus-window .nautilus-path-button { border-radius: 7px; }
   window.nautilus-window .nautilus-grid-view gridview {
-    padding: 15px;
-    border-spacing: 5px;
+    padding: 18px;
+    border-spacing: 6px;
   }
   window.nautilus-window .nautilus-grid-view gridview > child,
   window.nautilus-window .nautilus-grid-view .nautilus-view-cell,
   window.nautilus-window .nautilus-list-view columnview > listview > row {
-    border-radius: 6px;
+    border-radius: 9px;
   }
   window.nautilus-window .nautilus-grid-view gridview > child:selected,
   window.nautilus-window .nautilus-list-view columnview > listview > row:selected {
-    background-color: color-mix(in srgb, var(--accent-bg-color) 35%, var(--view-bg-color));
+    background-color: color-mix(in srgb, var(--accent-bg-color) 9%, #3b3c40);
   }
-  window.nautilus-window .floating-bar { border-radius: 6px; }
+  window.nautilus-window .floating-bar { border-radius: 9px; }
 }
