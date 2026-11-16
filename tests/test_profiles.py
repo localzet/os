@@ -24,6 +24,8 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("onlyoffice-desktopeditors", result["ubuntu_package_candidates"])
         self.assertIn("office", result["external_or_localzet_pending"])
         self.assertIn("gpu-unlocker", result["external_or_localzet_pending"])
+        self.assertTrue({"codex", "claude-code"} <= set(result["external_or_localzet_pending"]))
+        self.assertTrue({"bubblewrap", "socat", "nodejs", "ripgrep"} <= set(result["ubuntu_package_candidates"]))
         self.assertNotIn("gpu-unlock-dkms", result["ubuntu_package_candidates"])
         self.assertFalse(result["install_ready"])
         self.assertFalse(result["write_operations_available"])

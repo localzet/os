@@ -65,7 +65,10 @@
         "containers",
         "devtools",
         "vscode",
-        "gpu-unlocker"
+        "gpu-unlocker",
+        "ai-development",
+        "codex",
+        "claude-code"
       ],
       "optional": [
         "discord"
@@ -253,6 +256,35 @@
       "source": "upstream",
       "packages": [],
       "url": "https://github.com/Zagitta/gpu-unlock",
+      "review": "pending"
+    },
+    "ai-development": {
+      "title": "Localzet AI Development",
+      "source": "ubuntu",
+      "packages": [
+        "bubblewrap",
+        "socat",
+        "nodejs",
+        "npm",
+        "python3-venv",
+        "ripgrep",
+        "jq"
+      ],
+      "url": "https://archive.ubuntu.com/ubuntu/",
+      "review": "pending"
+    },
+    "codex": {
+      "title": "OpenAI Codex CLI",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://github.com/openai/codex",
+      "review": "pending"
+    },
+    "claude-code": {
+      "title": "Claude Code CLI",
+      "source": "upstream",
+      "packages": [],
+      "url": "https://code.claude.com/docs/en/setup",
       "review": "pending"
     }
   }
