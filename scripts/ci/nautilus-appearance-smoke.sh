@@ -66,9 +66,35 @@ PY
 # Capture list view as well: the owner's reference is a detailed file list.
 # Native Nautilus 50 uses Ctrl+2 for list view and Ctrl+1 for grid view.
 xdotool windowactivate --sync "$window"
-xdotool key --clearmodifiers ctrl+2
-sleep 3
-import -window "$window" "$OUT/nautilus-$mode-list.png"
+# Wait for native view switching rather than label a grid image "list".
+# Four original blue folder glyphs occupy separate rows in list mode.
+for attempt in $(seq 1 6); do
+    xdotool windowactivate --sync "$window"
+    xdotool key --clearmodifiers ctrl+2
+    sleep 3
+    import -window "$window" "$OUT/nautilus-$mode-list.png"
+    if python3 - "$OUT/nautilus-$mode-list.png" <<'PY'
+from PIL import Image
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+w,h = im.size
+# Find blue folder icon bands in the first column of the file area.
+rows = []
+for y in range(int(h*.12), int(h*.53)):
+    count = sum(b > r+30 and b > g+12 and g > r+10
+                for r,g,b in (im.getpixel((x,y)) for x in range(int(w*.22),int(w*.29))))
+    if count >= 5:
+        rows.append(y)
+bands = sum(i == 0 or y > rows[i-1]+1 for i,y in enumerate(rows))
+print("List view folder bands:", bands)
+assert bands >= 4
+PY
+    then
+        list_ready=1
+        break
+    fi
+done
+test "${list_ready:-0}" = 1
 if [[ "$mode" == dark ]]; then
     python3 - "$OUT/nautilus-$mode-list.png" <<'PY'
 from PIL import Image
@@ -98,7 +124,12 @@ navigate() {
     xdotool windowactivate --sync "$window"
     xdotool key --clearmodifiers ctrl+l
     sleep 1
-    xdotool type --clearmodifiers "$work/$name"
+    # Paste one complete URI after selecting the current entry. Typing
+    # character-by-character races Nautilus' async path autocompletion.
+    xdotool key --clearmodifiers ctrl+a
+    printf '%s' "$work/$name" | xclip -selection clipboard
+    xdotool key --clearmodifiers ctrl+v
+    sleep 1
     xdotool key Return
     wait_title "$name"
 }

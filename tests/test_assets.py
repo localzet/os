@@ -22,17 +22,19 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(data['colors']['primary'], '#2874c8')
         self.assertEqual(data['density']['panelHeight'], 30)
         self.assertEqual(data['colors']['surface'], '#101b2d')
-        self.assertEqual(data['glass']['opaqueFallback'], data['colors']['surface'])
         css = (ROOT / 'extensions/localzet-shell@localzet.com/stylesheet.css').read_text()
-        for name in ('accent', 'surface', 'background', 'textPrimary'):
-            self.assertIn(data['colors'][name], css)
+        self.assertIn(data['colors']['accent'], css)
+        for name in ('panel', 'surface', 'card', 'text', 'textSecondary'):
+            self.assertIn(data['shellSurfaces'][name], css)
+        self.assertEqual(data['shellSurfaces']['surface'], data['glass']['opaqueFallback'])
         self.assertLessEqual(data['radii']['lg'], 14)
 
-    def test_native_midnight_palette(self):
+    def test_native_soft_graphite_palette(self):
         from localzet.appearance import MIDNIGHT_CSS
         data = json.loads((ROOT / 'assets/design-tokens.json').read_text())
-        for key in ('background', 'surface', 'surfaceElevated', 'primary', 'textPrimary'):
-            self.assertIn(data['colors'][key].encode(), MIDNIGHT_CSS)
+        for key in ('background', 'header', 'card', 'text', 'textSecondary', 'focus'):
+            self.assertIn(data['nativeApplications'][key].encode(), MIDNIGHT_CSS)
+        self.assertIn(data['colors']['primary'].encode(), MIDNIGHT_CSS)
         plymouth = (ROOT / 'packaging/live/aurora.plymouth').read_text()
         for key in ('background', 'surface', 'accent'):
             self.assertIn('0x' + data['colors'][key][1:], plymouth)

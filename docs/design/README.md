@@ -498,3 +498,21 @@ identical hashes. Use a single canonical basename generator in both paths,
 reject symlinks and unexpected file count, and test tampering. No checksum,
 source version or exact checkout checks are relaxed. This separate branch
 preserves PR98's actual Files appearance review.
+
+### Soft shell correction and real list-view evidence
+
+PR99 Settings visual smoke passed, all three pages and real neutral palette
+pixels. Source checks failed because an old test still required the boot
+Midnight palette in the native provider. Split native application, shell
+surface and boot token assertions; retain the original boot/GRUB colors.
+Apply neutral graphite to dock, panel, launcher, quick settings and calendar
+surfaces, leaving real enabled controls, focus and active window indicators
+blue. The wallpaper-only blurred derivative receives the same graphite tint;
+the optical test must still pass. No dynamic blur claim.
+PR98 dark and light palette/tab checks passed, but high-contrast navigation
+failed with an autocomplete-generated Documents... typo. Its dark list
+capture was actually a grid. Require four blue folder glyph rows before
+accepting list evidence, and use clipboard paste rather than per-character
+typing in the location field. Keep high-contrast palette and navigation
+checks. Update PR99 in place since its source gate is already red. Earlier
+PR97 installed test remains separate. New appearance still needs visual CI.

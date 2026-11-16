@@ -42,7 +42,7 @@ def render(source, output):
     # is tinted here, not by translucent CSS over an unblurred desktop.
     glass = image.resize((960, 540), Image.Resampling.LANCZOS).filter(
         ImageFilter.GaussianBlur(14)).resize(image.size, Image.Resampling.BICUBIC)
-    glass = Image.blend(glass, Image.new("RGB", image.size, "#101b2d"), .72)
+    glass = Image.blend(glass, Image.new("RGB", image.size, "#292a2e"), .72)
     output = Path(output)
     save_jpeg(image, output)
     save_jpeg(glass, output.with_name(output.stem + "-glass.jpg"))

@@ -26,7 +26,7 @@ sudo apt-get -o Acquire::Retries=3 update
 version="$(apt-cache policy nautilus | awk '/Candidate:/{print $2}')"
 [[ "$version" =~ ^([0-9]+:)?50\. ]]
 printf 'Ubuntu source version: %s\n' "$version" | tee "$out/provenance.txt"
-sudo apt-get install -y build-essential devscripts quilt xvfb xauth xdotool imagemagick dbus-x11 python3-pil gvfs openbox
+sudo apt-get install -y build-essential devscripts quilt xvfb xauth xdotool imagemagick dbus-x11 python3-pil gvfs openbox xclip
 sudo apt-get -y build-dep "nautilus=$version"
 cd "$work"
 apt-get source "nautilus=$version"
