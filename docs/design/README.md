@@ -366,3 +366,19 @@ the separate stylesheet extension in new images. Installed VM acceptance
 requires native lock state, the visual extension and no active desktop
 extension, plus a journal marker and real lock screenshot. No physical
 hardware or actual lock visual acceptance claimed yet.
+
+### Native Files — Executive package review
+
+The ae0a7db devkit run verified actual Localzet Network activation and a
+focused window. Native Files remains visually too close to upstream. Rebuild
+Nautilus 50 from signed Ubuntu source packages, retaining distro patches and
+upstream tests. Append a stylesheet scoped to window.nautilus-window only in
+normal-contrast dark appearance (GTK 4.20 media queries). Blue-gray sidebar,
+header and file surface, compact breadcrumb, selected rows and reduced
+corner radii follow the first reference. Preserve light/high-contrast,
+user accent, navigation, tabs and actual file operations. CI captures real
+windows in all three modes and checks palette pixels and navigation.
+No global CSS override, no dpkg diversion, no replacement file manager.
+Package experiment only: integration into the ISO and security-update path
+require successful native build and visual review first. Complete candidate
+continues separately on PR 91, without cancellation.
