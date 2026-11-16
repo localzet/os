@@ -42,13 +42,19 @@ jobs:
           printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
           x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
       - name: Install candidate from USB and authenticate installed GNOME desktop
+        env:
+          REVIEW_BRANCH: ${{ github.head_ref }}
         run: |
+          review=()
+          if [[ "$REVIEW_BRANCH" == integration/executive-complete-preview ]]; then
+            review=(--expect-executive-review)
+          fi
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
             --boot-media usb \
             --fixture "$RUNNER_TEMP/smoke.exe" \
-            --logs dist/candidate-logs --expect-archive-profile complete --expect-containers --expect-office
+            --logs dist/candidate-logs --expect-archive-profile complete --expect-containers --expect-office "${review[@]}"
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -56,4 +62,23 @@ jobs:
           name: onlyoffice-installed-image-evidence
           path: dist/candidate-logs/
           if-no-files-found: warn
+          retention-days: 7
+      - name: Record reviewed candidate provenance
+        if: success() && github.event_name == 'pull_request' && github.head_ref == 'integration/executive-complete-preview' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git rev-parse HEAD > dist/BUILD-COMMIT
+          sudo cat "$RUNNER_TEMP/candidate-root/usr/share/localzet/archive-profile-plan.json" > dist/archive-profile-plan.json
+          (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
+      - name: Publish verified engineering candidate (not a release)
+        if: success() && github.event_name == 'pull_request' && github.head_ref == 'integration/executive-complete-preview' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: executive-complete-engineering-preview
+          path: |
+            dist/localzet-uefi-candidate.iso
+            dist/localzet-uefi-candidate.iso.sha256
+            dist/BUILD-COMMIT
+            dist/archive-profile-plan.json
+          compression-level: 0
+          if-no-files-found: error
           retention-days: 7

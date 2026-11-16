@@ -102,7 +102,7 @@ export class AuroraPanel {
         const content = new St.BoxLayout({style_class: 'localzet-panel-brand',
             y_align: Clutter.ActorAlign.CENTER});
         content.add_child(new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 14}));
-        content.add_child(new St.Label({text: 'Localzet', y_align: Clutter.ActorAlign.CENTER}));
+        content.add_child(new St.Label({text: 'Localzet OS', y_align: Clutter.ActorAlign.CENTER}));
         item.add_child(content);
         const activate = () => {
             if (Main.overview.visible)
