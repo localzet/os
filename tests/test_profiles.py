@@ -23,6 +23,8 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("libreoffice", " ".join(result["ubuntu_package_candidates"]))
         self.assertNotIn("onlyoffice-desktopeditors", result["ubuntu_package_candidates"])
         self.assertIn("office", result["external_or_localzet_pending"])
+        self.assertIn("gpu-unlocker", result["external_or_localzet_pending"])
+        self.assertNotIn("gpu-unlock-dkms", result["ubuntu_package_candidates"])
         self.assertFalse(result["install_ready"])
         self.assertFalse(result["write_operations_available"])
 

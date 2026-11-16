@@ -90,6 +90,9 @@ def create_application():
             self.result_row.set_use_markup(False)
             self.cuda_group.add(self.result_row)
             self.page.add(self.cuda_group)
+            self.unlock_group = Adw.PreferencesGroup(title="GPU Unlocker",
+                description="Экспериментальная оптимизация Tensor Cores. Не является драйвером CUDA и не увеличивает FPS в играх.")
+            self.page.add(self.unlock_group)
             self.help_group = Adw.PreferencesGroup(title="Восстановление", description="При сбое не запускайте повторную установку вслепую.")
             self.help_group.add(self.row("Журнал для администратора", "journalctl -u localzet-hardware-firstboot.service"))
             self.page.add(self.help_group)
@@ -161,6 +164,16 @@ def create_application():
                 add(self.system_group, "Рекомендации Ubuntu",
                     ", ".join(" ".join(row) for row in recommended["packages"]) or
                     ("Нет рекомендаций" if recommended["status"] == "observed" else "Недоступны"))
+                unlock = report["gpu_unlocker"]
+                add(self.unlock_group, "Интеграция", "Диагностика; установка и активация недоступны")
+                add(self.unlock_group, "Модуль ядра", "Обнаружен; ускорение не подтверждено" if unlock["module_present"] else "Не загружен")
+                for gpu in unlock["devices"]:
+                    labels = {"upstream-candidate": "Ampere · кандидат по PCI ID",
+                              "experimental": "Экспериментальная поддержка upstream",
+                              "unsupported": "Не входит в проверенный список PCI ID"}
+                    add(self.unlock_group, gpu["address"] + " · " + gpu["device"], labels[gpu["status"]])
+                if not unlock["devices"]:
+                    add(self.unlock_group, "NVIDIA GPU не обнаружена", "Не применимо")
                 if self.nvidia:
                     for gpu in runtime:
                         add(self.cuda_group, gpu.address, "Compute " + gpu.capability + " · NVIDIA " + gpu.driver_version)
