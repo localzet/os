@@ -76,6 +76,10 @@ export class LocalzetDock {
             })],
             [Main.overview, Main.overview.connect('hidden', () => this._actor.show())],
         ];
+        // Reserve a full-width bottom strip through Mutter's native workarea.
+        // The floating visual actor remains independent and fullscreen-aware.
+        this._strut = new St.Widget({reactive: false, opacity: 0, can_focus: false});
+        Main.layoutManager.addChrome(this._strut, {affectsStruts: true, trackFullscreen: false});
         Main.layoutManager.addChrome(this._actor, {affectsStruts: false, trackFullscreen: true});
         this._reconcile();
         if (Main.overview.visible)
@@ -213,6 +217,8 @@ export class LocalzetDock {
         const x = monitor.x + Math.round((monitor.width - width) / 2);
         const y = monitor.y + monitor.height - height - 12;
         this._actor.set_position(x, y);
+        this._strut.set_position(monitor.x, y - 6);
+        this._strut.set_size(monitor.width, height + 18);
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
             console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
@@ -231,6 +237,8 @@ export class LocalzetDock {
         this._launcher.destroy();
         for (const id of this._rows.keys())
             this._removeRow(id);
+        this._strut.destroy();
+        this._strut = null;
         this._actor.destroy();
         this._actor = null;
     }

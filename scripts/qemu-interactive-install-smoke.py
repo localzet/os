@@ -8,6 +8,7 @@ candidate ISO contains no automatic test installer or credentials.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,14 @@ READY = b"LOCALZET_CANDIDATE_DESKTOP"
 WINE_READY = b"LOCALZET_CANDIDATE_WINE_READY"
 LOCK_READY = b"LOCALZET_CANDIDATE_LOCKED"
 FAIL = b"LOCALZET_CANDIDATE_FAILED"
+LOCK_RECHECK = b"LOCALZET_CANDIDATE_STILL_LOCKED"
+
+
+def evidence_module():
+    spec = importlib.util.spec_from_file_location('visual_evidence', Path(__file__).with_name('visual-evidence.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class Guest:
@@ -125,6 +134,37 @@ class Guest:
             {"type": "btn", "data": {"down": False, "button": "left"}},
         ]})
         time.sleep(1)
+
+    def wake_display(self):
+        # Pointer motion only; no clicks, keys, password or unlock request.
+        self.qmp("input-send-event", {"events": [
+            {"type": "abs", "data": {"axis": "x", "value": 16384}},
+            {"type": "abs", "data": {"axis": "y", "value": 16384}},
+        ]})
+
+    def visual_capture(self, stage, region=None, wake=False, attempts=8):
+        evidence = evidence_module()
+        path = self.screen.with_name(f"{self.screen.stem}-{stage}.ppm")
+        for attempt in range(attempts):
+            if wake:
+                self.wake_display()
+            time.sleep(2)
+            self.capture(stage)
+            if not path.is_file():
+                continue
+            metrics = evidence.visual_metrics(path, region)
+            print(stage, "visual evidence", metrics, flush=True)
+            if evidence.meaningful(metrics):
+                return
+        raise RuntimeError(f"{stage}: blank or insufficient screenshot evidence")
+
+    def office_region(self):
+        lines = self.serial.read_text(errors="replace").splitlines()
+        line = next(line for line in reversed(lines)
+                    if line.startswith("LOCALZET_CANDIDATE_OFFICE_GEOMETRY "))
+        x, y, w, h = map(int, line.split()[1:])
+        # Exclude titlebar and outer wallpaper; inspect central app content.
+        return (x + w//10, y + h//10, w*8//10, h*8//10)
 
     def launch(self, app):
         self.key("alt-f2")
@@ -420,6 +460,11 @@ width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
 height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
 [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
 (( width >= 400 && height >= 300 ))
+x="$(sed -n 's/^X=//p' <<< "$geometry")"
+y="$(sed -n 's/^Y=//p' <<< "$geometry")"
+[[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ ]]
+test "$(xdotool getactivewindow)" = "$window"
+printf 'LOCALZET_CANDIDATE_OFFICE_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
 printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
 OFFICETEST
 chmod 0755 /run/localzet-candidate-check/office-window.sh
@@ -430,6 +475,11 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed native ONLYOFFICE launched" in script
+    if executive_review and office:
+        # Keep the foreground editor available while the host checks actual
+        # content. This is a test delay, not a change to shipped software.
+        marker = r"printf '\nLOCALZET_CANDIDATE_WINE_START\n'"
+        script = script.replace(marker, "sleep 30\n" + marker)
     if executive_review:
         script += r"""
 # Verify the native lock in the installed, authenticated Wayland session.
@@ -456,6 +506,10 @@ if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
 fi
 journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
 printf '\nLOCALZET_CANDIDATE_LOCKED\n'
+# Keep the validation session alive for the host to wake the display.
+sleep 25
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+printf '\nLOCALZET_CANDIDATE_STILL_LOCKED\n'
 """
     return script
 
@@ -553,12 +607,15 @@ def main():
             if args.expect_containers:
                 installed.capture("containers-installed")
             if args.expect_office:
-                installed.capture("office-installed")
+                if args.expect_executive_review:
+                    installed.visual_capture("office-installed", installed.office_region())
+                else:
+                    installed.capture("office-installed")
             installed.wait(WINE_READY, 360)
             if args.expect_executive_review:
                 installed.wait(LOCK_READY, 45)
-                time.sleep(3)
-                installed.capture("native-lock")
+                installed.visual_capture("native-lock", wake=True)
+                installed.wait(LOCK_RECHECK, 45)
         finally:
             installed.close()
     return 0
