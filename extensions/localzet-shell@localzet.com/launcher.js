@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -124,12 +125,14 @@ export class AuroraLauncher {
         }).sort((a, b) => a.get_name().localeCompare(b.get_name()));
         this._list.destroy_all_children();
         for (const app of this._results) {
-            const row = new St.BoxLayout({style_class: 'localzet-launcher-row'});
+            const row = new St.BoxLayout({style_class: 'localzet-launcher-row', x_expand: true, x_align: Clutter.ActorAlign.FILL});
             row.add_child(app.create_icon_texture(28));
             const label = new St.Label({text: app.get_name(), x_expand: true, y_align: Clutter.ActorAlign.CENTER});
+            label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             row.add_child(label);
             const button = new St.Button({child: row, can_focus: true, reactive: true, x_expand: true,
                 style_class: 'localzet-launcher-app', accessible_name: app.get_name()});
+            button.set_x_align(Clutter.ActorAlign.FILL);
             button.connect('clicked', () => this._activate(app));
             this._list.add_child(button);
         }

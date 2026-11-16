@@ -49,6 +49,7 @@ cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
 enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
+favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
 picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
