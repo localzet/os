@@ -1,0 +1,70 @@
+name: NetBird installed client smoke
+on:
+  pull_request:
+    paths:
+      - 'config/upstream/netbird.json'
+      - 'scripts/fetch-netbird.py'
+      - 'src/localzet/netbird.py'
+      - '.github/workflows/netbird-runtime.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  client:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install reviewed official NetBird on disposable runner
+        run: |
+          mkdir -p out/netbird-runtime
+          sudo apt-get update
+          sudo apt-get install -y curl libgtk-4-1 libwebkitgtk-6.0-4 xdg-utils xvfb xauth dbus-x11 xdotool imagemagick
+          python3 scripts/fetch-netbird.py "$RUNNER_TEMP/netbird"
+          ip -j route show table main > out/netbird-runtime/routes-before.json
+          sudo apt-get -y --no-remove --no-install-recommends install "$RUNNER_TEMP/netbird/netbird_0.83.1_linux_amd64.deb" "$RUNNER_TEMP/netbird/netbird-ui_0.83.1_linux_amd64.deb"
+          sudo systemctl is-active --quiet netbird.service
+          test "$(dpkg-query -W -f='${Version}' netbird)" = 0.83.1
+          test "$(dpkg-query -W -f='${Version}' netbird-ui)" = 0.83.1
+          dpkg-query -W netbird netbird-ui > out/netbird-runtime/packages.txt
+          PYTHONPATH=src python3 - <<'PY'
+          import time
+          from localzet.netbird import status
+          for attempt in range(30):
+              report = status()
+              if report["state"] in ("NeedsLogin", "Idle"):
+                  break
+              time.sleep(1)
+          assert report["state"] in ("NeedsLogin", "Idle"), report
+          assert report["total"] == report["connected"] == 0, report
+          print("PASS: unregistered installed service readable by normal user", report)
+          PY
+          ip -j route show table main > out/netbird-runtime/routes-after.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          def defaults(name):
+              return [row for row in json.loads(Path("out/netbird-runtime/" + name).read_text()) if row.get("dst") == "default"]
+          assert defaults("routes-before.json") == defaults("routes-after.json")
+          PY
+          ! ip link show wt0
+      - name: Open actual upstream UI without enrollment
+        run: |
+          GDK_BACKEND=x11 WEBKIT_DISABLE_DMABUF_RENDERER=1 xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash -euc '
+            /usr/bin/netbird-ui >out/netbird-runtime/ui.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window=$(timeout 45 xdotool search --sync --onlyvisible --name "[Nn]et[Bb]ird" | head -n1)
+            sleep 5
+            kill -0 "$pid"
+            import -window "$window" out/netbird-runtime/netbird-ui.png
+          '
+      - name: Stop test service
+        if: always()
+        run: sudo systemctl disable --now netbird.service || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: netbird-installed-client-evidence
+          path: out/netbird-runtime/
+          retention-days: 7
