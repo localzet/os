@@ -48,6 +48,28 @@ def identity(devices, general=False):
                   if general or (row.vendor == "10de" and row.device_class.startswith("03")))
 
 
+def decode_state(data):
+    """Reject corrupt or incompatible receipts before touching APT."""
+    if data is None:
+        return None
+    try:
+        value = json.loads(data)
+    except (ValueError, UnicodeError) as error:
+        raise ValueError("Invalid hardware automation receipt") from error
+    known = TERMINAL | {"base-installing", "driver-installing", "cuda-installing",
+                        "base-awaiting-reboot", "base-ready", "awaiting-reboot", "offline"}
+    if (not isinstance(value, dict) or type(value.get("schema")) is not int
+            or value["schema"] != 1 or not isinstance(value.get("state"), str)
+            or value["state"] not in known or not isinstance(value.get("boot_id"), str)
+            or not value["boot_id"] or not isinstance(value.get("hardware"), list)
+            or any(not isinstance(row, list) or len(row) != 4
+                   or any(not isinstance(field, str) for field in row)
+                   for row in value["hardware"])
+            or (value["state"] == "offline" and value.get("phase") not in ("base", "driver", "cuda"))):
+        raise ValueError("Invalid hardware automation receipt")
+    return value
+
+
 def next_step(previous, devices, boot_id, runtime_ready, general=False):
     """Pure state transition; never authorize installation by GPU ID alone."""
     hardware = identity(devices, general)
@@ -126,7 +148,7 @@ def run():
     os.environ.update(PATH="/usr/sbin:/usr/bin:/sbin:/bin", HOME="/root",
                       LC_ALL="C.UTF-8", DEBIAN_FRONTEND="noninteractive")
     data = read_private(JOURNAL / STATE)
-    previous = json.loads(data) if data is not None else None
+    previous = decode_state(data)
     devices = inventory()
     boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
     hardware = identity(devices, general)
