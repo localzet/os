@@ -63,6 +63,13 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
+  install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
+  profile=4e6f25d9af1244aa896f5b028bf7a020
+  gsettings set org.gnome.Ptyxis profile-uuids "['$profile']" || exit 1
+  gsettings set org.gnome.Ptyxis default-profile-uuid "$profile" || exit 1
+  gsettings set org.gnome.Ptyxis interface-style system || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette Aurora || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
   gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
