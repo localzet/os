@@ -92,7 +92,12 @@ def wait_listener(host, port, process):
 def inside(tool, args):
     # Never permit an accidental direct invocation of the internal mode.
     # A newly created network namespace has only loopback.
-    if set(os.listdir("/sys/class/net")) != {"lo"}:
+    # /proc/self/net reflects the process network namespace, unlike a
+    # bind-mounted host sysfs.
+    interfaces = {line.split(":", 1)[0].strip()
+                  for line in Path("/proc/self/net/dev").read_text().splitlines()[2:]
+                  if ":" in line}
+    if interfaces != {"lo"}:
         raise RuntimeError("Isolated network namespace required")
     relay = subprocess.Popen(["/usr/bin/socat",
         f"TCP4-LISTEN:{PORT},bind=127.0.0.1,reuseaddr,fork",

@@ -36,3 +36,15 @@ https://code.claude.com/docs/en/setup
 https://code.claude.com/docs/en/network-config
 https://code.claude.com/docs/en/mcp
 https://github.com/localzet/UserNet
+
+## Local MCP server (implemented)
+The desktop package ships /usr/bin/localzet-mcp, a local stdio server
+with two read-only tools: system_info and gpu_inventory. It exposes no
+shell, package install, arbitrary file, secrets or remote network tools.
+Clients can register it explicitly using their native MCP settings
+(command /usr/bin/localzet-mcp, no arguments). Existing user configuration
+is not silently overwritten. Official remote docs MCP and workspace-specific
+servers remain opt-in; no automatic execution of downloaded npm MCP packages.
+Protocol unit tests and a real local network namespace/relay test are included.
+The latter tests host loopback isolation and relay reachability, not UserNet's
+upstream routing or authenticated provider traffic.
