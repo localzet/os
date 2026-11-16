@@ -335,3 +335,34 @@ successful trusted same-repository PR run. This is an engineering
 candidate, not a release or physical SSD acceptance. Pending external
 clients, GPU unlock and licensed desktop Microsoft Office are not
 represented as installed. No lock bypass or authentication changes.
+
+### Executive system actions and self-contained extension ZIP
+
+PR 91 commit 486db7d passed the optical visual test (0.033). The reference
+calls for network and continuity entry points in Quick Settings. Register
+native GNOME QuickToggle widgets as non-toggle push buttons for the actual
+installed Localzet Network and NectarLink Setup desktop applications. Never
+present fictional VPN/proxy/phone state or expose actions on the locked
+session. Respect the native high-contrast menu and clean up on extension
+disable. CI installs the real desktop package, checks both items, clicks
+Network and verifies the actual app launches. The separately distributed
+extension ZIP now includes wallpaper-glass.js and quick-actions.js, and
+validation rejects missing relative JS imports. This does not yet implement
+live VPN toggle controls or native lock-screen styling.
+
+### Executive native lock appearance
+
+The Quick Actions visual check reached the genuine Network activation but
+used the wrong Python module pattern; the installed executable is
+/usr/bin/localzet-network. Check the actual command and focused dock state.
+
+Separate visual-only extension localzet-lock@localzet.com uses GNOME's
+documented user/unlock-dialog session modes, loads a small CSS sheet only
+when locked, and unloads it for high contrast or on disable. Clock typography,
+date and notification surfaces follow the first reference. No changes to
+authentication, password widgets, parental controls or input handling.
+The regular desktop extension remains user-session only. Package and enable
+the separate stylesheet extension in new images. Installed VM acceptance
+requires native lock state, the visual extension and no active desktop
+extension, plus a journal marker and real lock screenshot. No physical
+hardware or actual lock visual acceptance claimed yet.

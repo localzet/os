@@ -7,11 +7,13 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 import stat
+import re
 import zipfile
 
 UUID = "localzet-shell@localzet.com"
 ICONS = {"icons/" + name + ".svg" for name in ("launcher", "browser", "files", "terminal", "settings")}
-REQUIRED = {"metadata.json", "extension.js", "stylesheet.css", "dock.js", "panel.js", "launcher.js"} | ICONS
+REQUIRED = {"metadata.json", "extension.js", "stylesheet.css", "dock.js", "panel.js", "launcher.js", "wallpaper-glass.js", "quick-actions.js"} | ICONS
+LOCAL_IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*)['"]\./([^'"]+\.js)['"]""")
 MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 
 def validate(path: Path) -> str:
@@ -43,9 +45,13 @@ def validate(path: Path) -> str:
         versions = metadata.get("shell-version")
         if not isinstance(versions, list) or "50" not in versions:
             raise ValueError("GNOME Shell 50 is not declared")
-        for source in ("extension.js", "dock.js", "panel.js", "launcher.js"):
-            if not bundle.read(source).strip():
+        for source in sorted(name for name in names if name.endswith(".js")):
+            content = bundle.read(source).decode("utf-8")
+            if not content.strip():
                 raise ValueError(f"{source} is empty")
+            for dependency in LOCAL_IMPORT.findall(content):
+                if dependency not in names:
+                    raise ValueError(f"missing import {dependency} from {source}")
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def main() -> None:

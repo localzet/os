@@ -1,0 +1,13 @@
+{
+  "uuid": "localzet-lock@localzet.com",
+  "name": "Localzet Executive Lock Appearance",
+  "description": "Visual-only native lock screen clock and notification surfaces",
+  "shell-version": [
+    "50"
+  ],
+  "session-modes": [
+    "user",
+    "unlock-dialog"
+  ],
+  "version": 1
+}

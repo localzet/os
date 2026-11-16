@@ -46,7 +46,7 @@ jobs:
           REVIEW_BRANCH: ${{ github.head_ref }}
         run: |
           review=()
-          if [[ "$REVIEW_BRANCH" == integration/executive-complete-preview ]]; then
+          if [[ "$REVIEW_BRANCH" == integration/executive-complete-preview || "$REVIEW_BRANCH" == design/executive-system-actions ]]; then
             review=(--expect-executive-review)
           fi
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \

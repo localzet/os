@@ -243,3 +243,12 @@
 }
 .localzet-wallpaper-glass .localzet-launcher-search { background-color: #101c2c; }
 .localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #204d82; }
+
+/* Localzet management shortcuts are buttons, never fake connection toggles. */
+.localzet-system-surface .localzet-quick-action {
+    background-color: #15263a;
+    border: 1px solid #344860;
+}
+.localzet-system-surface .localzet-quick-action:hover { background-color: #29415d; }
+.localzet-system-surface .localzet-quick-action .quick-toggle-icon { color: #9ec7f3; }
+.localzet-system-surface .localzet-quick-action .quick-toggle-subtitle { color: #c1d5ee; }
