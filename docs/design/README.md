@@ -349,3 +349,20 @@ Network and verifies the actual app launches. The separately distributed
 extension ZIP now includes wallpaper-glass.js and quick-actions.js, and
 validation rejects missing relative JS imports. This does not yet implement
 live VPN toggle controls or native lock-screen styling.
+
+### Executive native lock appearance
+
+The Quick Actions visual check reached the genuine Network activation but
+used the wrong Python module pattern; the installed executable is
+/usr/bin/localzet-network. Check the actual command and focused dock state.
+
+Separate visual-only extension localzet-lock@localzet.com uses GNOME's
+documented user/unlock-dialog session modes, loads a small CSS sheet only
+when locked, and unloads it for high contrast or on disable. Clock typography,
+date and notification surfaces follow the first reference. No changes to
+authentication, password widgets, parental controls or input handling.
+The regular desktop extension remains user-session only. Package and enable
+the separate stylesheet extension in new images. Installed VM acceptance
+requires native lock state, the visual extension and no active desktop
+extension, plus a journal marker and real lock screenshot. No physical
+hardware or actual lock visual acceptance claimed yet.

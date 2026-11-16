@@ -215,7 +215,12 @@ PY
   xdotool mousemove --window "$window" "$((ax + aw / 2 + 5))" "$((ay + ah / 2 + 51))" click 1 || exit 1
   sleep 5
   grep -F "Localzet Quick Actions: opened com.localzet.Network.desktop" "$OUT/gnome-shell.log" || exit 1
-  pgrep -f 'localzet.network_app' || exit 1
+  pgrep -f '/usr/bin/localzet-network' || exit 1
+  for attempt in $(seq 1 25); do
+    if grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -Eq "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-network.png" || exit 1
   xdotool key alt+F4 || exit 1
   sleep 3

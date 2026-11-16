@@ -444,6 +444,17 @@ for attempt in $(seq 1 30); do
     sleep 1
 done
 [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-lock@localzet.com
+# The user-session shell extension must not be active on the lock screen.
+if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-shell@localzet.com; then
+    echo "Desktop extension unexpectedly active on lock screen"
+    exit 2
+fi
+journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
 printf '\nLOCALZET_CANDIDATE_LOCKED\n'
 """
     return script

@@ -50,7 +50,7 @@ mkdir -p "$root/etc/dconf/profile" "$root/etc/dconf/db/localzet.d"
 printf 'user-db:user\nsystem-db:localzet\n' > "$root/etc/dconf/profile/user"
 cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
-enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
+enabled-extensions=['localzet-shell@localzet.com', 'localzet-lock@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
 favorite-apps=['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']
 

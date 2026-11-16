@@ -36,6 +36,7 @@ find "$pkg/opt/localzet-os/src" -type d -name __pycache__ -prune -exec rm -rf --
 cp -a "$repo/config/modules" "$pkg/opt/localzet-os/config/"
 install -m 0644 "$repo/config/profiles.json" "$pkg/opt/localzet-os/config/profiles.json"
 cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
+cp -a "$repo/extensions/localzet-lock@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0755 "$repo/apps/localzet-network/localzet-network" "$pkg/usr/bin/localzet-network"
 install -m 0755 "$repo/apps/localzet-ai/localzet-ai" "$pkg/usr/bin/localzet-ai"
