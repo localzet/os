@@ -415,3 +415,33 @@ The already published PR 91 snapshot is unchanged. New installed lock logs
 from PR 92 confirm the visual-only extension active and desktop extension
 inactive, but its screen capture was still inactive; office remains blank.
 Neither is considered visually accepted.
+
+### Office render isolation and installed test integrity
+
+PR 91 and PR 92 installed official pinned ONLYOFFICE but captured a blank
+window. Avoid repeated full ISO rebuilds while isolating that rendering issue.
+Test default and software graphics independently on disposable Ubuntu 26.04
+Xvfb sessions, in a separate network namespace, using a generated original
+local DOCX fixture. Require a document-named window and nonblank pixels.
+This is an X11 diagnostic, not a Wayland or QEMU acceptance substitute.
+The software path uses scoped Mesa/Qt software rendering and --disable-gpu;
+no global rendering override or sandbox bypass. Official guidance explains
+graphics acceleration settings: https://helpcenter.onlyoffice.com/desktop/getting-started
+No default flags are changed before comparing real evidence. Add source tests
+for generated installed-script assertions, and fail if injection markers
+are absent or duplicated. Preserve the active Native Files ISO build.
+
+### Native rendering dependency and navigation correction
+
+The first isolated office run failed before graphics initialization:
+libxcb-shape.so.0 was missing. Reuse the full explicit Ubuntu graphical
+runtime already exercised by the upstream office workflow, in both the
+isolated test and rootfs dependency transaction. Record ldd output and
+reject missing libraries; the white installed window is not yet diagnosed
+by this fact alone. Capture missing-window diagnostics and fail fast if
+editor exits. No sandbox changes or forced software mode in the image.
+The Native Files build validated dark navigation and two tabs, and light
+palette contained zero Executive pixels. Its light navigation then failed.
+Use Nautilus 50's explicit Alt+1/Alt+2 tab shortcuts and bounded title polling,
+with failure screenshots. The latest branch can run the same trusted
+Nautilus installed-image gate after all three modes pass.
