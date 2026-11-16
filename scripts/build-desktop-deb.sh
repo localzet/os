@@ -27,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, budgie-wallpapers-resolute${containers_dep}
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, budgie-wallpapers-resolute, python3-pil${containers_dep}
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF
@@ -72,6 +72,25 @@ install -m 0755 "$repo/packaging/nectarlink/install-nectarlink" "$pkg/usr/lib/lo
 install -m 0644 "$repo/packaging/nectarlink/org.localzet.install-nectarlink.policy" "$pkg/usr/share/polkit-1/actions/"
 install -m 0644 "$repo/packaging/nectarlink/release.toml" "$pkg/opt/localzet-os/packaging/nectarlink/"
 install -m 0644 "$repo/scripts/fetch-nectarlink-deb.py" "$repo/scripts/check-nectarlink-control.py" "$pkg/opt/localzet-os/scripts/"
+# Generate the derived asset only after its signed archive dependency is
+# configured. No network and no changes to any user's settings.
+cat > "$pkg/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    /usr/bin/python3 /opt/localzet-os/scripts/build-executive-wallpaper.py \
+        /usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg \
+        /usr/share/backgrounds/localzet/executive-dusk.jpg
+fi
+POSTINST
+cat > "$pkg/DEBIAN/postrm" <<'POSTRM'
+#!/bin/sh
+set -eu
+case "$1" in
+    remove|purge) rm -f /usr/share/backgrounds/localzet/executive-dusk.jpg ;;
+esac
+POSTRM
+chmod 0755 "$pkg/DEBIAN/postinst" "$pkg/DEBIAN/postrm"
 mkdir -p "$out"
 artifact="$out/localzet-desktop_${version}_all.deb"
 dpkg-deb --root-owner-group --build "$pkg" "$artifact"

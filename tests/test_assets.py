@@ -50,6 +50,9 @@ class AssetsTests(unittest.TestCase):
             self.assertIn("/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg", (ROOT / path).read_text())
             self.assertIn("/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg", (ROOT / path).read_text())
         self.assertIn("CC BY-SA 4.0", (ROOT / "assets/wallpapers/ATTRIBUTION.txt").read_text())
+        package_script = (ROOT / "scripts/build-desktop-deb.sh").read_text()
+        for value in ("python3-pil", "DEBIAN/postinst", "DEBIAN/postrm", "executive-dusk.jpg"):
+            self.assertIn(value, package_script)
 
     def test_wallpaper_is_svg(self):
         root = ET.parse(ROOT / 'assets/wallpapers/aurora.svg').getroot()

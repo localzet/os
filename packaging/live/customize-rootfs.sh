@@ -100,7 +100,6 @@ logo='/usr/share/localzet/brand/localzet.svg'
 EOF
 test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
 test -s "$root/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg"
-chroot "$root" /usr/bin/python3 /opt/localzet-os/scripts/build-executive-wallpaper.py "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "/usr/share/backgrounds/localzet/executive-dusk.jpg"
 test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
 test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update

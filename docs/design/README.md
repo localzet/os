@@ -232,5 +232,6 @@ photograph is cropped and color-graded, not AI-generated or a copy of the
 reference. Source and derived artwork are CC BY-SA 4.0; explicit attribution
 ships with the package. The original Aurora and Mt Shuksan backgrounds remain
 selectable. The build and devkit run the same offline generator; actual visual
-acceptance is pending. Standalone desktop overlay users need the image build
-step to produce the new derived wallpaper; existing preferences are unchanged.
+acceptance is pending. The desktop package now generates the derived asset in postinst after its
+archive and Pillow dependencies are configured; removal cleans up only the
+generated asset. Existing preferences are unchanged.
