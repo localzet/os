@@ -24,8 +24,11 @@ export class AuroraPanel {
     }
 
     _clear() {
-        for (const actor of this._surfaces)
+        for (const {actor, menu, signal} of this._surfaces) {
+            if (signal)
+                menu.disconnect(signal);
             actor.remove_style_class_name(SURFACE);
+        }
         this._surfaces = [];
         if (this._effect) {
             this._panel.remove_effect(this._effect);
@@ -46,7 +49,11 @@ export class AuroraPanel {
             const menu = this._panel.statusArea[name]?.menu;
             if (menu?.actor) {
                 menu.actor.add_style_class_name(SURFACE);
-                this._surfaces.push(menu.actor);
+                const signal = this._experimental ? menu.connect('open-state-changed', (_menu, open) => {
+                    if (open)
+                        console.log('Localzet Surfaces: opened ' + name);
+                }) : 0;
+                this._surfaces.push({actor: menu.actor, menu, signal});
             }
         }
         if (this._experimental)
