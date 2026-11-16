@@ -106,7 +106,11 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 5
   grep -F "Localzet Launcher: activated org.gnome.Ptyxis.desktop" "$OUT/gnome-shell.log" || exit 1
   pgrep -x ptyxis || exit 1
-  sleep 3
+  # Startup may report RUNNING before the first window is mapped.
+  for attempt in $(seq 1 30); do
+    if grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -Eq "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$"; then break; fi
+    sleep 1
+  done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-dock-running.png" || exit 1
   pkill -x ptyxis || true
