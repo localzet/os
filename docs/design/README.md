@@ -262,3 +262,19 @@ on high contrast or effect initialization failure. CI verifies effect
 lifecycle and captures the actual menu; pixel-level blur validation,
 physical GPU performance, lock-screen styling and final rounded glass remain
 outstanding.
+
+### Direct reference alignment — first poster / mountain Executive
+
+Reopened both owner-supplied design references. The first is the shell target:
+compact category sidebar and four-column application grid; central dock with
+terminal, browser, folders, images, settings and trash; dark file manager
+with smaller blue folders. The second supplies the application information
+architecture (Containers, Windows/Gaming, Network), not a competing palette.
+The prior pinned-card section diverged from the first reference; remove it,
+retain real favorite ordering and global search. Add a real non-destructive
+trash URI shortcut and five default app favorites. No fake VS Code icon when
+it is not installed. Nautilus uses smaller upstream zoom and the proper
+GNOME Settings portal in the image. Devkit dark preference is an explicit
+CI-only libadwaita override because its session is not the installed session;
+verify real dark pixels, not just process existence. This does not yet
+implement bespoke Nautilus chrome, the exact hero wallpaper, or lock design.

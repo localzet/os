@@ -35,10 +35,30 @@ export class LocalzetDock {
         this._scroll.set_child(this._apps);
         this._scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
         this._actor.add_child(this._scroll);
+        this._trash = new St.Button({
+            child: new St.Icon({icon_name: 'user-trash', icon_size: 34}),
+            style_class: 'localzet-dock-button localzet-dock-trash',
+            accessible_name: 'Корзина', can_focus: true, reactive: true, track_hover: true,
+        });
+        this._trash.connect('clicked', () => {
+            try {
+                const context = global.create_app_launch_context(0, -1);
+                Gio.AppInfo.launch_default_for_uri('trash:///', context);
+                console.log('Localzet Dock: trash opened');
+            } catch (error) {
+                console.error('Localzet Dock: trash open failed: ' + error);
+                Main.notify('Корзина', 'Не удалось открыть корзину');
+            }
+        });
+        this._actor.add_child(this._trash);
 
         this._connections = [
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
+                this._trash.set_child(new St.Icon({
+                    icon_name: this._settings.get_boolean('high-contrast') ? 'user-trash-symbolic' : 'user-trash',
+                    icon_size: 34,
+                }));
                 this._schedule();
             })],
             [this._favorites, this._favorites.connect('changed::favorite-apps', () => this._schedule())],
@@ -180,7 +200,8 @@ export class LocalzetDock {
         const [, anchorWidth] = this._anchor.get_preferred_width(-1);
         const [, appWidth] = this._apps.get_preferred_width(-1);
         const [, dividerWidth] = this._divider.get_preferred_width(-1);
-        const natural = Math.max(64, Math.ceil(anchorWidth + appWidth + (this._divider.visible ? dividerWidth : 0) + 40));
+        const [, trashWidth] = this._trash.get_preferred_width(-1);
+        const natural = Math.max(64, Math.ceil(anchorWidth + appWidth + trashWidth + (this._divider.visible ? dividerWidth : 0) + 44));
         const width = Math.min(monitor.width - 24, natural);
         this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
             St.PolicyType.NEVER);

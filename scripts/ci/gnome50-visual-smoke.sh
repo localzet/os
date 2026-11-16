@@ -40,7 +40,9 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   wireplumber_pid=$!
   trap "kill $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   sleep 3
-  LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
+  # Devkit lacks the installed session's Settings portal. Use libadwaita's
+  # documented debug preference ONLY in this isolated test, never in ISO.
+  ADW_DEBUG_COLOR_SCHEME=prefer-dark LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
   trap "kill $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   for i in $(seq 1 30); do
@@ -66,6 +68,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
   gsettings set org.gnome.desktop.interface accent-color blue || exit 1
+  gsettings set org.gnome.nautilus.icon-view default-zoom-level small-plus || exit 1
   gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
   install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
   profile=4e6f25d9af1244aa896f5b028bf7a020
@@ -76,7 +79,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.Ptyxis interface-style dark || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
   gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
-  gsettings set org.gnome.shell favorite-apps "['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']" || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']" || exit 1
   test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
@@ -95,7 +98,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Glass: launcher background effect active" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=4 " || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
@@ -106,7 +109,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   xdotool mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
-  grep -E "Localzet Launcher: pinned=4 catalogue=[0-9]+" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Launcher: columns=4 rows=3" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   xdotool type --clearmodifiers ptyxis || exit 1
   sleep 2
@@ -195,6 +198,16 @@ PY
   xdotool key Return || exit 1
   sleep 3
   import -window root "$OUT/aurora-nautilus.png" || exit 1
+  python3 - "$OUT/aurora-nautilus.png" <<'PY' || exit 1
+from PIL import Image
+import sys
+# Central part of the real window's content, away from wallpaper and titlebar.
+im = Image.open(sys.argv[1]).convert("RGB")
+patch = im.crop((int(im.width*.40), int(im.height*.42), int(im.width*.65), int(im.height*.68)))
+dark = sum(max(p) < 100 for p in patch.getdata())
+if dark < patch.width * patch.height * .65:
+    raise SystemExit("Nautilus did not render a dark file-manager surface")
+PY
   xdotool key --clearmodifiers alt+F4 || exit 1
   rm -rf "$HOME/Localzet-visual-review"
   sleep 3
