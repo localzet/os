@@ -17,6 +17,7 @@ class UserNetTests(unittest.TestCase):
         url, asset = fetcher.spec(manifest)
         self.assertEqual(url, "https://github.com/localzet/UserNet/releases/download/v0.5.12/UserNet-linux.deb")
         self.assertEqual(len(asset["sha256"]), 64)
+        self.assertEqual(manifest["deb_version"], "0.5.12.2026110805")
         manifest["version"] = "../bad"
         with self.assertRaises(ValueError):
             fetcher.spec(manifest)
