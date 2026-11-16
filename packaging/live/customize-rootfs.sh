@@ -56,7 +56,7 @@ picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
-icon-theme='Papirus-Dark'
+icon-theme='Aurora'
 
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]
