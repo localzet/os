@@ -100,11 +100,11 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Launcher: activated org.gnome.Ptyxis.desktop" "$OUT/gnome-shell.log" || exit 1
   pgrep -x ptyxis || exit 1
   sleep 3
-  grep -E "Localzet Dock: running=[1-9][0-9]* items=" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-dock-running.png" || exit 1
   pkill -x ptyxis || true
   sleep 5
-  grep -E "Localzet Dock: running=0 items=[01]$" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[01] focused=0$" || exit 1
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   xdotool windowfocus --sync "$window" key super+a || exit 1
   sleep 5
