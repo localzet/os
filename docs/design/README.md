@@ -516,3 +516,21 @@ accepting list evidence, and use clipboard paste rather than per-character
 typing in the location field. Keep high-contrast palette and navigation
 checks. Update PR99 in place since its source gate is already red. Earlier
 PR97 installed test remains separate. New appearance still needs visual CI.
+
+### Installed Office hang diagnosis
+
+PR99 shell optical test passed with 0.028 detail ratio; Settings and shell
+are confirmed Soft Graphite. PR97's failed installed screenshot shows a
+real ONLYOFFICE skeleton/loading screen and GNOME's not-responding dialog.
+The blue heading test detects 1463 pixels on the actual successful offline
+document screenshot (minimum 250); keep its threshold. The previous
+installed fixture lived in a root-owned /run directory; make a new writable
+test-user-owned directory instead, record memory, /dev/shm and GPU info,
+collect application journal and kernel denial/OOM evidence on failure,
+and retain the actual failed drawable without flooding CI output.
+The office-only workflow on this branch is an explicit scoped software
+render diagnostic (same switches as successful X11 matrix); the Native Files
+installed candidate continues to require default rendering. No sandbox
+disable, no global renderer override. A diagnostic success is not a release
+pass. Host wait now allows the bounded guest test to finish. PR99 package
+build remains independent; no earlier test is cancelled.

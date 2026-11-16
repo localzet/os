@@ -22,3 +22,19 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertNotIn("installed Executive Files package launched", script)
         self.assertNotIn("LOCALZET_CANDIDATE_OFFICE_GEOMETRY", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_office_diagnostics_are_explicit(self):
+        normal = module.installed_script("complete", True, True, True, True)
+        software = module.installed_script("complete", True, True, True, True, "software")
+        self.assertIn("Office diagnostic mode: default", normal)
+        self.assertIn("Office diagnostic mode: software", software)
+        self.assertNotIn("--disable-gpu", normal)
+        self.assertIn("--disable-gpu", software)
+        self.assertIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", software)
+        for script in (normal, software):
+            self.assertIn("test -w", script)
+            self.assertIn("LOCALZET_CANDIDATE_OFFICE_FAILED_PNG", script)
+            self.assertNotIn("--no-sandbox", script)
+            subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+        with self.assertRaises(ValueError):
+            module.installed_script(office_render_mode="software")

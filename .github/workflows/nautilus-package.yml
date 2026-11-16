@@ -13,6 +13,8 @@ on:
       - 'scripts/nautilus-bundle-checksums.sh'
       - 'tests/test_nautilus_bundle_checksums.py'
       - 'packaging/live/customize-rootfs.sh'
+      - 'scripts/qemu-interactive-install-smoke.py'
+      - 'tests/test_candidate_script.py'
 permissions:
   contents: read
 concurrency:
@@ -41,7 +43,7 @@ jobs:
 
   installed-image:
     needs: package
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'integration/executive-native-files' || github.head_ref == 'fix/executive-office-rendering' || github.head_ref == 'integration/executive-document-gate' || github.head_ref == 'design/executive-soft-graphite' || github.head_ref == 'design/executive-soft-native-apps')
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.head_ref == 'integration/executive-native-files' || github.head_ref == 'fix/executive-office-rendering' || github.head_ref == 'integration/executive-document-gate' || github.head_ref == 'design/executive-soft-graphite' || github.head_ref == 'design/executive-soft-native-apps' || github.head_ref == 'fix/executive-installed-office')
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     steps:

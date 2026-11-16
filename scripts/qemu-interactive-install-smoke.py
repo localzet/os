@@ -206,7 +206,11 @@ class Guest:
                 break
             time.sleep(1)
         if self.serial.exists():
-            print(self.serial.read_bytes()[-30000:].decode(errors="replace"), flush=True)
+            lines = self.serial.read_bytes().splitlines()
+            # Do not dump megabytes of base64 screenshot data into CI logs.
+            filtered = b"\n".join(line for line in lines
+                                  if not line.startswith((b"LOCALZET_CANDIDATE_OFFICE_PNG ", b"LOCALZET_CANDIDATE_OFFICE_FAILED_PNG ")))
+            print(filtered[-30000:].decode(errors="replace"), flush=True)
         self.capture()
         raise RuntimeError(f"Missing {marker.decode()}")
 
@@ -270,7 +274,11 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default"):
+    if office_render_mode not in ("default", "software"):
+        raise ValueError("Invalid Office render mode")
+    if office_render_mode != "default" and not (office and executive_review):
+        raise ValueError("Office rendering diagnostics require executive office review")
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -514,16 +522,34 @@ for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbitto
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
         systemctl --user stop "localzet-candidate-$app.service" || true
 done
-printf '%s' 'FIXTURE_BASE64' | base64 -d > /run/localzet-candidate-check/Localzet-offline-review.docx
-chmod 0644 /run/localzet-candidate-check/Localzet-offline-review.docx
+# The test document must live in a writable directory of the authenticated
+# user, just like a real local file. The earlier root-owned /run fixture
+# did not allow the editor to create a sibling lock or temporary file.
+office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-review.XXXXXXXX")"
+printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
+runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
+runuser -u localzet-test -- test -w "$office_dir"
+printf 'Office diagnostic mode: RENDER_MODE\n'
+free -m
+df -h "$home" /dev/shm
+printf 'Office shared memory and GPU:\n'
+ls -ld /dev/shm /dev/dri || true
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-    systemd-run --user --collect --unit=localzet-candidate-onlyoffice-desktopeditors \
-    /usr/bin/onlyoffice-desktopeditors /run/localzet-candidate-check/Localzet-offline-review.docx
+    systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
+    --property=StandardOutput=journal --property=StandardError=journal \
+    --setenv=QT_QPA_PLATFORM=xcb RENDER_ENV \
+    /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
         marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
         assert script.count(marker) == 1
-        script = script.replace(marker, launch.replace("FIXTURE_BASE64", encoded))
+        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
+        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        launch = (launch.replace("FIXTURE_BASE64", encoded)
+                  .replace("RENDER_MODE", office_render_mode)
+                  .replace("RENDER_ENV", render_env)
+                  .replace("RENDER_FLAGS", render_flags))
+        script = script.replace(marker, launch)
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
         script = script[:first] + r"""window=""
@@ -536,8 +562,8 @@ test -n "$window"
 xdotool getwindowname "$window" | grep -F Localzet-offline-review
 work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
-for attempt in $(seq 1 30); do
-    timeout 15 xdotool windowactivate --sync "$window" || continue
+for attempt in $(seq 1 45); do
+    timeout 4 xdotool windowactivate --sync "$window" || continue
     sleep 2
     [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
     import -window "$window" "$work/document.png" || continue
@@ -564,7 +590,22 @@ PY
     fi
 done
 echo "No rendered fixture heading in named document window" >&2
+if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 1572864 ]]; then
+    printf 'LOCALZET_CANDIDATE_OFFICE_FAILED_PNG '
+    base64 -w0 "$work/document.png"
+    printf '\n'
+fi
 exit 1""" + script[last:]
+        check_marker = "systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh"
+        assert script.count(check_marker) == 1
+        script = script.replace(check_marker, check_marker + r""" || {
+    echo "Office user-service diagnostics:"
+    journalctl -b "_UID=$uid" --user-unit=localzet-candidate-onlyoffice-desktopeditors.service --no-pager -n 150 -o cat || true
+    journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
+    ps -u localzet-test -o pid,ppid,stat,pcpu,rss,comm
+    free -m
+    exit 2
+}""")
     if native_files:
         check = r"""
 for package in nautilus nautilus-data libnautilus-extension4; do
@@ -633,6 +674,8 @@ def main():
     parser.add_argument("--expect-office", action="store_true")
     parser.add_argument("--expect-executive-review", action="store_true")
     parser.add_argument("--expect-native-files", action="store_true")
+    parser.add_argument("--office-render-mode", choices=("default", "software"), default="default",
+                        help="Software is an explicit diagnostic, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
         parser.error("Office candidate requires Standard or Complete archive profile")
@@ -674,7 +717,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -709,7 +752,18 @@ def main():
             time.sleep(3)
             installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
             installed.key("ret")
-            installed.wait(READY, 300)
+            try:
+                installed.wait(READY, 600 if args.expect_office and args.expect_executive_review else 300)
+            except RuntimeError:
+                if args.expect_office and args.expect_executive_review and installed.serial.exists():
+                    prefix = b"LOCALZET_CANDIDATE_OFFICE_FAILED_PNG "
+                    matches = [line[len(prefix):] for line in installed.serial.read_bytes().splitlines()
+                               if line.startswith(prefix)]
+                    if len(matches) == 1 and len(matches[0]) <= 2 * 1024**2:
+                        image = base64.b64decode(matches[0], validate=True)
+                        if image.startswith(b"\x89PNG\r\n\x1a\n"):
+                            installed.screen.with_name("candidate-installed-office-failed.png").write_bytes(image)
+                raise
             installed.capture("desktop-verified")
             if args.expect_containers:
                 installed.capture("containers-installed")
