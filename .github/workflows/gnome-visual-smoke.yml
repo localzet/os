@@ -10,6 +10,9 @@ on:
       - 'scripts/build-executive-wallpaper.py'
       - 'assets/terminal/**'
       - 'scripts/build-aurora-icons.py'
+      - 'scripts/build-desktop-deb.sh'
+      - 'src/localzet/network_app.py'
+      - 'packaging/com.localzet.Network.desktop'
       - 'scripts/ci/check-nectarlink-tray.py'
 concurrency:
   group: gnome-visual-${{ github.ref }}
@@ -36,6 +39,10 @@ jobs:
           done
           test "$installed" -eq 1
           gnome-shell --version
+      - name: Install real Localzet applications for native system menu review
+        run: |
+          bash scripts/build-desktop-deb.sh out/desktop
+          sudo apt-get install -y --no-install-recommends "$PWD"/out/desktop/localzet-desktop_*.deb
       - name: Install verified upstream NectarLink for tray integration test
         run: |
           python3 scripts/fetch-nectarlink-deb.py --output out/nectarlink

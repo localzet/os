@@ -207,9 +207,18 @@ PY
   xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Quick Actions: items=2" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-quick-settings.png" || exit 1
-  xdotool key Escape || exit 1
-  sleep 2
+  action="$(sed -n 's/.*Localzet Quick Actions: bounds=com.localzet.Network.desktop:\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$action" || exit 1
+  IFS=, read -r ax ay aw ah <<< "$action"
+  xdotool mousemove --window "$window" "$((ax + aw / 2 + 5))" "$((ay + ah / 2 + 51))" click 1 || exit 1
+  sleep 5
+  grep -F "Localzet Quick Actions: opened com.localzet.Network.desktop" "$OUT/gnome-shell.log" || exit 1
+  pgrep -f 'localzet.network_app' || exit 1
+  import -window root "$OUT/aurora-network.png" || exit 1
+  xdotool key alt+F4 || exit 1
+  sleep 3
   notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
   sleep 2
   xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1

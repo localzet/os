@@ -335,3 +335,17 @@ successful trusted same-repository PR run. This is an engineering
 candidate, not a release or physical SSD acceptance. Pending external
 clients, GPU unlock and licensed desktop Microsoft Office are not
 represented as installed. No lock bypass or authentication changes.
+
+### Executive system actions and self-contained extension ZIP
+
+PR 91 commit 486db7d passed the optical visual test (0.033). The reference
+calls for network and continuity entry points in Quick Settings. Register
+native GNOME QuickToggle widgets as non-toggle push buttons for the actual
+installed Localzet Network and NectarLink Setup desktop applications. Never
+present fictional VPN/proxy/phone state or expose actions on the locked
+session. Respect the native high-contrast menu and clean up on extension
+disable. CI installs the real desktop package, checks both items, clicks
+Network and verifies the actual app launches. The separately distributed
+extension ZIP now includes wallpaper-glass.js and quick-actions.js, and
+validation rejects missing relative JS imports. This does not yet implement
+live VPN toggle controls or native lock-screen styling.

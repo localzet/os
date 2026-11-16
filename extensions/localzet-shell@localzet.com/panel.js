@@ -5,6 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {ExecutiveQuickActions} from './quick-actions.js';
 
 const BASE = 'localzet-panel';
 const GLASS = 'localzet-panel-glass';
@@ -22,6 +23,7 @@ export class AuroraPanel {
         this._panel = Main.panel;
         this._effect = null;
         this._surfaces = [];
+        this._quickActions = null;
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
         this._contrastId = this._settings.connect('changed::high-contrast', () => this._refresh());
         this._experimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
@@ -34,6 +36,8 @@ export class AuroraPanel {
     }
 
     _clear() {
+        this._quickActions?.destroy();
+        this._quickActions = null;
         this._navigation?.destroy();
         this._navigation = null;
         for (const {actor, menu, signal} of this._surfaces) {
@@ -52,6 +56,9 @@ export class AuroraPanel {
 
     _refresh() {
         this._clear();
+        const quickSettings = this._panel.statusArea.quickSettings;
+        if (quickSettings && Main.sessionMode.allowSettings && !Main.sessionMode.isLocked)
+            this._quickActions = new ExecutiveQuickActions(quickSettings);
         if (this._settings.get_boolean('high-contrast'))
             return; // Respect native GNOME high-contrast styling.
         this._panel.add_style_class_name(BASE);
