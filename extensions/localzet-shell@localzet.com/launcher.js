@@ -1,14 +1,17 @@
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
-const COLUMNS = 4;
+const MAX_COLUMNS = 5;
+const TILE_WIDTH = 100;
 const FILTERS = [
     ['all', 'Все приложения', []],
-    ['system', 'Система', ['System', 'Settings', 'Utility']],
+    ['system', 'Система', ['System', 'Settings']],
+    ['utility', 'Утилиты', ['Utility']],
     ['development', 'Разработка', ['Development']],
     ['media', 'Медиа', ['AudioVideo', 'Graphics', 'Audio', 'Video']],
     ['internet', 'Интернет', ['Network']],
@@ -21,6 +24,9 @@ export class AuroraLauncher {
         this._appSystem = Shell.AppSystem.get_default();
         this._category = 'all';
         this._results = [];
+        this._tiles = [];
+        this._columns = MAX_COLUMNS;
+        this._favorites = new Gio.Settings({schema_id: 'org.gnome.shell'});
         this._menu = new PopupMenu.PopupMenu(anchor, 0.5, St.Side.BOTTOM);
         this._menu.actor.add_style_class_name('localzet-launcher-popup');
         Main.uiGroup.add_child(this._menu.actor);
@@ -31,19 +37,15 @@ export class AuroraLauncher {
         this._body = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher'});
         section.add_child(this._body);
         this._menu.addMenuItem(section);
-        const title = new St.BoxLayout({style_class: 'localzet-launcher-heading'});
-        title.add_child(new St.Label({text: 'Localzet', style_class: 'localzet-launcher-title'}));
-        title.add_child(new St.Label({text: 'Приложения', style_class: 'localzet-launcher-caption'}));
-        this._body.add_child(title);
         this._entry = new St.Entry({style_class: 'localzet-launcher-search',
-            hint_text: 'Поиск приложений', can_focus: true, track_hover: true});
+            hint_text: 'Поиск приложений…', can_focus: true, track_hover: true});
         this._entry.set_primary_icon(new St.Icon({icon_name: 'system-search-symbolic', icon_size: 16}));
         this._body.add_child(this._entry);
         const content = new St.BoxLayout({style_class: 'localzet-launcher-content'});
         this._categories = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher-categories'});
         content.add_child(this._categories);
         this._buttons = new Map();
-        const categoryIcons = {"all":"view-app-grid-symbolic","system":"preferences-system-symbolic","development":"applications-development-symbolic","media":"applications-multimedia-symbolic","internet":"applications-internet-symbolic","office":"applications-office-symbolic","games":"applications-games-symbolic"};
+        const categoryIcons = {"all":"view-app-grid-symbolic","system":"preferences-system-symbolic","utility":"applications-utilities-symbolic","development":"applications-development-symbolic","media":"applications-multimedia-symbolic","internet":"applications-internet-symbolic","office":"applications-office-symbolic","games":"applications-games-symbolic"};
         for (const [id, label] of FILTERS) {
             const categoryContent = new St.BoxLayout({style_class: 'localzet-category-content', x_expand: true, x_align: Clutter.ActorAlign.START});
             categoryContent.add_child(new St.Icon({icon_name: categoryIcons[id], icon_size: 15}));
@@ -57,19 +59,36 @@ export class AuroraLauncher {
             this._buttons.set(id, button);
             this._categories.add_child(button);
         }
+        const main = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'localzet-launcher-main'});
+        const heading = new St.BoxLayout({style_class: 'localzet-launcher-heading'});
+        this._heading = new St.Label({text: 'Приложения', x_expand: true, style_class: 'localzet-launcher-title'});
+        this._count = new St.Label({style_class: 'localzet-launcher-caption', y_align: Clutter.ActorAlign.CENTER});
+        heading.add_child(this._heading);
+        heading.add_child(this._count);
+        main.add_child(heading);
         const scroll = new St.ScrollView({style_class: 'localzet-launcher-scroll', x_expand: true,
             overlay_scrollbars: true});
         this._list = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'localzet-launcher-list'});
         scroll.set_child(this._list);
         scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
-        content.add_child(scroll);
+        main.add_child(scroll);
+        content.add_child(main);
         this._body.add_child(content);
-        this._count = new St.Label({style_class: 'localzet-launcher-caption'});
-        this._body.add_child(this._count);
+        const footer = new St.BoxLayout({style_class: 'localzet-launcher-footer'});
         const overview = new St.Button({label: 'Рабочие пространства', can_focus: true,
             style_class: 'localzet-launcher-overview'});
         overview.connect('clicked', () => { this.close(); Main.overview.show(); });
-        this._body.add_child(overview);
+        footer.add_child(overview);
+        footer.add_child(new St.Widget({x_expand: true}));
+        const settings = new St.Button({child: new St.Icon({icon_name: 'preferences-system-symbolic', icon_size: 18}),
+            accessible_name: 'Настройки', can_focus: true, style_class: 'localzet-launcher-footer-action'});
+        settings.connect('clicked', () => {
+            const app = this._appSystem.lookup_app('org.gnome.Settings.desktop');
+            if (app) this._activate(app);
+        });
+        settings.visible = !!this._appSystem.lookup_app('org.gnome.Settings.desktop');
+        footer.add_child(settings);
+        this._body.add_child(footer);
 
         this._entry.clutter_text.connect('text-changed', () => this._refresh());
         this._entry.clutter_text.connect('activate', () => {
@@ -86,6 +105,9 @@ export class AuroraLauncher {
         this._openId = this._menu.connect('open-state-changed', (_menu, open) => {
             if (open) {
                 this._category = 'all';
+                const monitor = Main.layoutManager.primaryMonitor;
+                this._columns = Math.max(2, Math.min(MAX_COLUMNS, Math.floor(((monitor?.width ?? 800) - 248) / TILE_WIDTH)));
+                this._body.set_width(204 + this._columns * TILE_WIDTH);
                 this._entry.set_text('');
                 this._refresh();
                 global.stage.set_key_focus(this._entry.clutter_text);
@@ -93,6 +115,9 @@ export class AuroraLauncher {
             } else {
                 console.log('Localzet Launcher: closed');
             }
+        });
+        this._favoritesId = this._favorites.connect('changed::favorite-apps', () => {
+            if (this._menu.isOpen) this._refresh();
         });
         this._appsId = this._appSystem.connect('installed-changed', () => {
             if (this._menu.isOpen)
@@ -119,6 +144,8 @@ export class AuroraLauncher {
         const apps = installed.map(info => this._appSystem.lookup_app(info.get_id()))
             .filter(app => app && app.get_app_info().should_show());
         const unique = new Map(apps.map(app => [app.get_id(), app]));
+        const favorites = new Map(this._favorites.get_strv('favorite-apps').map((id, index) => [id, index]));
+        const favoriteRank = app => !query && this._category === 'all' ? (favorites.get(app.get_id()) ?? 10000) : 0;
         this._results = [...unique.values()].filter(app => {
             const info = app.get_app_info();
             const tags = (info.get_categories() ?? '').split(';');
@@ -127,18 +154,20 @@ export class AuroraLauncher {
             const text = [app.get_name(), info.get_generic_name(), info.get_description(), app.get_id()]
                 .filter(Boolean).join(' ').toLocaleLowerCase();
             return query.split(/\s+/).every(word => text.includes(word));
-        }).sort((a, b) => a.get_name().localeCompare(b.get_name()));
+        }).sort((a, b) => favoriteRank(a) - favoriteRank(b) || a.get_name().localeCompare(b.get_name()));
+        this._heading.set_text(query ? 'Результаты поиска' : FILTERS.find(row => row[0] === this._category)[1]);
+        this._tiles = [];
         this._firstResult = null;
         this._list.destroy_all_children();
         let row;
         for (const [index, app] of this._results.entries()) {
-            if (index % COLUMNS === 0) {
+            if (index % this._columns === 0) {
                 row = new St.BoxLayout({style_class: 'localzet-launcher-row'});
                 this._list.add_child(row);
             }
             const tile = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher-tile',
                 x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
-            const icon = app.create_icon_texture(40);
+            const icon = app.create_icon_texture(46);
             icon.set_x_align(Clutter.ActorAlign.CENTER);
             tile.add_child(icon);
             const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
@@ -153,6 +182,8 @@ export class AuroraLauncher {
             const button = new St.Button({child: tile, can_focus: true, reactive: true,
                 style_class: 'localzet-launcher-app', accessible_name: app.get_name()});
             button.connect('clicked', () => this._activate(app));
+            button.connect('key-press-event', (_actor, event) => this._navigate(index, event));
+            this._tiles.push(button);
             row.add_child(button);
             if (!this._firstResult)
                 this._firstResult = button;
@@ -162,6 +193,23 @@ export class AuroraLauncher {
         this._count.set_text('Приложений: ' + this._results.length);
         // Report only counts, never search terms or application inventories.
         console.log('Localzet Launcher: results=' + this._results.length);
+    }
+
+    _navigate(index, event) {
+        const key = event.get_key_symbol();
+        let next = index;
+        if (key === Clutter.KEY_Left) next--;
+        else if (key === Clutter.KEY_Right) next++;
+        else if (key === Clutter.KEY_Up) next -= this._columns;
+        else if (key === Clutter.KEY_Down) next += this._columns;
+        else if (key === Clutter.KEY_Home) next = 0;
+        else if (key === Clutter.KEY_End) next = this._tiles.length - 1;
+        else return Clutter.EVENT_PROPAGATE;
+        if (next < 0 && key === Clutter.KEY_Up)
+            global.stage.set_key_focus(this._entry.clutter_text);
+        else if (this._tiles[next])
+            global.stage.set_key_focus(this._tiles[next]);
+        return Clutter.EVENT_STOP;
     }
 
     toggle() {
@@ -175,6 +223,7 @@ export class AuroraLauncher {
 
     destroy() {
         this._appSystem.disconnect(this._appsId);
+        this._favorites.disconnect(this._favoritesId);
         this._menu.disconnect(this._openId);
         this.close();
         this._manager.removeMenu(this._menu);

@@ -161,3 +161,14 @@ same blue/graphite palette and canonical logo; disk/authentication logic is
 unchanged. Settings CI checks actual painted surface colors. External GTK
 applications (including Nautilus) and lock-screen glass still need separate
 review. This is a candidate, not a claim of finished visual acceptance.
+
+### Executive command hub — implementation tranche 1
+
+The supplied final poster is an appearance reference, not a screenshot or a
+source of hardware facts. The command hub is a native GNOME Shell popup:
+search first, category navigation, responsive app grid, actual favorites,
+keyboard arrows/Home/End and real Settings/overview actions. No fake recent
+files, power state or unsupported actions. System icons use filled silhouettes
+and restrained material shading; third-party brand artwork remains upstream.
+The remaining landscape wallpaper, rounded compositor glass, lock screen,
+third-party window styling and actual hardware acceptance are not complete.
