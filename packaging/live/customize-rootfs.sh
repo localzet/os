@@ -24,6 +24,9 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     chroot "$root" dpkg-query -W -f='${Package}\t${Version}\n' docker.io docker-compose-v2 gir1.2-vte-3.91 \
         > "$root/usr/share/localzet/containers-candidate-packages.tsv"
 fi
+if [[ -n "${LOCALZET_NAUTILUS_BUNDLE:-}" ]]; then
+    bash "$LOCALZET_REPO/scripts/install-branded-nautilus.sh" "$root" "$LOCALZET_NAUTILUS_BUNDLE" "$LOCALZET_REPO"
+fi
 if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
     bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
 fi
