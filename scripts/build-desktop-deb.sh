@@ -54,6 +54,7 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
 fi
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
+python3 "$repo/scripts/build-aurora-icons.py" "$pkg/usr/share/icons"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet.svg"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -m 0644 "$repo/LICENSE" "$pkg/usr/share/doc/localzet-desktop/copyright"
