@@ -21,6 +21,16 @@ def main():
     def ns(name, *args, **kwargs):
         return run("ip", "netns", "exec", name, *args, **kwargs)
 
+    # Drop all privilege before executing client code. This is a CI fixture,
+    # not a desktop launcher or a general-purpose sandbox.
+    client_command = ("ip", "netns", "exec", client, "setpriv",
+                      "--reuid=65534", "--regid=65534", "--clear-groups",
+                      "--bounding-set=-all", "--inh-caps=-all",
+                      "--ambient-caps=-all", "--no-new-privs")
+
+    def client_run(*args):
+        return run(*client_command, *args)
+
     def probe(address, port, udp=False, allowed=True):
         code = """import socket, sys
 address, port, udp, allowed = sys.argv[1:]
@@ -36,7 +46,7 @@ with socket.socket(family, socket.SOCK_DGRAM if udp == '1' else socket.SOCK_STRE
         success = False
 assert success == (allowed == '1'), (address, port, udp, success)
 """
-        ns(client, sys.executable, "-c", code, address, str(port),
+        client_run(sys.executable, "-c", code, address, str(port),
            str(int(udp)), str(int(allowed)))
 
     try:
@@ -167,7 +177,32 @@ with socket.create_connection(('192.0.2.2', 7891), 3) as s:
     s.sendall(b'ping')
     assert exact(s, 4) == b'pong'
 """
-        ns(client, sys.executable, "-c", socks_probe)
+        client_run(sys.executable, "-c", socks_probe)
+        client_run(sys.executable, "-c", """import os, socket, ctypes, errno
+assert os.getuid() == os.geteuid() == 65534
+assert os.getgid() == os.getegid() == 65534
+assert not os.getgroups()
+with open('/proc/self/status') as status:
+    fields = dict(line.split(':', 1) for line in status if ':' in line)
+for name in ('CapInh', 'CapPrm', 'CapEff', 'CapBnd', 'CapAmb'):
+    assert int(fields[name], 16) == 0, name
+assert fields['NoNewPrivs'].strip() == '1'
+for family, protocol in ((socket.AF_INET, socket.IPPROTO_ICMP),
+                         (socket.AF_INET6, socket.IPPROTO_ICMPV6),
+                         (socket.AF_PACKET, 0)):
+    try:
+        s = socket.socket(family, socket.SOCK_RAW, protocol)
+    except PermissionError:
+        pass
+    else:
+        s.close()
+        raise AssertionError('raw socket permitted')
+# Even re-entering our own network namespace requires CAP_SYS_ADMIN.
+libc = ctypes.CDLL(None, use_errno=True)
+with open('/proc/self/ns/net', 'rb') as ns:
+    assert libc.setns(ns.fileno(), 0) == -1
+    assert ctypes.get_errno() == errno.EPERM
+""")
         for case in cases:
             probe(*case, allowed=False)
         # Keep direct destinations alive when only the proxy fails.
@@ -177,7 +212,7 @@ with socket.create_connection(('192.0.2.2', 7891), 3) as s:
         ns(peer, sys.executable, "-c",
            "import socket; s=socket.create_connection(('192.0.2.2',443),3); "
            "s.sendall(b'ping'); assert s.recv(4)==b'pong'; s.close()")
-        failed = subprocess.run(["ip", "netns", "exec", client, sys.executable,
+        failed = subprocess.run([*client_command, sys.executable,
                                  "-c", socks_probe], capture_output=True, text=True)
         assert failed.returncode != 0, "SOCKS connection survived proxy shutdown"
         for case in cases:
