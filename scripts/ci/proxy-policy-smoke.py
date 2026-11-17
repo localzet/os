@@ -349,6 +349,54 @@ for family, protocol in ((socket.AF_INET, socket.IPPROTO_ICMP),
         s.close()
         raise AssertionError('sandbox raw socket permitted')
 """)
+        # Test the narrow display-socket mount boundary with synthetic IPC.
+        # This is not a compositor or a claim that Wayland is a safe broker.
+        with tempfile.TemporaryDirectory(prefix="lz-display-") as directory:
+            os.chmod(directory, 0o755)
+            display = os.path.join(directory, "wayland-0")
+            hidden = os.path.join(directory, "bus")
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as wayland, \
+                    socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as bus:
+                for listener, path in ((wayland, display), (bus, hidden)):
+                    listener.bind(path)
+                    os.chmod(path, 0o777)
+                    listener.listen()
+                    listener.settimeout(3)
+                client_run(sys.executable, "-c", ipc_probe, hidden, "allow")
+                conn, _ = bus.accept()
+                conn.close()
+                display_args = (
+                    "--dir", "/run/display",
+                    "--ro-bind", display, "/run/display/wayland-0",
+                    "--setenv", "XDG_RUNTIME_DIR", "/run/display",
+                    "--setenv", "WAYLAND_DISPLAY", "wayland-0",
+                )
+                client_run(*sandbox, *display_args, "/usr/bin/python3", "-c", """
+import os, socket, sys
+runtime = os.environ['XDG_RUNTIME_DIR']
+assert os.listdir(runtime) == ['wayland-0']
+assert not os.path.exists(sys.argv[1])
+assert not os.path.exists('/run/dbus/system_bus_socket')
+assert 'DBUS_SESSION_BUS_ADDRESS' not in os.environ
+assert 'DISPLAY' not in os.environ
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+    s.connect(os.path.join(runtime, os.environ['WAYLAND_DISPLAY']))
+    s.sendall(b'display-fixture')
+assert os.readlink('/proc/self/ns/net') == sys.argv[2]
+try:
+    with socket.create_connection(('192.0.2.2', 443), 1):
+        raise AssertionError('direct TCP allowed with display socket')
+except OSError:
+    pass
+""", hidden, ns(client, "readlink", "/proc/self/ns/net",
+                    capture_output=True).stdout.strip())
+                conn, _ = wayland.accept()
+                with conn:
+                    conn.settimeout(3)
+                    assert conn.recv(64) == b'display-fixture'
+                client_run(sys.executable, "-c", ipc_probe, hidden, "allow")
+                conn, _ = bus.accept()
+                conn.close()
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
