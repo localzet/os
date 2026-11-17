@@ -117,7 +117,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
   test -n "$dock" || exit 1
   IFS=, read -r dock_x dock_y <<< "$dock"
-  xdotool mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  xdotool mousemove --window "$window" "$((dock_x + 27))" "$((dock_y + 72))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=3" "$OUT/gnome-shell.log" || exit 1

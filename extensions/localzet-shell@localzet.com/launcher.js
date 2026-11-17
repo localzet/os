@@ -9,7 +9,8 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {WallpaperGlass} from './wallpaper-glass.js';
 
 const MAX_COLUMNS = 4;
-const TILE_WIDTH = 96;
+const TILE_WIDTH = 84;
+const TILE_HEIGHT = 72;
 const FILTERS = [
     ['all', 'Все', []],
     ['system', 'Система', ['System', 'Settings']],
@@ -202,8 +203,8 @@ export class AuroraLauncher {
         this._firstResult = null;
         this._list.destroy_all_children();
         const monitor = Main.layoutManager.primaryMonitor;
-        const rows = Math.max(2, Math.min(3, Math.floor(((monitor?.height ?? 720) - 250) / 84)));
-        this._scroll.set_height(rows * 84);
+        const rows = Math.max(2, Math.min(3, Math.floor(((monitor?.height ?? 720) - 250) / TILE_HEIGHT)));
+        this._scroll.set_height(rows * TILE_HEIGHT);
         let row;
         for (const [index, app] of this._results.entries()) {
             if (index % this._columns === 0) {
@@ -212,13 +213,13 @@ export class AuroraLauncher {
             }
             const tile = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher-tile',
                 x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
-            const icon = app.create_icon_texture(42);
+            const icon = app.create_icon_texture(34);
             icon.set_x_align(Clutter.ActorAlign.CENTER);
             tile.add_child(icon);
             const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
                 x_align: Clutter.ActorAlign.CENTER});
-            label.set_width(86);
-            label.set_height(28);
+            label.set_width(74);
+            label.set_height(26);
             label.clutter_text.set_line_alignment(Pango.Alignment.CENTER);
             label.clutter_text.set_line_wrap(true);
             label.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);

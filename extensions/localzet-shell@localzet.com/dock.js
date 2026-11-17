@@ -36,7 +36,7 @@ export class LocalzetDock {
         this._scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
         this._actor.add_child(this._scroll);
         this._trash = new St.Button({
-            child: new St.Icon({icon_name: 'user-trash', icon_size: 34}),
+            child: new St.Icon({icon_name: 'user-trash', icon_size: 28}),
             style_class: 'localzet-dock-button localzet-dock-trash',
             accessible_name: 'Корзина', can_focus: true, reactive: true, track_hover: true,
         });
@@ -60,7 +60,7 @@ export class LocalzetDock {
                 this._anchor.set_child(this._launcherIcon());
                 this._trash.set_child(new St.Icon({
                     icon_name: this._settings.get_boolean('high-contrast') ? 'user-trash-symbolic' : 'user-trash',
-                    icon_size: 34,
+                    icon_size: 28,
                 }));
                 this._schedule();
             })],
@@ -87,11 +87,11 @@ export class LocalzetDock {
     }
 
     _launcherIcon() {
-        const fallback = () => new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 29});
+        const fallback = () => new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 25});
         if (this._settings.get_boolean('high-contrast'))
             return fallback();
         const file = Gio.File.new_for_path(GLib.build_filenamev([this._path, 'icons', 'launcher.svg']));
-        return file.query_exists(null) ? new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 29}) : fallback();
+        return file.query_exists(null) ? new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 25}) : fallback();
     }
 
     _schedule() {
@@ -120,7 +120,7 @@ export class LocalzetDock {
     }
 
     _newRow(app) {
-        const icon = app.create_icon_texture(38);
+        const icon = app.create_icon_texture(32);
         const dot = new St.Widget({style_class: 'localzet-dock-indicator',
             x_align: Clutter.ActorAlign.CENTER});
         const content = new St.BoxLayout({vertical: true, style_class: 'localzet-dock-item-content',
@@ -212,13 +212,13 @@ export class LocalzetDock {
         const width = Math.min(monitor.width - 24, natural);
         this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
             St.PolicyType.NEVER);
-        const height = 62;
+        const height = 54;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
-        const y = monitor.y + monitor.height - height - 12;
+        const y = monitor.y + monitor.height - height - 10;
         this._actor.set_position(x, y);
         this._strut.set_position(monitor.x, y - 6);
-        this._strut.set_size(monitor.width, height + 18);
+        this._strut.set_size(monitor.width, height + 16);
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
             console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
