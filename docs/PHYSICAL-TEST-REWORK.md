@@ -56,3 +56,48 @@ manual dispatch. No stable release based on synthetic tests or placeholder
 artwork. A physical retest and explicit review of the visual baseline and
 installer safety are required. The original Alpha artifacts remain historical
 engineering builds and should not be used for installation on valuable disks.
+
+## Aurora desktop candidate — visual review
+
+The requested engineering candidate uses a lower-saturation graphite wallpaper,
+compact dock and five original dock glyphs, with native high-contrast icons.
+This is an incremental desktop polish, not a complete replacement icon theme.
+The explicitly requested same-repository feat/aurora-desktop-candidate PR may
+retain the exact tested ISO as a seven-day engineering artifact after USB
+installation, login, Windows fixture and Containers/Hardware Manager checks.
+It is not a public/stable release; never install it on valuable disks.
+The physical storage, full profile, GPU, and visual release gates above remain.
+
+### Aurora native launcher candidate
+
+The dock launcher opens an original compact St/PopupMenu application menu,
+with categories based on installed desktop metadata, localized names and
+search, keyboard activation, and a workspace overview action. Existing GNOME
+Overview remains available through upstream controls; Quick Settings and
+notifications are not replaced. The original Aurora theme is used for themed
+application icons. GTK inventory gaps are tracked, not hidden by a generic
+icon for every app. DevKit smoke clicks the actual dock, enters a query,
+opens the selected real application and captures screenshots. Installed ISO
+candidate retains engineering-only status; physical review and full profile
+provisioning remain release gates.
+
+### Aurora system surfaces
+
+The native GNOME Quick Settings and date/notification menu receive scoped
+Aurora graphite surfaces, compact controls, focus marks, and calendar/message
+styling. The underlying network, volume, power, authentication, calendar and
+notification actions remain upstream. Styling and menu signal subscriptions
+are removed on extension disable or high contrast. DevKit tests must open
+both actual menus and submit a real session notification. This change does
+not replace the GNOME system controllers or claim a new notification daemon.
+
+### Dedicated SSD isolation test extension
+
+The private VM installation smoke now generates a bootable GPT foreign disk
+with an existing FAT32 ESP, fallback BOOTX64.EFI, separate EFI loader path,
+and ext4 data partition. It boots the original GRUB serial fixture before
+and after installation on a distinct blank target, and compares the whole
+foreign disk SHA-256. This tests the shared VM-only writer; it does not enable
+physical multi-disk installation, prove actual Windows/Linux boot preservation,
+validate existing firmware NVRAM entries or authorize shared-ESP writes.
+The interactive installer restriction remains unchanged.

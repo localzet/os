@@ -10,7 +10,8 @@ import stat
 import zipfile
 
 UUID = "localzet-shell@localzet.com"
-REQUIRED = {"metadata.json", "extension.js", "stylesheet.css", "dock.js", "panel.js"}
+ICONS = {"icons/" + name + ".svg" for name in ("launcher", "browser", "files", "terminal", "settings")}
+REQUIRED = {"metadata.json", "extension.js", "stylesheet.css", "dock.js", "panel.js", "launcher.js"} | ICONS
 MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 
 def validate(path: Path) -> str:
@@ -23,7 +24,9 @@ def validate(path: Path) -> str:
             parts = PurePosixPath(name).parts
             if (not parts or name.startswith("/") or "\\" in name
                     or any(part in (".", "..") for part in parts)
-                    or member.is_dir() or len(parts) != 1 or name in names):
+                    or name in names
+                    or (len(parts) != 1 and name not in ICONS)
+                    or (member.is_dir() and name != "icons/")):
                 raise ValueError(f"unsafe or duplicate archive entry: {name}")
             if stat.S_IFMT(member.external_attr >> 16) == stat.S_IFLNK:
                 raise ValueError(f"symlink in archive: {name}")
@@ -40,7 +43,7 @@ def validate(path: Path) -> str:
         versions = metadata.get("shell-version")
         if not isinstance(versions, list) or "50" not in versions:
             raise ValueError("GNOME Shell 50 is not declared")
-        for source in ("extension.js", "dock.js", "panel.js"):
+        for source in ("extension.js", "dock.js", "panel.js", "launcher.js"):
             if not bundle.read(source).strip():
                 raise ValueError(f"{source} is empty")
     return hashlib.sha256(path.read_bytes()).hexdigest()

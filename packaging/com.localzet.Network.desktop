@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet Network
+Name[ru]=Сеть Localzet
+Exec=localzet-network
+Icon=com.localzet.Network
+Terminal=false
+Categories=System;Settings;Network;
+StartupNotify=true

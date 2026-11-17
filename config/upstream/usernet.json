@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "project": "localzet/UserNet",
+  "version": "0.5.12",
+  "status": "engineering-review",
+  "asset": {
+    "name": "UserNet-linux.deb",
+    "size": 47156972,
+    "sha256": "8d011407b418065d25520bdd2f4275effdb754e4217ce30474709d0d04e6e105"
+  },
+  "deb_version": "0.5.12.2026110805"
+}

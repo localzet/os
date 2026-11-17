@@ -48,7 +48,7 @@ python3 "$repo/scripts/patch-control-center-brand.py" meson.build --about-bluepr
 quilt refresh
 cp debian/patches/localzet-distributor-logo.patch "$out/"
 export DEBFULLNAME="Localzet OS" DEBEMAIL="build@localzet.com"
-new_version="${version}+localzet1"
+new_version="${version}+localzet3"
 dch --newversion "$new_version" --distribution resolute "Use the original Localzet OS distributor logo."
 # Full binary build, including upstream tests. No privileged compiler.
 DEB_BUILD_OPTIONS="parallel=2" xvfb-run -a dpkg-buildpackage -b -us -uc 2>&1 | tee "$out/build.log"
@@ -73,7 +73,13 @@ bash "$repo/scripts/build-desktop-deb.sh" "$work/desktop"
 sudo apt-get install -y "$work"/desktop/localzet-desktop_*.deb
 sudo apt-get install -y "$work"/gnome-control-center_*.deb "$work"/gnome-control-center-data_*.deb
 test "$(dpkg-query -W -f='${Version}' gnome-control-center)" = "$new_version"
-strings /usr/bin/gnome-control-center | grep -Fx '/usr/share/localzet/brand/localzet.svg' > "$out/compiled-logo.txt"
+cmp "$repo/assets/brand/localzet.svg" /usr/share/localzet/brand/localzet.svg
+python3 "$repo/scripts/derive-about-logo.py" "$repo/assets/brand/localzet.svg" "$work/expected-about.svg"
+cmp "$work/expected-about.svg" /usr/share/localzet/brand/localzet-about.svg
+python3 "$repo/scripts/derive-about-logo.py" --dark "$repo/assets/brand/localzet.svg" "$work/expected-about-dark.svg"
+cmp "$work/expected-about-dark.svg" /usr/share/localzet/brand/localzet-about-dark.svg
+strings /usr/bin/gnome-control-center | grep -Fx '/usr/share/localzet/brand/localzet-about.svg' > "$out/compiled-logo.txt"
+strings /usr/bin/gnome-control-center | grep -Fx '/usr/share/localzet/brand/localzet-about-dark.svg' >> "$out/compiled-logo.txt"
 LC_ALL=C.UTF-8 XDG_CURRENT_DESKTOP=GNOME xvfb-run -a dbus-run-session -- gnome-control-center --list | sort > "$out/localzet-panels.txt"
 diff -u "$out/stock-panels.txt" "$out/localzet-panels.txt"
 export OUT="$out"

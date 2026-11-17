@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "project": "netbirdio/netbird",
+  "version": "0.83.1",
+  "status": "engineering-review",
+  "assets": {
+    "netbird": {
+      "name": "netbird_0.83.1_linux_amd64.deb",
+      "size": 15938262,
+      "sha256": "742d6572939f21b36379e8def58c3508de72b44200af2d12e245576aefa3b5a9",
+      "scripts": {
+        "postinst": "bd7e7feb84192c3c5562ae1c7dbcc28965b4d900",
+        "prerm": "121f42671d9279b557f6632974820f8be02c9003"
+      }
+    },
+    "netbird-ui": {
+      "name": "netbird-ui_0.83.1_linux_amd64.deb",
+      "size": 12087342,
+      "sha256": "d235e4805e2790cc48b5b649aec20ebeefade3e8d0446cbdc7080f57dba7c901",
+      "scripts": {
+        "postinst": "e2eb32cdcbd6b0900819bb6c58e224c7ac9573b8"
+      }
+    }
+  }
+}

@@ -1,4 +1,6 @@
 import json
+import importlib.util
+import tempfile
 from pathlib import Path
 import unittest
 import xml.etree.ElementTree as ET
@@ -27,6 +29,39 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(root.attrib['viewBox'], '0 0 1920 1080')
         self.assertEqual(root.attrib['width'], '3840')
         self.assertEqual(root.attrib['height'], '2160')
+
+    def test_original_dock_glyphs(self):
+        folder = ROOT / "extensions/localzet-shell@localzet.com/icons"
+        expected = {"launcher.svg", "browser.svg", "files.svg", "terminal.svg", "settings.svg"}
+        self.assertEqual({path.name for path in folder.glob("*.svg")}, expected)
+        for path in folder.glob("*.svg"):
+            root = ET.parse(path).getroot()
+            self.assertEqual(root.tag, "{http://www.w3.org/2000/svg}svg")
+            self.assertEqual(root.attrib["viewBox"], "0 0 64 64")
+            self.assertTrue(all("href" not in key for node in root.iter() for key in node.attrib))
+
+    def test_aurora_system_icon_theme(self):
+        spec = importlib.util.spec_from_file_location("aurora_icons", ROOT / "scripts/build-aurora-icons.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            theme = module.build(directory)
+            index = (theme / "index.theme").read_text()
+            self.assertIn("Inherits=Adwaita,hicolor", index)
+            self.assertNotIn("Papirus", index)
+            files = list(theme.glob("scalable/*/*.svg"))
+            self.assertGreaterEqual(len(files), 100)
+            self.assertGreaterEqual(len(module.GLYPHS), 40)
+            self.assertEqual(len({path.stem for path in files}), len(files))
+            for path in files:
+                root = ET.parse(path).getroot()
+                self.assertEqual(root.attrib["viewBox"], "0 0 64 64")
+                self.assertTrue(all("href" not in key for node in root.iter() for key in node.attrib))
+            for name in ("Settings", "Hardware", "WindowsRuntime", "Containers", "Connect", "Installer", "Network"):
+                icon = "com.localzet." + name
+                self.assertTrue((theme / "scalable/apps" / (icon + ".svg")).is_file())
+            with self.assertRaises(FileExistsError):
+                module.build(directory)
 
     def test_grub_branding(self):
         theme = (ROOT / "packaging/grub/theme.txt").read_text()

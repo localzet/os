@@ -25,3 +25,17 @@ DOCX/XLSX/PPTX open, edit, save and reopen, PDF, printing, Cyrillic and file
 associations. Only after actual native package and license gates pass
 enable Standard/Complete provisioning. Do not ship the 10.0.0 version
 indefinitely; update review must track security releases.
+
+## Native installed-image engineering review
+
+LOCALZET_EXPERIMENTAL_ONLYOFFICE=1 is accepted only with a disposable build
+root and Standard/Complete archive profile. The exact reviewed 10.0.0-169
+DEB is downloaded with the pinned size and SHA-256, rechecked for control
+scripts, installed with no recommended fonts or package removals and no new
+repositories. The target stores a version, original manifest and dependency
+plan, and retains the original license. The separate CI workflow assembles
+an ISO, installs it from USB in QEMU with networking disabled and launches
+the native editor in the authenticated GNOME user session. It uploads only
+logs and screenshots, not the image. This does not satisfy the AGPL source
+and third-party attribution/redistribution review, nor DOCX/XLSX/PPTX editing
+and update acceptance. The default profile remains planning-only.

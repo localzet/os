@@ -1,0 +1,50 @@
+name: UserNet upstream review
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'config/upstream/usernet.json'
+      - 'scripts/fetch-usernet.py'
+      - 'scripts/ci/usernet-review.sh'
+      - 'src/localzet/network_app.py'
+      - 'src/localzet/usernet.py'
+      - 'tests/test_usernet.py'
+      - '.github/workflows/usernet-review.yml'
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install review dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gsettings-desktop-schemas dconf-gsettings-backend xvfb xauth dbus-x11 xdotool imagemagick
+      - name: Verify original package without running scripts
+        run: |
+          mkdir -p out/usernet
+          python3 scripts/fetch-usernet.py "$RUNNER_TEMP/usernet"
+          bash scripts/ci/usernet-review.sh "$RUNNER_TEMP/usernet/UserNet-linux.deb" out/usernet
+      - name: Native network panel in a disposable user session
+        run: |
+          GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none PYTHONPATH=src xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash -euc '
+            gsettings set org.gnome.system.proxy mode manual
+            gsettings set org.gnome.system.proxy.http host 127.0.0.1
+            gsettings set org.gnome.system.proxy.http port 7890
+            /usr/bin/python3 -m localzet.network_app >out/usernet/network.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window=$(timeout 30 xdotool search --sync --onlyvisible --name "Localzet Network" | head -n 1)
+            sleep 5
+            kill -0 "$pid"
+            import -window "$window" out/usernet/network.png
+            ! grep -E "Traceback|CRITICAL|Error:" out/usernet/network.log
+          '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: usernet-review-evidence
+          path: out/usernet/
+          retention-days: 7

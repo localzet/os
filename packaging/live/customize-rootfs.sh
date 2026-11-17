@@ -6,6 +6,9 @@ root="$(realpath -e -- "$1")"
 install -m 0644 "$LOCALZET_DESKTOP_DEB" "$root/tmp/localzet-desktop.deb"
 chroot "$root" dpkg -i /tmp/localzet-desktop.deb
 rm "$root/tmp/localzet-desktop.deb"
+if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
+    bash "$LOCALZET_REPO/scripts/install-onlyoffice-rootfs.sh" "$root"
+fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     # Do not activate a privileged daemon or grant docker-group membership.
     for unit in docker.service docker.socket containerd.service; do
@@ -49,6 +52,7 @@ cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
 enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
+favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
 picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
@@ -56,11 +60,22 @@ picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
-icon-theme='Papirus-Dark'
+icon-theme='Aurora'
+
+[org/gnome/Ptyxis]
+default-profile-uuid='4e6f25d9af1244aa896f5b028bf7a020'
+profile-uuids=['4e6f25d9af1244aa896f5b028bf7a020']
+interface-style='system'
+
+[org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020]
+label='Aurora'
+palette='Aurora'
+opacity=1.0
 
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]
 EOF
+install -D -m 0644 "$LOCALZET_REPO/assets/terminal/aurora.palette" "$root/etc/skel/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
 # Preserve the distribution's GDM profile; add a separate branding DB.
 # GNOME's supported login-screen.logo key does not replace auth UI.
 gdm_profile="$root/etc/dconf/profile/gdm"
@@ -140,7 +155,8 @@ chroot "$root" update-alternatives --set default.plymouth "$theme/localzet-auror
 mkdir -p "$root/etc/plymouth"
 printf '[Daemon]\nTheme=localzet-aurora\n' > "$root/etc/plymouth/plymouthd.conf"
 test -f "$root/usr/share/gnome-shell/extensions/ubuntu-appindicators@ubuntu.com/metadata.json"
-test -f "$root/usr/share/icons/Papirus-Dark/index.theme"
+test -f "$root/usr/share/icons/Aurora/index.theme"
+test -f "$root/usr/share/icons/Adwaita/index.theme"
 # Ensure the initramfs contains the Casper hooks installed by apt.
 chroot "$root" update-initramfs -u -k all
 # Fail before ISO assembly if initramfs lacks the Live boot script.

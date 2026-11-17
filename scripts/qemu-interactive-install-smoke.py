@@ -207,7 +207,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False):
+def installed_script(archive_profile=None, containers=False, office=False):
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -260,6 +260,10 @@ launch_app() {
     echo "Application did not launch: $app"
     return 1
 }
+home="$(getent passwd localzet-test | cut -d: -f6)"
+test -s "$home/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis default-profile-uuid)" = "'4e6f25d9af1244aa896f5b028bf7a020'"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020/ palette)" = "'Aurora'"
 launch_app localzet-settings /usr/bin/localzet-settings
 launch_app localzet-windows /usr/bin/localzet-windows
 launch_app localzet-connect /usr/bin/localzet-connect
@@ -352,6 +356,23 @@ pgrep -u localzet-test -x qbittorrent >/dev/null
         assert "installed archive profile package inventory" in script
     if containers:
         check = r"""
+test -x /usr/bin/localzet-hardware-manager
+test -x /usr/sbin/localzet-install-drivers
+test -f /usr/lib/systemd/system/localzet-hardware-firstboot.timer
+test ! -e /etc/localzet/hardware-auto
+test ! -e /usr/lib/localzet/hardware-auto-enabled
+if systemctl is-enabled --quiet localzet-hardware-firstboot.timer; then
+    echo "Unexpected automatic hardware setup without consent"; exit 2
+fi
+test -s /usr/share/icons/Aurora/index.theme
+for icon in com.localzet.Settings com.localzet.Hardware com.localzet.Containers org.gnome.Nautilus org.gnome.Ptyxis; do
+    test -s "/usr/share/icons/Aurora/scalable/apps/$icon.svg"
+done
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'"
+for glyph in launcher browser files terminal settings; do
+    test -s "/usr/share/gnome-shell/extensions/localzet-shell@localzet.com/icons/$glyph.svg"
+done
+launch_app localzet-hardware-manager /usr/bin/localzet-hardware-manager
 test -x /usr/bin/localzet-containers
 launch_app localzet-containers /usr/bin/localzet-containers
 pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
@@ -369,6 +390,44 @@ printf 'PASS: installed Containers launched unprivileged; system daemon disabled
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed Containers launched" in script
+    if office:
+        check = r"""
+test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
+test -s /opt/onlyoffice/desktopeditors/LICENSE.txt
+test -s /usr/share/localzet/office-review/upstream.json
+test -x /usr/bin/onlyoffice-desktopeditors
+launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
+cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+window=""
+for attempt in $(seq 1 90); do
+    window="$(xdotool search --onlyvisible --class '[Dd]esktop[Ee]ditors|[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]' 2>/dev/null | head -n1 || true)"
+    if [[ -z "$window" ]]; then
+        window="$(xdotool search --onlyvisible --name '[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]|Desktop Editors' 2>/dev/null | head -n1 || true)"
+    fi
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+test -n "$window"
+timeout 15 xdotool windowactivate --sync "$window"
+xdotool getwindowname "$window"
+geometry="$(xdotool getwindowgeometry --shell "$window")"
+width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+[[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
+(( width >= 400 && height >= 300 ))
+printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
+OFFICETEST
+chmod 0755 /run/localzet-candidate-check/office-window.sh
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh
+printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\n'
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+        assert "installed native ONLYOFFICE launched" in script
     return script
 
 
@@ -382,7 +441,10 @@ def main():
     parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     parser.add_argument("--expect-containers", action="store_true")
+    parser.add_argument("--expect-office", action="store_true")
     args = parser.parse_args()
+    if args.expect_office and not args.expect_archive_profile:
+        parser.error("Office candidate requires Standard or Complete archive profile")
     if args.expect_containers and args.expect_archive_profile != "complete":
         parser.error("Containers candidate requires complete archive profile")
     for name in ("iso", "ovmf_code", "ovmf_vars"):
@@ -421,7 +483,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -460,6 +522,8 @@ def main():
             installed.capture("desktop-verified")
             if args.expect_containers:
                 installed.capture("containers-installed")
+            if args.expect_office:
+                installed.capture("office-installed")
             installed.wait(WINE_READY, 360)
         finally:
             installed.close()

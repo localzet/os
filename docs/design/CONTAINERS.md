@@ -236,3 +236,21 @@ workflow builds this candidate on the consolidated PR or by manual input and
 checks BIOS/UEFI boot; manual successful runs may upload a development ISO.
 Rootless setup, installed-system launch and full Complete external components
 remain acceptance gates. Do not label this a stable or complete release.
+
+## NVIDIA GPU integration — stage 1
+
+Local rootful engine only, with existing socket permission, working host NVIDIA
+runtime and configured nvidia Docker runtime. `python3 -m localzet.containers
+--rootful gpu-status` reports runtime configuration, not verified compute.
+`gpu-probe sha256:<full-local-image-id>` runs a user-selected trusted local
+CUDA image with fixed nvidia-smi entrypoint, no pull, no network, read-only
+root, dropped capabilities and no elevation. It requires exact host/container
+PCI GPU agreement. The probe verifies visibility, not CUDA kernel execution;
+image output is not attestation and a timeout may leave a container running.
+GPU device exposure is not a sandbox. No rootless or remote GPU support yet.
+No NVIDIA repository, toolkit installation, daemon mutation or restart is
+performed. NVIDIA documents separate rootful/rootless runtime configuration:
+https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+Future work: review signed upstream packages and key fingerprint, explicit
+administrator installation, preview/backup runtime configuration, no implicit
+daemon restart, GPU-specific deployment options and physical compute test.

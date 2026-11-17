@@ -1,0 +1,44 @@
+name: Aurora system icon theme
+on:
+  pull_request:
+    paths:
+      - 'scripts/build-aurora-icons.py'
+      - 'scripts/ci/aurora-icon-smoke.py'
+      - 'scripts/build-desktop-deb.sh'
+      - 'packaging/**'
+      - '.github/workflows/aurora-icons.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  icons:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK and desktop icon fallback
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 adwaita-icon-theme xvfb xauth dbus-x11 xdotool imagemagick
+      - name: Build actual desktop package and resolve every icon
+        run: |
+          mkdir -p out/icons
+          LOCALZET_EXPERIMENTAL_CONTAINERS=1 bash scripts/build-desktop-deb.sh out/package
+          dpkg-deb -x out/package/localzet-desktop_0.1.0~dev1_all.deb out/root
+          export XDG_DATA_DIRS="$PWD/out/root/usr/share:/usr/local/share:/usr/share"
+          GTK_THEME=Adwaita:dark GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none xvfb-run -a -s '-screen 0 1100x760x24' dbus-run-session -- bash -euc '
+            /usr/bin/python3 scripts/ci/aurora-icon-smoke.py out/root/usr/share/icons out/icons/coverage.json >out/icons/log.txt 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window=$(timeout 30 xdotool search --sync --onlyvisible --name "Aurora icon theme" | head -n1)
+            sleep 2
+            kill -0 "$pid"
+            import -window "$window" out/icons/aurora-icon-theme.png
+            grep -F "GTK icon lookups resolved in Aurora" out/icons/log.txt
+          '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aurora-icon-theme-evidence
+          path: out/icons/
+          retention-days: 7

@@ -13,6 +13,8 @@ if [[ -e "$EXT_DEST" ]]; then
 fi
 mkdir -p "$(dirname "$EXT_DEST")"
 cp -R "$EXT_SOURCE" "$EXT_DEST"
+mkdir -p "$HOME/.local/share/icons"
+python3 "$ROOT/scripts/build-aurora-icons.py" "$HOME/.local/share/icons"
 if [[ -z "${XDG_RUNTIME_DIR:-}" || ! -d "$XDG_RUNTIME_DIR" ]]; then
   export XDG_RUNTIME_DIR="$(mktemp -d /tmp/localzet-xdg.XXXXXX)"
   chmod 700 "$XDG_RUNTIME_DIR"
@@ -60,6 +62,16 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
+  gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
+  install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
+  profile=4e6f25d9af1244aa896f5b028bf7a020
+  gsettings set org.gnome.Ptyxis profile-uuids "['$profile']" || exit 1
+  gsettings set org.gnome.Ptyxis default-profile-uuid "$profile" || exit 1
+  gsettings set org.gnome.Ptyxis interface-style system || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette Aurora || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Nautilus.desktop']" || exit 1
+  test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
   xwininfo -root -tree > "$OUT/xwindows.txt"
@@ -77,6 +89,59 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
+  # Devkit window content starts under its title bar; use the actual
+  # dock position reported by the extension, not fixed monitor coordinates.
+  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$dock" || exit 1
+  IFS=, read -r dock_x dock_y <<< "$dock"
+  xdotool mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-launcher.png" || exit 1
+  xdotool type --clearmodifiers ptyxis || exit 1
+  sleep 2
+  grep -F "Localzet Launcher: results=1" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-launcher-search.png" || exit 1
+  xdotool key Return || exit 1
+  sleep 5
+  grep -F "Localzet Launcher: activated org.gnome.Ptyxis.desktop" "$OUT/gnome-shell.log" || exit 1
+  pgrep -x ptyxis || exit 1
+  # Startup may report RUNNING before the first window is mapped.
+  for attempt in $(seq 1 30); do
+    if grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -Eq "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  import -window root "$OUT/aurora-dock-running.png" || exit 1
+  pkill -x ptyxis || true
+  sleep 5
+  grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[01] focused=0$" || exit 1
+  import -window root "$OUT/aurora-dock-idle.png" || exit 1
+  # The panel is still the real GNOME panel. Exercise the real menus and
+  # deliver an original notification through the session's standard bus.
+  grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
+  width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
+  xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-quick-settings.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
+  notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
+  sleep 2
+  xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-notifications.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
+  xdotool windowfocus --sync "$window" key super+a || exit 1
+  sleep 5
+  import -window root "$OUT/aurora-app-grid.png" || exit 1
+  xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
+  xdotool windowfocus --sync "$window" key Escape || exit 1
+  sleep 3
   # Exercise teardown/re-enable, including the accessibility fallback.
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
   sleep 2
