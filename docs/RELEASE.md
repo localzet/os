@@ -36,6 +36,25 @@ Keep the engineering and production channels distinct. Do not turn green
 QEMU tests into a production designation or publish a production artifact
 automatically from a pull request.
 
+## Package inventory for review
+
+The candidate workflow extracts the embedded package manifest from the actual
+ISO and compares it with the prepared rootfs, preserving package versions,
+architectures, source package versions and multiplicity. For a local build:
+
+```bash
+xorriso -osirrox on -indev localzet-aurora-complete-rc.iso \
+    -extract /casper/filesystem.manifest filesystem.manifest
+python3 scripts/collect-release-inventory.py /path/to/prepared-rootfs \
+    --iso-manifest filesystem.manifest > package-inventory.json
+```
+
+Review every entry, retrieve corresponding sources and retain required
+notices. The report includes SHA-256 of present copyright files, flags
+missing or unsafe notice paths and records redistribution approval as false.
+A matching package inventory or present notice does not establish compliance;
+the workflow never signs or publishes a production release automatically.
+
 ## Signing after acceptance
 
 The release maintainer controls the production OpenPGP signing key offline.
