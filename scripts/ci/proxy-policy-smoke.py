@@ -236,6 +236,42 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
     else:
         raise AssertionError('host abstract socket reachable')
 """, str(host_socket.fileno()), abstract[1:])
+        # A private mount namespace must hide pathname sockets too. Demonstrate
+        # both the leak without mount isolation and denial with it, using a
+        # synthetic session bus directory rather than the runner's real IPC.
+        import tempfile
+        import os
+        with tempfile.TemporaryDirectory(prefix="lz-ipc-") as directory:
+            os.chmod(directory, 0o755)
+            pathname = os.path.join(directory, "bus")
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as bus:
+                bus.bind(pathname)
+                os.chmod(pathname, 0o777)
+                bus.listen()
+                ipc_probe = """import socket, sys, errno
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+    s.settimeout(2)
+    try:
+        s.connect(sys.argv[1])
+    except OSError as exc:
+        assert sys.argv[2] == 'deny' and exc.errno == errno.ENOENT, exc
+    else:
+        assert sys.argv[2] == 'allow', 'pathname IPC escaped isolation'
+"""
+                client_run(sys.executable, "-c", ipc_probe, pathname, "allow")
+                conn, _ = bus.accept()
+                conn.close()
+                # Mount only inside a private mount namespace, before dropping
+                # privileges. No changes to host mounts or real session buses.
+                ns(client, "unshare", "--mount", "--propagation", "private",
+                   "sh", "-eu", "-c",
+                   'mount -t tmpfs -o mode=0755,nosuid,nodev,noexec tmpfs "$1"; shift; exec "$@"',
+                   "sh", directory, *client_command[4:], sys.executable,
+                   "-c", ipc_probe, pathname, "deny")
+                # The host socket must remain reachable after the test.
+                client_run(sys.executable, "-c", ipc_probe, pathname, "allow")
+                conn, _ = bus.accept()
+                conn.close()
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
