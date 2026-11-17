@@ -63,10 +63,36 @@ assert success == (allowed == '1'), (address, port, udp, success)
                 ns(name, "ip", family, "neigh", "replace", address,
                    "lladdr", mac, "nud", "permanent", "dev", link)
             ns(name, "ip", "-6", "addr", "show", "dev", link)
-        server_code = """import socket, selectors, signal
+        server_code = """import socket, selectors, signal, threading
+def exact(conn, n):
+    data = b''
+    while len(data) < n:
+        chunk = conn.recv(n - len(data))
+        if not chunk:
+            raise EOFError()
+        data += chunk
+    return data
+
+def socks(conn):
+    with conn:
+        conn.settimeout(3)
+        try:
+            assert exact(conn, 3) == bytes([5, 1, 0])
+            conn.sendall(bytes([5, 0]))
+            assert exact(conn, 4) == bytes([5, 1, 0, 3])
+            name = exact(conn, exact(conn, 1)[0])
+            port = int.from_bytes(exact(conn, 2), 'big')
+            assert name == b'fixture.invalid' and port == 443
+            with socket.create_connection(('192.0.2.2', port), 3) as target:
+                conn.sendall(bytes([5, 0, 0, 1, 0, 0, 0, 0, 0, 0]))
+                target.sendall(exact(conn, 4))
+                conn.sendall(exact(target, 4))
+        except (OSError, EOFError, AssertionError):
+            return
+
 sel = selectors.DefaultSelector()
 for family, address in ((socket.AF_INET, '192.0.2.2'), (socket.AF_INET6, '2001:db8::2')):
-    for port, kind in ((7890, socket.SOCK_STREAM), (443, socket.SOCK_STREAM),
+    for port, kind in ((7890, socket.SOCK_STREAM), (7891, socket.SOCK_STREAM), (443, socket.SOCK_STREAM),
                        (53, socket.SOCK_DGRAM), (443, socket.SOCK_DGRAM),
                        (53, socket.SOCK_STREAM)):
         s = socket.socket(family, kind)
@@ -76,7 +102,7 @@ for family, address in ((socket.AF_INET, '192.0.2.2'), (socket.AF_INET6, '2001:d
         sel.register(s, selectors.EVENT_READ)
 def stop_proxy(*_):
     for key in list(sel.get_map().values()):
-        if key.fileobj.getsockname()[1] == 7890:
+        if key.fileobj.getsockname()[1] in (7890, 7891):
             sel.unregister(key.fileobj)
             key.fileobj.close()
     print('proxy stopped', flush=True)
@@ -87,6 +113,9 @@ while True:
         s = key.fileobj
         if s.type == socket.SOCK_STREAM:
             conn, _ = s.accept()
+            if s.getsockname()[1] == 7891:
+                threading.Thread(target=socks, args=(conn,), daemon=True).start()
+                continue
             with conn:
                 conn.settimeout(2)
                 if conn.recv(4) == b'ping':
@@ -109,6 +138,32 @@ while True:
         for case in cases:
             probe(*case, allowed=case == ("192.0.2.2", 7890, False))
         ns(client, "nft", "list", "table", "inet", "localzet_proxy_only")
+        # Replace the fixture policy atomically with the SOCKS endpoint.
+        ns(client, "nft", "-f", "-", input=(
+            "delete table inet localzet_proxy_only\n" +
+            render_policy("192.0.2.2", 7891)))
+        socks_probe = """import socket, sys
+def exact(s, n):
+    data = b''
+    while len(data) < n:
+        chunk = s.recv(n - len(data))
+        if not chunk:
+            raise EOFError()
+        data += chunk
+    return data
+with socket.create_connection(('192.0.2.2', 7891), 3) as s:
+    s.settimeout(3)
+    s.sendall(bytes([5, 1, 0]))
+    assert exact(s, 2) == bytes([5, 0])
+    name = b'fixture.invalid'
+    s.sendall(bytes([5, 1, 0, 3, len(name)]) + name + (443).to_bytes(2, 'big'))
+    assert exact(s, 10) == bytes([5, 0, 0, 1, 0, 0, 0, 0, 0, 0])
+    s.sendall(b'ping')
+    assert exact(s, 4) == b'pong'
+"""
+        ns(client, sys.executable, "-c", socks_probe)
+        for case in cases:
+            probe(*case, allowed=False)
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
@@ -116,6 +171,9 @@ while True:
         ns(peer, sys.executable, "-c",
            "import socket; s=socket.create_connection(('192.0.2.2',443),3); "
            "s.sendall(b'ping'); assert s.recv(4)==b'pong'; s.close()")
+        failed = subprocess.run(["ip", "netns", "exec", client, sys.executable,
+                                 "-c", socks_probe], capture_output=True, text=True)
+        assert failed.returncode != 0, "SOCKS connection survived proxy shutdown"
         for case in cases:
             probe(*case, allowed=False)
         print("PASS: isolated IPv4 proxy endpoint; direct TCP, UDP, DNS ports and IPv6 denied")
