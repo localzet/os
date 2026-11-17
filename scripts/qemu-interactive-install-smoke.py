@@ -291,6 +291,51 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
+
+def foreign_refusal_script(password, boot_media):
+    """Exercise the privileged backend's existing multiple-disk refusal."""
+    return """#!/bin/bash
+set -Eeuo pipefail
+exec >/dev/ttyS0 2>&1
+trap 'printf "\\nLOCALZET_CANDIDATE_FAILED\\n"' ERR
+printf '\\nLOCALZET_CANDIDATE_INSTALL_STARTED\\n'
+pgrep -u localzet -f /usr/bin/localzet-installer >/dev/null
+export PYTHONPATH=/opt/localzet-os/src
+python3 - <<'PY'
+import json
+import subprocess
+from localzet.installer.interactive import live_source_disk, confirmation_for
+from localzet.installer.preflight import read_lsblk
+from localzet.installer.target import identity, read_only_target_plan
+payload = read_lsblk()
+target = next(d for d in payload["blockdevices"] if d.get("serial") == "LZ_TEST_NVME")
+foreign = next(d for d in payload["blockdevices"] if d.get("serial") == "LZ_KEEP_DISK")
+assert target["path"] != foreign["path"]
+assert len(foreign.get("children", [])) == 2
+source = live_source_disk()
+if """ + repr(boot_media) + """ == "usb":
+    assert source is not None and source not in (target["path"], foreign["path"])
+    assert next(d for d in payload["blockdevices"] if d.get("path") == source)["tran"] == "usb"
+else:
+    assert source is None
+plan = read_only_target_plan(payload, identity(target))
+request = {"plan": plan, "confirmation": confirmation_for(plan),
+           "backup_acknowledged": True, "username": "localzet-test",
+           "password": """ + repr(password) + """}
+result = subprocess.run(["/usr/lib/localzet/installer-backend"],
+                        input=json.dumps(request), text=True, capture_output=True, timeout=60)
+assert result.returncode == 2, result.returncode
+assert "Для первой версии отключите все остальные диски" in result.stderr, result.stderr
+fresh = read_lsblk()
+target_after = next(d for d in fresh["blockdevices"] if d.get("serial") == "LZ_TEST_NVME")
+assert not target_after.get("children") and not target_after.get("pttype") and not target_after.get("fstype")
+assert not subprocess.check_output(["wipefs", "--no-act", "--noheadings", "--output", "TYPE", target_after["path"]], text=True).strip()
+print("PASS: privileged backend refused additional disk; target still blank")
+PY
+printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
+"""
+
+
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
     if office_render_mode not in ("default", "software"):
         raise ValueError("Invalid Office render mode")
@@ -765,7 +810,7 @@ def main():
     parser.add_argument("--expect-executive-review", action="store_true")
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
-    parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify a generated second GPT disk is byte-identical after installation")
+    parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
     parser.add_argument("--office-render-mode", choices=("default", "software"), default="default",
                         help="Software is an explicit diagnostic, not release acceptance.")
     args = parser.parse_args()
@@ -810,33 +855,40 @@ def main():
         if foreign is not None:
             fixture_tools.foreign_disk(directory, foreign)
             before = fixture_tools.digest(foreign)
-        script.write_text(installation_script(password, args.boot_media, args.expect_foreign_disk))
+        if foreign is not None:
+            script.write_text(foreign_refusal_script(password, args.boot_media))
+            script.chmod(0o600)
+            refusal_guest = Guest(args, directory, disk, script, "candidate-foreign-refusal", True, foreign)
+            try:
+                refusal_guest.connect()
+                refusal_guest.wait(LIVE, 480)
+                refusal_guest.launch("localzet-installer")
+                refusal_guest.launch("sudo -n bash -c 'modprobe qemu_fw_cfg; cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; bash /run/localzet-test.sh'")
+                refusal_guest.wait(b"LOCALZET_CANDIDATE_FOREIGN_REFUSED", 180)
+                refusal_guest.capture("refused")
+            finally:
+                refusal_guest.close()
+                after = fixture_tools.digest(foreign)
+                (args.logs / "foreign-disk.sha256").write_text(f"before {before}\nafter  {after}\n")
+                if after != before:
+                    raise RuntimeError("Non-target GPT disk was modified during refusal test")
+            print("PASS: foreign GPT disk unchanged after explicit refusal", flush=True)
+            # The current installer intentionally requires disconnected foreign
+            # disks. Boot the exact ISO again with only the blank target.
+            # Do not represent this as successful multi-disk installation.
+        script.write_text(installation_script(password, args.boot_media))
         script.chmod(0o600)
-        live = Guest(args, directory, disk, script, "candidate-live", True, foreign)
-        installation_completed = False
+        live = Guest(args, directory, disk, script, "candidate-live", True)
         try:
             live.connect()
             live.wait(LIVE, 480)
             live.launch("localzet-installer")
             live.capture("installer-launched")
-            # Use GNOME's run dialog directly: opening a terminal and typing
-            # into it races focus and terminal startup on slower Live images.
-            # This command contains no credentials; the test payload is fw_cfg.
             live.launch("sudo -n bash -c 'modprobe qemu_fw_cfg; cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; bash /run/localzet-test.sh'")
             live.wait(b"LOCALZET_CANDIDATE_INSTALL_STARTED", 90)
             live.wait(INSTALL, 1200)
-            installation_completed = True
         finally:
             live.close()
-            if foreign is not None:
-                after = fixture_tools.digest(foreign)
-                (args.logs / "foreign-disk.sha256").write_text(f"before {before}\nafter  {after}\n")
-                if after != before:
-                    raise RuntimeError("Non-target GPT disk was modified by exact candidate")
-                if installation_completed:
-                    print("PASS: exact candidate left the second GPT disk byte-identical", flush=True)
-                else:
-                    print("Foreign GPT disk byte-identical after interrupted test; installation preservation not verified", flush=True)
         script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:

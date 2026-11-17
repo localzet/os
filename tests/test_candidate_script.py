@@ -57,3 +57,11 @@ class CandidateScriptTests(unittest.TestCase):
             self.assertIn(marker, script)
         self.assertNotIn("smoke32.exe", module.installed_script())
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_foreign_disk_refusal_exercises_real_backend_and_blank_target(self):
+        script = module.foreign_refusal_script("test-password-123", "usb")
+        for marker in ("read_only_target_plan", "/usr/lib/localzet/installer-backend", "result.returncode == 2",
+                       "Для первой версии отключите все остальные диски", "wipefs", "LOCALZET_CANDIDATE_FOREIGN_REFUSED"):
+            self.assertIn(marker, script)
+        self.assertNotIn("LOCALZET_CANDIDATE_INSTALLED", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
