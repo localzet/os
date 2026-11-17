@@ -205,6 +205,37 @@ with open('/proc/self/ns/net', 'rb') as ns:
 """)
         for case in cases:
             probe(*case, allowed=False)
+        # Network namespaces isolate abstract UNIX sockets, but not pathname
+        # sockets. A desktop launcher will need a separate IPC boundary.
+        import socket
+        abstract = "\\0lz-proxy-" + suffix
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as host_socket:
+            host_socket.bind(abstract)
+            host_socket.listen()
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as control:
+                control.connect(abstract)
+                conn, _ = host_socket.accept()
+                conn.close()
+            # Deliberately mark the host socket inheritable. The subprocess
+            # boundary must still close it before entering the namespace.
+            host_socket.set_inheritable(True)
+            client_run(sys.executable, "-c", """import errno, os, socket, sys
+fd = int(sys.argv[1])
+try:
+    os.fstat(fd)
+except OSError as exc:
+    assert exc.errno == errno.EBADF
+else:
+    raise AssertionError('inherited host socket descriptor')
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+    s.settimeout(2)
+    try:
+        s.connect('\\\\0' + sys.argv[2])
+    except OSError as exc:
+        assert exc.errno == errno.ECONNREFUSED, exc
+    else:
+        raise AssertionError('host abstract socket reachable')
+""", str(host_socket.fileno()), abstract[1:])
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
