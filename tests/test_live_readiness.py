@@ -78,7 +78,7 @@ class LiveReadinessTests(unittest.TestCase):
         with patch.object(probe.subprocess, "run", side_effect=command), patch.object(probe, "serial_write") as serial:
             probe.diagnostic_snapshot()
         messages = [call.args[0] for call in serial.call_args_list]
-        self.assertEqual(len(messages), 5 * 60 + 2)
+        self.assertEqual(len(messages), 7 * 60 + 2)
         self.assertTrue(all(len(message) <= 550 for message in messages))
         self.assertIn(b"LOCALZET_LIVE_DIAG kernel OOM killed process\n", messages)
         self.assertNotIn(b"LOCALZET_LIVE_DIAG kernel unrelated message\n", messages)

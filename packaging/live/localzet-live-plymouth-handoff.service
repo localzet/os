@@ -1,0 +1,12 @@
+[Unit]
+Description=Finish Live boot splash before starting the display manager
+ConditionKernelCommandLine=boot=casper
+After=plymouth-start.service
+Before=gdm.service
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/bin/plymouth --ping
+ExecStart=/usr/bin/plymouth quit
+TimeoutStartSec=20
+RemainAfterExit=yes

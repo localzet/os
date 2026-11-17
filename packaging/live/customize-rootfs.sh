@@ -117,6 +117,10 @@ test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings g
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
+# In slow Live sessions Plymouth can still own the initial VT when GDM's
+# delayed splash quit fires. Complete the splash handoff before GDM starts.
+install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-plymouth-handoff.service" "$root/usr/lib/systemd/system/localzet-live-plymouth-handoff.service"
+install -D -m 0644 "$LOCALZET_REPO/packaging/live/gdm-live-handoff.conf" "$root/etc/systemd/system/gdm.service.d/90-localzet-live-handoff.conf"
 systemctl --root="$root" enable localzet-live-ready.service NetworkManager.service
 systemctl --root="$root" set-default graphical.target
 # GDM package names/aliases may differ; require a real unit.

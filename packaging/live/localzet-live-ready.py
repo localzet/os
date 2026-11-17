@@ -98,6 +98,8 @@ def diagnostic_snapshot():
     """Bounded live-only logs, collected while the guest is still running."""
     commands = (
         ("memory", ("free", "-m")),
+        ("handoff", ("journalctl", "-b", "-u", "localzet-live-plymouth-handoff.service", "--no-pager", "-n", "20", "-o", "short-monotonic")),
+        ("plymouth", ("journalctl", "-b", "-u", "plymouth-quit.service", "-u", "plymouth-quit-wait.service", "--no-pager", "-n", "25", "-o", "short-monotonic")),
         ("gdm", ("journalctl", "-b", "-u", "gdm.service", "--no-pager", "-n", "45", "-o", "short-monotonic")),
         ("logind", ("journalctl", "-b", "-u", "systemd-logind.service", "--no-pager", "-n", "35", "-o", "short-monotonic")),
         ("shell", ("journalctl", "-b", "_COMM=gnome-shell", "--no-pager", "-n", "60", "-o", "short-monotonic")),

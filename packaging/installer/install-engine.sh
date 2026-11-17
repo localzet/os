@@ -105,7 +105,9 @@ systemctl --root="$root" disable localzet-live-ready.service
 if [[ "$mode" == vm ]]; then
     systemctl --root="$root" disable localzet-install-test.service
 fi
-rm -f "$root/usr/lib/localzet/localzet-live-ready.py" \
+rm -f "$root/usr/lib/systemd/system/localzet-live-plymouth-handoff.service" \
+    "$root/etc/systemd/system/gdm.service.d/90-localzet-live-handoff.conf" \
+    "$root/usr/lib/localzet/localzet-live-ready.py" \
     "$root/usr/lib/systemd/system/localzet-live-ready.service" \
     "$root/usr/lib/localzet/vm-install-test.sh" \
     "$root/usr/lib/systemd/system/localzet-install-test.service" \
