@@ -397,6 +397,49 @@ except OSError:
                 client_run(sys.executable, "-c", ipc_probe, hidden, "allow")
                 conn, _ = bus.accept()
                 conn.close()
+        # Exercise a real Wayland protocol connection to a disposable headless
+        # compositor. Never expose the runner's desktop or session bus.
+        import time
+        with tempfile.TemporaryDirectory(prefix="lz-weston-") as directory:
+            os.chown(directory, 65534, 65534)
+            os.chmod(directory, 0o700)
+            display = os.path.join(directory, "wayland-fixture")
+            log = os.path.join(directory, "weston.log")
+            compositor = subprocess.Popen([
+                "setpriv", "--reuid=65534", "--regid=65534", "--clear-groups",
+                "--no-new-privs", "env", "-i", "PATH=/usr/bin",
+                "HOME=" + directory, "XDG_RUNTIME_DIR=" + directory,
+                "weston", "--backend=headless-backend.so", "--renderer=pixman",
+                "--socket=wayland-fixture", "--idle-time=0", "--log=" + log,
+            ])
+            try:
+                deadline = time.monotonic() + 15
+                while not os.path.exists(display):
+                    assert compositor.poll() is None, "Weston exited before readiness"
+                    assert time.monotonic() < deadline, "Weston socket not ready"
+                    time.sleep(0.1)
+                result = run(*client_command, *sandbox,
+                    "--dir", "/run/display",
+                    "--ro-bind", display, "/run/display/wayland-fixture",
+                    "--setenv", "XDG_RUNTIME_DIR", "/run/display",
+                    "--setenv", "WAYLAND_DISPLAY", "wayland-fixture",
+                    "/usr/bin/wayland-info", capture_output=True, timeout=15)
+                assert "wl_compositor" in result.stdout, result.stdout
+                assert "wl_shm" in result.stdout, result.stdout
+                assert "xdg_wm_base" in result.stdout, result.stdout
+                print("PASS: real headless Wayland registry through isolated socket")
+                sandbox_run(socks_probe)
+            finally:
+                if compositor.poll() is None:
+                    compositor.terminate()
+                    try:
+                        compositor.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        compositor.kill()
+                        compositor.wait()
+                if os.path.exists(log):
+                    with open(log) as stream:
+                        print(stream.read())
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
