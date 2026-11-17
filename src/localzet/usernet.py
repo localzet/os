@@ -43,3 +43,17 @@ def proxy_status():
         return classify(mode, endpoints)
     except (ImportError, ValueError, RuntimeError):
         return classify(None, ())
+
+
+def policy_notice(netbird_state, proxy):
+    """Describe observed settings, never claim that Proxy Only is enforced."""
+    mode = proxy["mode"]
+    if mode == "unavailable":
+        return "Настройки прокси недоступны. Защита от утечек не подтверждена."
+    if mode == "manual" and not (proxy["local"] or proxy["remote"]):
+        return "Ручной прокси без настроенных адресов. Защита от утечек не подтверждена."
+    if netbird_state == "Connected" and mode in ("manual", "auto"):
+        return "VPN подключён, прокси настроен. Проверьте DNS и маршруты; Proxy Only не применяется."
+    if netbird_state in (None, "unavailable"):
+        return "Статус VPN недоступен. Защита от утечек не подтверждена."
+    return "Proxy Only не применяется. Маршруты и DNS не изменяются автоматически."
