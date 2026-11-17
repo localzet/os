@@ -86,6 +86,10 @@ EOF
 install -D -m 0644 "$LOCALZET_REPO/assets/terminal/aurora.palette" "$root/etc/skel/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
 # Preserve the distribution's GDM profile; add a separate branding DB.
 # GNOME's supported login-screen.logo key does not replace auth UI.
+# Use a compact raster of the transparent dark-background derivative;
+# the canonical SVG is a 200 mm black square, unsuitable at natural size.
+chroot "$root" rsvg-convert -w 128 -h 128 -o /usr/share/localzet/brand/localzet-greeter.png /usr/share/localzet/brand/localzet-about-dark.svg
+test -s "$root/usr/share/localzet/brand/localzet-greeter.png"
 gdm_profile="$root/etc/dconf/profile/gdm"
 if [[ ! -f "$gdm_profile" ]]; then
     if [[ -f "$root/usr/share/dconf/profile/gdm" ]]; then
@@ -102,14 +106,14 @@ fi
 mkdir -p "$root/etc/dconf/db/localzet-gdm.d"
 cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 [org/gnome/login-screen]
-logo='/usr/share/localzet/brand/localzet.svg'
+logo='/usr/share/localzet/brand/localzet-greeter.png'
 EOF
 test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
 test -s "$root/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg"
 test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
 test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
-test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet-greeter.png'"
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
@@ -143,7 +147,7 @@ mkdir -p "$root$grub_theme"
 install -m 0644 "$LOCALZET_REPO/packaging/grub/theme.txt" "$root$grub_theme/theme.txt"
 install -m 0644 "$LOCALZET_REPO/assets/brand/grub-background.svg" "$root$grub_theme/background.svg"
 chroot "$root" rsvg-convert -w 1024 -h 768 -o "$grub_theme/background.png" "$grub_theme/background.svg"
-chroot "$root" rsvg-convert -w 96 -h 96 -o "$grub_theme/logo.png" /usr/share/localzet/brand/localzet.svg
+chroot "$root" rsvg-convert -w 96 -h 96 -o "$grub_theme/logo.png" /usr/share/localzet/brand/localzet-about-dark.svg
 for size in 20 24; do
     chroot "$root" grub-mkfont -s "$size" -o "$grub_theme/dejavu-$size.pf2" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 done
@@ -158,7 +162,7 @@ test ! -e "$root$theme"
 chroot "$root" cp -aL /usr/share/plymouth/themes/spinner "$theme"
 install -m 0644 "$LOCALZET_REPO/packaging/live/aurora.plymouth" "$root$theme/localzet-aurora.plymouth"
 rm -f "$root$theme/spinner.plymouth" "$root$theme/watermark.png"
-chroot "$root" rsvg-convert -w 220 -h 220 -o "$theme/watermark.png" /usr/share/localzet/brand/localzet.svg
+chroot "$root" rsvg-convert -w 160 -h 160 -o "$theme/watermark.png" /usr/share/localzet/brand/localzet-about-dark.svg
 test -s "$root$theme/watermark.png"
 chroot "$root" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$theme/localzet-aurora.plymouth" 150
 chroot "$root" update-alternatives --set default.plymouth "$theme/localzet-aurora.plymouth"
