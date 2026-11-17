@@ -138,6 +138,12 @@ while True:
         for case in cases:
             probe(*case, allowed=case == ("192.0.2.2", 7890, False))
         ns(client, "nft", "list", "table", "inet", "localzet_proxy_only")
+        # Exercise the IPv6 allow rule in the kernel, not just the renderer.
+        ns(client, "nft", "-f", "-", input=(
+            "delete table inet localzet_proxy_only\n" +
+            render_policy("2001:db8::2", 7890)))
+        for case in cases:
+            probe(*case, allowed=case == ("2001:db8::2", 7890, False))
         # Replace the fixture policy atomically with the SOCKS endpoint.
         ns(client, "nft", "-f", "-", input=(
             "delete table inet localzet_proxy_only\n" +
@@ -176,7 +182,7 @@ with socket.create_connection(('192.0.2.2', 7891), 3) as s:
         assert failed.returncode != 0, "SOCKS connection survived proxy shutdown"
         for case in cases:
             probe(*case, allowed=False)
-        print("PASS: isolated IPv4 proxy endpoint; direct TCP, UDP, DNS ports and IPv6 denied")
+        print("PASS: isolated IPv4 and IPv6 proxy endpoints; direct TCP, UDP and DNS denied")
     finally:
         if server is not None and server.poll() is None:
             server.kill()
