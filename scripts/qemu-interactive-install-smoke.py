@@ -305,6 +305,22 @@ for point in / /boot/efi; do
 done
 if grep -qw boot=casper /proc/cmdline; then exit 2; fi
 PYTHONPATH=/opt/localzet-os/src python3 -m localzet.installer.audit /
+test -x /usr/bin/localzet-recovery
+/usr/bin/localzet-recovery > /run/localzet-recovery-check.json
+python3 - <<'PY'
+import json
+from pathlib import Path
+report = json.loads(Path("/run/localzet-recovery-check.json").read_text())
+assert report["live_session"] is False, report
+assert report["package_audit"] == "clean", report
+assert report["kernel"]["running_pair_present"], report
+assert report["grub"]["running_normal_entry"], report
+assert report["grub"]["running_recovery_entry"], report
+assert report["root_filesystem"] == "ext4" and report["esp_filesystem"] == "vfat", report
+assert report["writes_performed"] is False and report["rollback_verified"] is False, report
+print(json.dumps(report, sort_keys=True))
+print("PASS: installed recovery diagnostic and kernel menu entries")
+PY
 [[ "$(passwd -S localzet-test | cut -d ' ' -f2)" == P ]]
 pgrep -u localzet-test -x gnome-shell >/dev/null
 [[ -x /usr/lib/localzet/install-nectarlink ]]
