@@ -322,6 +322,33 @@ for address in ('192.0.2.2', '2001:db8::2'):
         except OSError:
             pass
 """)
+        # Recheck datagram and raw-socket restrictions after entering the
+        # nested user namespace, where capability semantics differ.
+        sandbox_run("""import socket
+for address in ('192.0.2.2', '2001:db8::2'):
+    family = socket.AF_INET6 if ':' in address else socket.AF_INET
+    for port in (53, 443):
+        with socket.socket(family, socket.SOCK_DGRAM) as s:
+            s.settimeout(1)
+            try:
+                s.connect((address, port))
+                s.sendall(b'ping')
+                s.recv(4)
+            except OSError:
+                pass
+            else:
+                raise AssertionError('sandbox direct UDP allowed')
+for family, protocol in ((socket.AF_INET, socket.IPPROTO_ICMP),
+                         (socket.AF_INET6, socket.IPPROTO_ICMPV6),
+                         (socket.AF_PACKET, 0)):
+    try:
+        s = socket.socket(family, socket.SOCK_RAW, protocol)
+    except PermissionError:
+        pass
+    else:
+        s.close()
+        raise AssertionError('sandbox raw socket permitted')
+""")
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
@@ -332,6 +359,20 @@ for address in ('192.0.2.2', '2001:db8::2'):
         failed = subprocess.run([*client_command, sys.executable,
                                  "-c", socks_probe], capture_output=True, text=True)
         assert failed.returncode != 0, "SOCKS connection survived proxy shutdown"
+        failed_sandbox = subprocess.run(
+            [*client_command, *sandbox, "/usr/bin/python3", "-c",
+             socks_probe], capture_output=True, text=True)
+        assert failed_sandbox.returncode != 0, "sandbox SOCKS survived shutdown"
+        # A setup failure is not evidence of fail-closed networking: run a
+        # fresh sandbox and require the direct-connect probe to execute.
+        sandbox_run("""import socket
+for address in ('192.0.2.2', '2001:db8::2'):
+    try:
+        with socket.create_connection((address, 443), 1):
+            raise AssertionError('sandbox direct TCP allowed after proxy shutdown')
+    except OSError:
+        pass
+""")
         for case in cases:
             probe(*case, allowed=False)
         print("PASS: isolated IPv4 and IPv6 proxy endpoints; direct TCP, UDP and DNS denied")
