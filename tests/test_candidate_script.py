@@ -48,3 +48,12 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("cmp /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT", script)
         self.assertNotIn("installed branded Control Center package launched", module.installed_script())
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_windows_matrix_requires_real_msi_and_x86_in_installed_image(self):
+        script = module.installed_script("complete", True, True, True, True, branded_control_center=True, windows_matrix=True)
+        for marker in ("opt/localzet/fixture32/raw", "opt/localzet/msi/raw", "smoke32.exe --profile ci-smoke --run",
+                       "fixture.msi --profile ci-msi --run", "Installed Wine x86 fixture exit code",
+                       "LocalzetFixture/payload.txt", "cmp -", "distinct prefixes", "/usr/bin/timeout 840"):
+            self.assertIn(marker, script)
+        self.assertNotIn("smoke32.exe", module.installed_script())
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
