@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "https://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Localzet OS</vendor>
+  <action id="org.localzet.install-netbird">
+    <description>Install the pinned netbird client</description>
+    <description xml:lang="ru">Установить проверенный netbird</description>
+    <message>Administrator authentication is required to install netbird.</message>
+    <message xml:lang="ru">Для установки netbird требуется пароль администратора.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/localzet/install-netbird</annotate>
+  </action>
+  <action id="org.localzet.install-usernet">
+    <description>Install the pinned usernet client</description>
+    <description xml:lang="ru">Установить проверенный usernet</description>
+    <message>Administrator authentication is required to install usernet.</message>
+    <message xml:lang="ru">Для установки usernet требуется пароль администратора.</message>
+    <defaults><allow_any>no</allow_any><allow_inactive>no</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/localzet/install-usernet</annotate>
+  </action>
+</policyconfig>

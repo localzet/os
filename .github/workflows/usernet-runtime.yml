@@ -1,0 +1,58 @@
+name: UserNet installed client smoke
+on:
+  pull_request:
+    paths:
+      - 'config/upstream/usernet.json'
+      - 'scripts/fetch-usernet.py'
+      - 'packaging/network/**'
+      - 'src/localzet/network_provision.py'
+      - '.github/workflows/usernet-runtime.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  usernet:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install exact original package on disposable runner
+        run: |
+          mkdir -p out/usernet-runtime
+          sudo apt-get update
+          sudo apt-get install -y curl xvfb xauth dbus-x11 xdotool imagemagick libayatana-appindicator3-1 libsecret-1-0
+          python3 scripts/fetch-usernet.py "$RUNNER_TEMP/usernet"
+          ip -j route show table main > out/usernet-runtime/routes-before.json
+          sudo apt-get -y --no-remove --no-install-recommends install "$RUNNER_TEMP/usernet/UserNet-linux.deb"
+          test "$(dpkg-query -W -f='${Version}' usernet)" = 0.5.12.2026110805
+          test -x /opt/UserNet/UserNet
+          test -f /usr/share/applications/com.localzet.usernet.desktop
+          ! systemctl is-active --quiet usernet-helper.service
+          ! systemctl is-enabled --quiet usernet-helper.service
+      - name: Launch original client without account or TUN
+        run: |
+          xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
+            /opt/UserNet/UserNet >out/usernet-runtime/ui.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window=$(timeout 60 xdotool search --sync --onlyvisible --name "[Uu]ser[Nn]et" | head -n 1)
+            test -n "$window"
+            sleep 3
+            import -window "$window" out/usernet-runtime/usernet.png
+          '
+          ! systemctl is-active --quiet usernet-helper.service
+          ! systemctl is-enabled --quiet usernet-helper.service
+          ip -j route show table main > out/usernet-runtime/routes-after.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          def defaults(name):
+              return [r for r in json.loads(Path("out/usernet-runtime/" + name).read_text()) if r.get("dst") == "default"]
+          assert defaults("routes-before.json") == defaults("routes-after.json")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: usernet-installed-client-evidence
+          path: out/usernet-runtime/
+          retention-days: 7
