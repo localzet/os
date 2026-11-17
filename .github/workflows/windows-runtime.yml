@@ -17,12 +17,16 @@ jobs:
       - name: Install Wine and test compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends wine wine64 fonts-wine gcc-mingw-w64-x86-64 xvfb xauth
+          sudo apt-get install -y --no-install-recommends wine wine64 fonts-wine gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 xvfb xauth
       - name: Compile and execute trusted fixture
         run: |
           mkdir -p out/runtime
           printf 'int main(void) { return 42; }\n' > out/runtime/smoke.c
-          x86_64-w64-mingw32-gcc out/runtime/smoke.c -o out/runtime/smoke.exe
+          x86_64-w64-mingw32-gcc out/runtime/smoke.c -o out/runtime/smoke64.exe
+          i686-w64-mingw32-gcc out/runtime/smoke.c -o out/runtime/smoke32.exe
+          dpkg-query -W wine wine64 libwine fonts-wine | tee out/runtime/packages.txt
+          file out/runtime/smoke*.exe | tee out/runtime/fixtures.txt
+          python3 -m py_compile src/localzet/windows_runtime.py
           export PYTHONPATH="$PWD/src"
           export XDG_DATA_HOME="$RUNNER_TEMP/localzet-runtime"
           export WINEDLLOVERRIDES="mscoree,mshtml="
@@ -47,12 +51,21 @@ jobs:
           timeout 240 xvfb-run -a bash -euo pipefail -c '
             wineboot --init
             "$WINESERVER" -w
-            set +e
-            python3 -m localzet.windows_runtime out/runtime/smoke.exe --profile smoke --run
-            result=$?
-            set -e
-            echo "Windows fixture exit code: $result"
-            "$WINESERVER" -w
-            test "$result" -eq 42
-            test -s "$WINEPREFIX/system.reg"
+            for bits in 64 32; do
+              python3 -m localzet.windows_runtime "out/runtime/smoke$bits.exe" --profile smoke > "out/runtime/plan$bits.json"
+              set +e
+              python3 -m localzet.windows_runtime "out/runtime/smoke$bits.exe" --profile smoke --run
+              result=$?
+              set -e
+              echo "Windows $bits-bit fixture exit code: $result" | tee "out/runtime/exit$bits.txt"
+              "$WINESERVER" -w
+              test "$result" -eq 42
+              test -s "$WINEPREFIX/system.reg"
+            done
           '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-wow64-fixture-evidence
+          path: out/runtime/
+          retention-days: 7
