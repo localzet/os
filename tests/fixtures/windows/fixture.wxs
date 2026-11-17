@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Original Localzet test package. No proprietary payload or custom actions. -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="BFD28CE1-2180-4F6D-9B59-B312FB04F900"
+           Name="Localzet MSI Fixture" Language="1033" Version="1.0.0"
+           Manufacturer="Localzet" UpgradeCode="18C4CE49-7E07-4FB2-B172-6A165AFFEF02">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perUser"/>
+    <Media Id="1" Cabinet="fixture.cab" EmbedCab="yes"/>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="INSTALLDIR" Name="LocalzetFixture">
+          <Component Id="FixtureComponent" Guid="671686B4-15CE-4B76-AB98-DFF1B07BE324">
+            <File Id="FixturePayload" Name="payload.txt" Source="payload.txt" KeyPath="yes"/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+    <Feature Id="MainFeature" Title="Fixture" Level="1">
+      <ComponentRef Id="FixtureComponent"/>
+    </Feature>
+  </Product>
+</Wix>
