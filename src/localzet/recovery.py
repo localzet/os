@@ -38,7 +38,7 @@ def kernel_inventory(boot: Path, running: str) -> dict:
 
 
 def grub_inventory(text: str, running: str) -> dict:
-    normal, recovery = set(), set()
+    normal, recovery, single = set(), set(), set()
     # Generated GRUB entries use linux/linuxefi, not arbitrary shell expansion.
     # Count only matching explicit kernel paths, never display the config.
     for line in text.splitlines():
@@ -53,12 +53,18 @@ def grub_inventory(text: str, running: str) -> dict:
             continue
         if "recovery" in words[2:]:
             recovery.add(version)
+        elif "single" in words[2:]:
+            # Ubuntu's minimal GRUB installation can generate a single-user
+            # entry instead of the optional friendly-recovery menu.
+            single.add(version)
         else:
             normal.add(version)
     return {"status": "inspected", "normal_entries": sorted(normal),
-            "recovery_entries": sorted(recovery),
+            "recovery_entries": sorted(recovery | single),
+            "friendly_recovery_entries": sorted(recovery),
+            "single_user_entries": sorted(single),
             "running_normal_entry": running in normal,
-            "running_recovery_entry": running in recovery}
+            "running_recovery_entry": running in recovery or running in single}
 
 
 def package_audit(command=subprocess.run) -> str:
