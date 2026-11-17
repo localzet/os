@@ -38,3 +38,13 @@ class CandidateScriptTests(unittest.TestCase):
             subprocess.run(["bash", "-n"], input=script, text=True, check=True)
         with self.assertRaises(ValueError):
             module.installed_script(office_render_mode="software")
+
+    def test_combined_branded_packages_are_required(self):
+        script = module.installed_script("complete", True, True, True, True, branded_control_center=True)
+        for marker in ("installed branded Control Center package launched", "+localzet3",
+                       "localzet-about-dark.svg", "control-center.BUILD-COMMIT",
+                       "nautilus.BUILD-COMMIT", "launch_app gnome-control-center"):
+            self.assertIn(marker, script)
+        self.assertIn("cmp /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT", script)
+        self.assertNotIn("installed branded Control Center package launched", module.installed_script())
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
