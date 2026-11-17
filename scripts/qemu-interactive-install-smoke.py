@@ -67,6 +67,9 @@ class Guest:
             "-fw_cfg", f"name=opt/localzet/test,file={script}",
             "-fw_cfg", f"name=opt/localzet/fixture,file={args.fixture}",
         ]
+        if not live and args.fixture32 is not None:
+            command += ["-fw_cfg", f"name=opt/localzet/fixture32,file={args.fixture32}",
+                        "-fw_cfg", f"name=opt/localzet/msi,file={args.msi_fixture}"]
         if live and foreign is not None:
             command += foreign_fixture_module().drive(foreign, "foreign", "LZ_KEEP_DISK")
         if live and args.boot_media == "usb":
@@ -288,7 +291,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
     if office_render_mode not in ("default", "software"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
@@ -414,6 +417,42 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
 printf '\nLOCALZET_CANDIDATE_WINE_READY\n'
 """
 
+    if windows_matrix:
+        matrix_copy = r"""
+install -m 0644 /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/fixture32/raw \
+    /run/localzet-candidate-check/smoke32.exe
+install -m 0644 /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/msi/raw \
+    /run/localzet-candidate-check/fixture.msi
+test -s /run/localzet-candidate-check/smoke32.exe
+test -s /run/localzet-candidate-check/fixture.msi
+"""
+        copy_marker = "test -s /run/localzet-candidate-check/smoke.exe\n"
+        assert script.count(copy_marker) == 1
+        script = script.replace(copy_marker, copy_marker + matrix_copy)
+        matrix_run = r"""
+set +e
+timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/smoke32.exe --profile ci-smoke --run
+status=$?
+set -e
+printf 'Installed Wine x86 fixture exit code: %s\n' "$status"
+"$WINESERVER" -w
+test "$status" -eq 42
+original="$WINEPREFIX"
+export WINEPREFIX="$data/localzet/windows/prefixes/ci-msi"
+timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/fixture.msi --profile ci-msi --run
+"$WINESERVER" -w
+test -s "$WINEPREFIX/system.reg"
+found="$(find "$WINEPREFIX/drive_c/users" -type f -path "*/LocalzetFixture/payload.txt")"
+test -n "$found"
+printf 'Localzet original MSI fixture\n' | cmp - "$found"
+test -z "$(find "$original/drive_c" -type f -path "*/LocalzetFixture/payload.txt")"
+printf 'PASS: installed Wine x86 and original MSI verified in distinct prefixes\n'
+"""
+        run_marker = 'test -s "$WINEPREFIX/system.reg"\nUSERTEST'
+        assert script.count(run_marker) == 1
+        script = script.replace(run_marker, 'test -s "$WINEPREFIX/system.reg"\n' + matrix_run + "USERTEST")
+        script = script.replace("/usr/bin/timeout 300 /bin/bash /run/localzet-candidate-check/run-wine.sh",
+                                "/usr/bin/timeout 840 /bin/bash /run/localzet-candidate-check/run-wine.sh")
     if archive_profile:
         check = r"""
 PYTHONPATH=/opt/localzet-os/src python3 - <<'PY'
@@ -701,6 +740,8 @@ def main():
     parser.add_argument("--ovmf-vars", type=Path, required=True)
     parser.add_argument("--logs", type=Path, required=True)
     parser.add_argument("--fixture", type=Path, required=True)
+    parser.add_argument("--fixture32", type=Path)
+    parser.add_argument("--msi-fixture", type=Path)
     parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     parser.add_argument("--expect-containers", action="store_true")
@@ -729,6 +770,17 @@ def main():
     fixture = args.fixture.read_bytes()
     if not fixture.startswith(b"MZ") or len(fixture) > 2 * 1024**2:
         parser.error("expected a small original PE fixture")
+    if (args.fixture32 is None) != (args.msi_fixture is None):
+        parser.error("32-bit EXE and MSI fixtures must be supplied together")
+    if args.fixture32 is not None:
+        for name, magic in (("fixture32", b"MZ"), ("msi_fixture", bytes.fromhex("d0cf11e0a1b11ae1"))):
+            path = getattr(args, name).resolve(strict=True)
+            if not path.is_file() or not 0 < path.stat().st_size <= 2 * 1024**2:
+                parser.error("expected a small original Windows fixture")
+            with path.open("rb") as stream:
+                if stream.read(len(magic)) != magic:
+                    parser.error("invalid Windows fixture header")
+            setattr(args, name, path)
     password = secrets.token_hex(12)
     with tempfile.TemporaryDirectory(prefix="lz-candidate-") as temp:
         directory = Path(temp)
@@ -764,7 +816,7 @@ def main():
                 if after != before:
                     raise RuntimeError("Non-target GPT disk was modified by exact candidate")
                 print("PASS: exact candidate left the second GPT disk byte-identical", flush=True)
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -820,7 +872,7 @@ def main():
                     installed.capture("office-installed")
                 else:
                     installed.capture("office-installed")
-            installed.wait(WINE_READY, 360)
+            installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
             if args.expect_executive_review:
                 installed.wait(LOCK_READY, 45)
                 installed.visual_capture("native-lock", wake=True)
