@@ -82,7 +82,7 @@ GROUPS = {
         "windows": "com.localzet.WindowsRuntime localzet-windows",
         "connect": "com.localzet.Connect localzet-connect",
         "installer": "com.localzet.Installer localzet-installer",
-        "store": "org.gnome.Software system-software-install gnome-software",
+        "store": "org.gnome.Software system-software-install gnome-software com.localzet.Apps",
         "monitor": "org.gnome.SystemMonitor utilities-system-monitor htop",
         "editor": "org.gnome.TextEditor org.gnome.gedit accessories-text-editor",
         "calculator": "org.gnome.Calculator accessories-calculator",
