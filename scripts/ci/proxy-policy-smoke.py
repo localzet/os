@@ -284,14 +284,20 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
                    "--proc", "/proc", "--dev", "/dev",
                    "--tmpfs", "/tmp", "--dir", "/run",
                    "--dir", "/home", "--chdir", "/tmp",
-                   "--uid", "65534", "--gid", "65534",
-                   "--cap-drop", "ALL", "--setenv", "PATH", "/usr/bin")
+                   "--cap-drop", "ALL",
+                   "--cap-add", "CAP_SETUID", "--cap-add", "CAP_SETGID",
+                   "--cap-add", "CAP_SETPCAP", "--setenv", "PATH", "/usr/bin")
         def sandbox_run(code, *args):
-            ns(client, *sandbox, "/usr/bin/python3", "-c", code, *args)
+            # Root creates the mount boundary; setpriv then drops every
+            # capability and group before any fixture application executes.
+            # Do not create a user namespace owning a different network.
+            ns(client, *sandbox, *client_command[4:],
+               "/usr/bin/python3", "-c", code, *args)
 
         sandbox_run("""import os, socket, sys
 assert os.getuid() == os.geteuid() == 65534
 assert os.getgid() == os.getegid() == 65534
+assert not os.getgroups()
 assert not os.path.exists('/run/dbus/system_bus_socket')
 assert not os.path.exists('/run/user')
 assert not os.path.exists('/etc')
