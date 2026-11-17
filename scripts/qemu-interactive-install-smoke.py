@@ -29,6 +29,13 @@ FAIL = b"LOCALZET_CANDIDATE_FAILED"
 LOCK_RECHECK = b"LOCALZET_CANDIDATE_STILL_LOCKED"
 
 
+def foreign_fixture_module():
+    spec = importlib.util.spec_from_file_location("foreign_fixture", Path(__file__).with_name("qemu-install-smoke.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def evidence_module():
     spec = importlib.util.spec_from_file_location('visual_evidence', Path(__file__).with_name('visual-evidence.py'))
     module = importlib.util.module_from_spec(spec)
@@ -37,7 +44,7 @@ def evidence_module():
 
 
 class Guest:
-    def __init__(self, args, directory: Path, disk: Path, script: Path, label: str, live: bool):
+    def __init__(self, args, directory: Path, disk: Path, script: Path, label: str, live: bool, foreign: Path | None = None):
         self.serial = args.logs / f"{label}.serial.log"
         self.errors = args.logs / f"{label}.qemu.log"
         self.screen = args.logs / f"{label}.ppm"
@@ -60,6 +67,8 @@ class Guest:
             "-fw_cfg", f"name=opt/localzet/test,file={script}",
             "-fw_cfg", f"name=opt/localzet/fixture,file={args.fixture}",
         ]
+        if live and foreign is not None:
+            command += foreign_fixture_module().drive(foreign, "foreign", "LZ_KEEP_DISK")
         if live and args.boot_media == "usb":
             # Attach the unmodified hybrid ISO as a read-only USB mass-storage
             # device, not as a CD-ROM. This exercises the real USB source
@@ -235,7 +244,7 @@ class Guest:
         self.error_stream.close()
 
 
-def installation_script(password, boot_media):
+def installation_script(password, boot_media, expect_foreign=False):
     return """#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -254,6 +263,11 @@ from localzet.installer.preflight import read_lsblk
 from localzet.installer.target import identity
 payload = read_lsblk()
 target = next(d for d in payload["blockdevices"] if d.get("serial") == "LZ_TEST_NVME")
+if """ + repr(expect_foreign) + """:
+    foreign = next(d for d in payload["blockdevices"] if d.get("serial") == "LZ_KEEP_DISK")
+    assert foreign.get("path") != target.get("path")
+    assert len(foreign.get("children", [])) == 2, "Existing GPT fixture must be visible"
+    print("PASS: existing foreign GPT disk present", file=__import__("sys").stderr)
 source_disk = live_source_disk()
 expected_media = """ + repr(boot_media) + """
 if expected_media == "usb":
@@ -694,6 +708,7 @@ def main():
     parser.add_argument("--expect-executive-review", action="store_true")
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
+    parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify a generated second GPT disk is byte-identical after installation")
     parser.add_argument("--office-render-mode", choices=("default", "software"), default="default",
                         help="Software is an explicit diagnostic, not release acceptance.")
     args = parser.parse_args()
@@ -721,9 +736,15 @@ def main():
         with disk.open("xb") as stream:
             stream.truncate(32 * 1024**3)
         script = directory / "install.sh"
-        script.write_text(installation_script(password, args.boot_media))
+        foreign = directory / "foreign.raw" if args.expect_foreign_disk else None
+        fixture_tools = foreign_fixture_module() if foreign is not None else None
+        before = None
+        if foreign is not None:
+            fixture_tools.foreign_disk(directory, foreign)
+            before = fixture_tools.digest(foreign)
+        script.write_text(installation_script(password, args.boot_media, args.expect_foreign_disk))
         script.chmod(0o600)
-        live = Guest(args, directory, disk, script, "candidate-live", True)
+        live = Guest(args, directory, disk, script, "candidate-live", True, foreign)
         try:
             live.connect()
             live.wait(LIVE, 480)
@@ -737,6 +758,12 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
+            if foreign is not None:
+                after = fixture_tools.digest(foreign)
+                (args.logs / "foreign-disk.sha256").write_text(f"before {before}\nafter  {after}\n")
+                if after != before:
+                    raise RuntimeError("Non-target GPT disk was modified by exact candidate")
+                print("PASS: exact candidate left the second GPT disk byte-identical", flush=True)
         script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
