@@ -22,7 +22,10 @@ packages. Root is not needed for the parts that are publicly readable.
 3. If boot fails, use the Localzet disk's GRUB advanced menu and recovery
    entry, or an already verified alternate kernel if available. Do not select
    a foreign disk to repair or format. Recovery may require local console
-   authentication. Never disable Secure Boot to work around an unexplained
+   authentication. Minimal Ubuntu can generate a single-user (`single`)
+   entry instead of the friendly-recovery menu (`recovery`). The diagnostic
+   distinguishes them; neither guarantees an accessible repair shell with a
+   locked root account. Never disable Secure Boot to work around an unexplained
    signature failure.
 4. A missing alternate kernel is expected on a fresh single-kernel image;
    it is not a verified fallback. Preserve an existing tested kernel before
