@@ -1,0 +1,139 @@
+name: Aurora Complete unified release candidate
+on:
+  pull_request:
+    branches: [integration/aurora-complete-candidate]
+permissions:
+  contents: read
+concurrency:
+  group: aurora-unified-candidate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  files:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'integration/aurora-release-candidate'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate combined source
+        run: make test
+      - name: Verify source patch
+        run: |
+          python3 -m unittest discover -s tests -p test_nautilus_style.py -v
+          python3 -m unittest discover -s tests -p test_nautilus_bundle_checksums.py -v
+      - name: Rebuild from signed Ubuntu source and inspect real windows
+        run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/build-nautilus.sh
+      - name: Upload package evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nautilus-executive-package-evidence
+          path: out/nautilus/
+          if-no-files-found: warn
+          retention-days: 7
+
+  control-center:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'integration/aurora-release-candidate'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Source patch tests
+        run: python3 -m unittest discover -s tests -p test_control_center_brand.py -v
+      - name: Build from signed Ubuntu source and verify About
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil
+          LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/build-control-center.sh
+      - name: Upload engineering evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-center-build-evidence
+          path: out/control-center/
+          if-no-files-found: warn
+          retention-days: 7
+
+  installed-image:
+    needs: [files, control-center]
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'integration/aurora-release-candidate'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 125
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nautilus-executive-package-evidence
+          path: out/nautilus/
+      - uses: actions/download-artifact@v4
+        with:
+          name: control-center-build-evidence
+          path: out/control-center/
+      - name: Assemble exact Complete candidate with both verified native packages
+        id: assemble
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools gdisk dosfstools e2fsprogs qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 wixl python3-pil
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 LOCALZET_ARCHIVE_PROFILE=complete LOCALZET_EXPERIMENTAL_CONTAINERS=1 LOCALZET_EXPERIMENTAL_ONLYOFFICE=1 LOCALZET_NAUTILUS_BUNDLE="$PWD/out/nautilus" LOCALZET_CONTROL_CENTER_BUNDLE="$PWD/out/control-center" LOCALZET_EXPERIMENTAL_HARDWARE_AUTO=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/candidate-root"
+          sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/candidate-root" "$PWD/dist/localzet-aurora-complete-rc.iso"
+          (cd dist && sha256sum -c localzet-aurora-complete-rc.iso.sha256)
+      - name: Collect exact-image binary and source package inventory
+        id: inventory
+        run: |
+          xorriso -osirrox on -indev dist/localzet-aurora-complete-rc.iso -extract /casper/filesystem.manifest dist/filesystem.manifest
+          sudo python3 scripts/collect-release-inventory.py "$RUNNER_TEMP/candidate-root" --iso-manifest dist/filesystem.manifest > dist/package-inventory.json
+      - name: Boot the exact candidate in BIOS
+        run: python3 scripts/qemu-iso-smoke.py dist/localzet-aurora-complete-rc.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
+      - name: Boot the exact candidate in UEFI (TCG)
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' && steps.inventory.outcome == 'success' }}
+        run: python3 scripts/qemu-iso-smoke.py dist/localzet-aurora-complete-rc.iso --firmware uefi --accel tcg --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 600 --marker LOCALZET_LIVE_READY --log dist/uefi.log
+      - name: Verify foreign-disk refusal, then install from USB and validate desktop
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' && steps.inventory.outcome == 'success' }}
+        run: |
+          printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
+          x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
+          i686-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke32.exe"
+          mkdir -p "$RUNNER_TEMP/msi-fixture"
+          cp tests/fixtures/windows/fixture.wxs "$RUNNER_TEMP/msi-fixture/"
+          printf 'Localzet original MSI fixture\n' > "$RUNNER_TEMP/msi-fixture/payload.txt"
+          (cd "$RUNNER_TEMP/msi-fixture" && wixl -o fixture.msi fixture.wxs)
+          python3 scripts/qemu-interactive-install-smoke.py dist/localzet-aurora-complete-rc.iso \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --boot-media usb --fixture "$RUNNER_TEMP/smoke.exe" --fixture32 "$RUNNER_TEMP/smoke32.exe" --msi-fixture "$RUNNER_TEMP/msi-fixture/fixture.msi" --logs dist/candidate-logs \
+            --expect-archive-profile complete --expect-containers --expect-office --expect-executive-review --expect-native-files --expect-branded-control-center --expect-foreign-disk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: aurora-complete-rc-installed-evidence
+          path: |
+            dist/candidate-logs/
+            dist/bios.log
+            dist/bios.ppm
+            dist/uefi.log
+            dist/uefi.ppm
+            dist/filesystem.manifest
+            dist/package-inventory.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Record provenance
+        run: |
+          git rev-parse HEAD > dist/BUILD-COMMIT
+          cmp dist/BUILD-COMMIT out/nautilus/BUILD-COMMIT
+          cmp dist/BUILD-COMMIT out/control-center/BUILD-COMMIT
+          (cd dist && sha256sum -c localzet-aurora-complete-rc.iso.sha256)
+          sudo cat "$RUNNER_TEMP/candidate-root/usr/share/localzet/archive-profile-plan.json" > dist/archive-profile-plan.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurora-complete-rc-engineering-image
+          path: |
+            dist/localzet-aurora-complete-rc.iso
+            dist/localzet-aurora-complete-rc.iso.sha256
+            dist/BUILD-COMMIT
+            dist/archive-profile-plan.json
+            dist/filesystem.manifest
+            dist/package-inventory.json
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error

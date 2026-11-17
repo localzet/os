@@ -38,10 +38,12 @@ def create_application():
             self.last_error = False
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Containers")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(1220, 760)
             self.window.set_size_request(900, 560)
             self.window.add_css_class("aurora-containers")
@@ -63,13 +65,13 @@ def create_application():
                 .aurora-containers .workspace-heading { font-size: 19px; font-weight: 600; }
                 .aurora-containers .container-detail { border: 1px solid alpha(currentColor, .12); border-radius: 6px; padding: 10px; }
                 .aurora-containers columnview { border: 1px solid alpha(currentColor, .12); }
-                window.aurora-containers.aurora-dark { background-color: #191820; color: #eeeaf4; }
-                .aurora-dark headerbar, .aurora-dark .workspace-sidebar { background-color: #201e29; color: #eeeaf4; }
-                .aurora-dark columnview, .aurora-dark .container-detail { background-color: #211f2b; }
-                .aurora-dark columnview header button { background-color: #292633; color: #cec7dc; }
-                .aurora-dark columnview row:selected, .aurora-dark .workspace-sidebar button.active { background-color: #3e3454; color: #f4eeff; }
-                .aurora-dark textview, .aurora-dark textview text { background-color: #17161f; color: #eeeaf4; }
-                .aurora-dark button.suggested-action { background-color: #a78bda; color: #18121f; }
+                window.aurora-containers.aurora-dark { background-color: #091321; color: #e7edf7; }
+                .aurora-dark headerbar, .aurora-dark .workspace-sidebar { background-color: #101b2d; color: #e7edf7; }
+                .aurora-dark columnview, .aurora-dark .container-detail { background-color: #192a40; }
+                .aurora-dark columnview header button { background-color: #1b2c43; color: #b8c9dd; }
+                .aurora-dark columnview row:selected, .aurora-dark .workspace-sidebar button.active { background-color: #205ea8; color: #f1f6ff; }
+                .aurora-dark textview, .aurora-dark textview text { background-color: #0b1524; color: #e7edf7; }
+                .aurora-dark button.suggested-action { background-color: #4c9aff; color: #091321; }
             """)
             Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider,
                                                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)

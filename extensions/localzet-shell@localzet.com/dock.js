@@ -24,7 +24,10 @@ export class LocalzetDock {
         });
         this._anchor.set_child(this._launcherIcon());
         this._actor.add_child(this._anchor);
-        this._launcher = new AuroraLauncher(this._anchor);
+        this._divider = new St.Widget({style_class: 'localzet-dock-divider', y_align: Clutter.ActorAlign.CENTER});
+        this._actor.add_child(this._divider);
+        // Anchor the popup to the whole centered dock, not its first button.
+        this._launcher = new AuroraLauncher(this._actor);
         this._anchor.connect('clicked', () => this._launcher.toggle());
         this._scroll = new St.ScrollView({style_class: 'localzet-dock-scroll',
             overlay_scrollbars: true, x_expand: true});
@@ -32,10 +35,33 @@ export class LocalzetDock {
         this._scroll.set_child(this._apps);
         this._scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.NEVER);
         this._actor.add_child(this._scroll);
+        this._trash = new St.Button({
+            child: new St.Icon({icon_name: 'user-trash', icon_size: 34}),
+            style_class: 'localzet-dock-button localzet-dock-trash',
+            accessible_name: 'Корзина', can_focus: true, reactive: true, track_hover: true,
+        });
+        this._trash.connect('clicked', () => {
+            try {
+                const context = global.create_app_launch_context(0, -1);
+                const app = this._appSystem.lookup_app('org.gnome.Nautilus.desktop');
+                if (!app)
+                    throw new Error('Nautilus unavailable');
+                app.get_app_info().launch([Gio.File.new_for_uri('trash:///')], context);
+                console.log('Localzet Dock: trash opened');
+            } catch (error) {
+                console.error('Localzet Dock: trash open failed: ' + error);
+                Main.notify('Корзина', 'Не удалось открыть корзину');
+            }
+        });
+        this._actor.add_child(this._trash);
 
         this._connections = [
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
+                this._trash.set_child(new St.Icon({
+                    icon_name: this._settings.get_boolean('high-contrast') ? 'user-trash-symbolic' : 'user-trash',
+                    icon_size: 34,
+                }));
                 this._schedule();
             })],
             [this._favorites, this._favorites.connect('changed::favorite-apps', () => this._schedule())],
@@ -50,6 +76,10 @@ export class LocalzetDock {
             })],
             [Main.overview, Main.overview.connect('hidden', () => this._actor.show())],
         ];
+        // Reserve a full-width bottom strip through Mutter's native workarea.
+        // The floating visual actor remains independent and fullscreen-aware.
+        this._strut = new St.Widget({reactive: false, opacity: 0, can_focus: false});
+        Main.layoutManager.addChrome(this._strut, {affectsStruts: true, trackFullscreen: false});
         Main.layoutManager.addChrome(this._actor, {affectsStruts: false, trackFullscreen: true});
         this._reconcile();
         if (Main.overview.visible)
@@ -57,11 +87,11 @@ export class LocalzetDock {
     }
 
     _launcherIcon() {
-        const fallback = () => new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 25});
+        const fallback = () => new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 29});
         if (this._settings.get_boolean('high-contrast'))
             return fallback();
         const file = Gio.File.new_for_path(GLib.build_filenamev([this._path, 'icons', 'launcher.svg']));
-        return file.query_exists(null) ? new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 25}) : fallback();
+        return file.query_exists(null) ? new St.Icon({gicon: new Gio.FileIcon({file}), icon_size: 29}) : fallback();
     }
 
     _schedule() {
@@ -90,7 +120,7 @@ export class LocalzetDock {
     }
 
     _newRow(app) {
-        const icon = app.create_icon_texture(26);
+        const icon = app.create_icon_texture(38);
         const dot = new St.Widget({style_class: 'localzet-dock-indicator',
             x_align: Clutter.ActorAlign.CENTER});
         const content = new St.BoxLayout({vertical: true, style_class: 'localzet-dock-item-content',
@@ -142,6 +172,8 @@ export class LocalzetDock {
             this._apps.set_child_at_index(row.button, index++);
             row.button[favorites.has(id) ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-favorite');
         }
+        this._divider.visible = this._rows.size > 0;
+        this._actor[this._settings.get_boolean('high-contrast') ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-high-contrast');
         this._updateIndicators();
         this._place();
     }
@@ -170,14 +202,30 @@ export class LocalzetDock {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
-        const width = Math.min(monitor.width - 24, Math.max(64, 16 + (1 + this._rows.size) * 46));
-        const height = 52;
+        // Size from the actual themed actor requisitions, not an assumed
+        // width per app. Show horizontal scrolling only on real overflow.
+        const [, anchorWidth] = this._anchor.get_preferred_width(-1);
+        const [, appWidth] = this._apps.get_preferred_width(-1);
+        const [, dividerWidth] = this._divider.get_preferred_width(-1);
+        const [, trashWidth] = this._trash.get_preferred_width(-1);
+        const natural = Math.max(64, Math.ceil(anchorWidth + appWidth + trashWidth + (this._divider.visible ? dividerWidth : 0) + 44));
+        const width = Math.min(monitor.width - 24, natural);
+        this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
+            St.PolicyType.NEVER);
+        const height = 62;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
         const y = monitor.y + monitor.height - height - 12;
         this._actor.set_position(x, y);
+        this._strut.set_position(monitor.x, y - 6);
+        this._strut.set_size(monitor.width, height + 18);
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
             console.log('Localzet Launcher: dock=' + x + ',' + y);
+    }
+
+    toggleLauncher() {
+        if (this._actor.visible)
+            this._launcher.toggle();
     }
 
     destroy() {
@@ -189,6 +237,8 @@ export class LocalzetDock {
         this._launcher.destroy();
         for (const id of this._rows.keys())
             this._removeRow(id);
+        this._strut.destroy();
+        this._strut = null;
         this._actor.destroy();
         this._actor = null;
     }

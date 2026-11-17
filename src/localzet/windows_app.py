@@ -24,11 +24,12 @@ def main() -> int:
             self.window = None
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
-            Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Windows Runtime")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(650, 480)
             toolbar = Adw.ToolbarView()
             toolbar.add_top_bar(Adw.HeaderBar())
@@ -47,6 +48,17 @@ def main() -> int:
                 wrap=True, xalign=0)
             description.add_css_class("dim-label")
             page.append(description)
+            office = Adw.PreferencesGroup(title="Microsoft 365",
+                description="Настольный Office требует лицензии и совместимого Windows-окружения. "
+                            "Работа современной версии через Wine не подтверждена.")
+            web = Gtk.LinkButton(uri="https://www.microsoft365.com/",
+                                 label="Открыть Microsoft 365 в браузере", halign=Gtk.Align.START)
+            office.add(web)
+            official = Gtk.LinkButton(
+                uri="https://support.microsoft.com/ru-ru/office/lifecycle/officeinstall/use-the-office-offline-installer",
+                label="Официальная установка и активация Office", halign=Gtk.Align.START)
+            office.add(official)
+            page.append(office)
             group = Adw.PreferencesGroup(title="Приложение")
             self.file_row = Adw.ActionRow(title="Выберите файл EXE или MSI")
             choose = Gtk.Button(label="Выбрать")
@@ -123,7 +135,9 @@ def main() -> int:
                 if not windows_runtime.WINE.is_file() or not os.access(windows_runtime.WINE, os.X_OK):
                     raise ValueError("Wine не установлен. Установите проверенный пакет Wine из репозитория Ubuntu.")
                 plan = self.plan()
-                self.status.set_label(f"Профиль: {plan['profile']} · совместимость не проверена")
+                architecture = {"x86": "32-бит (x86)", "x86-64": "64-бит (x86-64)",
+                                "msi-unknown": "MSI, архитектура не определена"}[plan["architecture"]]
+                self.status.set_label(f"Профиль: {plan['profile']} · {architecture} · совместимость не проверена")
                 self.launch.set_sensitive(self.trusted.get_active())
             except (OSError, ValueError, RuntimeError) as error:
                 self.status.set_label(str(error))

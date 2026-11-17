@@ -37,13 +37,14 @@ def create_application():
             self.window = None
 
         def do_activate(self):
+            from localzet.appearance import apply_midnight
             if self.window:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Установка Localzet OS")
+            self.appearance = apply_midnight(self.window)
             self.window.set_default_size(740, 660)
             self.window.connect("close-request", lambda *_: self.running)
-            Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
             toolbar = Adw.ToolbarView()
             toolbar.add_top_bar(Adw.HeaderBar())
             self.window.set_content(toolbar)

@@ -23,7 +23,9 @@ class SettingsCoreTests(unittest.TestCase):
     def test_catalog_read_only(self):
         root = Path(__file__).resolve().parents[1]
         modules = load_modules(root / "config/modules")
-        self.assertEqual(len(modules), 9)
+        self.assertTrue({"ai-development", "developer", "usernet", "office", "phone"} <= {m.id for m in modules})
+        ai = next(module for module in modules if module.id == "ai-development")
+        self.assertEqual(ai.status, "prototype")
         office = next(module for module in modules if module.id == 'office')
         self.assertEqual(office.packages, ('onlyoffice-desktopeditors',))
         self.assertEqual(office.status, 'planned')

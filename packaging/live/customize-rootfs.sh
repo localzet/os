@@ -24,6 +24,9 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     chroot "$root" dpkg-query -W -f='${Package}\t${Version}\n' docker.io docker-compose-v2 gir1.2-vte-3.91 \
         > "$root/usr/share/localzet/containers-candidate-packages.tsv"
 fi
+if [[ -n "${LOCALZET_NAUTILUS_BUNDLE:-}" ]]; then
+    bash "$LOCALZET_REPO/scripts/install-branded-nautilus.sh" "$root" "$LOCALZET_NAUTILUS_BUNDLE" "$LOCALZET_REPO"
+fi
 if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
     bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
 fi
@@ -50,17 +53,22 @@ mkdir -p "$root/etc/dconf/profile" "$root/etc/dconf/db/localzet.d"
 printf 'user-db:user\nsystem-db:localzet\n' > "$root/etc/dconf/profile/user"
 cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
-enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
+enabled-extensions=['localzet-shell@localzet.com', 'localzet-lock@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
-favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
+favorite-apps=['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
-picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
+picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-options='zoom'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
+accent-color='blue'
 icon-theme='Aurora'
+
+[org/gnome/nautilus/icon-view]
+default-zoom-level='small-plus'
 
 [org/gnome/Ptyxis]
 default-profile-uuid='4e6f25d9af1244aa896f5b028bf7a020'
@@ -69,7 +77,7 @@ interface-style='system'
 
 [org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020]
 label='Aurora'
-palette='Aurora'
+palette='xterm'
 opacity=1.0
 
 [org/gnome/desktop/input-sources]
@@ -78,6 +86,10 @@ EOF
 install -D -m 0644 "$LOCALZET_REPO/assets/terminal/aurora.palette" "$root/etc/skel/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
 # Preserve the distribution's GDM profile; add a separate branding DB.
 # GNOME's supported login-screen.logo key does not replace auth UI.
+# Use a compact raster of the transparent dark-background derivative;
+# the canonical SVG is a 200 mm black square, unsuitable at natural size.
+chroot "$root" rsvg-convert -w 128 -h 128 -o /usr/share/localzet/brand/localzet-greeter.png /usr/share/localzet/brand/localzet-about-dark.svg
+test -s "$root/usr/share/localzet/brand/localzet-greeter.png"
 gdm_profile="$root/etc/dconf/profile/gdm"
 if [[ ! -f "$gdm_profile" ]]; then
     if [[ -f "$root/usr/share/dconf/profile/gdm" ]]; then
@@ -94,13 +106,21 @@ fi
 mkdir -p "$root/etc/dconf/db/localzet-gdm.d"
 cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 [org/gnome/login-screen]
-logo='/usr/share/localzet/brand/localzet.svg'
+logo='/usr/share/localzet/brand/localzet-greeter.png'
 EOF
+test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
+test -s "$root/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg"
+test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
+test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
-test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet-greeter.png'"
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
+# In slow Live sessions Plymouth can still own the initial VT when GDM's
+# delayed splash quit fires. Complete the splash handoff before GDM starts.
+install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-plymouth-handoff.service" "$root/usr/lib/systemd/system/localzet-live-plymouth-handoff.service"
+install -D -m 0644 "$LOCALZET_REPO/packaging/live/gdm-live-handoff.conf" "$root/etc/systemd/system/gdm.service.d/90-localzet-live-handoff.conf"
 systemctl --root="$root" enable localzet-live-ready.service NetworkManager.service
 systemctl --root="$root" set-default graphical.target
 # GDM package names/aliases may differ; require a real unit.
@@ -131,7 +151,7 @@ mkdir -p "$root$grub_theme"
 install -m 0644 "$LOCALZET_REPO/packaging/grub/theme.txt" "$root$grub_theme/theme.txt"
 install -m 0644 "$LOCALZET_REPO/assets/brand/grub-background.svg" "$root$grub_theme/background.svg"
 chroot "$root" rsvg-convert -w 1024 -h 768 -o "$grub_theme/background.png" "$grub_theme/background.svg"
-chroot "$root" rsvg-convert -w 96 -h 96 -o "$grub_theme/logo.png" /usr/share/localzet/brand/localzet.svg
+chroot "$root" rsvg-convert -w 96 -h 96 -o "$grub_theme/logo.png" /usr/share/localzet/brand/localzet-about-dark.svg
 for size in 20 24; do
     chroot "$root" grub-mkfont -s "$size" -o "$grub_theme/dejavu-$size.pf2" /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 done
@@ -146,7 +166,7 @@ test ! -e "$root$theme"
 chroot "$root" cp -aL /usr/share/plymouth/themes/spinner "$theme"
 install -m 0644 "$LOCALZET_REPO/packaging/live/aurora.plymouth" "$root$theme/localzet-aurora.plymouth"
 rm -f "$root$theme/spinner.plymouth" "$root$theme/watermark.png"
-chroot "$root" rsvg-convert -w 220 -h 220 -o "$theme/watermark.png" /usr/share/localzet/brand/localzet.svg
+chroot "$root" rsvg-convert -w 160 -h 160 -o "$theme/watermark.png" /usr/share/localzet/brand/localzet-about-dark.svg
 test -s "$root$theme/watermark.png"
 chroot "$root" update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$theme/localzet-aurora.plymouth" 150
 chroot "$root" update-alternatives --set default.plymouth "$theme/localzet-aurora.plymouth"

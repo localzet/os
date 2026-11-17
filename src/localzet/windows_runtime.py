@@ -12,6 +12,7 @@ import sys
 WINE = Path("/usr/bin/wine")
 PROFILE = re.compile(r"[a-z][a-z0-9-]{0,63}")
 OLE_HEADER = bytes.fromhex("d0cf11e0a1b11ae1")
+PE_ARCHITECTURES = {(0x014C, 0x010B): "x86", (0x8664, 0x020B): "x86-64"}
 
 
 def launch_plan(file: Path, profile: str, data_home: Path) -> dict:
@@ -23,17 +24,27 @@ def launch_plan(file: Path, profile: str, data_home: Path) -> dict:
     if not file.is_file():
         raise ValueError("Select a regular local file")
     extension = file.suffix.lower()
+    architecture = "msi-unknown"
     with file.open("rb") as stream:
         header = stream.read(64)
         if extension == ".exe":
             if len(header) != 64 or header[:2] != b"MZ":
                 raise ValueError("Not a PE executable")
             offset = int.from_bytes(header[60:64], "little")
-            if offset < 64 or offset > file.stat().st_size - 4:
+            if offset < 64 or offset > os.fstat(stream.fileno()).st_size - 26:
                 raise ValueError("Invalid PE header offset")
             stream.seek(offset)
-            if stream.read(4) != b"PE\x00\x00":
+            pe = stream.read(26)
+            if len(pe) != 26 or pe[:4] != b"PE\x00\x00":
                 raise ValueError("Not a PE executable")
+            machine = int.from_bytes(pe[4:6], "little")
+            optional_size = int.from_bytes(pe[20:22], "little")
+            magic = int.from_bytes(pe[24:26], "little")
+            if optional_size < 2 or offset + 24 + optional_size > os.fstat(stream.fileno()).st_size:
+                raise ValueError("Invalid PE optional header")
+            architecture = PE_ARCHITECTURES.get((machine, magic))
+            if architecture is None:
+                raise ValueError("Unsupported PE architecture; only x86 and x86-64 are accepted")
             arguments = [str(WINE), str(file)]
         elif extension == ".msi" and header.startswith(OLE_HEADER):
             arguments = [str(WINE), "msiexec", "/i", str(file)]
@@ -41,7 +52,7 @@ def launch_plan(file: Path, profile: str, data_home: Path) -> dict:
             raise ValueError("Only PE .exe and OLE .msi candidates are accepted")
     prefix = data_home / "localzet" / "windows" / "prefixes" / profile
     return {"profile": profile, "prefix": str(prefix), "argv": arguments,
-            "working_directory": str(file.parent), "sandboxed": False,
+            "working_directory": str(file.parent), "architecture": architecture, "sandboxed": False,
             "compatibility_verified": False}
 
 

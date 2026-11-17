@@ -1,0 +1,11 @@
+Executive — Alpine Dusk
+Source: Mont Blanc from Arpy Lake, puffettacicciottella.
+https://discourse.ubuntubudgie.org/t/ubuntu-budgie-26-04-wallpaper-contest/8474/6
+https://github.com/UbuntuBudgie/budgie-wallpapers
+Source license: Creative Commons Attribution-ShareAlike 4.0 International.
+Derivative: Localzet OS color grading, 16:9 crop, dusk tint and vignette.
+Derivative license: CC BY-SA 4.0.
+https://creativecommons.org/licenses/by-sa/4.0/
+Original photograph and archive copyright remain installed unmodified in
+budgie-wallpapers-resolute; the derivative is generated at image build.
+Mt Shuksan by ezspain remains an unmodified alternate, CC BY-SA 4.0.

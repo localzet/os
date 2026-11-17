@@ -101,6 +101,8 @@ class AuditTests(unittest.TestCase):
 
     def test_live_readiness_artifacts_blocked(self):
         for relative in (
+            "usr/lib/systemd/system/localzet-live-plymouth-handoff.service",
+            "etc/systemd/system/gdm.service.d/90-localzet-live-handoff.conf",
             "usr/lib/localzet/localzet-live-ready.py",
             "usr/lib/systemd/system/localzet-live-ready.service",
             "etc/systemd/system/graphical.target.wants/localzet-live-ready.service",

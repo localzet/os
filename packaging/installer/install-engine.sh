@@ -105,7 +105,9 @@ systemctl --root="$root" disable localzet-live-ready.service
 if [[ "$mode" == vm ]]; then
     systemctl --root="$root" disable localzet-install-test.service
 fi
-rm -f "$root/usr/lib/localzet/localzet-live-ready.py" \
+rm -f "$root/usr/lib/systemd/system/localzet-live-plymouth-handoff.service" \
+    "$root/etc/systemd/system/gdm.service.d/90-localzet-live-handoff.conf" \
+    "$root/usr/lib/localzet/localzet-live-ready.py" \
     "$root/usr/lib/systemd/system/localzet-live-ready.service" \
     "$root/usr/lib/localzet/vm-install-test.sh" \
     "$root/usr/lib/systemd/system/localzet-install-test.service" \
@@ -143,7 +145,7 @@ chroot "$root" update-initramfs -u -k all
 chroot "$root" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
     --bootloader-id=Localzet --removable --no-nvram
 mkdir -p "$root/etc/default/grub.d"
-printf 'GRUB_DISABLE_OS_PROBER=true\nGRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n' > "$root/etc/default/grub.d/90-localzet.cfg"
+printf 'GRUB_DISABLE_OS_PROBER=true\nGRUB_DISABLE_RECOVERY=false\nGRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n' > "$root/etc/default/grub.d/90-localzet.cfg"
 # This is the target's own /boot, never an existing foreign EFI volume.
 for file in theme.txt background.png logo.png dejavu-20.pf2 dejavu-24.pf2; do
     [[ -s "$root/boot/grub/themes/localzet-aurora/$file" ]]

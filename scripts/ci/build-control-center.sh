@@ -51,6 +51,7 @@ export DEBFULLNAME="Localzet OS" DEBEMAIL="build@localzet.com"
 new_version="${version}+localzet3"
 dch --newversion "$new_version" --distribution resolute "Use the original Localzet OS distributor logo."
 # Full binary build, including upstream tests. No privileged compiler.
+bash "$repo/scripts/ci/retain-native-source.sh" "$out/source" gnome-control-center "$new_version" localzet-distributor-logo.patch
 DEB_BUILD_OPTIONS="parallel=2" xvfb-run -a dpkg-buildpackage -b -us -uc 2>&1 | tee "$out/build.log"
 cd "$work"
 debs=(gnome-control-center_*.deb gnome-control-center-data_*.deb)

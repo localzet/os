@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[1] / "packaging/live/localzet-live-ready.py"
@@ -25,7 +26,7 @@ class LiveReadinessTests(unittest.TestCase):
             raise AssertionError(args)
         with patch.object(probe.Path, "read_text", side_effect=[
             "boot=casper", 'ID=localzet'
-        ]), patch.object(probe, "run", side_effect=command):
+        ]), patch.object(probe, "run", side_effect=command), patch.object(probe, "session_ready", return_value=None):
             return probe.readiness()
 
     def properties(self, **overrides):
@@ -48,3 +49,47 @@ class LiveReadinessTests(unittest.TestCase):
                         {"Seat": ""}, {"Active": "no"}):
             with self.subTest(changes=changes):
                 self.assertIsNotNone(self.check_session(self.properties(**changes)))
+
+    def test_greeter_or_initializing_session_is_not_ready(self):
+        account = SimpleNamespace(pw_uid=1000, pw_gid=1000, pw_dir="/home/localzet")
+        with patch.object(probe.pwd, "getpwnam", return_value=account), patch.object(probe.Path, "exists", return_value=True):
+            with patch.object(probe, "run", return_value="(false,)") as run:
+                self.assertEqual(probe.session_ready(), "gnome-session-not-running")
+                self.assertIn("--reuid=1000", run.call_args.args)
+                run.assert_called_once()
+            with patch.object(probe, "run", side_effect=["(true,)", "other@example.org"]):
+                self.assertEqual(probe.session_ready(), "aurora-extension-not-active")
+            with patch.object(probe, "run", side_effect=["(true,)", "localzet-shell@localzet.com"]):
+                self.assertIsNone(probe.session_ready())
+
+    def test_missing_account_or_bus_is_not_ready(self):
+        with patch.object(probe.pwd, "getpwnam", side_effect=KeyError):
+            self.assertEqual(probe.session_ready(), "live-account-not-found")
+        account = SimpleNamespace(pw_uid=1000, pw_gid=1000, pw_dir="/home/localzet")
+        with patch.object(probe.pwd, "getpwnam", return_value=account), patch.object(probe.Path, "exists", return_value=False):
+            self.assertEqual(probe.session_ready(), "live-session-bus-not-found")
+
+    def test_diagnostics_are_bounded_and_filter_kernel_noise(self):
+        def command(argv, **kwargs):
+            self.assertEqual(kwargs["timeout"], 12)
+            if "-k" in argv:
+                return SimpleNamespace(stdout="unrelated message\nOOM killed process\nvirtio gpu reset\n")
+            return SimpleNamespace(stdout="\n".join(["x" * 800] * 100))
+        with patch.object(probe.subprocess, "run", side_effect=command), patch.object(probe, "serial_write") as serial:
+            probe.diagnostic_snapshot()
+        messages = [call.args[0] for call in serial.call_args_list]
+        self.assertEqual(len(messages), 7 * 60 + 2)
+        self.assertTrue(all(len(message) <= 550 for message in messages))
+        self.assertIn(b"LOCALZET_LIVE_DIAG kernel OOM killed process\n", messages)
+        self.assertNotIn(b"LOCALZET_LIVE_DIAG kernel unrelated message\n", messages)
+
+    def test_regression_before_stable_readiness_captures_evidence(self):
+        failure = "active-gnome-wayland-session-not-found"
+        with patch.object(probe, "readiness", side_effect=[None, failure]), \
+             patch.object(probe.time, "monotonic", side_effect=[0, 1, 1, 2, 3, 421]), \
+             patch.object(probe.time, "sleep"), \
+             patch.object(probe, "diagnostic_snapshot") as snapshot, \
+             patch.object(probe, "serial_write") as serial:
+            self.assertEqual(probe.main(), 1)
+        snapshot.assert_called_once()
+        self.assertNotIn(probe.MARKER, [call.args[0] for call in serial.call_args_list])

@@ -1,0 +1,66 @@
+/* Localzet Executive: only the native Files window, never a global GTK theme.
+ * Soft graphite, inspired by the owner's Ubuntu screenshot. Preserve native
+ * light/high-contrast modes, accent and normal GTK accessibility states.
+ */
+@media (prefers-color-scheme: dark) and (prefers-contrast: no-preference) {
+  window.nautilus-window {
+    --window-bg-color: #202124;
+    --window-fg-color: #f0f0f2;
+    --view-bg-color: #202124;
+    --view-fg-color: #f0f0f2;
+    --headerbar-bg-color: #202124;
+    --headerbar-fg-color: #f0f0f2;
+    --headerbar-backdrop-color: #202124;
+    --sidebar-bg-color: #343539;
+    --sidebar-fg-color: #e6e6e9;
+    --sidebar-backdrop-color: #343539;
+    --sidebar-border-color: #414247;
+    --card-bg-color: #2f3034;
+    --card-fg-color: #f0f0f2;
+    --border-color: #424349;
+    background-color: var(--view-bg-color);
+    color: var(--view-fg-color);
+  }
+  window.nautilus-window headerbar {
+    background-color: var(--headerbar-bg-color);
+    color: var(--headerbar-fg-color);
+    border-bottom: none;
+    box-shadow: none;
+  }
+  window.nautilus-window placessidebar {
+    background-color: var(--sidebar-bg-color);
+    color: var(--sidebar-fg-color);
+  }
+  window.nautilus-window placessidebar .navigation-sidebar {
+    background-color: transparent;
+    padding: 6px;
+  }
+  window.nautilus-window placessidebar .navigation-sidebar > row {
+    border-radius: 8px;
+    margin: 1px 0;
+  }
+  window.nautilus-window placessidebar .navigation-sidebar > row:selected {
+    background-color: color-mix(in srgb, var(--accent-bg-color) 12%, #45464b);
+    color: #ffffff;
+  }
+  window.nautilus-window .nautilus-pathbar {
+    background-color: #303136;
+    border: none;
+    border-radius: 9px;
+  }
+  window.nautilus-window .nautilus-path-button { border-radius: 7px; }
+  window.nautilus-window .nautilus-grid-view gridview {
+    padding: 18px;
+    border-spacing: 6px;
+  }
+  window.nautilus-window .nautilus-grid-view gridview > child,
+  window.nautilus-window .nautilus-grid-view .nautilus-view-cell,
+  window.nautilus-window .nautilus-list-view columnview > listview > row {
+    border-radius: 9px;
+  }
+  window.nautilus-window .nautilus-grid-view gridview > child:selected,
+  window.nautilus-window .nautilus-list-view columnview > listview > row:selected {
+    background-color: color-mix(in srgb, var(--accent-bg-color) 9%, #3b3c40);
+  }
+  window.nautilus-window .floating-bar { border-radius: 9px; }
+}
