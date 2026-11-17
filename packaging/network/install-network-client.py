@@ -56,8 +56,12 @@ def main():
         for filename in packages:
             Path(filename).chmod(0o644)
         run("/usr/bin/apt-get", "-o", "Acquire::Retries=3", "-o", "APT::Get::AllowUnauthenticated=false", "update")
+        # The pinned UserNet DEB omits EGL from Depends. The real runtime
+        # test exposed the missing library. Install archive-provided GL
+        # dependencies without changing the NVIDIA driver selection.
+        runtime = ["libegl1", "libegl-mesa0", "libgl1", "libgl1-mesa-dri"] if kind == "usernet" else []
         run("/usr/bin/apt-get", "-o", "APT::Get::AllowUnauthenticated=false",
-            "-y", "--no-remove", "--no-install-recommends", "install", *packages)
+            "-y", "--no-remove", "--no-install-recommends", "install", *packages, *runtime)
         if any(installed_version(name) != version for name, version in versions.items()):
             raise ValueError("Installed package version mismatch")
     print("Pinned client installed. Configure connection in its original UI.")
