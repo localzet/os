@@ -407,10 +407,16 @@ except OSError:
         failed = subprocess.run([*client_command, sys.executable,
                                  "-c", socks_probe], capture_output=True, text=True)
         assert failed.returncode != 0, "SOCKS connection survived proxy shutdown"
-        failed_sandbox = subprocess.run(
-            [*client_command, *sandbox, "/usr/bin/python3", "-c",
-             socks_probe], capture_output=True, text=True)
-        assert failed_sandbox.returncode != 0, "sandbox SOCKS survived shutdown"
+        # Require the connection attempt itself to fail, not Bubblewrap,
+        # Python startup, or an unrelated assertion in the SOCKS handshake.
+        sandbox_run("""import socket
+try:
+    with socket.create_connection(('192.0.2.2', 7891), 3):
+        raise AssertionError('sandbox proxy endpoint survived shutdown')
+except (ConnectionRefusedError, TimeoutError):
+    pass
+print('PASS: sandbox proxy connection failed after shutdown')
+""")
         # A setup failure is not evidence of fail-closed networking: run a
         # fresh sandbox and require the direct-connect probe to execute.
         sandbox_run("""import socket
