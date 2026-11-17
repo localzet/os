@@ -21,13 +21,15 @@ def run(*args):
 def session_ready():
     """A shell process alone may be starting, crashing or showing the greeter."""
     try:
-        uid = pwd.getpwnam("localzet").pw_uid
+        account = pwd.getpwnam("localzet")
+        uid = account.pw_uid
     except KeyError:
         return "live-account-not-found"
     runtime = f"/run/user/{uid}"
     if not (Path(runtime) / "bus").exists():
         return "live-session-bus-not-found"
-    command = ("runuser", "-u", "localzet", "--", "env",
+    command = ("setpriv", f"--reuid={uid}", f"--regid={account.pw_gid}",
+               "--init-groups", "--", "env", f"HOME={account.pw_dir}",
                f"XDG_RUNTIME_DIR={runtime}",
                f"DBUS_SESSION_BUS_ADDRESS=unix:path={runtime}/bus")
     running = run(*command, "gdbus", "call", "--session",
