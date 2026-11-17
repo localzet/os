@@ -62,11 +62,11 @@ jobs:
         if: always()
         run: |
           if test -f dist/bios.log; then tail -n 300 dist/bios.log; fi
-      - name: UEFI smoke
+      - name: UEFI smoke (software emulation)
         if: success() || failure()
         run: |
           test -f dist/localzet-dev.iso
-          python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware uefi --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 480 --marker LOCALZET_LIVE_READY --log dist/uefi.log
+          python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware uefi --accel tcg --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 600 --marker LOCALZET_LIVE_READY --log dist/uefi.log
       - name: Publish UEFI diagnostic log
         if: always()
         run: |
