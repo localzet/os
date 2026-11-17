@@ -275,7 +275,8 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
         # Bubblewrap uses an allowlisted root instead of masking selected host
         # directories. Keep the existing filtered network namespace; never
         # request a new network namespace that would discard its policy.
-        sandbox = ("bwrap", "--unshare-pid", "--unshare-ipc",
+        sandbox = ("bwrap", "--unshare-user", "--uid", "65534",
+                   "--gid", "65534", "--unshare-pid", "--unshare-ipc",
                    "--die-with-parent", "--new-session", "--clearenv",
                    "--ro-bind", "/usr", "/usr",
                    "--symlink", "usr/bin", "/bin",
@@ -284,14 +285,12 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
                    "--proc", "/proc", "--dev", "/dev",
                    "--tmpfs", "/tmp", "--dir", "/run",
                    "--dir", "/home", "--chdir", "/tmp",
-                   "--cap-drop", "ALL",
-                   "--cap-add", "CAP_SETUID", "--cap-add", "CAP_SETGID",
-                   "--cap-add", "CAP_SETPCAP", "--setenv", "PATH", "/usr/bin")
+                   "--cap-drop", "ALL", "--setenv", "PATH", "/usr/bin")
         def sandbox_run(code, *args):
-            # Root creates the mount boundary; setpriv then drops every
-            # capability and group before any fixture application executes.
-            # Do not create a user namespace owning a different network.
-            ns(client, *sandbox, *client_command[4:],
+            # Enter the filtered network as root, then drop host privileges
+            # before Bubblewrap creates its user/mount namespaces. The new
+            # user namespace does not own the existing network namespace.
+            client_run(*sandbox,
                "/usr/bin/python3", "-c", code, *args)
 
         sandbox_run("""import os, socket, sys
