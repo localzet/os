@@ -208,7 +208,7 @@ with open('/proc/self/ns/net', 'rb') as ns:
         # Network namespaces isolate abstract UNIX sockets, but not pathname
         # sockets. A desktop launcher will need a separate IPC boundary.
         import socket
-        abstract = "\\0lz-proxy-" + suffix
+        abstract = chr(0) + "lz-proxy-" + suffix
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as host_socket:
             host_socket.bind(abstract)
             host_socket.listen()
@@ -230,7 +230,7 @@ else:
 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
     s.settimeout(2)
     try:
-        s.connect('\\\\0' + sys.argv[2])
+        s.connect(chr(0) + sys.argv[2])
     except OSError as exc:
         assert exc.errno == errno.ECONNREFUSED, exc
     else:
