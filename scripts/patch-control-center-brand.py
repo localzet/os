@@ -4,9 +4,10 @@ import argparse
 from pathlib import Path
 
 LOGO = "/usr/share/localzet/brand/localzet-about.svg"
+DARK_LOGO = "/usr/share/localzet/brand/localzet-about-dark.svg"
 REPLACEMENTS = {
     "distributor_logo = get_option('distributor_logo')": f"distributor_logo = '{LOGO}'",
-    "dark_mode_distributor_logo = get_option('dark_mode_distributor_logo')": f"dark_mode_distributor_logo = '{LOGO}'",
+    "dark_mode_distributor_logo = get_option('dark_mode_distributor_logo')": f"dark_mode_distributor_logo = '{DARK_LOGO}'",
 }
 
 

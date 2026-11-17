@@ -57,7 +57,7 @@ jobs:
           mkdir -p dist
           sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 LOCALZET_CONTROL_CENTER_BUNDLE="$PWD/out/control-center" bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/branded-root"
           sudo chroot "$RUNNER_TEMP/branded-root" dpkg-query -W gnome-control-center gnome-control-center-data | tee out/control-center-installed.txt
-          grep -F '+localzet2' out/control-center-installed.txt
+          grep -F '+localzet3' out/control-center-installed.txt
           sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/branded-root" "$PWD/dist/localzet-branded-candidate.iso"
           (cd dist && sha256sum -c localzet-branded-candidate.iso.sha256)
       - name: Install and log in using exact branded image
