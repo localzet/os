@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import sys
 
 from localzet.netbird import status, installed, UI
-from localzet.usernet import proxy_status
+from localzet.usernet import policy_notice, proxy_status
 
 LABELS = {"not-installed": "Клиент не установлен", "unavailable": "Служба недоступна",
           "Idle": "Отключён", "Connecting": "Подключение", "Connected": "Подключён",
@@ -63,7 +63,7 @@ def main():
             proxy.add(Gtk.LinkButton(uri="https://github.com/localzet/UserNet/releases",
                                      label="Официальные релизы UserNet", halign=Gtk.Align.START))
             self.warning = Adw.ActionRow(title="Совместная работа VPN и прокси",
-                subtitle="Маршруты и DNS не изменяются автоматически.")
+                subtitle="Proxy Only не применяется. Маршруты и DNS не изменяются автоматически.")
             proxy.add(self.warning)
             page.add(proxy)
             settings = Adw.PreferencesGroup(title="Системная сеть",
@@ -115,6 +115,7 @@ def main():
             proxy = proxy_status()
             self.proxy_row.set_subtitle({'none': 'Выключен', 'auto': 'Автоматический (PAC)', 'manual': 'Ручной', 'unavailable': 'Недоступен'}[proxy['mode']])
             self.endpoint_row.set_subtitle(f"Локальные: {proxy['local']} · внешние: {proxy['remote']}" if proxy['mode'] == 'manual' else '—')
+            self.warning.set_subtitle(policy_notice(None, proxy))
             future = self.pool.submit(status)
             def finished():
                 if self.window is None:
@@ -124,9 +125,10 @@ def main():
                 try:
                     result = future.result()
                     self.row.set_subtitle(LABELS[result["state"]])
-                    self.warning.set_subtitle("VPN подключён и системный прокси настроен. Проверьте исключения, DNS и маршруты в клиентах." if result["state"] == "Connected" and proxy["mode"] in ("manual", "auto") else "Маршруты и DNS не изменяются автоматически.")
+                    self.warning.set_subtitle(policy_notice(result["state"], proxy))
                     self.peer_row.set_subtitle(f'{result["connected"]} / {result["total"]}' if "total" in result else "—")
                 except Exception:
+                    self.warning.set_subtitle(policy_notice(None, proxy))
                     self.row.set_subtitle("Статус недоступен")
                     self.peer_row.set_subtitle("—")
                 return GLib.SOURCE_REMOVE
