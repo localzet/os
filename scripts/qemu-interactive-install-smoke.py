@@ -274,7 +274,7 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default"):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False):
     if office_render_mode not in ("default", "software"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
@@ -620,6 +620,25 @@ printf '\nPASS: installed Executive Files package launched\n'
             raise ValueError("Missing or duplicated installed Files insertion marker")
         script = script.replace(marker, check + marker)
         assert "installed Executive Files package launched" in script
+    if branded_control_center:
+        check = r"""
+for package in gnome-control-center gnome-control-center-data; do
+    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet3 ]]
+done
+test -s /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT
+test -s /usr/share/localzet/brand/localzet-about.svg
+test -s /usr/share/localzet/brand/localzet-about-dark.svg
+launch_app gnome-control-center /usr/bin/gnome-control-center
+printf '\nPASS: installed branded Control Center package launched\n'
+"""
+        if native_files:
+            check += r"""
+cmp /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
+"""
+        marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated installed Control Center insertion marker")
+        script = script.replace(marker, check + marker)
     if executive_review and office:
         # Keep the foreground editor available while the host checks actual
         # content. This is a test delay, not a change to shipped software.
@@ -674,6 +693,7 @@ def main():
     parser.add_argument("--expect-office", action="store_true")
     parser.add_argument("--expect-executive-review", action="store_true")
     parser.add_argument("--expect-native-files", action="store_true")
+    parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--office-render-mode", choices=("default", "software"), default="default",
                         help="Software is an explicit diagnostic, not release acceptance.")
     args = parser.parse_args()
@@ -717,7 +737,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
