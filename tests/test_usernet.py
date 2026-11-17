@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import unittest
 
-from localzet.usernet import classify
+from localzet.usernet import classify, policy_notice
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("fetch_usernet", ROOT / "scripts/fetch-usernet.py")
@@ -30,3 +30,13 @@ class UserNetTests(unittest.TestCase):
             {"mode": "auto", "local": 0, "remote": 0})
         self.assertEqual(classify("none", ()), {"mode": "none", "local": 0, "remote": 0})
         self.assertEqual(classify("invalid", ())["mode"], "unavailable")
+
+    def test_policy_notice_never_implies_enforcement(self):
+        manual = classify("manual", [("localhost", 7890)])
+        self.assertIn("Proxy Only не применяется", policy_notice("Connected", manual))
+        self.assertIn("Статус VPN недоступен", policy_notice(None, manual))
+        self.assertIn("Статус VPN недоступен", policy_notice("unavailable", manual))
+        self.assertIn("без настроенных адресов", policy_notice("Connected", classify("manual", ())))
+        self.assertIn("Настройки прокси недоступны", policy_notice("Connected", classify(None, ())))
+        self.assertIn("Proxy Only не применяется", policy_notice("Idle", manual))
+        self.assertIn("Proxy Only не применяется", policy_notice("Connected", classify("auto", ())))
