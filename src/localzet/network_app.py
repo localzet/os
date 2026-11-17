@@ -4,6 +4,7 @@ import sys
 
 from localzet.netbird import status, installed, UI
 from localzet.usernet import policy_notice, proxy_status
+from localzet.network_provision import available, command, usernet_installed
 
 LABELS = {"not-installed": "Клиент не установлен", "unavailable": "Служба недоступна",
           "Idle": "Отключён", "Connecting": "Подключение", "Connected": "Подключён",
@@ -23,6 +24,7 @@ def main():
             self.window = None
             self.pool = ThreadPoolExecutor(max_workers=1)
             self.busy = False
+            self.installing = False
 
         def do_activate(self):
             from localzet.appearance import apply_midnight
@@ -31,7 +33,8 @@ def main():
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Network")
             self.appearance = apply_midnight(self.window)
-            self.window.set_default_size(740, 680)
+            self.window.set_default_size(740, 720)
+            self.window.connect("close-request", lambda *_: self.installing)
             toolbar = Adw.ToolbarView()
             header = Adw.HeaderBar()
             self.refresh_button = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Обновить")
@@ -49,6 +52,9 @@ def main():
             self.open_button = Gtk.Button(label="Открыть NetBird", halign=Gtk.Align.START)
             self.open_button.connect("clicked", self.open_client)
             group.add(self.open_button)
+            self.install_netbird = Gtk.Button(label="Установить NetBird", halign=Gtk.Align.START)
+            self.install_netbird.connect("clicked", lambda *_: self.provision("netbird"))
+            group.add(self.install_netbird)
             link = Gtk.LinkButton(uri="https://docs.netbird.io/get-started/install/linux",
                                   label="Официальная установка NetBird", halign=Gtk.Align.START)
             group.add(link)
@@ -62,12 +68,20 @@ def main():
             self.usernet_button = Gtk.Button(label="Открыть UserNet", halign=Gtk.Align.START)
             self.usernet_button.connect("clicked", self.open_usernet)
             proxy.add(self.usernet_button)
+            self.install_usernet = Gtk.Button(label="Установить UserNet", halign=Gtk.Align.START)
+            self.install_usernet.connect("clicked", lambda *_: self.provision("usernet"))
+            proxy.add(self.install_usernet)
             proxy.add(Gtk.LinkButton(uri="https://github.com/localzet/UserNet/releases",
                                      label="Официальные релизы UserNet", halign=Gtk.Align.START))
             self.warning = Adw.ActionRow(title="Совместная работа VPN и прокси",
                 subtitle="Proxy Only не применяется. Маршруты и DNS не изменяются автоматически.")
             proxy.add(self.warning)
             page.add(proxy)
+            provision_group = Adw.PreferencesGroup(title="Установка клиентов", description="Закреплённые DEB с GitHub, проверка SHA-256 и подтверждение администратора. NetBird запускает незарегистрированную службу; UserNet не включает TUN автоматически.")
+            self.provision_status = Adw.ActionRow(title="Состояние", subtitle="Готово к проверке")
+            self.provision_status.set_use_markup(False)
+            provision_group.add(self.provision_status)
+            page.add(provision_group)
             settings = Adw.PreferencesGroup(title="Системная сеть",
                 description="Настройки GNOME остаются основным интерфейсом сетевых адаптеров.")
             button = Gtk.Button(label="Настройки сети", halign=Gtk.Align.START)
@@ -107,6 +121,33 @@ def main():
                 except Exception:
                     self.proxy_row.set_subtitle("Не удалось открыть UserNet")
 
+        def provision(self, kind):
+            if self.installing or not available(kind):
+                return
+            self.installing = True
+            self.install_netbird.set_sensitive(False)
+            self.install_usernet.set_sensitive(False)
+            self.provision_status.set_subtitle("Подтвердите установку администратором. Не закрывайте окно до завершения.")
+            try:
+                process = Gio.Subprocess.new(command(kind), Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_MERGE)
+                process.communicate_utf8_async(None, None, self.provision_finished)
+            except Exception as error:
+                self.installing = False
+                self.provision_status.set_subtitle(str(error))
+                self.refresh()
+
+        def provision_finished(self, process, result):
+            self.installing = False
+            try:
+                _, output, _ = process.communicate_utf8_finish(result)
+                if not process.get_successful():
+                    self.provision_status.set_subtitle("Установка не завершена. " + (output or "")[-1200:])
+                else:
+                    self.provision_status.set_subtitle("Пакет установлен. Откройте оригинальный клиент для настройки подключения.")
+            except Exception as error:
+                self.provision_status.set_subtitle(str(error))
+            self.refresh()
+
         def refresh(self):
             if self.busy:
                 return GLib.SOURCE_CONTINUE
@@ -114,6 +155,10 @@ def main():
             self.refresh_button.set_sensitive(False)
             self.open_button.set_sensitive(installed(UI))
             self.usernet_button.set_sensitive(self.usernet_app() is not None)
+            self.install_netbird.set_visible(not installed(UI))
+            self.install_usernet.set_visible(not usernet_installed())
+            self.install_netbird.set_sensitive(not self.installing and available("netbird"))
+            self.install_usernet.set_sensitive(not self.installing and available("usernet"))
             proxy = proxy_status()
             self.proxy_row.set_subtitle({'none': 'Выключен', 'auto': 'Автоматический (PAC)', 'manual': 'Ручной', 'unavailable': 'Недоступен'}[proxy['mode']])
             self.endpoint_row.set_subtitle(f"Локальные: {proxy['local']} · внешние: {proxy['remote']}" if proxy['mode'] == 'manual' else '—')

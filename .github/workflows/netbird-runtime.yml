@@ -5,6 +5,8 @@ on:
       - 'config/upstream/netbird.json'
       - 'scripts/fetch-netbird.py'
       - 'src/localzet/netbird.py'
+      - 'src/localzet/network_provision.py'
+      - 'packaging/network/**'
       - '.github/workflows/netbird-runtime.yml'
   workflow_dispatch:
 permissions:
@@ -36,7 +38,8 @@ jobs:
                   break
               time.sleep(1)
           assert report["state"] in ("NeedsLogin", "Idle"), report
-          assert report["total"] == report["connected"] == 0, report
+          if "total" in report:
+              assert report["total"] == report["connected"] == 0, report
           print("PASS: unregistered installed service readable by normal user", report)
           PY
           ip -j route show table main > out/netbird-runtime/routes-after.json

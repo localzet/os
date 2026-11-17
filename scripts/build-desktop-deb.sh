@@ -27,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, budgie-wallpapers-resolute, python3-pil${containers_dep}
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, curl, budgie-wallpapers-resolute, python3-pil${containers_dep}
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF
