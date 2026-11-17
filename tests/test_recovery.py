@@ -43,6 +43,16 @@ menuentry 'Advanced options' {
         self.assertEqual(info["recovery_entries"], ["6.17.0-2-generic"])
         self.assertFalse(grub_inventory(config, "6.17.0-1-generic")["running_recovery_entry"])
 
+    def test_minimal_ubuntu_single_user_entry(self):
+        info = grub_inventory(
+            "linux /boot/vmlinuz-7.0.0-43-generic root=UUID=fixture ro single nomodeset\n"
+            "linux /boot/vmlinuz-7.0.0-43-generic root=UUID=fixture ro quiet splash\n",
+            "7.0.0-43-generic")
+        self.assertTrue(info["running_recovery_entry"])
+        self.assertTrue(info["running_normal_entry"])
+        self.assertEqual(info["single_user_entries"], ["7.0.0-43-generic"])
+        self.assertEqual(info["friendly_recovery_entries"], [])
+
     def test_package_audit_does_not_assume_zero_exit_is_clean(self):
         for code, stdout, stderr, expected in (
                 (0, "", "", "clean"),
