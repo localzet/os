@@ -69,6 +69,7 @@ jobs:
           name: control-center-build-evidence
           path: out/control-center/
       - name: Assemble exact Complete candidate with both verified native packages
+        id: assemble
         run: |
           sudo apt-get update
           sudo apt-get install -y curl mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools gdisk dosfstools e2fsprogs qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 wixl python3-pil
@@ -78,14 +79,17 @@ jobs:
           sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/candidate-root" "$PWD/dist/localzet-aurora-complete-rc.iso"
           (cd dist && sha256sum -c localzet-aurora-complete-rc.iso.sha256)
       - name: Collect exact-image binary and source package inventory
+        id: inventory
         run: |
           xorriso -osirrox on -indev dist/localzet-aurora-complete-rc.iso -extract /casper/filesystem.manifest dist/filesystem.manifest
-          python3 scripts/collect-release-inventory.py "$RUNNER_TEMP/candidate-root" --iso-manifest dist/filesystem.manifest > dist/package-inventory.json
+          sudo python3 scripts/collect-release-inventory.py "$RUNNER_TEMP/candidate-root" --iso-manifest dist/filesystem.manifest > dist/package-inventory.json
       - name: Boot the exact candidate in BIOS
         run: python3 scripts/qemu-iso-smoke.py dist/localzet-aurora-complete-rc.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
-      - name: Boot the exact candidate in UEFI
-        run: python3 scripts/qemu-iso-smoke.py dist/localzet-aurora-complete-rc.iso --firmware uefi --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 480 --marker LOCALZET_LIVE_READY --log dist/uefi.log
+      - name: Boot the exact candidate in UEFI (TCG)
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' && steps.inventory.outcome == 'success' }}
+        run: python3 scripts/qemu-iso-smoke.py dist/localzet-aurora-complete-rc.iso --firmware uefi --accel tcg --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd --timeout 600 --marker LOCALZET_LIVE_READY --log dist/uefi.log
       - name: Install from USB beside a foreign GPT disk and validate installed desktop
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' && steps.inventory.outcome == 'success' }}
         run: |
           printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
           x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
