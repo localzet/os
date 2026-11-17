@@ -17,7 +17,7 @@ mkdir -p "$out"
 dpkg-source -b .
 dsc="$(realpath -e -- "../${package}_${version#*:}.dsc")"
 # dcmd copies only the descriptor and files listed by that descriptor.
-dcmd cp -- "$dsc" "$out/"
+dcmd cp "$dsc" "$out/"
 test -s "$out/$(basename "$dsc")"
 (
     cd "$out"
