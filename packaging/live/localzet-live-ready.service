@@ -7,10 +7,10 @@ ConditionPathExists=/dev/ttyS0
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /usr/lib/localzet/localzet-live-ready.py
-TimeoutStartSec=270
+TimeoutStartSec=450
 NoNewPrivileges=yes
 ProtectSystem=strict
-ProtectHome=yes
+ProtectHome=read-only
 PrivateTmp=yes
 RestrictAddressFamilies=AF_UNIX
 
