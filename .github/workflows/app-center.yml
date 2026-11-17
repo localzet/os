@@ -19,7 +19,7 @@ jobs:
       - name: Resolve and install signed archive gaming dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers ptyxis python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth xdotool dbus-x11 imagemagick
+          sudo apt-get install -y --no-install-recommends flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers ptyxis python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth xdotool dbus-x11 imagemagick python3-pil
           dpkg-query -W flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers
           dpkg -L lutris | grep -Fx /usr/games/lutris
           test -x /usr/games/lutris
@@ -32,17 +32,25 @@ jobs:
         run: |
           mkdir -p out/app-center
           export PYTHONPATH="$PWD/src"
-          export GDK_BACKEND=x11
+          export GDK_BACKEND=x11 GSK_RENDERER=cairo
           export GTK_A11Y=none
           xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
             python3 -c "from localzet.app_center import main; raise SystemExit(main())" > out/app-center/gui.log 2>&1 &
             pid=$!
             trap "kill $pid 2>/dev/null || true" EXIT
-            window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet")"
+            window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet" | head -n 1)"
             test -n "$window"
+            sleep 4
             kill -0 "$pid"
-            import -window root out/app-center/apps.png
+            import -window "$window" out/app-center/apps.png
           '
+          python3 - <<'PY'
+          from PIL import Image
+          with Image.open('out/app-center/apps.png') as image:
+              assert image.width >= 500 and image.height >= 400, image.size
+              assert len(image.convert('RGB').getcolors(maxcolors=10000000)) >= 64, 'Blank app center screenshot'
+          PY
+          ! grep -E 'Traceback|CRITICAL' out/app-center/gui.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
