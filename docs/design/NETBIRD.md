@@ -7,3 +7,5 @@ Localzet Network reads the installed CLI's status JSON unprivileged; it exposes 
 Next gate: actual service install and GTK UI against a fresh unregistered peer, explicit installed-system provisioning with admin approval, followed by authenticated connection/routing tests with a dedicated test deployment. UserNet/mihomo route and DNS coordination is not yet implemented. No release or redistribution authorization is implied.
 
 References: https://github.com/netbirdio/netbird/releases/tag/v0.83.1 and https://docs.netbird.io/get-started/install/linux
+
+Experimental installed-system provisioning: Localzet Network offers a fixed administrator-authenticated install action when the pinned client is absent. The helper refuses Live/foreign OS, uses private root-owned staging, exact upstream checks, signed APT dependencies, no removal or downgrade, and never calls login/up. Real route/peer enrollment and installed-image polkit acceptance remain pending.

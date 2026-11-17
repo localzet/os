@@ -530,6 +530,12 @@ assert set(output.splitlines()) == {name + "\tii " for name in packages}, output
 assert not expected["install_ready"]
 print("PASS: installed archive profile package inventory; external components remain pending")
 PY
+test -x /usr/bin/flatpak
+test -x /usr/bin/localzet-apps
+test -x /usr/lib/localzet/install-netbird
+test -x /usr/lib/localzet/install-usernet
+test -f /usr/share/polkit-1/actions/org.localzet.install-network.policy
+launch_app localzet-apps /usr/bin/localzet-apps
 launch_app vlc /usr/bin/vlc
 launch_app qbittorrent /usr/bin/qbittorrent
 pgrep -u localzet-test -x vlc >/dev/null

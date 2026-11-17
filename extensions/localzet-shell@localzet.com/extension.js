@@ -17,13 +17,45 @@ export default class LocalzetShell extends Extension {
         try {
             this._dock = new LocalzetDock(this.path);
             this._panel = new AuroraPanel(this._dock);
+            this._preferDesktopAtStartup();
         } catch (error) {
             this.disable();
             throw error;
         }
     }
 
+    _preferDesktopAtStartup() {
+        // GNOME 50 loads extensions asynchronously. Only intervene while
+        // the initial animation is running; never close an overview that
+        // the user opens later, or on extension reload / unlock.
+        const layout = Main.layoutManager;
+        if (!layout._startingUp || Main.sessionMode.isLocked)
+            return;
+        if (typeof layout.startInOverview === 'boolean') {
+            this._previousStartInOverview = layout.startInOverview;
+            layout.startInOverview = false;
+        }
+        this._startupId = layout.connect('startup-complete', () => {
+            this._restoreStartupPreference();
+            if (Main.overview.visible && !Main.sessionMode.isLocked)
+                Main.overview.hide();
+            console.log('Localzet Shell: startup desktop preference applied');
+        });
+    }
+
+    _restoreStartupPreference() {
+        if (this._startupId) {
+            Main.layoutManager.disconnect(this._startupId);
+            this._startupId = 0;
+        }
+        if (typeof this._previousStartInOverview === 'boolean') {
+            Main.layoutManager.startInOverview = this._previousStartInOverview;
+            this._previousStartInOverview = undefined;
+        }
+    }
+
     disable() {
+        this._restoreStartupPreference();
         this._panel?.destroy();
         this._panel = null;
         this._dock?.destroy();

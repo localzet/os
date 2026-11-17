@@ -27,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, budgie-wallpapers-resolute, python3-pil${containers_dep}
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, curl, budgie-wallpapers-resolute, python3-pil${containers_dep}
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF
@@ -43,6 +43,12 @@ install -m 0755 "$repo/apps/localzet-network/localzet-network" "$pkg/usr/bin/loc
 install -m 0755 "$repo/apps/localzet-ai/localzet-ai" "$pkg/usr/bin/localzet-ai"
 install -m 0755 "$repo/apps/localzet-ai/localzet-mcp" "$pkg/usr/bin/localzet-mcp"
 install -m 0644 "$repo/packaging/com.localzet.Network.desktop" "$pkg/usr/share/applications/"
+install -D -m 0644 "$repo/config/upstream/netbird.json" "$pkg/opt/localzet-os/config/upstream/netbird.json"
+install -D -m 0644 "$repo/config/upstream/usernet.json" "$pkg/opt/localzet-os/config/upstream/usernet.json"
+install -m 0644 "$repo/scripts/fetch-netbird.py" "$repo/scripts/fetch-usernet.py" "$pkg/opt/localzet-os/scripts/"
+install -m 0755 "$repo/packaging/network/install-netbird" "$repo/packaging/network/install-usernet" "$pkg/usr/lib/localzet/"
+install -m 0644 "$repo/packaging/network/org.localzet.install-network.policy" "$pkg/usr/share/polkit-1/actions/"
+install -m 0644 "$repo/packaging/network/install-network-client.py" "$pkg/usr/lib/localzet/"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware" "$pkg/usr/bin/localzet-hardware"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware-manager" "$pkg/usr/bin/localzet-hardware-manager"
 install -m 0644 "$repo/packaging/com.localzet.Hardware.desktop" "$pkg/usr/share/applications/"
@@ -54,6 +60,8 @@ install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/
 install -m 0755 "$repo/apps/localzet-windows/localzet-windows" "$pkg/usr/bin/localzet-windows"
 install -m 0644 "$repo/packaging/com.localzet.WindowsRuntime.desktop" "$pkg/usr/share/applications/"
 install -m 0644 "$repo/packaging/com.localzet.Microsoft365Web.desktop" "$pkg/usr/share/applications/"
+install -m 0755 "$repo/apps/localzet-apps/localzet-apps" "$pkg/usr/bin/localzet-apps"
+install -m 0644 "$repo/packaging/com.localzet.Apps.desktop" "$pkg/usr/share/applications/"
 # Experimental Containers UI is packaged only on explicit request.
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     install -m 0755 "$repo/apps/localzet-containers/localzet-containers" "$pkg/usr/bin/localzet-containers"

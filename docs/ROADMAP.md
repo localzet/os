@@ -21,7 +21,7 @@ Status: engineering candidate, not a stable release. Individual CI passes do not
 | Requirement | Current evidence / remaining work |
 | --- | --- |
 | Windows applications | Wine x86/x64 and original MSI fixture passed separately; real app matrix, installer UX, file associations, shortcuts, per-app lifecycle still pending. Wine prefixes are not sandboxes. |
-| Windows gaming / Witcher 3 | No verified game launch; Steam/Proton, GOG, DXVK/VKD3D, Vulkan, GPU/driver and controller tests required. |
+| Windows gaming / Witcher 3 | Lutris, GameMode, MangoHud, Vulkan Tools and Mesa Vulkan declared as actual signed archive dependencies for Complete. App center supports user-initiated Steam/Heroic installation. No verified game launch; Proton, DXVK/VKD3D, GPU/controller tests required. |
 | ONLYOFFICE | Native pinned package and offline rendering verified; exact Complete and redistribution review still open. |
 | Microsoft Office | Microsoft 365 web entry and optional licensed Windows-guest path only; no native desktop installation or verified Office compatibility. No license bypass or unauthorized activation. |
 | NVIDIA CUDA | Experimental installer-authorized first-boot driver + CUDA orchestration, architecture selection and real compute probe exist. No physical NVIDIA execution evidence, opt-in default off. |
@@ -32,7 +32,7 @@ Status: engineering candidate, not a stable release. Individual CI passes do not
 | UserNet | Upstream review and network GUI; real UserNet endpoint, setup, lifecycle and policy acceptance pending. Proxy-only namespace experiment is not integrated desktop policy. |
 | Codex / Claude Code | AI namespace/proxy fixture, package planning; actual CLI install/auth and real UserNet path pending. |
 | NectarLink | Pinned package verification and installer entry point; real Android pairing pending. |
-| Telegram, Yandex Music, VS Code, browser choice, Discord | Catalog entries do not mean preinstalled; verified installation/first-run and redistribution review pending. |
+| Telegram, Yandex Music, VS Code, browser choice, Discord | Telegram and Discord have a user-local Flatpak install path; VS Code, Chrome, Edge and Yandex Music point to publisher downloads. No claim of preinstallation; exact installed first-run and redistribution review pending. |
 | Media and development | Archive packages in Standard/Complete; separate installed checks passed, full UX acceptance pending. |
 | Updates/recovery | Read-only recovery diagnostic and kernel menu entries verified; real recovery boot, updates and rollback pending. |
 
