@@ -32,6 +32,15 @@ jobs:
         run: |
           mkdir -p out/app-center
           export PYTHONPATH="$PWD/src"
+          python3 scripts/build-aurora-icons.py "$HOME/.local/share/icons"
+          mkdir -p "$HOME/.config/gtk-4.0"
+          printf '[Settings]\ngtk-icon-theme-name=Aurora\n' > "$HOME/.config/gtk-4.0/settings.ini"
+          python3 - <<'PY'
+          from pathlib import Path
+          from localzet.app_catalog import APPS
+          root = Path.home() / ".local/share/icons/Aurora/scalable/apps"
+          assert all((root / (app.icon + ".svg")).is_file() for app in APPS.values())
+          PY
           export GDK_BACKEND=x11 GSK_RENDERER=cairo
           export GTK_A11Y=none
           xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
