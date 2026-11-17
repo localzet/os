@@ -19,7 +19,7 @@ class App:
 
 
 APPS = {
-    "lutris": App("Lutris", "Игры", "Пакет Ubuntu; Wine и игровые библиотеки", "net.lutris.Lutris", native="/usr/bin/lutris"),
+    "lutris": App("Lutris", "Игры", "Пакет Ubuntu; Wine и игровые библиотеки", "net.lutris.Lutris", native="/usr/games/lutris"),
     "steam": App("Steam", "Игры", "Flathub: сборка сообщества, не поддерживается Valve; нужен аккаунт", "com.valvesoftware.Steam", flatpak_id="com.valvesoftware.Steam"),
     "heroic": App("Heroic Games Launcher", "Игры", "GOG / Epic; загрузка игр и Proton через Heroic", "com.heroicgameslauncher.hgl", flatpak_id="com.heroicgameslauncher.hgl"),
     "telegram": App("Telegram Desktop", "Связь и медиа", "Flathub; установка для текущего пользователя", "org.telegram.desktop", flatpak_id="org.telegram.desktop"),

@@ -21,7 +21,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers ptyxis python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth xdotool dbus-x11 imagemagick
           dpkg-query -W flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers
-          test -x /usr/bin/lutris
+          dpkg -L lutris | grep -Fx /usr/games/lutris
+          test -x /usr/games/lutris
           test -x /usr/bin/flatpak
           test -x /usr/bin/ptyxis
           vulkaninfo --summary > vulkan-summary.txt 2>&1 || true

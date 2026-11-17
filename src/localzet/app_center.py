@@ -11,7 +11,7 @@ def main() -> int:
     import gi
     gi.require_version("Adw", "1")
     gi.require_version("Gtk", "4.0")
-    from gi.repository import Adw, Gio, Gtk
+    from gi.repository import Adw, Gio, GLib, Gtk
     from localzet.appearance import apply_midnight
 
     class AppCenter(Adw.Application):
@@ -84,7 +84,7 @@ def main() -> int:
                     subprocess.Popen(value, start_new_session=True)
                     if kind == "install":
                         self.status.set_label("Подтвердите установку в Ptyxis. Затем обновите список; открытие терминала не означает, что установка завершилась.")
-            except (OSError, ValueError, subprocess.SubprocessError, gi.repository.GLib.Error) as error:
+            except (OSError, ValueError, subprocess.SubprocessError, GLib.Error) as error:
                 self.status.set_label(str(error))
 
     return AppCenter().run([sys.argv[0]])

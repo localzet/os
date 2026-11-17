@@ -21,7 +21,7 @@ class AppCatalogTests(unittest.TestCase):
 
     def test_installed_and_missing_states_are_distinct(self):
         with patch.object(c, "executable", return_value=True):
-            self.assertEqual(c.action("lutris", frozenset()), ("launch", ("/usr/bin/lutris",)))
+            self.assertEqual(c.action("lutris", frozenset()), ("launch", ("/usr/games/lutris",)))
             self.assertEqual(c.action("steam", frozenset())[0], "install")
             self.assertEqual(c.action("steam", frozenset({"com.valvesoftware.Steam"})),
                              ("launch", ("/usr/bin/flatpak", "run", "com.valvesoftware.Steam")))
