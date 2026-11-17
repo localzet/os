@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--marker", required=True,
                         help="Exact guest serial marker emitted after readiness checks")
     parser.add_argument("--timeout", type=int, default=300)
+    parser.add_argument("--accel", choices=("auto", "kvm", "tcg"), default="auto",
+                        help="Explicitly exercise software emulation or hardware acceleration")
     parser.add_argument("--log", type=Path, required=True)
     args = parser.parse_args()
     if not args.marker.strip() or args.timeout <= 0:
@@ -69,10 +71,13 @@ def main():
         serial = Path(tmp) / "serial.log"
         monitor = Path(tmp) / "qmp.sock"
         screen = Path(tmp) / "screen.ppm"
-        accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
+        kvm_available = os.access("/dev/kvm", os.R_OK | os.W_OK)
+        if args.accel == "kvm" and not kvm_available:
+            parser.error("KVM requested but unavailable")
+        accel = ("kvm" if kvm_available else "tcg") if args.accel == "auto" else args.accel
         cpu = "host" if accel == "kvm" else "max"
         cmd = [qemu, "-machine", "q35", "-accel", accel, "-cpu", cpu,
-               "-m", "4096", "-smp", "2", "-nic", "none",
+               "-m", "6144", "-smp", "4", "-nic", "none",
                "-vga", "virtio", "-display", "none", "-monitor", "none",
                "-qmp", f"unix:{monitor},server=on,wait=off",
                "-no-reboot", "-boot", "order=d", "-cdrom",
@@ -82,7 +87,7 @@ def main():
             shutil.copyfile(args.ovmf_vars, vars_copy)
             cmd += ["-drive", f"if=pflash,format=raw,readonly=on,file={args.ovmf_code.resolve()}",
                     "-drive", f"if=pflash,format=raw,file={vars_copy}"]
-        print(f"QEMU firmware={args.firmware} accel={accel} cpu={cpu}", flush=True)
+        print(f"QEMU firmware={args.firmware} accel={accel} cpu={cpu} memory=6144MiB vcpus=4", flush=True)
         with tempfile.TemporaryFile() as errors:
             proc = subprocess.Popen(cmd, stdout=errors, stderr=errors)
             found = False
