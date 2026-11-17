@@ -30,3 +30,16 @@ The CI packaging job uses the GNOME 50 `gnome-extensions pack` command from Ubun
 ## Recovery
 
 Use GNOME Extensions to disable the extension. If the test VM cannot start a graphical session, recover from its VM snapshot or, using a VM recovery console, remove the user-scoped directory at `~/.local/share/gnome-shell/extensions/localzet-shell@localzet.com`. Do not alter a host OS.
+
+## Terminal profile
+
+New Localzet installations select the built-in Ptyxis XTerm palette (ID
+`xterm`), with opaque terminal content and system light/dark preference.
+The original Aurora palette remains installed as a selectable alternative.
+The nested devkit explicitly uses dark mode because it lacks the full
+settings portal. It captures the focused terminal, prints six ANSI background
+swatches and checks their actual rendered pixels against XTerm colors.
+The installed-image check verifies the default profile and launches Ptyxis.
+This is not a migration of existing personal terminal preferences.
+
+Reference: https://sources.debian.org/src/ptyxis/50.1-1/src/palettes/xterm.palette

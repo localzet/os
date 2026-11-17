@@ -23,6 +23,10 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("libreoffice", " ".join(result["ubuntu_package_candidates"]))
         self.assertNotIn("onlyoffice-desktopeditors", result["ubuntu_package_candidates"])
         self.assertIn("office", result["external_or_localzet_pending"])
+        self.assertIn("gpu-unlocker", result["external_or_localzet_pending"])
+        self.assertTrue({"codex", "claude-code"} <= set(result["external_or_localzet_pending"]))
+        self.assertTrue({"bubblewrap", "socat", "nodejs", "ripgrep"} <= set(result["ubuntu_package_candidates"]))
+        self.assertNotIn("gpu-unlock-dkms", result["ubuntu_package_candidates"])
         self.assertFalse(result["install_ready"])
         self.assertFalse(result["write_operations_available"])
 
@@ -41,6 +45,15 @@ class ProfileTests(unittest.TestCase):
         for extras in (["edge"], ["discord", "discord"], ["office"], ["unknown"]):
             with self.assertRaises(ValueError):
                 plan(self.data, "complete", browser="chrome", extras=extras)
+
+    def test_microsoft_office_optional_and_not_an_ubuntu_package(self):
+        default = plan(self.data, "complete")
+        self.assertNotIn("microsoft-365-desktop", default["external_or_localzet_pending"])
+        selected = plan(self.data, "complete", extras=["microsoft-365-desktop"])
+        self.assertIn("microsoft-365-desktop", selected["external_or_localzet_pending"])
+        self.assertEqual(default["ubuntu_package_candidates"], selected["ubuntu_package_candidates"])
+        self.assertIn("office", selected["external_or_localzet_pending"])
+        self.assertFalse(selected["install_ready"])
 
     def test_untrusted_package_rejected(self):
         changed = deepcopy(self.data)

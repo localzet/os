@@ -27,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec${containers_dep}
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, budgie-wallpapers-resolute, python3-pil${containers_dep}
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF
@@ -36,8 +36,11 @@ find "$pkg/opt/localzet-os/src" -type d -name __pycache__ -prune -exec rm -rf --
 cp -a "$repo/config/modules" "$pkg/opt/localzet-os/config/"
 install -m 0644 "$repo/config/profiles.json" "$pkg/opt/localzet-os/config/profiles.json"
 cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
+cp -a "$repo/extensions/localzet-lock@localzet.com" "$pkg/usr/share/gnome-shell/extensions/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0755 "$repo/apps/localzet-network/localzet-network" "$pkg/usr/bin/localzet-network"
+install -m 0755 "$repo/apps/localzet-ai/localzet-ai" "$pkg/usr/bin/localzet-ai"
+install -m 0755 "$repo/apps/localzet-ai/localzet-mcp" "$pkg/usr/bin/localzet-mcp"
 install -m 0644 "$repo/packaging/com.localzet.Network.desktop" "$pkg/usr/share/applications/"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware" "$pkg/usr/bin/localzet-hardware"
 install -m 0755 "$repo/apps/localzet-hardware/localzet-hardware-manager" "$pkg/usr/bin/localzet-hardware-manager"
@@ -49,6 +52,7 @@ install -D -m 0644 "$repo/packaging/hardware/localzet-hardware-firstboot.timer" 
 install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/applications/"
 install -m 0755 "$repo/apps/localzet-windows/localzet-windows" "$pkg/usr/bin/localzet-windows"
 install -m 0644 "$repo/packaging/com.localzet.WindowsRuntime.desktop" "$pkg/usr/share/applications/"
+install -m 0644 "$repo/packaging/com.localzet.Microsoft365Web.desktop" "$pkg/usr/share/applications/"
 # Experimental Containers UI is packaged only on explicit request.
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     install -m 0755 "$repo/apps/localzet-containers/localzet-containers" "$pkg/usr/bin/localzet-containers"
@@ -56,6 +60,9 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
 fi
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
+install -D -m 0644 "$repo/assets/wallpapers/localzet-wallpapers.xml" "$pkg/usr/share/gnome-background-properties/localzet-wallpapers.xml"
+install -m 0644 "$repo/assets/wallpapers/ATTRIBUTION.txt" "$pkg/usr/share/doc/localzet-desktop/wallpaper-attribution.txt"
+install -m 0644 "$repo/scripts/build-executive-wallpaper.py" "$pkg/opt/localzet-os/scripts/"
 python3 "$repo/scripts/build-aurora-icons.py" "$pkg/usr/share/icons"
 install -D -m 0644 "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet.svg"
 python3 "$repo/scripts/derive-about-logo.py" "$repo/assets/brand/localzet.svg" "$pkg/usr/share/localzet/brand/localzet-about.svg"
@@ -69,6 +76,25 @@ install -m 0755 "$repo/packaging/nectarlink/install-nectarlink" "$pkg/usr/lib/lo
 install -m 0644 "$repo/packaging/nectarlink/org.localzet.install-nectarlink.policy" "$pkg/usr/share/polkit-1/actions/"
 install -m 0644 "$repo/packaging/nectarlink/release.toml" "$pkg/opt/localzet-os/packaging/nectarlink/"
 install -m 0644 "$repo/scripts/fetch-nectarlink-deb.py" "$repo/scripts/check-nectarlink-control.py" "$pkg/opt/localzet-os/scripts/"
+# Generate the derived asset only after its signed archive dependency is
+# configured. No network and no changes to any user's settings.
+cat > "$pkg/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    /usr/bin/python3 /opt/localzet-os/scripts/build-executive-wallpaper.py \
+        /usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg \
+        /usr/share/backgrounds/localzet/executive-dusk.jpg
+fi
+POSTINST
+cat > "$pkg/DEBIAN/postrm" <<'POSTRM'
+#!/bin/sh
+set -eu
+case "$1" in
+    remove|purge) rm -f /usr/share/backgrounds/localzet/executive-dusk.jpg /usr/share/backgrounds/localzet/executive-dusk-glass.jpg ;;
+esac
+POSTRM
+chmod 0755 "$pkg/DEBIAN/postinst" "$pkg/DEBIAN/postrm"
 mkdir -p "$out"
 artifact="$out/localzet-desktop_${version}_all.deb"
 dpkg-deb --root-owner-group --build "$pkg" "$artifact"

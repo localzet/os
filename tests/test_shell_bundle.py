@@ -25,7 +25,9 @@ class ShellBundleTests(unittest.TestCase):
             "stylesheet.css": ".localzet-indicator {}",
             "dock.js": "export class LocalzetDock {}",
             "panel.js": "export class AuroraPanel {}",
-            "launcher.js": "export class AuroraLauncher {}",
+            "launcher.js": "import {WallpaperGlass} from './wallpaper-glass.js'; export class AuroraLauncher {}",
+            "wallpaper-glass.js": "export class WallpaperGlass {}",
+            "quick-actions.js": "export class ExecutiveQuickActions {}",
             **{name: "<svg/>" for name in module.ICONS},
         }
         if extra:
@@ -58,6 +60,16 @@ class ShellBundleTests(unittest.TestCase):
     def test_missing_imported_module(self):
         self.bundle(omit='panel.js')
         with self.assertRaisesRegex(ValueError, 'missing'):
+            module.validate(self.path)
+
+    def test_missing_wallpaper_glass(self):
+        self.bundle(omit="wallpaper-glass.js")
+        with self.assertRaisesRegex(ValueError, "missing"):
+            module.validate(self.path)
+
+    def test_transitive_import_missing(self):
+        self.bundle(extra={"wallpaper-glass.js": "import './absent.js';"})
+        with self.assertRaisesRegex(ValueError, "missing import absent.js"):
             module.validate(self.path)
 
     def test_missing_icon(self):

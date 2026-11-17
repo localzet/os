@@ -1,22 +1,33 @@
-/* Localzet Aurora Dark, scoped to our application. GTK CSS, not web CSS. */
-@define-color accent_bg_color #9b72f2;
-@define-color accent_fg_color #10091e;
-@define-color window_bg_color #10091e;
-@define-color window_fg_color #f4eeff;
-@define-color card_bg_color #28183f;
-@define-color card_fg_color #f4eeff;
-
-window.localzet-settings {
-    color: #f4eeff;
-    background-color: #10091e;
+/* Executive layout: colors only in process-local dark appearance. */
+window.localzet-settings .executive-sidebar {
+    padding: 0 8px;
 }
-window.localzet-settings headerbar {
-    background-color: #28183f;
+window.localzet-settings .executive-nav {
+    background: transparent;
 }
-window.localzet-settings .localzet-summary {
+window.localzet-settings .executive-nav row {
     border-radius: 8px;
-    background-color: alpha(#9b72f2, 0.08);
+    margin: 2px 0;
 }
-window.localzet-settings .heading {
+window.localzet-settings .executive-nav row:selected {
     font-weight: 600;
+}
+window.localzet-settings .executive-page-heading .title-1 {
+    font-size: 23px;
+    font-weight: 650;
+}
+window.localzet-settings .heading { font-weight: 600; }
+window.localzet-settings.localzet-midnight .executive-sidebar {
+    background-color: #343539;
+    color: #f0f0f2;
+}
+window.localzet-settings.localzet-midnight .executive-nav row:hover {
+    background-color: #414247;
+}
+window.localzet-settings.localzet-midnight .executive-nav row:selected {
+    background-color: #45464b;
+    color: #ffffff;
+}
+window.localzet-settings.localzet-midnight separator {
+    background-color: #414247;
 }

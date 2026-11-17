@@ -8,6 +8,8 @@ candidate ISO contains no automatic test installer or credentials.
 from __future__ import annotations
 
 import argparse
+import base64
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -22,7 +24,16 @@ LIVE = b"LOCALZET_LIVE_READY"
 INSTALL = b"LOCALZET_CANDIDATE_INSTALLED"
 READY = b"LOCALZET_CANDIDATE_DESKTOP"
 WINE_READY = b"LOCALZET_CANDIDATE_WINE_READY"
+LOCK_READY = b"LOCALZET_CANDIDATE_LOCKED"
 FAIL = b"LOCALZET_CANDIDATE_FAILED"
+LOCK_RECHECK = b"LOCALZET_CANDIDATE_STILL_LOCKED"
+
+
+def evidence_module():
+    spec = importlib.util.spec_from_file_location('visual_evidence', Path(__file__).with_name('visual-evidence.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class Guest:
@@ -125,6 +136,58 @@ class Guest:
         ]})
         time.sleep(1)
 
+    def wake_display(self):
+        # Pointer motion only; no clicks, keys, password or unlock request.
+        self.qmp("input-send-event", {"events": [
+            {"type": "abs", "data": {"axis": "x", "value": 16384}},
+            {"type": "abs", "data": {"axis": "y", "value": 16384}},
+        ]})
+
+    def visual_capture(self, stage, region=None, wake=False, attempts=8):
+        evidence = evidence_module()
+        path = self.screen.with_name(f"{self.screen.stem}-{stage}.ppm")
+        for attempt in range(attempts):
+            if wake:
+                self.wake_display()
+            time.sleep(2)
+            self.capture(stage)
+            if not path.is_file():
+                continue
+            metrics = evidence.visual_metrics(path, region)
+            print(stage, "visual evidence", metrics, flush=True)
+            if evidence.meaningful(metrics):
+                return
+        raise RuntimeError(f"{stage}: blank or insufficient screenshot evidence")
+
+    def office_document(self):
+        # The guest captures the editor's own X11 drawable, not the host
+        # screen region. Transfer only this synthetic test document window.
+        prefix = b"LOCALZET_CANDIDATE_OFFICE_PNG "
+        lines = self.serial.read_bytes().splitlines()
+        matches = [line[len(prefix):] for line in lines if line.startswith(prefix)]
+        if len(matches) != 1 or len(matches[0]) > 2 * 1024**2:
+            raise RuntimeError("Missing, duplicate or oversized Office window evidence")
+        image = base64.b64decode(matches[0], validate=True)
+        if not image.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError("Invalid Office PNG evidence")
+        path = self.screen.with_name(f"{self.screen.stem}-office-document.png")
+        path.write_bytes(image)
+        evidence = evidence_module()
+        metrics = evidence.visual_metrics(path)
+        ink = evidence.document_ink(path)
+        print("Office document drawable:", metrics, "blue fixture ink:", ink, flush=True)
+        if not evidence.meaningful(metrics) or ink < 250:
+            raise RuntimeError("Office document pixels missing")
+        return path
+
+    def office_region(self):
+        lines = self.serial.read_text(errors="replace").splitlines()
+        line = next(line for line in reversed(lines)
+                    if line.startswith("LOCALZET_CANDIDATE_OFFICE_GEOMETRY "))
+        x, y, w, h = map(int, line.split()[1:])
+        # Exclude titlebar and outer wallpaper; inspect central app content.
+        return (x + w//10, y + h//10, w*8//10, h*8//10)
+
     def launch(self, app):
         self.key("alt-f2")
         time.sleep(1)
@@ -143,7 +206,11 @@ class Guest:
                 break
             time.sleep(1)
         if self.serial.exists():
-            print(self.serial.read_bytes()[-30000:].decode(errors="replace"), flush=True)
+            lines = self.serial.read_bytes().splitlines()
+            # Do not dump megabytes of base64 screenshot data into CI logs.
+            filtered = b"\n".join(line for line in lines
+                                  if not line.startswith((b"LOCALZET_CANDIDATE_OFFICE_PNG ", b"LOCALZET_CANDIDATE_OFFICE_FAILED_PNG ")))
+            print(filtered[-30000:].decode(errors="replace"), flush=True)
         self.capture()
         raise RuntimeError(f"Missing {marker.decode()}")
 
@@ -207,7 +274,11 @@ printf '\\nLOCALZET_CANDIDATE_INSTALLED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default"):
+    if office_render_mode not in ("default", "software"):
+        raise ValueError("Invalid Office render mode")
+    if office_render_mode != "default" and not (office and executive_review):
+        raise ValueError("Office rendering diagnostics require executive office review")
     script = r"""#!/bin/bash
 set -Eeuo pipefail
 exec >/dev/ttyS0 2>&1
@@ -263,7 +334,8 @@ launch_app() {
 home="$(getent passwd localzet-test | cut -d: -f6)"
 test -s "$home/.local/share/org.gnome.Ptyxis/palettes/aurora.palette"
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis default-profile-uuid)" = "'4e6f25d9af1244aa896f5b028bf7a020'"
-test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020/ palette)" = "'Aurora'"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020/ palette)" = "'xterm'"
+launch_app ptyxis /usr/bin/ptyxis
 launch_app localzet-settings /usr/bin/localzet-settings
 launch_app localzet-windows /usr/bin/localzet-windows
 launch_app localzet-connect /usr/bin/localzet-connect
@@ -418,6 +490,11 @@ width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
 height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
 [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
 (( width >= 400 && height >= 300 ))
+x="$(sed -n 's/^X=//p' <<< "$geometry")"
+y="$(sed -n 's/^Y=//p' <<< "$geometry")"
+[[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ ]]
+test "$(xdotool getactivewindow)" = "$window"
+printf 'LOCALZET_CANDIDATE_OFFICE_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
 printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
 OFFICETEST
 chmod 0755 /run/localzet-candidate-check/office-window.sh
@@ -428,6 +505,159 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed native ONLYOFFICE launched" in script
+    if executive_review and office:
+        # Use exactly the same original DOCX as the successful offline matrix.
+        spec = importlib.util.spec_from_file_location("office_fixture", Path(__file__).with_name("ci") / "office-fixture.py")
+        fixture_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixture_module)
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "Localzet-offline-review.docx"
+            fixture_module.build(fixture)
+            encoded = base64.b64encode(fixture.read_bytes()).decode("ascii")
+        launch = r"""
+# Avoid late activation by earlier test applications; stop only transient
+# units created by this disposable validation session.
+for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus; do
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemctl --user stop "localzet-candidate-$app.service" || true
+done
+# The test document must live in a writable directory of the authenticated
+# user, just like a real local file. The earlier root-owned /run fixture
+# did not allow the editor to create a sibling lock or temporary file.
+office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-review.XXXXXXXX")"
+printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
+runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
+runuser -u localzet-test -- test -w "$office_dir"
+printf 'Office diagnostic mode: RENDER_MODE\n'
+free -m
+df -h "$home" /dev/shm
+printf 'Office shared memory and GPU:\n'
+ls -ld /dev/shm /dev/dri || true
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
+    --property=StandardOutput=journal --property=StandardError=journal \
+    --setenv=QT_QPA_PLATFORM=xcb RENDER_ENV \
+    /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
+"""
+        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
+        assert script.count(marker) == 1
+        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
+        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        launch = (launch.replace("FIXTURE_BASE64", encoded)
+                  .replace("RENDER_MODE", office_render_mode)
+                  .replace("RENDER_ENV", render_env)
+                  .replace("RENDER_FLAGS", render_flags))
+        script = script.replace(marker, launch)
+        first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
+        last = script.index("\nOFFICETEST", first)
+        script = script[:first] + r"""window=""
+for attempt in $(seq 1 90); do
+    window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+test -n "$window"
+xdotool getwindowname "$window" | grep -F Localzet-offline-review
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+for attempt in $(seq 1 45); do
+    timeout 4 xdotool windowactivate --sync "$window" || continue
+    sleep 2
+    [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
+    import -window "$window" "$work/document.png" || continue
+    [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
+    if python3 - "$work/document.png" <<'PY'
+from PIL import Image
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+w, h = im.size
+assert w >= 400 and h >= 300
+# Restrict the ink check to the document page, not the ribbon or titlebar.
+page = im.crop((w//8, h//3, w*7//8, h*4//5))
+ink = sum(20 <= r <= 65 and 65 <= g <= 125 and 130 <= b <= 205
+          and b > g+35 and g > r+25 for r,g,b in page.getdata())
+print("Fixture heading ink:", ink)
+assert ink >= 250
+PY
+    then
+        test "$(stat -c %s "$work/document.png")" -lt 1572864
+        printf 'LOCALZET_CANDIDATE_OFFICE_PNG '
+        base64 -w0 "$work/document.png"
+        printf '\nPASS: actual ONLYOFFICE document drawable captured\n'
+        exit 0
+    fi
+done
+echo "No rendered fixture heading in named document window" >&2
+if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 1572864 ]]; then
+    printf 'LOCALZET_CANDIDATE_OFFICE_FAILED_PNG '
+    base64 -w0 "$work/document.png"
+    printf '\n'
+fi
+exit 1""" + script[last:]
+        check_marker = "systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh"
+        assert script.count(check_marker) == 1
+        script = script.replace(check_marker, check_marker + r""" || {
+    echo "Office user-service diagnostics:"
+    journalctl -b "_UID=$uid" --user-unit=localzet-candidate-onlyoffice-desktopeditors.service --no-pager -n 150 -o cat || true
+    journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
+    ps -u localzet-test -o pid,ppid,stat,pcpu,rss,comm
+    free -m
+    exit 2
+}""")
+    if native_files:
+        check = r"""
+for package in nautilus nautilus-data libnautilus-extension4; do
+    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet1 ]]
+done
+test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
+launch_app nautilus /usr/bin/nautilus
+printf '\nPASS: installed Executive Files package launched\n'
+"""
+        marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated installed Files insertion marker")
+        script = script.replace(marker, check + marker)
+        assert "installed Executive Files package launched" in script
+    if executive_review and office:
+        # Keep the foreground editor available while the host checks actual
+        # content. This is a test delay, not a change to shipped software.
+        marker = r"printf '\nLOCALZET_CANDIDATE_WINE_START\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated office visual wait marker")
+        script = script.replace(marker, "sleep 30\n" + marker)
+    if executive_review:
+        script += r"""
+# Verify the native lock in the installed, authenticated Wayland session.
+# No unlock bypass, no fake login UI and no password entered on camera.
+test -s /usr/share/backgrounds/localzet/executive-dusk.jpg
+test -s /usr/share/backgrounds/localzet/executive-dusk-glass.jpg
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
+loginctl lock-session "$session"
+for attempt in $(seq 1 30); do
+    [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]] && break
+    sleep 1
+done
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-lock@localzet.com
+# The user-session shell extension must not be active on the lock screen.
+if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-shell@localzet.com; then
+    echo "Desktop extension unexpectedly active on lock screen"
+    exit 2
+fi
+journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
+printf '\nLOCALZET_CANDIDATE_LOCKED\n'
+# Keep the validation session alive for the host to wake the display.
+sleep 25
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+printf '\nLOCALZET_CANDIDATE_STILL_LOCKED\n'
+"""
     return script
 
 
@@ -442,6 +672,10 @@ def main():
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     parser.add_argument("--expect-containers", action="store_true")
     parser.add_argument("--expect-office", action="store_true")
+    parser.add_argument("--expect-executive-review", action="store_true")
+    parser.add_argument("--expect-native-files", action="store_true")
+    parser.add_argument("--office-render-mode", choices=("default", "software"), default="default",
+                        help="Software is an explicit diagnostic, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
         parser.error("Office candidate requires Standard or Complete archive profile")
@@ -483,7 +717,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
@@ -518,13 +752,32 @@ def main():
             time.sleep(3)
             installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
             installed.key("ret")
-            installed.wait(READY, 300)
+            try:
+                installed.wait(READY, 600 if args.expect_office and args.expect_executive_review else 300)
+            except RuntimeError:
+                if args.expect_office and args.expect_executive_review and installed.serial.exists():
+                    prefix = b"LOCALZET_CANDIDATE_OFFICE_FAILED_PNG "
+                    matches = [line[len(prefix):] for line in installed.serial.read_bytes().splitlines()
+                               if line.startswith(prefix)]
+                    if len(matches) == 1 and len(matches[0]) <= 2 * 1024**2:
+                        image = base64.b64decode(matches[0], validate=True)
+                        if image.startswith(b"\x89PNG\r\n\x1a\n"):
+                            installed.screen.with_name("candidate-installed-office-failed.png").write_bytes(image)
+                raise
             installed.capture("desktop-verified")
             if args.expect_containers:
                 installed.capture("containers-installed")
             if args.expect_office:
-                installed.capture("office-installed")
+                if args.expect_executive_review:
+                    installed.office_document()
+                    installed.capture("office-installed")
+                else:
+                    installed.capture("office-installed")
             installed.wait(WINE_READY, 360)
+            if args.expect_executive_review:
+                installed.wait(LOCK_READY, 45)
+                installed.visual_capture("native-lock", wake=True)
+                installed.wait(LOCK_RECHECK, 45)
         finally:
             installed.close()
     return 0

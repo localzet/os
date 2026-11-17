@@ -1,0 +1,35 @@
+/* Scoped to the real GNOME unlock dialog. Authentication widgets, error
+ * messages, keyboard navigation, parental controls and accessibility remain
+ * entirely upstream. This sheet is unloaded in high contrast. */
+.unlock-dialog .unlock-dialog-clock {
+    spacing: 16px;
+    color: #f0f5fb;
+}
+.unlock-dialog .unlock-dialog-clock-time {
+    font-size: 82pt;
+    font-weight: 300;
+    color: #f0f5fb;
+    text-shadow: 0 2px 8px rgba(0,0,0,.65);
+}
+.unlock-dialog .unlock-dialog-clock-date {
+    font-size: 19pt;
+    font-weight: 400;
+    color: #e3edf8;
+    text-shadow: 0 1px 4px rgba(0,0,0,.65);
+}
+.unlock-dialog .unlock-dialog-clock-hint {
+    font-weight: 500;
+    border-radius: 8px;
+}
+.unlock-dialog .unlock-dialog-notifications-container .message,
+.unlock-dialog .unlock-dialog-notifications-container .unlock-dialog-notification-source {
+    background-color: rgba(16,27,45,.86);
+    border: 1px solid rgba(171,194,221,.36);
+    border-radius: 9px;
+    color: #f0f5fb;
+}
+.unlock-dialog .unlock-dialog-notifications-container .message.critical,
+.unlock-dialog .unlock-dialog-notifications-container .unlock-dialog-notification-source.critical {
+    border-color: #f0b5a5;
+    background-color: rgba(69,34,37,.94);
+}

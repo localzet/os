@@ -24,6 +24,9 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     chroot "$root" dpkg-query -W -f='${Package}\t${Version}\n' docker.io docker-compose-v2 gir1.2-vte-3.91 \
         > "$root/usr/share/localzet/containers-candidate-packages.tsv"
 fi
+if [[ -n "${LOCALZET_NAUTILUS_BUNDLE:-}" ]]; then
+    bash "$LOCALZET_REPO/scripts/install-branded-nautilus.sh" "$root" "$LOCALZET_NAUTILUS_BUNDLE" "$LOCALZET_REPO"
+fi
 if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
     bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
 fi
@@ -50,17 +53,22 @@ mkdir -p "$root/etc/dconf/profile" "$root/etc/dconf/db/localzet.d"
 printf 'user-db:user\nsystem-db:localzet\n' > "$root/etc/dconf/profile/user"
 cat > "$root/etc/dconf/db/localzet.d/00-desktop" <<'EOF'
 [org/gnome/shell]
-enabled-extensions=['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']
+enabled-extensions=['localzet-shell@localzet.com', 'localzet-lock@localzet.com', 'ubuntu-appindicators@ubuntu.com']
 disable-user-extensions=false
-favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'org.gnome.Settings.desktop']
+favorite-apps=['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
-picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
+picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-options='zoom'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
+accent-color='blue'
 icon-theme='Aurora'
+
+[org/gnome/nautilus/icon-view]
+default-zoom-level='small-plus'
 
 [org/gnome/Ptyxis]
 default-profile-uuid='4e6f25d9af1244aa896f5b028bf7a020'
@@ -69,7 +77,7 @@ interface-style='system'
 
 [org/gnome/Ptyxis/Profiles/4e6f25d9af1244aa896f5b028bf7a020]
 label='Aurora'
-palette='Aurora'
+palette='xterm'
 opacity=1.0
 
 [org/gnome/desktop/input-sources]
@@ -96,6 +104,10 @@ cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 [org/gnome/login-screen]
 logo='/usr/share/localzet/brand/localzet.svg'
 EOF
+test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
+test -s "$root/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg"
+test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
+test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
 test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet.svg'"
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"

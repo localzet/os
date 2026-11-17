@@ -2,11 +2,11 @@
 title-text: ""
 desktop-image: "background.png"
 desktop-image-scale-method: "stretch"
-desktop-color: "#10091e"
+desktop-color: "#091321"
 terminal-font: "DejaVu Sans Regular 20"
 message-font: "DejaVu Sans Regular 20"
-message-color: "#f4eeff"
-message-bg-color: "#10091e"
+message-color: "#e7edf7"
+message-bg-color: "#091321"
 
 + image {
     left = 50%-48
@@ -21,7 +21,7 @@ message-bg-color: "#10091e"
     align = "center"
     text = "Localzet OS  /  Aurora"
     font = "DejaVu Sans Regular 24"
-    color = "#f4eeff"
+    color = "#e7edf7"
 }
 
 + boot_menu {
@@ -31,8 +31,8 @@ message-bg-color: "#10091e"
     height = 38%
     item_font = "DejaVu Sans Regular 20"
     selected_item_font = "DejaVu Sans Regular 20"
-    item_color = "#d8cbed"
-    selected_item_color = "#ffb46b"
+    item_color = "#d8e4f3"
+    selected_item_color = "#78b8ff"
     item_height = 38
     item_padding = 6
     item_spacing = 4
@@ -49,7 +49,7 @@ message-bg-color: "#10091e"
     id = "__timeout__"
     text = "Booting in %d seconds"
     font = "DejaVu Sans Regular 20"
-    color = "#b9a5d5"
+    color = "#a4b6cc"
 }
 
 + label {
@@ -59,5 +59,5 @@ message-bg-color: "#10091e"
     align = "center"
     text = "Enter: boot   |   e: edit   |   c: console"
     font = "DejaVu Sans Regular 20"
-    color = "#b9a5d5"
+    color = "#a4b6cc"
 }
