@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/verify-release.py'
       - 'tests/test_release_verify.py'
+      - 'scripts/collect-release-inventory.py'
+      - 'tests/test_release_inventory.py'
       - '.github/workflows/release-verify.yml'
   workflow_dispatch:
 permissions:
@@ -19,4 +21,4 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gnupg gpgv
       - name: Test real disposable signing keys and tampered inputs
-        run: python3 -m unittest discover -s tests -p test_release_verify.py -v
+        run: python3 -m unittest discover -s tests -p 'test_release_*.py' -v
