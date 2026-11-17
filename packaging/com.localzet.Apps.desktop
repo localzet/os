@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet Apps
+Name[ru]=Приложения Localzet
+Comment=Install and launch curated applications
+Comment[ru]=Установка и запуск приложений из проверяемых источников
+Exec=localzet-apps
+Icon=com.localzet.Apps
+Terminal=false
+Categories=System;PackageManager;
+StartupNotify=true

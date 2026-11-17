@@ -54,6 +54,8 @@ install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/
 install -m 0755 "$repo/apps/localzet-windows/localzet-windows" "$pkg/usr/bin/localzet-windows"
 install -m 0644 "$repo/packaging/com.localzet.WindowsRuntime.desktop" "$pkg/usr/share/applications/"
 install -m 0644 "$repo/packaging/com.localzet.Microsoft365Web.desktop" "$pkg/usr/share/applications/"
+install -m 0755 "$repo/apps/localzet-apps/localzet-apps" "$pkg/usr/bin/localzet-apps"
+install -m 0644 "$repo/packaging/com.localzet.Apps.desktop" "$pkg/usr/share/applications/"
 # Experimental Containers UI is packaged only on explicit request.
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     install -m 0755 "$repo/apps/localzet-containers/localzet-containers" "$pkg/usr/bin/localzet-containers"
