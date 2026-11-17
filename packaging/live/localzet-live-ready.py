@@ -111,7 +111,7 @@ def diagnostic_snapshot():
             output = completed.stdout
         except (OSError, subprocess.SubprocessError):
             output = "diagnostic unavailable"
-        if label == "kernel":
+        if label == "kernel" and output != "diagnostic unavailable":
             output = "\n".join(line for line in output.splitlines()
                                if re.search(r"oom|out of memory|killed process|segfault|drm|virtio|watchdog",
                                             line, re.IGNORECASE))
@@ -130,6 +130,7 @@ def main():
     while time.monotonic() < deadline:
         reason = readiness()
         if reason is None:
+            seen_session = True
             if stable_since is None:
                 stable_since = time.monotonic()
             if time.monotonic() - stable_since >= 10:
