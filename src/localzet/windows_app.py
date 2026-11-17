@@ -135,7 +135,9 @@ def main() -> int:
                 if not windows_runtime.WINE.is_file() or not os.access(windows_runtime.WINE, os.X_OK):
                     raise ValueError("Wine не установлен. Установите проверенный пакет Wine из репозитория Ubuntu.")
                 plan = self.plan()
-                self.status.set_label(f"Профиль: {plan['profile']} · совместимость не проверена")
+                architecture = {"x86": "32-бит (x86)", "x86-64": "64-бит (x86-64)",
+                                "msi-unknown": "MSI, архитектура не определена"}[plan["architecture"]]
+                self.status.set_label(f"Профиль: {plan['profile']} · {architecture} · совместимость не проверена")
                 self.launch.set_sensitive(self.trusted.get_active())
             except (OSError, ValueError, RuntimeError) as error:
                 self.status.set_label(str(error))
