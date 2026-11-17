@@ -272,6 +272,51 @@ with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
                 client_run(sys.executable, "-c", ipc_probe, pathname, "allow")
                 conn, _ = bus.accept()
                 conn.close()
+        # Bubblewrap uses an allowlisted root instead of masking selected host
+        # directories. Keep the existing filtered network namespace; never
+        # request a new network namespace that would discard its policy.
+        sandbox = ("bwrap", "--unshare-pid", "--unshare-ipc",
+                   "--die-with-parent", "--new-session", "--clearenv",
+                   "--ro-bind", "/usr", "/usr",
+                   "--symlink", "usr/bin", "/bin",
+                   "--symlink", "usr/lib", "/lib",
+                   "--symlink", "usr/lib64", "/lib64",
+                   "--proc", "/proc", "--dev", "/dev",
+                   "--tmpfs", "/tmp", "--dir", "/run",
+                   "--dir", "/home", "--chdir", "/tmp",
+                   "--uid", "65534", "--gid", "65534",
+                   "--cap-drop", "ALL", "--setenv", "PATH", "/usr/bin")
+        def sandbox_run(code, *args):
+            ns(client, *sandbox, "/usr/bin/python3", "-c", code, *args)
+
+        sandbox_run("""import os, socket, sys
+assert os.getuid() == os.geteuid() == 65534
+assert os.getgid() == os.getegid() == 65534
+assert not os.path.exists('/run/dbus/system_bus_socket')
+assert not os.path.exists('/run/user')
+assert not os.path.exists('/etc')
+assert not os.listdir('/home')
+assert 'DBUS_SESSION_BUS_ADDRESS' not in os.environ
+assert 'DISPLAY' not in os.environ
+assert 'WAYLAND_DISPLAY' not in os.environ
+assert os.readlink('/proc/self/ns/net') == sys.argv[1]
+with open('/proc/self/status') as status:
+    fields = dict(line.split(':', 1) for line in status if ':' in line)
+for name in ('CapInh', 'CapPrm', 'CapEff', 'CapBnd', 'CapAmb'):
+    assert int(fields[name], 16) == 0, name
+assert fields['NoNewPrivs'].strip() == '1'
+""", ns(client, "readlink", "/proc/self/ns/net",
+        capture_output=True).stdout.strip())
+        sandbox_run(socks_probe)
+        sandbox_run("""import socket
+for address in ('192.0.2.2', '2001:db8::2'):
+    for port in (53, 443):
+        try:
+            with socket.create_connection((address, port), 1):
+                raise AssertionError('sandbox direct TCP allowed')
+        except OSError:
+            pass
+""")
         # Keep direct destinations alive when only the proxy fails.
         import signal
         server.send_signal(signal.SIGUSR1)
