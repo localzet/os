@@ -32,7 +32,7 @@ for f in "${files[@]}"; do
     esac
     [[ "$(dpkg-deb -f "$f" Source | cut -d' ' -f1)" == gnome-control-center || "$package" == gnome-control-center ]]
     old="$(chroot "$root" dpkg-query -W -f='${Version}' "$package")"
-    [[ "$old" == 1:50.* && "$version" == "$old+localzet2" ]] || {
+    [[ "$old" == 1:50.* && "$version" == "$old+localzet3" ]] || {
         echo "Ubuntu source version differs from rootfs; rebuild the branded bundle" >&2; exit 2;
     }
     install -m 0644 "$f" "$staging/$package.deb"
@@ -41,7 +41,7 @@ done
 [[ -f "$staging/gnome-control-center.deb" && -f "$staging/gnome-control-center-data.deb" ]]
 chroot "$root" dpkg -i "${names[@]}"
 for package in gnome-control-center gnome-control-center-data; do
-    [[ "$(chroot "$root" dpkg-query -W -f='${Version}' "$package")" == *+localzet2 ]]
+    [[ "$(chroot "$root" dpkg-query -W -f='${Version}' "$package")" == *+localzet3 ]]
 done
 # No version holds or pinning. New Ubuntu security versions must remain
 # upgradeable, even if temporarily reverting to stock branding.

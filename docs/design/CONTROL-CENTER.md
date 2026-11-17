@@ -39,5 +39,7 @@ installed About screenshot and maintained signed repository are still gates.
 
 The About-only presentation derives a transparent SVG by removing exactly
 one reviewed background rectangle. All other artwork bytes and the canonical
-installed SVG remain unchanged. The rebuilt package uses +localzet2; visual
+installed SVG remain unchanged. The rebuilt package uses +localzet3; visual
 acceptance remains pending.
+
+The About page uses separate transparent light and dark derivatives of the canonical SVG. The dark derivative changes only the two black foreground fill declarations to a light neutral; geometry and accent strokes remain unchanged. Both installed resources and compiled paths are checked. Visual acceptance still requires actual screenshots.
