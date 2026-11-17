@@ -1,0 +1,23 @@
+name: Proxy Only isolated policy
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/proxy_policy.py'
+      - 'tests/test_proxy_policy.py'
+      - 'scripts/ci/proxy-policy-smoke.py'
+      - '.github/workflows/proxy-policy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  namespace:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y nftables iproute2
+          make test
+      - name: Test real kernel rules in isolated namespaces
+        run: sudo env PYTHONPATH="$PWD/src" timeout 120 python3 scripts/ci/proxy-policy-smoke.py
