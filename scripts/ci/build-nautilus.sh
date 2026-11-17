@@ -46,6 +46,7 @@ cp debian/patches/localzet-executive-style.patch "$out/"
 export DEBFULLNAME="Localzet OS" DEBEMAIL="build@localzet.com"
 new_version="${version}+localzet1"
 dch --newversion "$new_version" --distribution resolute "Scope Executive styling to the Nautilus dark window."
+bash "$repo/scripts/ci/retain-native-source.sh" "$out/source" nautilus "$new_version" localzet-executive-style.patch
 DEB_BUILD_OPTIONS="parallel=2" xvfb-run -a dbus-run-session -- dpkg-buildpackage -b -us -uc 2>&1 | tee "$out/build.log"
 cd "$work"
 debs=()

@@ -102,3 +102,7 @@ release. A valid signature is not a replacement for hardware acceptance.
 
 No production key, fingerprint, signed ISO or release has been created by
 this implementation. CI uses only disposable synthetic keys and data.
+
+### Corresponding source for modified native packages
+
+The Nautilus and Control Center build jobs retain the modified Debian source package (`.dsc` and referenced tarballs) in their engineering evidence under `source/`, alongside SHA-256 checksums and the exact source version. A fresh extraction must reproduce the Localzet patch and changelog version before binary building. This is evidence for the redistribution review, not approval to redistribute the complete image. Preserve these bundles alongside the exact release commit and binary inventory before signing.

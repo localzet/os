@@ -813,6 +813,7 @@ def main():
         script.write_text(installation_script(password, args.boot_media, args.expect_foreign_disk))
         script.chmod(0o600)
         live = Guest(args, directory, disk, script, "candidate-live", True, foreign)
+        installation_completed = False
         try:
             live.connect()
             live.wait(LIVE, 480)
@@ -824,6 +825,7 @@ def main():
             live.launch("sudo -n bash -c 'modprobe qemu_fw_cfg; cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; bash /run/localzet-test.sh'")
             live.wait(b"LOCALZET_CANDIDATE_INSTALL_STARTED", 90)
             live.wait(INSTALL, 1200)
+            installation_completed = True
         finally:
             live.close()
             if foreign is not None:
@@ -831,7 +833,10 @@ def main():
                 (args.logs / "foreign-disk.sha256").write_text(f"before {before}\nafter  {after}\n")
                 if after != before:
                     raise RuntimeError("Non-target GPT disk was modified by exact candidate")
-                print("PASS: exact candidate left the second GPT disk byte-identical", flush=True)
+                if installation_completed:
+                    print("PASS: exact candidate left the second GPT disk byte-identical", flush=True)
+                else:
+                    print("Foreign GPT disk byte-identical after interrupted test; installation preservation not verified", flush=True)
         script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
