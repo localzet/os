@@ -1,9 +1,12 @@
 [Unit]
 Description=Localzet managed rootless Docker Engine
 ConditionKernelCommandLine=!boot=casper
+Requires=dbus.socket
 
 [Service]
 Type=notify
+# dockerd is a child of RootlessKit, not the systemd MainPID.
+NotifyAccess=all
 Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/share/docker.io/contrib
 Environment=DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=%t/localzet-docker-rootless
 ExecStart=/usr/share/docker.io/contrib/dockerd-rootless.sh --host=unix://%t/docker.sock --data-root=%h/.local/share/localzet/docker --exec-root=%t/localzet-docker --pidfile=%t/localzet-docker.pid --config-file=/usr/share/localzet/docker-rootless.json
