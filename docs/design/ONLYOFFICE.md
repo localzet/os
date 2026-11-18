@@ -39,3 +39,7 @@ the native editor in the authenticated GNOME user session. It uploads only
 logs and screenshots, not the image. This does not satisfy the AGPL source
 and third-party attribution/redistribution review, nor DOCX/XLSX/PPTX editing
 and update acceptance. The default profile remains planning-only.
+
+## Installed runtime isolation, November 18
+
+The 7edbc53 unified image passed BIOS/UEFI boot, explicit foreign-disk refusal with identical SHA-256 and installation to the blank NVMe. Its named DOCX window showed a loading skeleton with no fixture heading ink. The separate non-executive smoke additionally lacked xprop/xwininfo. Add x11-utils and compare the default real GNOME path with a fresh profile inside a separate Xvfb/Openbox display on an installed diagnostic image. Require actual blue fixture heading ink in both standalone and installed render tests. Isolated-X11 evidence is not release acceptance, and neither test disables the editor sandbox. The unified image retains the native default path.

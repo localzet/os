@@ -344,7 +344,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
-    if office_render_mode not in ("default", "software"):
+    if office_render_mode not in ("default", "software", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -740,6 +740,41 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
                   .replace("RENDER_MODE", office_render_mode)
                   .replace("RENDER_ENV", render_env)
                   .replace("RENDER_FLAGS", render_flags))
+        if office_render_mode == "isolated-x11":
+            # Same installed package and fixture, separate X server and
+            # fresh user-local profile. Do not change the default session.
+            launch = launch[:launch.index('runuser -u localzet-test -- env XDG_RUNTIME_DIR=', launch.index('Office shared memory and GPU:'))]
+            launch += r"""
+cat > /run/localzet-candidate-check/office-isolated.sh <<'ISOLATEDOFFICE'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+work="$(mktemp -d)"
+wm=""
+editor=""
+cleanup() {
+    if [[ -n "$editor" ]]; then kill -TERM -- "-$editor" 2>/dev/null || true; fi
+    if [[ -n "$wm" ]]; then kill "$wm" 2>/dev/null || true; fi
+    rm -rf -- "$work"
+}
+trap cleanup EXIT
+export HOME="$work/home" XDG_CONFIG_HOME="$work/config" XDG_DATA_HOME="$work/data" XDG_CACHE_HOME="$work/cache"
+export QT_QPA_PLATFORM=xcb GDK_BACKEND=x11 LANG=C.UTF-8
+unset WAYLAND_DISPLAY
+mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+cp "$1" "$HOME/Localzet-offline-review.docx"
+openbox > "$work/openbox.log" 2>&1 &
+wm=$!
+sleep 2
+setsid /usr/bin/onlyoffice-desktopeditors "$HOME/Localzet-offline-review.docx" > "$work/editor.log" 2>&1 &
+editor=$!
+if ! /bin/bash /run/localzet-candidate-check/office-window.sh; then
+    tail -n 100 "$work/editor.log" "$work/openbox.log" >&2 || true
+    exit 1
+fi
+ISOLATEDOFFICE
+chmod 0755 /run/localzet-candidate-check/office-isolated.sh
+"""
         script = script.replace(marker, launch)
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
@@ -797,6 +832,10 @@ fi
 exit 1""" + script[last:]
         check_marker = "systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh"
         assert script.count(check_marker) == 1
+        if office_render_mode == "isolated-x11":
+            script = script.replace(check_marker, 'systemd-run --user --wait --pipe --collect /usr/bin/xvfb-run -a -s "-screen 0 1440x900x24" /usr/bin/dbus-run-session -- /bin/bash /run/localzet-candidate-check/office-isolated.sh "$office_dir/Localzet-offline-review.docx"')
+            check_marker = 'systemd-run --user --wait --pipe --collect /usr/bin/xvfb-run -a -s "-screen 0 1440x900x24" /usr/bin/dbus-run-session -- /bin/bash /run/localzet-candidate-check/office-isolated.sh "$office_dir/Localzet-offline-review.docx"'
+            assert script.count(check_marker) == 1
         script = script.replace(check_marker, check_marker + r""" || {
     echo "Office user-service diagnostics:"
     journalctl -b "_UID=$uid" --user-unit=localzet-candidate-onlyoffice-desktopeditors.service --no-pager -n 150 -o cat || true
@@ -908,8 +947,8 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software"), default="default",
-                        help="Software is an explicit diagnostic, not release acceptance.")
+    parser.add_argument("--office-render-mode", choices=("default", "software", "isolated-x11"), default="default",
+                        help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
         parser.error("Office candidate requires Standard or Complete archive profile")
