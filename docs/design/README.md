@@ -549,3 +549,7 @@ navigation and tab switching. Light and high contrast still require
 distinct grid/list captures and native navigation. No user preference is
 changed by the shipped image; this is a disposable runner test only.
 The current installed office diagnostic remains in progress on PR100.
+
+### Reference correction — unified desktop material and command hub
+
+The owner explicitly rejected the latest graphite panel/dock review. The stored written reference specifies a compact central dock and a four-column catalogue, identifiable color icons, softened layered material and a mountain/lake dusk composition. The original PNG is not available in the current repository, so this is a design iteration from the recorded specification, not a pixel match. Reuse the optically verified wallpaper-only material for both launcher and dock at their actual allocation; switch to opaque with a visible window, unsupported wallpaper, scale, monitor layout or high contrast. Larger 36px dock icons and 40px launcher icons remain compact; four rows fit normal desktop heights, with distinct sidebar, two-line labels and real software center entry. Preserve native panel, authentic application actions and lock behavior. The visual test must observe the dock material transition and retain the actual optical menu test. No dynamic compositor glass or final owner approval claimed.

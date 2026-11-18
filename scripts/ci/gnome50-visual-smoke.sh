@@ -111,6 +111,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   test -s extensions/localzet-shell@localzet.com/icons/launcher.svg || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
+  grep -F "Localzet Dock: material=wallpaper" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
@@ -121,7 +122,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   xdotool mousemove --window "$window" "$((dock_x + 27))" "$((dock_y + 72))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Launcher: columns=4 rows=3" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Launcher: columns=4 rows=4" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Glass: wallpaper material active" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   # Capture a blank catalogue for a reproducible optical comparison.
@@ -177,6 +178,7 @@ PY
     sleep 1
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-dock-running.png" || exit 1
   # Verify the built-in XTerm palette using actual ANSI background swatches.
   # Black pixels alone would also match the compositor's outer background.
@@ -200,6 +202,7 @@ PY
   pkill -x ptyxis || true
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[1-9][0-9]* focused=0$" || exit 1
+  test "$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed 's/.*material=//')" = wallpaper || exit 1
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   # The panel is still the real GNOME panel. Exercise the real menus and
   # deliver an original notification through the session's standard bus.

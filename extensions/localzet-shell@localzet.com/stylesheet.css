@@ -1,12 +1,16 @@
 /* Aurora Professional foundation. Opaque, readable fallback until genuine
  * compositor glass is implemented and measured; not an alpha-only fake. */
 .localzet-dock {
-    padding: 3px 7px;
+    padding: 3px 8px;
     spacing: 4px;
-    border-radius: 7px;
+    border-radius: 10px;
     background-color: #292b30;
-    border: 1px solid #494b51;
-    box-shadow: 0 3px 9px rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(196, 202, 214, .24);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
+}
+.localzet-dock.localzet-dock-wallpaper {
+    box-shadow: none;
+    border-color: rgba(205, 216, 231, .30);
 }
 .localzet-dock-button {
     min-width: 38px;
@@ -56,20 +60,26 @@
     background-color: #202124; padding: 9px 12px; color: #f1f6ff;
 }
 .localzet-launcher-content { spacing: 12px; }
-.localzet-launcher-categories { width: 144px; spacing: 3px; padding: 5px 7px 5px 0; border-right: 1px solid rgba(200,201,208,.12); }
+.localzet-launcher-categories {
+    width: 146px;
+    spacing: 3px;
+    padding: 6px;
+    border-radius: 8px;
+    background-color: rgba(20, 22, 27, .34);
+}
 .localzet-category-content { spacing: 9px; }
 .localzet-category-content StIcon { color: #d5d6da; -st-icon-style: symbolic; }
 .localzet-launcher-category, .localzet-launcher-overview, .localzet-launcher-footer-action {
     border-radius: 6px; padding: 8px 9px; color: #e3e3e7; font-size: 12px;
 }
-.localzet-launcher-category:checked { background-color: #45464b; color: #e5f1ff; }
+.localzet-launcher-category:checked { background-color: #39495e; color: #e5f1ff; }
 .localzet-launcher-main { spacing: 6px; }
 .localzet-launcher-scroll { height: 306px; }
 .localzet-launcher-list { spacing: 3px; }
 .localzet-launcher-row { spacing: 3px; }
 .localzet-launcher-tile { spacing: 3px; }
-.localzet-launcher-app { width: 78px; height: 68px; padding: 2px; border-radius: 6px; }
-.localzet-launcher-label { font-size: 11px; color: #e6e6e9; text-align: center; }
+.localzet-launcher-app { width: 90px; height: 76px; padding: 2px; border-radius: 7px; }
+.localzet-launcher-label { font-size: 12px; color: #f0f0f2; text-align: center; }
 .localzet-launcher-app:hover, .localzet-launcher-category:hover,
 .localzet-launcher-overview:hover, .localzet-launcher-footer-action:hover { background-color: #3c3d42; }
 .localzet-launcher-app:focus, .localzet-launcher-category:focus,
@@ -178,9 +188,9 @@
 /* Executive navigation, native panel button. */
 #panel.localzet-panel .localzet-panel-navigation {
     padding: 0 10px;
-    background-color: #303238;
-    border-left: 1px solid #414349;
-    border-right: 1px solid #414349;
+    background-color: transparent;
+    border-left: 1px solid rgba(196,202,214,.15);
+    border-right: 1px solid rgba(196,202,214,.15);
     border-radius: 0;
 }
 #panel.localzet-panel .localzet-panel-navigation:hover { background-color: #3c3e44; }
@@ -270,7 +280,7 @@
     -arrow-border-width: 0px;
 }
 .localzet-wallpaper-glass .localzet-launcher-search { background-color: #303136; }
-.localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #45464b; }
+.localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #39495e; }
 
 /* Localzet management shortcuts are buttons, never fake connection toggles. */
 .localzet-system-surface .localzet-quick-action {
