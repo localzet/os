@@ -52,7 +52,15 @@ class Guest:
         variables = directory / f"{label}.fd"
         shutil.copyfile(args.ovmf_vars, variables)
         self.accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
-        print(f"{label}: QEMU accelerator={self.accel}", flush=True)
+        # The runner can lose /dev/kvm between boots; retain evidence.
+        try:
+            device = os.stat("/dev/kvm")
+            kvm_state = f"mode={device.st_mode & 0o777:o} uid={device.st_uid} gid={device.st_gid}"
+        except OSError as exc:
+            kvm_state = f"unavailable: {exc}"
+        print(f"{label}: QEMU accelerator={self.accel}; /dev/kvm {kvm_state}", flush=True)
+        with (args.logs / "accelerators.tsv").open("a", encoding="utf-8") as stream:
+            stream.write(f"{label}\t{self.accel}\t{kvm_state}\n")
         cpu = "host" if self.accel == "kvm" else "max"
         command = [
             "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
@@ -729,8 +737,22 @@ if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
 fi
 test -f /usr/lib/systemd/user/localzet-rootless-docker.service
 test -s /usr/share/localzet/docker-rootless.json
+# Earlier GUI checks have already verified these test-owned processes.
+# Close only their explicit transient units, not arbitrary user processes.
+# Leave GNOME and the Containers UI running during the engine test.
+for app in ptyxis localzet-settings localzet-windows localzet-connect localzet-apps localzet-ai-workspace vlc qbittorrent localzet-hardware-manager nautilus gnome-control-center localzet-network; do
+    unit="localzet-candidate-$app.service"
+    if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user is-active --quiet "$unit"; then
+        runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user stop "$unit"
+    fi
+done
+pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
 echo "Rootless guest prerequisites:"
 uname -r
+free -m
+df -h "$home"
+cat /proc/loadavg
+systemd-detect-virt || true
 dpkg-query -W rootlesskit uidmap slirp4netns fuse-overlayfs docker.io busybox-static
 /usr/bin/busybox true
 grep -E '^(localzet-test|1000):' /etc/subuid /etc/subgid || true
