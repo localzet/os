@@ -32,3 +32,35 @@ class RootlessTests(unittest.TestCase):
             engine.return_value._run.return_value = '["name=rootless","name=seccomp"]'
             self.assertEqual(r.change("start"), "rootless подтверждён")
             ctl.assert_called_with("start", r.UNIT)
+
+    def test_cold_start_retries_only_one_failed_inactive_unit(self):
+        socket = MagicMock(spec=Path)
+        socket.exists.return_value = socket.is_symlink.return_value = False
+        with patch.object(r, "_ctl", side_effect=[EngineError("cold start"), "failed", "0", "", ""]) as ctl:
+            r.start_unit(socket)
+            self.assertEqual(ctl.call_count, 5)
+            ctl.assert_called_with("start", r.UNIT)
+
+    def test_cold_start_never_retries_foreign_socket(self):
+        socket = MagicMock(spec=Path)
+        socket.exists.return_value = True
+        with patch.object(r, "_ctl", side_effect=[EngineError("cold start"), "failed", "0"]) as ctl:
+            with self.assertRaises(EngineError):
+                r.start_unit(socket)
+            self.assertEqual(ctl.call_count, 3)
+
+    def test_cold_start_never_retries_active_or_remaining_process(self):
+        socket = MagicMock(spec=Path)
+        for states in (["active"], ["failed", "123"]):
+            with patch.object(r, "_ctl", side_effect=[EngineError("start"), *states]) as ctl:
+                with self.assertRaises(EngineError):
+                    r.start_unit(socket)
+                self.assertEqual(ctl.call_count, 1 + len(states))
+
+    def test_second_failure_is_not_retried(self):
+        socket = MagicMock(spec=Path)
+        socket.exists.return_value = socket.is_symlink.return_value = False
+        with patch.object(r, "_ctl", side_effect=[EngineError("first"), "failed", "0", "", EngineError("second")]) as ctl:
+            with self.assertRaisesRegex(EngineError, "second"):
+                r.start_unit(socket)
+            self.assertEqual(ctl.call_count, 5)

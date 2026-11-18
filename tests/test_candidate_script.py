@@ -86,3 +86,38 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("store.remove(key)", script)
         self.assertNotIn("installed managed rootless Docker responded", module.installed_script())
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_office_fresh_profile_preserves_real_session(self):
+        script = module.installed_script("complete", False, True, True, office_render_mode="fresh-profile")
+        self.assertIn("Office diagnostic mode: fresh-profile", script)
+        self.assertIn('--setenv=HOME="$office_dir/profile/home"', script)
+        self.assertIn('--setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11', script)
+        self.assertNotIn("office-isolated.sh", script)
+        self.assertNotIn("installed managed rootless Docker responded", script)
+        self.assertNotIn("--no-sandbox", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_rootless_failure_records_guest_journal(self):
+        script = module.installed_script("complete", True)
+        self.assertIn("Installed rootless Docker failure diagnostics", script)
+        self.assertIn("journalctl --user -u localzet-rootless-docker.service", script)
+        self.assertIn("kernel.apparmor_restrict_unprivileged_userns", script)
+        self.assertNotIn("sysctl -w", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_rootless_container_and_persistence_required(self):
+        script = module.installed_script("complete", True)
+        for marker in ("installed unprivileged container executed offline",
+                       "installed rootless image persisted across restart",
+                       "localzet-installed-rootless-fixture:ci", "/usr/bin/busybox",
+                       "ROOTLESS_OK", "PERSISTENCE_OK"):
+            self.assertIn(marker, script)
+        self.assertIn('mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX"', script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_office_uses_product_launcher(self):
+        script = module.installed_script("complete", False, True, True)
+        self.assertIn('/usr/bin/localzet-office RENDER_FLAGS'.replace(" RENDER_FLAGS", " "), script)
+        self.assertIn("test -x /usr/bin/localzet-office", script)
+        self.assertIn("/usr/local/share/applications/", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

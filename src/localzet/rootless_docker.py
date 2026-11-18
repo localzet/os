@@ -14,7 +14,7 @@ UNIT = "localzet-rootless-docker.service"
 FRAGMENT = "/usr/lib/systemd/user/" + UNIT
 SYSTEMCTL = "/usr/bin/systemctl"
 REQUIRED = ("/usr/bin/rootlesskit", "/usr/bin/newuidmap", "/usr/bin/newgidmap",
-            "/usr/bin/slirp4netns", "/usr/sbin/sysctl", "/usr/share/docker.io/contrib/dockerd-rootless.sh")
+            "/usr/bin/slirp4netns", "/usr/bin/containerd", "/usr/sbin/sysctl", "/usr/share/docker.io/contrib/dockerd-rootless.sh")
 
 
 def has_range(text: str, username: str, uid: int) -> bool:
@@ -41,7 +41,7 @@ def _env():
 def _ctl(*args):
     try:
         result = subprocess.run([SYSTEMCTL, "--user", "--no-pager", *args], env=_env(),
-                                text=True, capture_output=True, timeout=110)
+                                text=True, capture_output=True, timeout=145)
     except (OSError, subprocess.SubprocessError) as exc:
         raise EngineError("Пользовательская служба недоступна; проверьте состояние Docker") from exc
     if result.returncode:
@@ -68,6 +68,23 @@ def _preflight():
     return runtime / "docker.sock"
 
 
+def start_unit(socket: Path) -> None:
+    """Retry once only after a failed, fully stopped managed service.
+
+    On slow cold boots dockerd can time out waiting for its own containerd.
+    Do not remove sockets, reset foreign units or start a privileged daemon.
+    """
+    try:
+        _ctl("start", UNIT)
+    except EngineError:
+        if (_ctl("show", UNIT, "--property=ActiveState", "--value") != "failed"
+                or _ctl("show", UNIT, "--property=MainPID", "--value") != "0"
+                or socket.exists() or socket.is_symlink()):
+            raise
+        _ctl("reset-failed", UNIT)
+        _ctl("start", UNIT)
+
+
 def change(action: str) -> str:
     if action not in ("start", "stop"):
         raise ValueError("Unknown rootless action")
@@ -86,7 +103,7 @@ def change(action: str) -> str:
     active = _ctl("show", UNIT, "--property=ActiveState", "--value") == "active"
     if (socket.exists() or socket.is_symlink()) and not active:
         raise EngineError("Сокет Docker уже существует; чужой движок не будет остановлен или заменён")
-    _ctl("start", UNIT)
+    start_unit(socket)
     engine = Engine()
     try:
         options = json.loads(engine._run("info", "--format", "{{json .SecurityOptions}}", timeout=30))
