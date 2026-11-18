@@ -344,7 +344,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False, telegram=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False, telegram=False, network_preload=False):
     if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
@@ -635,6 +635,62 @@ fi
 printf 'PASS: preloaded system Telegram app and signed runtime launched offline as desktop user\n'
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemctl --user stop localzet-candidate-telegram.service
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+    if network_preload:
+        if archive_profile != "complete":
+            raise ValueError("Network preload requires Complete")
+        check = r"""
+test "$(dpkg-query -W -f='${Version}' usernet)" = 0.5.12.2026110805
+test -x /opt/UserNet/UserNet
+test -s /usr/share/applications/com.localzet.usernet.desktop
+test -s /usr/share/localzet/network-preload/netbird/netbird_0.83.1_linux_amd64.deb
+test -s /usr/share/localzet/network-preload/netbird/netbird-ui_0.83.1_linux_amd64.deb
+! systemctl is-enabled --quiet usernet-helper.service
+! systemctl is-active --quiet usernet-helper.service
+! ip link show wt0
+ip -j route show table main > /run/localzet-candidate-check/network-before.json
+# Exercise the exact production installer in an authenticated, isolated
+# guest. No internet NIC, so any attempted download cannot succeed.
+PKEXEC_UID="$uid" /usr/bin/python3 -I /usr/lib/localzet/install-network-client.py netbird
+test "$(dpkg-query -W -f='${Version}' netbird)" = 0.83.1
+test "$(dpkg-query -W -f='${Version}' netbird-ui)" = 0.83.1
+systemctl is-active --quiet netbird.service
+runuser -u localzet-test -- env PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 - <<'NETWORKTEST'
+import time
+from localzet.netbird import status
+for attempt in range(30):
+    report = status()
+    if report["state"] in ("NeedsLogin", "Idle"):
+        break
+    time.sleep(1)
+assert report["state"] in ("NeedsLogin", "Idle"), report
+assert report.get("total", 0) == report.get("connected", 0) == 0, report
+print("PASS: cached NetBird installed offline and unregistered daemon responded")
+NETWORKTEST
+launch_app localzet-network /usr/bin/localzet-network
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --collect --unit=localzet-candidate-usernet --setenv=LIBGL_ALWAYS_SOFTWARE=1 /opt/UserNet/UserNet
+for attempt in $(seq 1 45); do
+    if pgrep -u localzet-test -f '/opt/UserNet/UserNet' >/dev/null; then break; fi
+    sleep 1
+done
+sleep 5
+pgrep -u localzet-test -f '/opt/UserNet/UserNet' >/dev/null
+! systemctl is-enabled --quiet usernet-helper.service
+! systemctl is-active --quiet usernet-helper.service
+! ip link show wt0
+ip -j route show table main > /run/localzet-candidate-check/network-after.json
+python3 - <<'ROUTES'
+import json
+from pathlib import Path
+def defaults(name):
+    return [r for r in json.loads(Path("/run/localzet-candidate-check/network-" + name + ".json").read_text()) if r.get("dst") == "default"]
+assert defaults("before") == defaults("after")
+ROUTES
+printf 'PASS: preinstalled UserNet launched unprivileged without helper or default route changes\n'
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemctl --user stop localzet-candidate-usernet.service
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
     if containers:
@@ -1072,6 +1128,7 @@ def main():
     parser.add_argument("--expect-containers", action="store_true")
     parser.add_argument("--expect-office", action="store_true")
     parser.add_argument("--expect-preloaded-telegram", action="store_true")
+    parser.add_argument("--expect-network-preload", action="store_true")
     parser.add_argument("--expect-executive-review", action="store_true")
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
@@ -1154,7 +1211,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None, args.expect_preloaded_telegram))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None, args.expect_preloaded_telegram, args.expect_network_preload))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
