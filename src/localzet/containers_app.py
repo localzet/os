@@ -4,6 +4,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
+from localzet import rootless_docker
 from localzet.containers import Deployment, Engine, EngineError, RemoteEngine, RemoteStore, TLSEngine, StudioStore, deployment_args, metric_sample, build_argument_flags
 
 
@@ -124,6 +125,9 @@ def create_application():
             self.engine_button = Gtk.Button(label="Выбрать движок")
             self.engine_button.connect("clicked", self.choose_engine)
             sidebar.append(self.engine_button)
+            self.rootless_button = Gtk.Button(label="Настроить rootless")
+            self.rootless_button.connect("clicked", self.rootless_dialog)
+            sidebar.append(self.rootless_button)
             self.pages = Gtk.Stack(hexpand=True, vexpand=True)
             workspace.append(self.pages)
             self.active_page = "containers"
@@ -1113,6 +1117,48 @@ def create_application():
             validate.connect("clicked", check)
             dialog.present(self.window)
 
+        def rootless_dialog(self, *_):
+            if self.busy:
+                return
+            dialog = Adw.AlertDialog(heading="Пользовательский Docker",
+                body="Управляемый движок работает от вашего пользователя, без группы docker и без системного демона. Данные хранятся в ~/.local/share/localzet/docker. Запуск не меняет контекст Docker CLI. Остановка завершит работу контейнеров этого движка; данные сохранятся. Движок не включается при входе автоматически.")
+            dialog.add_response("cancel", "Отмена")
+            dialog.add_response("start", "Запустить")
+            dialog.add_response("stop", "Остановить")
+            dialog.set_response_appearance("start", Adw.ResponseAppearance.SUGGESTED)
+            dialog.set_response_appearance("stop", Adw.ResponseAppearance.DESTRUCTIVE)
+            dialog.set_close_response("cancel")
+            dialog.set_default_response("cancel")
+            dialog.connect("response", self.rootless_chosen)
+            dialog.present(self.window)
+
+        def rootless_chosen(self, _, response):
+            if self.busy or response not in ("start", "stop"):
+                return
+            self.busy = True
+            self.generation += 1
+            generation = self.generation
+            self.update_actions()
+            self.status.set_label("Настройка пользовательского движка…")
+            future = self.pool.submit(rootless_docker.change, response)
+
+            def complete():
+                if generation != self.generation or not self.window:
+                    return GLib.SOURCE_REMOVE
+                self.busy = False
+                self.update_actions()
+                try:
+                    result = future.result()
+                    self.rootful = False
+                    self.engine_label.set_label("Локальный rootless Docker")
+                    self.navigate("containers")
+                    self.status.set_label("Движок: " + result)
+                except (OSError, ValueError, EngineError) as error:
+                    self.status.set_label(str(error))
+                return GLib.SOURCE_REMOVE
+
+            future.add_done_callback(lambda _: GLib.idle_add(complete))
+
         def choose_engine(self, *_):
             if self.busy:
                 return
@@ -1669,6 +1715,7 @@ def create_application():
                 button.set_sensitive(not self.busy)
             self.resource_page.set_sensitive(not self.busy)
             self.engine_button.set_sensitive(not self.busy)
+            self.rootless_button.set_sensitive(not self.busy)
             self.stacks_button.set_sensitive(not self.busy)
             for button in self.resource_buttons:
                 button.set_sensitive(not self.busy)
