@@ -447,7 +447,12 @@ cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
-data="$(mktemp -d)"
+# Two independent Wine prefixes can exceed the guest's temporary filesystem quota.
+# Keep disposable test data on the installed user's filesystem instead.
+data="$(mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX")"
+printf 'Wine fixture filesystem:\n'
+df -h "$data"
+df -i "$data"
 cleanup_wine() {
     local result=$?
     trap - EXIT
