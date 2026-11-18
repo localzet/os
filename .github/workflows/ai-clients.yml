@@ -52,7 +52,7 @@ jobs:
       - name: Install native UI and test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth xdotool dbus-x11 imagemagick python3-pil
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gsettings-desktop-schemas xvfb xauth xdotool dbus-x11 imagemagick python3-pil
       - name: Launch real GTK workspace without configured proxy
         run: |
           mkdir -p out/ai-workspace

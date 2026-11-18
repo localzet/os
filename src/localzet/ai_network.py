@@ -47,6 +47,9 @@ def usernet_port():
         installed = Gio.DesktopAppInfo.new("com.localzet.usernet.desktop") is not None
     except TypeError:
         installed = False
+    source = Gio.SettingsSchemaSource.get_default()
+    if source is None or any(source.lookup(name, True) is None for name in ("org.gnome.system.proxy", "org.gnome.system.proxy.http")):
+        raise ValueError("Системные настройки прокси GNOME не установлены")
     settings = Gio.Settings.new("org.gnome.system.proxy")
     http = Gio.Settings.new("org.gnome.system.proxy.http")
     return validate_endpoint(settings.get_string("mode"), http.get_string("host"),
