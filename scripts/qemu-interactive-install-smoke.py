@@ -663,7 +663,7 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
         launch = r"""
 # Avoid late activation by earlier test applications; stop only transient
 # units created by this disposable validation session.
-for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus; do
+for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus gnome-control-center localzet-apps; do
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
         systemctl --user stop "localzet-candidate-$app.service" || true
@@ -736,6 +736,11 @@ PY
     fi
 done
 echo "No rendered fixture heading in named document window" >&2
+xdotool getwindowgeometry --shell "$window" >&2 || true
+xdotool getwindowname "$window" >&2 || true
+if [[ -s "$work/document.png" ]]; then
+    stat -c "Failed drawable bytes: %s" "$work/document.png" >&2
+fi
 if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 1572864 ]]; then
     printf 'LOCALZET_CANDIDATE_OFFICE_FAILED_PNG '
     base64 -w0 "$work/document.png"
