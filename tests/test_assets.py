@@ -105,8 +105,14 @@ class AssetsTests(unittest.TestCase):
                              "org.telegram.desktop", "telegram-desktop", "com.discordapp.Discord", "discord",
                              "net.lutris.Lutris", "lutris", "com.heroicgameslauncher.hgl", "heroic",
                              "onlyoffice-desktopeditors", "onlyoffice", "code", "com.visualstudio.code",
-                             "yandex-music", "YandexMusic"):
+                             "yandex-music", "YandexMusic", "gimp", "org.gimp.GIMP", "vlc",
+                             "qbittorrent", "org.qbittorrent.qBittorrent", "com.localzet.usernet"):
                 self.assertFalse((theme / "scalable/apps" / (upstream + ".svg")).exists())
+            for kind in ("camera", "calendar", "clock", "mail", "vm", "scanner", "printer",
+                         "installer", "help", "optical", "desktop", "office", "torrent", "paint", "chat", "games"):
+                self.assertIn(kind, module.MATERIAL)
+            self.assertNotEqual(module.render("chat", "apps", "com.localzet.AIWorkspace"),
+                                module.render("code", "apps", "gvim"))
             with self.assertRaises(FileExistsError):
                 module.build(directory)
 

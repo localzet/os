@@ -53,13 +53,19 @@ samples = [
     ("folder-download", "Downloads"), ("folder-pictures", "Pictures"),
     ("folder-music", "Music"), ("drive-harddisk", "SSD"), ("media-flash-usb", "USB"),
     ("application-pdf", "PDF"), ("user-trash", "Trash"),
+    ("org.gnome.Snapshot", "Camera"), ("org.gnome.Calendar", "Calendar"),
+    ("org.gnome.clocks", "Clock"), ("org.gnome.Evolution", "Mail"),
+    ("virt-manager", "Virtual machines"), ("org.gnome.SimpleScan", "Scanner"),
+    ("system-config-printer", "Printer"), ("com.localzet.Installer", "Installer"),
+    ("com.localzet.AIWorkspace", "AI Workspace"), ("localzet-catalog-qbittorrent", "Torrent"),
+    ("localzet-catalog-gimp", "Graphics"), ("drive-optical", "Optical"),
 ]
 app = Gtk.Application(application_id="com.localzet.AuroraIconReview")
 
 def activate(app):
     win = Gtk.ApplicationWindow(application=app, title="Aurora icon theme")
-    win.set_default_size(900, 540)
-    grid = Gtk.Grid(column_spacing=16, row_spacing=20)
+    win.set_default_size(980, 690)
+    grid = Gtk.Grid(column_spacing=12, row_spacing=10)
     grid.set_margin_top(24)
     grid.set_margin_bottom(24)
     grid.set_margin_start(24)
@@ -67,9 +73,9 @@ def activate(app):
     grid.set_column_homogeneous(True)
     for i, (name, label) in enumerate(samples):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        paintable = theme.lookup_icon(name, None, 64, 1, Gtk.TextDirection.LTR, Gtk.IconLookupFlags(0))
+        paintable = theme.lookup_icon(name, None, 48, 1, Gtk.TextDirection.LTR, Gtk.IconLookupFlags(0))
         image = Gtk.Image.new_from_paintable(paintable)
-        image.set_pixel_size(64)
+        image.set_pixel_size(48)
         box.append(image)
         box.append(Gtk.Label(label=label))
         grid.attach(box, i % 6, i // 6, 1, 1)

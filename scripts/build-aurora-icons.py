@@ -80,7 +80,6 @@ GROUPS = {
         "settings": "org.gnome.Settings preferences-system gnome-control-center",
         "language": "language-selector preferences-desktop-locale",
         "components": "com.localzet.Settings localzet-components",
-        "hardware": "com.localzet.Hardware localzet-hardware",
         "containers": "com.localzet.Containers localzet-containers",
         "windows": "com.localzet.WindowsRuntime localzet-windows",
         "connect": "com.localzet.Connect localzet-connect",
@@ -89,20 +88,24 @@ GROUPS = {
         "monitor": "org.gnome.SystemMonitor utilities-system-monitor htop",
         "editor": "org.gnome.TextEditor org.gnome.gedit accessories-text-editor",
         "calculator": "org.gnome.Calculator accessories-calculator",
-        "image": "org.gnome.Loupe org.gnome.eog org.gnome.Shotwell image-viewer display-im7.q16 imagemagick gimp org.gimp.GIMP",
+        "image": "org.gnome.Loupe org.gnome.eog org.gnome.Shotwell image-viewer",
+        "paint": "display-im7.q16 imagemagick localzet-catalog-gimp",
         "camera": "org.gnome.Snapshot camera-photo",
         "document": "org.gnome.Papers org.gnome.Evince document-viewer",
         "archive": "org.gnome.FileRoller file-roller utilities-archive-manager",
         "disk": "org.gnome.DiskUtility org.gnome.GParted gparted",
-        "media": "org.gnome.Totem multimedia-video-player vlc",
+        "media": "org.gnome.Totem multimedia-video-player localzet-catalog-vlc",
         "music": "org.gnome.Music multimedia-audio-player localzet-catalog-music",
         "scanner": "org.gnome.SimpleScan simple-scan",
         "printer": "system-config-printer",
-        "code": "gvim vim CMakeSetup localzet-catalog-vscode com.localzet.AIWorkspace",
+        "code": "gvim vim localzet-catalog-vscode",
+        "chat": "com.localzet.AIWorkspace",
+        "hardware": "com.localzet.Hardware localzet-hardware CMakeSetup",
         "vm": "virt-manager org.virt_manager.virt-manager",
-        "network": "com.localzet.Network localzet-network qbittorrent org.qbittorrent.qBittorrent",
+        "network": "com.localzet.Network localzet-network",
+        "torrent": "localzet-catalog-qbittorrent",
         "netbird": "localzet-catalog-netbird",
-        "usernet": "com.localzet.usernet",
+        "usernet": "localzet-catalog-usernet",
         "steam": "localzet-catalog-steam",
         "heroic": "localzet-catalog-heroic",
         "lutris": "localzet-catalog-lutris",
@@ -179,6 +182,22 @@ FOLDER = (
     '<path d="M8 25h48" stroke="#a8d5ff" stroke-opacity=".72" stroke-width="1.4"/>'
 )
 MATERIAL = {
+    "camera": '<path d="M8 18h12l4-7h16l4 7h12a5 5 0 0 1 5 5v25a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V23a5 5 0 0 1 5-5z" fill="url(#graphite)" stroke="#8999ab" stroke-width="1.2"/><circle cx="32" cy="35" r="15" fill="url(#silver)"/><circle cx="32" cy="35" r="11" fill="#172c46"/><circle cx="32" cy="35" r="7" fill="url(#blue)"/><circle cx="29" cy="32" r="2.7" fill="#d7eeff"/><rect x="46" y="23" width="8" height="5" rx="2" fill="#f0d7a4"/>',
+    "calendar": '<rect x="7" y="9" width="50" height="49" rx="6" fill="url(#silver)"/><path d="M7 15a6 6 0 0 1 6-6h38a6 6 0 0 1 6 6v10H7z" fill="url(#rose)"/><path d="M20 6v12m24-12v12" stroke="#f2f3f7" stroke-width="4" stroke-linecap="round"/><g fill="#546273"><rect x="16" y="31" width="7" height="6" rx="1"/><rect x="28" y="31" width="7" height="6" rx="1"/><rect x="40" y="31" width="7" height="6" rx="1"/><rect x="16" y="42" width="7" height="6" rx="1"/><rect x="28" y="42" width="7" height="6" rx="1"/></g><rect x="40" y="42" width="7" height="6" rx="1" fill="#be4666"/>',
+    "clock": '<circle cx="32" cy="32" r="26" fill="url(#silver)" stroke="#d4dce6" stroke-width="1"/><circle cx="32" cy="32" r="22" fill="#eff1f3"/><path d="M32 14v4m18 14h-4M32 50v-4m-18-14h4" stroke="#657180" stroke-width="2.6" stroke-linecap="round"/><path d="M32 21v12l10 6" fill="none" stroke="#273341" stroke-width="3.3" stroke-linecap="round"/><circle cx="32" cy="32" r="2.5" fill="#c65e58"/>',
+    "mail": '<rect x="6" y="14" width="52" height="37" rx="6" fill="url(#blue)"/><path d="M7 18l25 20 25-20" fill="#99c6f2"/><path d="m8 48 17-16m31 16L39 32" stroke="#d0e6ff" stroke-opacity=".65" stroke-width="1.6"/><path d="m8 18 24 20 24-20" fill="none" stroke="#deedff" stroke-width="2" stroke-linejoin="round"/>',
+    "vm": '<rect x="5" y="8" width="54" height="40" rx="6" fill="url(#graphite)" stroke="#9aa9bc" stroke-width="1.2"/><rect x="10" y="13" width="44" height="30" rx="3" fill="#284d73"/><rect x="18" y="19" width="28" height="19" rx="2" fill="url(#blue)" stroke="#a6d4ff" stroke-width="1.2"/><path d="M20 24h24" stroke="#e6efff" stroke-width="2"/><path d="M26 48v7h12v-7m-19 7h26" stroke="#a1aec0" stroke-width="3" stroke-linecap="round"/>',
+    "scanner": '<path d="m15 14 34 0 9 19H6z" fill="url(#silver)"/><path d="m18 18 28 0 6 12H12z" fill="#607c95"/><path d="m21 20 22 0 4 8H17z" fill="#c9e3f2"/><rect x="6" y="32" width="52" height="21" rx="5" fill="url(#graphite)"/><path d="M13 38h38" stroke="#9eb1c8" stroke-width="1.5"/><circle cx="50" cy="46" r="2.5" fill="#9fe2c6"/>',
+    "printer": '<path d="M17 5h30v25H17z" fill="url(#silver)"/><path d="M22 13h20m-20 6h15" stroke="#75859a" stroke-width="2"/><rect x="5" y="22" width="54" height="27" rx="6" fill="url(#graphite)" stroke="#8597ad" stroke-width="1"/><rect x="14" y="36" width="36" height="9" rx="2" fill="#151e2a"/><path d="M19 39h26v19H19z" fill="url(#silver)"/><path d="M24 46h16m-16 5h16" stroke="#6d7f95" stroke-width="1.7"/><circle cx="51" cy="29" r="2" fill="#a7dfbb"/>',
+    "installer": '<path d="M10 36h44v17a5 5 0 0 1-5 5H15a5 5 0 0 1-5-5z" fill="url(#graphite)" stroke="#8294ac" stroke-width="1.2"/><path d="M32 5v30m-12-12 12 12 12-12" stroke="#78b8ff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 45h30" stroke="#a9bbd0" stroke-width="2.4" stroke-linecap="round"/><circle cx="19" cy="52" r="2" fill="#9ce0c0"/>',
+    "help": '<circle cx="32" cy="32" r="26" fill="url(#blue)" stroke="#a5d2fb" stroke-width="1"/><path d="M22 23a10 10 0 1 1 15 9c-4 2-5 4-5 8" fill="none" stroke="#f2f8ff" stroke-width="4.5" stroke-linecap="round"/><circle cx="32" cy="47" r="2.6" fill="#f2f8ff"/>',
+    "optical": '<circle cx="32" cy="32" r="27" fill="url(#silver)" stroke="#e0e7ed" stroke-width="1"/><path d="M32 5v20l-18-15a27 27 0 0 1 18-5zM32 59V39l18 15a27 27 0 0 1-18 5z" fill="#a7c8dc"/><circle cx="32" cy="32" r="10" fill="#8297ad"/><circle cx="32" cy="32" r="5" fill="#26364d"/><path d="M9 36l14-3m32-5-14 3" stroke="#f2f6ff" stroke-width="2"/>',
+    "desktop": '<rect x="4" y="8" width="56" height="41" rx="5" fill="url(#graphite)" stroke="#8999ad" stroke-width="1.2"/><rect x="9" y="13" width="46" height="31" rx="2" fill="url(#blue)"/><path d="m9 39 13-14 10 9 8-8 15 13v5H9z" fill="#405c7e"/><path d="M26 49v7h12v-7m-19 7h26" stroke="#a1aec0" stroke-width="3" stroke-linecap="round"/>',
+    "office": '<path d="M12 9h34v45H12z" fill="#9aaabd"/><path d="M17 5h28l9 9v42H17z" fill="url(#silver)"/><path d="M45 5v9h9" fill="#eff4fb"/><rect x="23" y="21" width="24" height="9" rx="2" fill="#ba727c"/><path d="M23 36h24m-24 7h24m-24 7h17" stroke="#68798e" stroke-width="2" stroke-linecap="round"/>',
+    "torrent": '<circle cx="32" cy="32" r="25" fill="url(#blue)"/><path d="M32 14v29m-11-11 11 11 11-11M17 48h30" fill="none" stroke="#ebf5ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+    "paint": '<path d="M34 5C17 5 5 16 5 32c0 16 11 25 24 25 8 0 9-6 8-10-1-5 4-8 9-7 8 1 13-5 12-13C57 14 47 5 34 5z" fill="url(#silver)" stroke="#d7e1ed" stroke-width="1"/><circle cx="18" cy="27" r="5" fill="#d47b80"/><circle cx="28" cy="16" r="5" fill="#e1b573"/><circle cx="42" cy="18" r="5" fill="#71abc8"/><circle cx="17" cy="40" r="5" fill="#7cae95"/><path d="m43 49 12-13 4 4-13 13-7 3z" fill="#334253"/>',
+    "chat": '<path d="M7 8h50v35H33L20 56V43H7z" fill="url(#blue)" stroke="#a8d2f6" stroke-width="1"/><path d="M17 21h30m-30 9h22" stroke="#e6f3ff" stroke-width="3" stroke-linecap="round"/>',
+    "games": '<path d="M18 17h28c9 0 13 10 16 26 2 9-5 13-12 6l-9-8H23l-9 8C7 56 0 52 2 43 5 27 9 17 18 17z" fill="url(#graphite)" stroke="#95a6bc" stroke-width="1.2"/><path d="M20 24v14m-7-7h14" stroke="#e5edf9" stroke-width="4" stroke-linecap="round"/><circle cx="45" cy="26" r="3.5" fill="#92c1ee"/><circle cx="51" cy="34" r="3.5" fill="#d7a6b8"/>',
     "browser": '<circle cx="32" cy="32" r="25" fill="url(#blue)"/><circle cx="32" cy="32" r="19" fill="#163f76"/><path d="M13 32h38M32 13c-12 10-12 28 0 38m0-38c12 10 12 28 0 38" fill="none" stroke="#a9d7ff" stroke-width="2.3"/><circle cx="32" cy="32" r="19" fill="none" stroke="#a9d7ff" stroke-width="1.8"/>',
     "components": '<rect x="7" y="7" width="22" height="22" rx="5" fill="url(#silver)"/><rect x="35" y="7" width="22" height="22" rx="5" fill="url(#blue)"/><rect x="7" y="35" width="22" height="22" rx="5" fill="url(#blue)"/><rect x="35" y="35" width="22" height="22" rx="5" fill="url(#graphite)"/><path d="M46 40v12m-6-6h12" stroke="#eaf1fb" stroke-width="2.5" stroke-linecap="round"/>',
     "network": '<path d="M32 17v13H16v13m16-13h16v13" fill="none" stroke="#7baad5" stroke-width="3.5" stroke-linejoin="round"/><rect x="21" y="5" width="22" height="19" rx="4" fill="url(#blue)"/><rect x="5" y="40" width="22" height="19" rx="4" fill="url(#graphite)"/><rect x="37" y="40" width="22" height="19" rx="4" fill="url(#graphite)"/><path d="M26 11h12M10 46h12m20 0h12" stroke="#c4d9ec" stroke-width="2" stroke-linecap="round"/><circle cx="38" cy="18" r="1.5" fill="#b1f1ce"/><circle cx="22" cy="53" r="1.5" fill="#b1f1ce"/><circle cx="54" cy="53" r="1.5" fill="#b1f1ce"/>',
@@ -237,7 +256,7 @@ def render(kind, group, name):
             art += ('<g transform="translate(16 20) scale(.50)" color="#edf6ff" '
                     'stroke="#edf6ff" fill="none" stroke-width="4" stroke-linecap="round" '
                     'stroke-linejoin="round">' + glyph + '</g>')
-    elif group in ("apps", "devices", "mimetypes", "places") and kind in MATERIAL:
+    elif group in ("apps", "devices", "mimetypes", "places", "categories") and kind in MATERIAL:
         art = MATERIAL[kind]
     elif group == "places" and kind == "trash":
         art = MATERIAL["trash"]
