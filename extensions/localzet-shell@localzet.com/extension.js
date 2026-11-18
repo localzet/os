@@ -16,7 +16,7 @@ export default class LocalzetShell extends Extension {
         Main.panel[OWNER] = this;
         try {
             this._dock = new LocalzetDock(this.path);
-            this._panel = new AuroraPanel(this._dock);
+            this._panel = new AuroraPanel(this._dock, this.path);
             this._preferDesktopAtStartup();
         } catch (error) {
             this.disable();

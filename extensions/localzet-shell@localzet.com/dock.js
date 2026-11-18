@@ -19,7 +19,7 @@ export class LocalzetDock {
             style_class: 'localzet-dock', reactive: true, track_hover: true,
         });
         this._anchor = new St.Button({
-            style_class: 'localzet-dock-button', can_focus: true, reactive: true,
+            style_class: 'localzet-dock-button localzet-dock-launcher', can_focus: true, reactive: true,
             track_hover: true, accessible_name: 'Приложения',
         });
         this._anchor.set_child(this._launcherIcon());

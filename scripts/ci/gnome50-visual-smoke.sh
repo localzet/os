@@ -109,6 +109,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Glass: launcher wallpaper candidate" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
+  test -s extensions/localzet-shell@localzet.com/icons/launcher.svg || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
