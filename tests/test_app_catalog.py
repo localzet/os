@@ -29,3 +29,11 @@ class AppCatalogTests(unittest.TestCase):
             self.assertEqual(c.action("lutris", frozenset())[0], "missing")
             self.assertEqual(c.action("steam", frozenset())[0], "website")
             self.assertEqual(c.action("music", frozenset()), ("website", "https://music.yandex.ru/download/"))
+
+    def test_workspace_filter_uses_real_launch_states(self):
+        states = {"lutris": "launch", "steam": "install", "vscode": "website"}
+        self.assertEqual(c.visible_keys("installed", "", states), ("lutris",))
+        self.assertEqual(c.visible_keys("Игры", "steam", states), ("steam",))
+        self.assertEqual(c.visible_keys("Офис", "steam", states), ())
+        self.assertEqual(c.visible_keys("all", "VISUAL studio", states), ("vscode",))
+        self.assertEqual(c.visible_keys("unknown", "", states), ())
