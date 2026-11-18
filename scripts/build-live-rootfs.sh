@@ -26,6 +26,12 @@ if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     }
     export LOCALZET_EXPERIMENTAL_CONTAINERS
 fi
+if [[ "${LOCALZET_EXPERIMENTAL_TELEGRAM:-0}" == 1 ]]; then
+    [[ "${LOCALZET_ARCHIVE_PROFILE:-}" == standard || "${LOCALZET_ARCHIVE_PROFILE:-}" == complete ]] || {
+        echo "Telegram engineering image requires Standard or Complete" >&2; exit 2;
+    }
+    export LOCALZET_EXPERIMENTAL_TELEGRAM LOCALZET_DISPOSABLE_VM
+fi
 if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
     [[ "${LOCALZET_ARCHIVE_PROFILE:-}" == standard || "${LOCALZET_ARCHIVE_PROFILE:-}" == complete ]] || {
         echo "Experimental ONLYOFFICE requires Standard or Complete" >&2; exit 2;
