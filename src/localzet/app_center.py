@@ -34,15 +34,21 @@ def main() -> int:
             self.window = Adw.ApplicationWindow(application=self, title="Localzet — Приложения")
             self.window.add_css_class("localzet-app-workspace")
             self.appearance = apply_midnight(self.window)
-            self.window.set_default_size(980, 650)
-            self.window.set_size_request(650, 450)
+            self.window.set_default_size(930, 620)
+            self.window.set_size_request(720, 450)
             self.css = Gtk.CssProvider()
             self.css.load_from_data(b"""
-                .localzet-app-workspace .app-sidebar { padding: 14px 10px; border-right: 1px solid alpha(currentColor,.12); }
-                .localzet-app-workspace .app-sidebar button { padding: 8px 10px; border-radius: 6px; }
+                .localzet-app-workspace .app-sidebar { padding: 10px 8px; border-right: 1px solid alpha(currentColor,.12); }
+                .localzet-midnight .app-sidebar { background-color: #292a2e; }
+                .localzet-app-workspace .app-sidebar button { min-height: 24px; }
+                .localzet-app-workspace .app-list .boxed-list { border-radius: 6px; }
+                .localzet-app-workspace .app-list .boxed-list > row { border-radius: 4px; min-height: 46px; }
+                .localzet-app-workspace .app-list .boxed-list > row > box { padding-top: 3px; padding-bottom: 3px; }
+                .localzet-app-workspace .app-action { min-height: 26px; border-radius: 5px; }
+                .localzet-app-workspace .app-sidebar button { padding: 5px 8px; border-radius: 5px; }
                 .localzet-app-workspace .app-sidebar button.selected { background-color: alpha(currentColor,.12); font-weight: 600; }
-                .localzet-app-workspace .app-heading { font-size: 21px; font-weight: 600; }
-                .localzet-app-workspace .app-footer { padding: 8px 16px; border-top: 1px solid alpha(currentColor,.12); }
+                .localzet-app-workspace .app-heading { font-size: 18px; font-weight: 600; }
+                .localzet-app-workspace .app-footer { padding: 6px 12px; border-top: 1px solid alpha(currentColor,.12); }
             """)
             Gtk.StyleContext.add_provider_for_display(self.window.get_display(), self.css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
             toolbar = Adw.ToolbarView()
@@ -57,7 +63,7 @@ def main() -> int:
             workspace = Gtk.Box(vexpand=True)
             shell.append(workspace)
             toolbar.set_content(shell)
-            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, width_request=192)
+            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, width_request=166)
             sidebar.add_css_class("app-sidebar")
             workspace.append(sidebar)
             label = Gtk.Label(label="КАТАЛОГ", xalign=0, margin_start=9, margin_bottom=7)
@@ -68,7 +74,8 @@ def main() -> int:
                         ("Игры", "Игры", "applications-games-symbolic"),
                         ("Связь и медиа", "Связь и медиа", "applications-multimedia-symbolic"),
                         ("Разработка и браузеры", "Разработка", "applications-development-symbolic"),
-                        ("Офис", "Офис", "applications-office-symbolic"))
+                        ("Офис", "Офис", "applications-office-symbolic"),
+                        ("Система", "Система", "preferences-system-symbolic"))
             for index, (key, caption, icon) in enumerate(sections, 1):
                 button = Gtk.Button()
                 button.add_css_class("flat")
@@ -88,14 +95,14 @@ def main() -> int:
             footnote.add_css_class("dim-label")
             sidebar.append(footnote)
 
-            main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, hexpand=True,
-                           margin_top=18, margin_bottom=12, margin_start=20, margin_end=20)
+            main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, hexpand=True,
+                           margin_top=12, margin_bottom=8, margin_start=14, margin_end=14)
             workspace.append(main)
             top = Gtk.Box(spacing=12)
             self.heading = Gtk.Label(xalign=0, hexpand=True)
             self.heading.add_css_class("app-heading")
             top.append(self.heading)
-            self.search = Gtk.SearchEntry(placeholder_text="Поиск приложений", width_request=220)
+            self.search = Gtk.SearchEntry(placeholder_text="Поиск приложений", width_request=185)
             self.search.connect("search-changed", lambda *_: self.render())
             top.append(self.search)
             main.append(top)
@@ -108,7 +115,8 @@ def main() -> int:
             main.append(self.summary)
             scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
             main.append(scroll)
-            page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+            page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            page.add_css_class("app-list")
             scroll.set_child(page)
             self.empty = Gtk.Label(label="Нет подходящих приложений", xalign=0, margin_top=20)
             self.empty.add_css_class("dim-label")
@@ -117,17 +125,18 @@ def main() -> int:
                 if item.group not in self.groups:
                     self.groups[item.group] = Adw.PreferencesGroup(title=item.group)
                     page.append(self.groups[item.group])
-                row = Adw.ActionRow(title=item.name, subtitle=item.note, subtitle_lines=2)
+                row = Adw.ActionRow(title=item.name, subtitle=item.note, title_lines=1, subtitle_lines=1)
                 row.set_use_markup(False)
                 image = Gtk.Image.new_from_icon_name(item.icon)
-                image.set_pixel_size(32)
+                image.set_pixel_size(28)
                 row.add_prefix(image)
                 state = Gtk.Label(xalign=1)
                 state.add_css_class("dim-label")
-                state.set_width_chars(13)
+                state.set_width_chars(9)
                 state.set_valign(Gtk.Align.CENTER)
                 row.add_suffix(state)
-                button = Gtk.Button(valign=Gtk.Align.CENTER, width_request=105)
+                button = Gtk.Button(valign=Gtk.Align.CENTER, width_request=94)
+                button.add_css_class("app-action")
                 button.connect("clicked", lambda _button, selected=key: self.activate_app(selected))
                 row.add_suffix(button)
                 self.groups[item.group].add(row)
@@ -185,11 +194,17 @@ def main() -> int:
             labels = {"launch": "Открыть", "install": "Установить", "website": "Сайт", "missing": "Недоступно"}
             states = {"launch": "Установлено", "install": "Доступно", "website": "Внешний сайт", "missing": "Не установлено"}
             for key, (_, button, state) in self.rows.items():
-                kind, _ = app_catalog.action(key, self.installed)
+                kind, command = app_catalog.action(key, self.installed)
                 self.kinds[key] = kind
                 button.set_label(labels[kind])
                 button.set_sensitive(kind != "missing" and os.geteuid() != 0)
-                state.set_label(states[kind])
+                state.set_label(app_catalog.action_source(key, kind, command))
+                state.set_tooltip_text(states[kind])
+                row.set_tooltip_text(app_catalog.APPS[key].note)
+                if kind == "install":
+                    button.add_css_class("suggested-action")
+                else:
+                    button.remove_css_class("suggested-action")
             self.render()
             return GLib.SOURCE_REMOVE
 

@@ -19,10 +19,26 @@ class App:
 
 
 APPS = {
+    "files": App("Файлы", "Система", "Файловый менеджер Aurora", "org.gnome.Nautilus", native="/usr/bin/nautilus"),
+    "settings": App("Настройки", "Система", "Дисплеи, звук, сеть и устройства", "org.gnome.Settings", native="/usr/bin/gnome-control-center"),
+    "components": App("Компоненты Localzet", "Система", "Системные интеграции и параметры", "com.localzet.Settings", native="/usr/bin/localzet-settings"),
+    "hardware": App("Оборудование", "Система", "Драйверы, CUDA и диагностика", "com.localzet.Hardware", native="/usr/bin/localzet-hardware-manager"),
+    "network": App("Сеть Localzet", "Система", "Управление VPN и прокси", "com.localzet.Network", native="/usr/bin/localzet-network"),
+    "connect": App("Подключение телефона", "Связь и медиа", "Интеграция мобильных устройств", "com.localzet.Connect", native="/usr/bin/localzet-connect"),
+    "vlc": App("VLC", "Связь и медиа", "Локальное воспроизведение аудио и видео", "vlc", native="/usr/bin/vlc"),
+    "qbittorrent": App("qBittorrent", "Связь и медиа", "BitTorrent-клиент", "qbittorrent", native="/usr/bin/qbittorrent"),
+    "loupe": App("Изображения", "Связь и медиа", "Просмотр фотографий", "org.gnome.Loupe", native="/usr/bin/loupe"),
+    "gimp": App("GIMP", "Связь и медиа", "Редактирование изображений", "gimp", native="/usr/bin/gimp"),
+    "terminal": App("Терминал", "Разработка и браузеры", "Ptyxis — терминал GNOME", "org.gnome.Ptyxis", native="/usr/bin/ptyxis"),
+    "containers": App("Localzet Containers", "Разработка и браузеры", "Управление контейнерами, образами и Compose", "com.localzet.Containers", native="/usr/bin/localzet-containers"),
+    "virtual-machines": App("Виртуальные машины", "Разработка и браузеры", "QEMU / libvirt", "virt-manager", native="/usr/bin/virt-manager"),
+    "browser": App("Веб-браузер", "Разработка и браузеры", "GNOME Web", "org.gnome.Epiphany", native="/usr/bin/epiphany"),
+    "windows": App("Windows Runtime", "Игры", "EXE, MSI и профили Wine", "com.localzet.WindowsRuntime", native="/usr/bin/localzet-windows"),
+    "papers": App("Документы PDF", "Офис", "Просмотр PDF и других документов", "org.gnome.Papers", native="/usr/bin/papers"),
     "lutris": App("Lutris", "Игры", "Пакет Ubuntu; Wine и игровые библиотеки", "localzet-catalog-lutris", native="/usr/games/lutris"),
     "steam": App("Steam", "Игры", "Flathub: сборка сообщества, не поддерживается Valve; нужен аккаунт", "localzet-catalog-steam", flatpak_id="com.valvesoftware.Steam"),
     "heroic": App("Heroic Games Launcher", "Игры", "GOG / Epic; загрузка игр и Proton через Heroic", "localzet-catalog-heroic", flatpak_id="com.heroicgameslauncher.hgl"),
-    "telegram": App("Telegram Desktop", "Связь и медиа", "Flathub; установка для текущего пользователя", "localzet-catalog-telegram", flatpak_id="org.telegram.desktop"),
+    "telegram": App("Telegram Desktop", "Связь и медиа", "Flathub; системная или пользовательская установка", "localzet-catalog-telegram", flatpak_id="org.telegram.desktop"),
     "discord": App("Discord", "Связь и медиа", "Flathub; ограничения интеграции с играми", "localzet-catalog-discord", flatpak_id="com.discordapp.Discord"),
     "music": App("Яндекс Музыка", "Связь и медиа", "Официальный Linux-клиент; подписка на сервис", "localzet-catalog-music", website="https://music.yandex.ru/download/"),
     "ai-workspace": App("Localzet AI", "Разработка и браузеры", "Установка проверенных Codex / Claude Code, запуск через локальный прокси", "com.localzet.AIWorkspace", native="/usr/bin/localzet-ai-workspace"),
@@ -89,3 +105,15 @@ def visible_keys(section: str, query: str, kinds: dict[str, str]) -> tuple[str, 
             or (section == "installed" and kinds.get(key) == "launch"))
         and all(word in f"{key} {app.name} {app.note}".casefold() for word in words)
     )
+
+
+def action_source(key: str, kind: str, command: tuple[str, ...] | str) -> str:
+    """Show detected delivery mechanism, not guessed installation status."""
+    app = APPS[key]
+    if kind == "launch":
+        return "Flatpak" if isinstance(command, tuple) and command[:1] == (FLATPAK,) else "Локально"
+    if kind == "install" or (app.flatpak_id and kind == "website"):
+        return "Flathub"
+    if kind == "website":
+        return "Сайт"
+    return "Нет пакета"

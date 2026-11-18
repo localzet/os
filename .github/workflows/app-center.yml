@@ -7,6 +7,8 @@ on:
       - 'config/profiles.json'
       - 'tests/test_app_catalog.py'
       - '.github/workflows/app-center.yml'
+      - '.github/workflows/telegram-preloaded.yml'
+      - 'scripts/install-telegram-rootfs.sh'
   workflow_dispatch:
 permissions:
   contents: read
@@ -56,6 +58,10 @@ jobs:
             sleep 1
             xdotool getwindowname "$window" | grep -F "Установленные"
             import -window "$window" out/app-center/installed.png
+            xdotool windowfocus "$window" key ctrl+7
+            sleep 1
+            xdotool getwindowname "$window" | grep -F "Система"
+            import -window "$window" out/app-center/system.png
             xdotool windowfocus "$window" key ctrl+3
             sleep 1
             xdotool getwindowname "$window" | grep -F "Игры"
@@ -105,3 +111,7 @@ jobs:
           flatpak install --user --noninteractive --assumeyes --from https://dl.flathub.org/repo/appstream/org.telegram.desktop.flatpakref
           flatpak info --user org.telegram.desktop
           PYTHONPATH=src python3 -c 'from localzet.app_catalog import flatpak_installed, action; assert action("telegram", flatpak_installed())[0] == "launch"'
+
+  preloaded-telegram:
+    if: github.head_ref == 'feat/telegram-preloaded' || github.head_ref == 'design/apps-compact-catalog'
+    uses: ./.github/workflows/telegram-preloaded.yml

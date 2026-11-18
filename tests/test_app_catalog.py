@@ -53,3 +53,16 @@ class AppCatalogTests(unittest.TestCase):
                 self.assertEqual(c.action(key, frozenset()), ("launch", (path,)))
             with patch.object(c, "executable", return_value=False):
                 self.assertEqual(c.action(key, frozenset())[0], "website")
+
+    def test_catalog_covers_installed_system_and_media_apps(self):
+        for key, path in (("files", "/usr/bin/nautilus"), ("containers", "/usr/bin/localzet-containers"),
+                          ("vlc", "/usr/bin/vlc"), ("windows", "/usr/bin/localzet-windows"),
+                          ("virtual-machines", "/usr/bin/virt-manager")):
+            with patch.object(c, "executable", side_effect=lambda p: p == path):
+                self.assertEqual(c.action(key, frozenset()), ("launch", (path,)))
+            with patch.object(c, "executable", return_value=False):
+                self.assertEqual(c.action(key, frozenset())[0], "missing")
+        self.assertIn("hardware", c.visible_keys("Система", "CUDA", {}))
+        self.assertEqual(c.action_source("telegram", "launch", (c.FLATPAK, "run", "org.telegram.desktop")), "Flatpak")
+        self.assertEqual(c.action_source("vlc", "launch", ("/usr/bin/vlc",)), "Локально")
+        self.assertEqual(c.action_source("steam", "install", c.terminal_command("steam")), "Flathub")
