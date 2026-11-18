@@ -211,6 +211,7 @@ PY
   xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper material active quickSettings" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Quick Actions: items=2" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-quick-settings.png" || exit 1
   action="$(sed -n 's/.*Localzet Quick Actions: bounds=com.localzet.Network.desktop:\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
@@ -233,6 +234,7 @@ PY
   xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper material active dateMenu" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-notifications.png" || exit 1
   xdotool key Escape || exit 1
   sleep 2

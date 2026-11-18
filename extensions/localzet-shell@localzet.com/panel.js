@@ -6,6 +6,7 @@ import Clutter from 'gi://Clutter';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ExecutiveQuickActions} from './quick-actions.js';
+import {WallpaperGlass} from './wallpaper-glass.js';
 
 const BASE = 'localzet-panel';
 const GLASS = 'localzet-panel-glass';
@@ -41,7 +42,8 @@ export class AuroraPanel {
         this._quickActions = null;
         this._navigation?.destroy();
         this._navigation = null;
-        for (const {actor, menu, signal} of this._surfaces) {
+        for (const {actor, menu, signal, glass} of this._surfaces) {
+            glass?.destroy();
             if (signal)
                 menu.disconnect(signal);
             actor.remove_style_class_name(SURFACE);
@@ -74,7 +76,8 @@ export class AuroraPanel {
                     if (open)
                         console.log('Localzet Surfaces: opened ' + name);
                 }) : 0;
-                this._surfaces.push({actor: menu.actor, menu, signal});
+                const glass = menu.box ? new WallpaperGlass(menu, name) : null;
+                this._surfaces.push({actor: menu.actor, menu, signal, glass});
             }
         }
         if (this._experimental)

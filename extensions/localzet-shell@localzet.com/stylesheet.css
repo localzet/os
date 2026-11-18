@@ -102,15 +102,38 @@
 .localzet-system-surface .popup-menu-content {
     background-color: #292a2e;
     color: #f0f0f2;
-    border: 1px solid rgba(200, 201, 208, .16);
-    border-radius: 11px;
-    padding: 8px;
-    box-shadow: 0 6px 16px rgba(0,0,0,.36);
+    border: 1px solid rgba(200, 201, 208, .22);
+    border-radius: 12px;
+    padding: 7px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.28);
+}
+.localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {
+    box-shadow: none;
+    border: 1px solid rgba(205,216,231,.30);
+}
+.localzet-system-surface.localzet-wallpaper-glass .quick-settings {
+    background-color: transparent;
+}
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle,
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button {
+    background-color: #363940;
+}
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle:checked,
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button:checked {
+    background-color: #285f99;
+}
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle:hover,
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button:hover {
+    background-color: #45464b;
+}
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle:checked:hover,
+.localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button:checked:hover {
+    background-color: #2874c8;
 }
 .localzet-system-surface .quick-settings {
-    padding: 9px;
-    spacing: 9px;
-    border-radius: 11px;
+    padding: 7px;
+    spacing: 8px;
+    border-radius: 9px;
 }
 .localzet-system-surface .quick-settings-grid {
     spacing-rows: 7px;
@@ -119,7 +142,7 @@
 .localzet-system-surface .quick-toggle,
 .localzet-system-surface .quick-toggle-has-menu {
     border-radius: 7px;
-    min-height: 42px;
+    min-height: 38px;
 }
 .localzet-system-surface .quick-toggle,
 .localzet-system-surface .quick-toggle-menu-button {
@@ -163,10 +186,10 @@
 .localzet-system-surface .quick-toggle-menu { background-color: #303136; border-radius: 7px; margin-top: 6px; }
 .localzet-system-surface .quick-toggle-menu .header .icon { border-radius: 7px; }
 .localzet-system-surface .message-list { border-color: #414247; }
-.localzet-system-surface .message-list-placeholder > StIcon { icon-size: 48px; }
+.localzet-system-surface .message-list-placeholder > StIcon { icon-size: 32px; }
 .localzet-system-surface .message-list-controls { padding: 8px; spacing: 8px; }
 .localzet-system-surface .message-list-clear-button { border-radius: 6px; }
-.localzet-system-surface .calendar { border-radius: 7px; padding: 8px; background-color: #303136; }
+.localzet-system-surface .calendar { border-radius: 8px; padding: 8px; background-color: #303136; border: 1px solid rgba(200,201,208,.08); }
 .localzet-system-surface .calendar-day { border-radius: 5px; }
 .localzet-system-surface .calendar-today { background-color: #205ea8; color: #f1f7ff; }
 .localzet-system-surface .calendar-day:selected { background-color: #2874c8; color: #ffffff; }

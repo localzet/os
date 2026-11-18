@@ -51,8 +51,11 @@ export function wallpaperMaterial(actor, background, settings, contrast, path) {
 }
 
 export class WallpaperGlass {
-    constructor(menu) {
+    constructor(menu, surface = "launcher") {
         this._menu = menu;
+        this._surface = surface;
+        this._applied = null;
+        this._original = null;
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
@@ -99,14 +102,23 @@ export class WallpaperGlass {
             return;
         const style = wallpaperMaterial(this._menu.box, this._background, this._interface, this._contrast, this._path);
         if (!style) {
-            this._menu.box.set_style(null);
-            this._menu.actor.remove_style_class_name('localzet-wallpaper-glass');
+            this._restore();
             return;
         }
-        if (this._menu.box.get_style() !== style)
-            this._menu.box.set_style(style);
+        const current = this._menu.box.get_style();
+        // Do not replace styles owned by native GNOME or another extension.
+        if (this._applied !== null && current !== this._applied) {
+            this._restore();
+            return;
+        }
+        if (this._applied === null)
+            this._original = current;
+        const combined = (this._original ? this._original + '; ' : '') + style;
+        if (current !== combined)
+            this._menu.box.set_style(combined);
+        this._applied = combined;
         this._menu.actor.add_style_class_name('localzet-wallpaper-glass');
-        console.log('Localzet Glass: wallpaper material active');
+        console.log('Localzet Glass: wallpaper material active ' + this._surface);
     }
 
     clear() {
@@ -114,7 +126,14 @@ export class WallpaperGlass {
             GLib.source_remove(this._idle);
             this._idle = 0;
         }
-        this._menu.box.set_style(null);
+        this._restore();
+    }
+
+    _restore() {
+        if (this._applied !== null && this._menu.box.get_style() === this._applied)
+            this._menu.box.set_style(this._original);
+        this._applied = null;
+        this._original = null;
         this._menu.actor.remove_style_class_name('localzet-wallpaper-glass');
     }
 
