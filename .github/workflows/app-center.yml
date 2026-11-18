@@ -78,6 +78,16 @@ jobs:
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
+          # Validate the actual allocation, not merely width_request. The
+          # dark sidebar is intentionally a distinct continuous graphite area.
+          with Image.open("out/app-center/system.png") as image:
+              rgb = image.convert("RGB")
+              y = int(rgb.height * .8)
+              start = rgb.getpixel((20, y))
+              end = next((x for x in range(30, rgb.width - 20)
+                          if sum(abs(a-b) for a,b in zip(rgb.getpixel((x,y)), start)) > 12), rgb.width)
+              print("Sidebar boundary at", end, "of", rgb.width)
+              assert 120 <= end <= rgb.width * .31, "Sidebar consumes too much width"
           for path in Path('out/app-center').glob('*.png'):
               with Image.open(path) as image:
                   assert image.width >= 500 and image.height >= 400, image.size
