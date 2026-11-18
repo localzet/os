@@ -1,0 +1,68 @@
+name: Localzet managed rootless Docker
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/rootless_docker.py'
+      - 'src/localzet/containers_app.py'
+      - 'packaging/containers/**'
+      - 'tests/test_rootless_docker.py'
+      - '.github/workflows/containers-rootless.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rootless:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install signed Ubuntu packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends docker.io docker-compose-v2 rootlesskit uidmap slirp4netns fuse-overlayfs busybox-static
+          sudo systemctl disable --now docker.service docker.socket containerd.service
+          sudo install -D -m 0644 packaging/containers/localzet-rootless-docker.service /usr/lib/systemd/user/localzet-rootless-docker.service
+          sudo install -D -m 0644 packaging/containers/docker-rootless.json /usr/share/localzet/docker-rootless.json
+          sudo loginctl enable-linger "$(id -un)"
+      - name: Exercise production user-service controls and real container
+        run: |
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          export PYTHONPATH="$PWD/src"
+          python3 -m unittest discover -s tests -p test_rootless_docker.py -v
+          python3 -c 'from localzet.rootless_docker import change; print(change("start"))'
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" info --format '{{json .SecurityOptions}}' | tee rootless-security.json
+          grep -F name=rootless rootless-security.json
+          mkdir -p "$RUNNER_TEMP/rootfs/bin"
+          cp /bin/busybox "$RUNNER_TEMP/rootfs/bin/busybox"
+          tar -C "$RUNNER_TEMP/rootfs" -cf "$RUNNER_TEMP/rootfs.tar" .
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" import "$RUNNER_TEMP/rootfs.tar" localzet-rootless-fixture:ci
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" run --rm --network none localzet-rootless-fixture:ci /bin/busybox echo ROOTLESS_OK | grep -Fx ROOTLESS_OK
+          python3 -c 'from localzet.containers import Engine; assert Engine().inventory() == ()'
+          python3 -c 'from localzet.rootless_docker import change; print(change("stop"))'
+          ! systemctl --user is-active --quiet localzet-rootless-docker.service
+          python3 -c 'from localzet.rootless_docker import change; print(change("start"))'
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" image inspect localzet-rootless-fixture:ci >/dev/null
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" run --rm --network none localzet-rootless-fixture:ci /bin/busybox echo PERSISTENCE_OK | grep -Fx PERSISTENCE_OK
+          python3 -c 'from localzet.rootless_docker import change; print(change("stop"))'
+          ! systemctl --user is-active --quiet localzet-rootless-docker.service
+          ! systemctl is-active --quiet docker.service
+          ! systemctl is-active --quiet docker.socket
+          ! systemctl is-active --quiet containerd.service
+          echo 'PASS: actual unprivileged rootless engine and container; system daemon inactive'
+      - name: Diagnostics and cleanup
+        if: always()
+        run: |
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          journalctl --user -u localzet-rootless-docker.service --no-pager -n 150 > rootless-journal.txt || true
+          cat rootless-journal.txt
+          systemctl --user stop localzet-rootless-docker.service || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: localzet-rootless-evidence
+          path: |
+            rootless-security.json
+            rootless-journal.txt
+          retention-days: 7

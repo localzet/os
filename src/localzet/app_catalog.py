@@ -74,3 +74,15 @@ def action(key: str, installed: frozenset[str]) -> tuple[str, tuple[str, ...] | 
     if app.flatpak_id:
         return "website", "https://flathub.org/apps/" + app.flatpak_id
     return "missing", ()
+
+
+
+def visible_keys(section: str, query: str, kinds: dict[str, str]) -> tuple[str, ...]:
+    """Filter only the curated catalog; installed means a verified launch action."""
+    words = query.casefold().split()
+    return tuple(
+        key for key, app in APPS.items()
+        if (section == "all" or section == app.group
+            or (section == "installed" and kinds.get(key) == "launch"))
+        and all(word in f"{key} {app.name} {app.note}".casefold() for word in words)
+    )

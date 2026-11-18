@@ -52,12 +52,31 @@ jobs:
             sleep 4
             kill -0 "$pid"
             import -window "$window" out/app-center/apps.png
+            xdotool windowfocus "$window" key ctrl+2
+            sleep 1
+            xdotool getwindowname "$window" | grep -F "Установленные"
+            import -window "$window" out/app-center/installed.png
+            xdotool windowfocus "$window" key ctrl+3
+            sleep 1
+            xdotool getwindowname "$window" | grep -F "Игры"
+            import -window "$window" out/app-center/gaming.png
+            xdotool windowfocus "$window" key ctrl+f
+            xdotool type Steam
+            sleep 1
+            import -window "$window" out/app-center/search.png
+            gsettings set org.gnome.desktop.interface color-scheme prefer-light
+            sleep 2
+            import -window "$window" out/app-center/light.png
+            kill -0 "$pid"
           '
           python3 - <<'PY'
           from PIL import Image
-          with Image.open('out/app-center/apps.png') as image:
-              assert image.width >= 500 and image.height >= 400, image.size
-              assert len(image.convert('RGB').getcolors(maxcolors=10000000)) >= 64, 'Blank app center screenshot'
+          from pathlib import Path
+          for path in Path('out/app-center').glob('*.png'):
+              with Image.open(path) as image:
+                  assert image.width >= 500 and image.height >= 400, image.size
+                  colors = image.convert('RGB').getcolors(maxcolors=10000000)
+                  assert colors is None or len(colors) >= 64, f'Blank screenshot: {path}'
           PY
           ! grep -E 'Traceback|CRITICAL' out/app-center/gui.log
       - uses: actions/upload-artifact@v4

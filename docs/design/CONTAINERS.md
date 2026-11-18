@@ -254,3 +254,7 @@ https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.
 Future work: review signed upstream packages and key fingerprint, explicit
 administrator installation, preview/backup runtime configuration, no implicit
 daemon restart, GPU-specific deployment options and physical compute test.
+
+## Managed rootless engine — experimental
+
+The optional Containers package includes an unenabled systemd user unit using Ubuntu's packaged dockerd-rootless.sh and rootlesskit. The GUI explicitly starts/stops only this unit, checks subordinate UID/GID allocation, refuses Live, existing user Docker units or foreign sockets, and verifies the daemon reports rootless. Separate data directory ~/.local/share/localzet/docker, no Docker context mutation, no linger, no system daemon or group changes. Stop retains data. No AppArmor/sysctl weakening. Disposable CI exercises a real imported BusyBox image under the rootless daemon and verifies the system daemon remains stopped. Installed-image GUI and GPU acceptance remain open.

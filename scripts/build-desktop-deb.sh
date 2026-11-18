@@ -65,6 +65,8 @@ install -m 0644 "$repo/packaging/com.localzet.Apps.desktop" "$pkg/usr/share/appl
 # Experimental Containers UI is packaged only on explicit request.
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     install -m 0755 "$repo/apps/localzet-containers/localzet-containers" "$pkg/usr/bin/localzet-containers"
+    install -D -m 0644 "$repo/packaging/containers/localzet-rootless-docker.service" "$pkg/usr/lib/systemd/user/localzet-rootless-docker.service"
+    install -D -m 0644 "$repo/packaging/containers/docker-rootless.json" "$pkg/usr/share/localzet/docker-rootless.json"
     install -m 0644 "$repo/packaging/com.localzet.Containers.desktop" "$pkg/usr/share/applications/"
 fi
 install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/localzet/styles/"
