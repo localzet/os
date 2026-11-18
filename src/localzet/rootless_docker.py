@@ -14,7 +14,7 @@ UNIT = "localzet-rootless-docker.service"
 FRAGMENT = "/usr/lib/systemd/user/" + UNIT
 SYSTEMCTL = "/usr/bin/systemctl"
 REQUIRED = ("/usr/bin/rootlesskit", "/usr/bin/newuidmap", "/usr/bin/newgidmap",
-            "/usr/bin/slirp4netns", "/usr/share/docker.io/contrib/dockerd-rootless.sh")
+            "/usr/bin/slirp4netns", "/usr/sbin/sysctl", "/usr/share/docker.io/contrib/dockerd-rootless.sh")
 
 
 def has_range(text: str, username: str, uid: int) -> bool:

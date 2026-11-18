@@ -41,6 +41,11 @@ jobs:
           python3 -c 'from localzet.containers import Engine; assert Engine().inventory() == ()'
           python3 -c 'from localzet.rootless_docker import change; print(change("stop"))'
           ! systemctl --user is-active --quiet localzet-rootless-docker.service
+          python3 -c 'from localzet.rootless_docker import change; print(change("start"))'
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" image inspect localzet-rootless-fixture:ci >/dev/null
+          docker --host "unix://$XDG_RUNTIME_DIR/docker.sock" run --rm --network none localzet-rootless-fixture:ci /bin/busybox echo PERSISTENCE_OK | grep -Fx PERSISTENCE_OK
+          python3 -c 'from localzet.rootless_docker import change; print(change("stop"))'
+          ! systemctl --user is-active --quiet localzet-rootless-docker.service
           ! systemctl is-active --quiet docker.service
           ! systemctl is-active --quiet docker.socket
           ! systemctl is-active --quiet containerd.service
@@ -51,6 +56,7 @@ jobs:
           export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
           journalctl --user -u localzet-rootless-docker.service --no-pager -n 150 > rootless-journal.txt || true
+          cat rootless-journal.txt
           systemctl --user stop localzet-rootless-docker.service || true
       - uses: actions/upload-artifact@v4
         if: always()
