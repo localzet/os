@@ -217,6 +217,8 @@ class Guest:
             # Capture the compositor output while the guest is still displaying
             # the document, independently of the XWayland drawable capture.
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
+                self.wake_display()
+                time.sleep(2)
                 self.capture("office-compositor")
                 self._office_qmp_captured = True
             if any(line.startswith(FAIL) for line in lines) or self.process.poll() is not None:
@@ -682,7 +684,21 @@ runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
 runuser -u localzet-test -- test -w "$office_dir"
 printf 'Office diagnostic mode: RENDER_MODE\n'
 free -m
+# Only the disposable test user's session is changed.
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gsettings set org.gnome.desktop.session idle-delay 0
 df -h "$home" /dev/shm
+echo "Office local runtime prerequisites:"
+ip -brief address show dev lo || true
+runuser -u localzet-test -- timeout 15 fc-match sans-serif || true
+runuser -u localzet-test -- timeout 15 fc-match Calibri || true
+for binary in /opt/onlyoffice/desktopeditors/DesktopEditors /opt/onlyoffice/desktopeditors/converter/x2t; do
+    if [[ -x "$binary" ]]; then
+        echo "Dynamic dependencies: $binary"
+        ldd "$binary" | grep -E 'not found|libcef|libstdc\+\+' || true
+    fi
+done
 printf 'Office shared memory and GPU:\n'
 ls -ld /dev/shm /dev/dri || true
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
@@ -762,6 +778,18 @@ exit 1""" + script[last:]
     journalctl -b "_UID=$uid" --user-unit=localzet-candidate-onlyoffice-desktopeditors.service --no-pager -n 150 -o cat || true
     journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
     ps -u localzet-test -o pid,ppid,stat,pcpu,rss,comm
+    echo "Office local sockets:"
+    ss -lntp || true
+    echo "Office profile diagnostic files (synthetic user only):"
+    for directory in "$home/.local/share/onlyoffice" "$home/.config/onlyoffice" "$home/.cache/onlyoffice"; do
+        [[ -d "$directory" ]] || continue
+        find "$directory" -maxdepth 5 -type f \( -iname '*.log' -o -iname '*font*' -o -iname '*error*' \) -printf '%s %p\n' | head -n 60 || true
+        while IFS= read -r -d '' logfile; do
+            printf 'Office log: %s\n' "$logfile"
+            tail -c 8192 -- "$logfile" || true
+            printf '\n'
+        done < <(find "$directory" -maxdepth 5 -type f -iname '*.log' -print0 | head -z -n 8)
+    done
     free -m
     exit 2
 }""")
