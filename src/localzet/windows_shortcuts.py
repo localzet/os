@@ -9,7 +9,7 @@ import re
 import stat
 import tempfile
 
-from localzet.windows_runtime import launch_plan
+from localzet.windows_runtime import PROFILE, launch_plan
 
 ID = re.compile(r"[0-9a-f]{32}")
 PREFIX = "com.localzet.WindowsApp."
@@ -70,6 +70,8 @@ class ShortcutStore:
         data = json.loads(record.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or set(data) != {"file", "profile", "title"}:
             raise ValueError("Invalid shortcut record")
+        if not isinstance(data["file"], str) or not isinstance(data["profile"], str) or not PROFILE.fullmatch(data["profile"]):
+            raise ValueError("Invalid shortcut path or profile")
         file = Path(data["file"])
         if not file.is_absolute() or file.suffix.lower() != ".exe":
             raise ValueError("Shortcut must refer to a local EXE")
