@@ -9,8 +9,11 @@ Type=notify
 NotifyAccess=all
 Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/share/docker.io/contrib
 Environment=DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=%t/localzet-docker-rootless
+# Verify and warm the packaged containerd executable before dockerd's
+# much shorter internal readiness timeout. This does not run a daemon.
+ExecStartPre=/usr/bin/containerd --version
 ExecStart=/usr/share/docker.io/contrib/dockerd-rootless.sh --host=unix://%t/docker.sock --data-root=%h/.local/share/localzet/docker --exec-root=%t/localzet-docker --pidfile=%t/localzet-docker.pid --config-file=/usr/share/localzet/docker-rootless.json
-TimeoutStartSec=90
+TimeoutStartSec=120
 TimeoutStopSec=90
 Delegate=yes
 KillMode=mixed

@@ -104,3 +104,13 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("kernel.apparmor_restrict_unprivileged_userns", script)
         self.assertNotIn("sysctl -w", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_rootless_container_and_persistence_required(self):
+        script = module.installed_script("complete", True)
+        for marker in ("installed unprivileged container executed offline",
+                       "installed rootless image persisted across restart",
+                       "localzet-installed-rootless-fixture:ci", "/usr/bin/busybox",
+                       "ROOTLESS_OK", "PERSISTENCE_OK"):
+            self.assertIn(marker, script)
+        self.assertIn('mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX"', script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

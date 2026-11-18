@@ -52,6 +52,7 @@ class Guest:
         variables = directory / f"{label}.fd"
         shutil.copyfile(args.ovmf_vars, variables)
         self.accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
+        print(f"{label}: QEMU accelerator={self.accel}", flush=True)
         cpu = "host" if self.accel == "kvm" else "max"
         command = [
             "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
@@ -463,7 +464,10 @@ cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
-data="$(mktemp -d)"
+data="$(mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX")"
+printf 'Wine fixture filesystem:\n'
+df -h "$data"
+df -i "$data"
 cleanup_wine() {
     local result=$?
     trap - EXIT
@@ -638,19 +642,43 @@ test -f /usr/lib/systemd/user/localzet-rootless-docker.service
 test -s /usr/share/localzet/docker-rootless.json
 echo "Rootless guest prerequisites:"
 uname -r
-dpkg-query -W rootlesskit uidmap slirp4netns fuse-overlayfs docker.io
+dpkg-query -W rootlesskit uidmap slirp4netns fuse-overlayfs docker.io busybox-static
+/usr/bin/busybox true
 grep -E '^(localzet-test|1000):' /etc/subuid /etc/subgid || true
 for key in kernel.unprivileged_userns_clone kernel.apparmor_restrict_unprivileged_userns user.max_user_namespaces; do
     sysctl "$key" || true
 done
 if ! runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 -c '
+import os
+from pathlib import Path
+import subprocess
+import tarfile
+import tempfile
 from localzet.rootless_docker import change
 from localzet.containers import Engine
+docker = ["/usr/bin/docker", "--host", "unix:///run/user/" + str(os.getuid()) + "/docker.sock"]
+tag = "localzet-installed-rootless-fixture:ci"
+def run(*args):
+    return subprocess.check_output(docker + list(args), text=True, timeout=150).strip()
 try:
     assert change("start") == "rootless подтверждён"
     assert Engine().inventory() == ()
-    print("PASS: installed managed rootless Docker responded to real inventory")
+    print("PASS: installed managed rootless Docker responded to real inventory", flush=True)
+    with tempfile.TemporaryDirectory(prefix=".localzet-rootless-ci-", dir=Path.home()) as directory:
+        archive = Path(directory) / "fixture.tar"
+        with tarfile.open(archive, "w") as output:
+            output.add("/usr/bin/busybox", arcname="bin/busybox", recursive=False)
+        run("import", str(archive), tag)
+    assert run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "ROOTLESS_OK") == "ROOTLESS_OK"
+    print("PASS: installed unprivileged container executed offline", flush=True)
+    change("stop")
+    assert change("start") == "rootless подтверждён"
+    run("image", "inspect", tag)
+    assert run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "PERSISTENCE_OK") == "PERSISTENCE_OK"
+    run("image", "rm", tag)
+    assert Engine().inventory() == ()
+    print("PASS: installed rootless image persisted across restart", flush=True)
 finally:
     change("stop")
 '; then
@@ -1123,7 +1151,7 @@ def main():
             installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
             installed.key("ret")
             try:
-                installed.wait(READY, 600 if args.expect_office and args.expect_executive_review else 300)
+                installed.wait(READY, (600 if args.expect_office and args.expect_executive_review else 300) + (600 if args.expect_containers else 0))
             except RuntimeError:
                 if args.expect_office and args.expect_executive_review and installed.serial.exists():
                     prefix = b"LOCALZET_CANDIDATE_OFFICE_FAILED_PNG "
