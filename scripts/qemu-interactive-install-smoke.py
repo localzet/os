@@ -441,7 +441,22 @@ cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
 data="$(mktemp -d)"
-trap 'rm -rf -- "$data"' EXIT
+cleanup_wine() {
+    local result=$?
+    trap - EXIT
+    if [[ -n "${WINESERVER:-}" && -x "$WINESERVER" ]]; then
+        for prefix in "$data/localzet/windows/prefixes/"*; do
+            [[ -d "$prefix" ]] || continue
+            if ! WINEPREFIX="$prefix" timeout 30 "$WINESERVER" -w; then
+                printf 'Wine server still active; retaining test prefix: %s\n' "$prefix" >&2
+                exit 1
+            fi
+        done
+    fi
+    rm -rf -- "$data"
+    exit "$result"
+}
+trap cleanup_wine EXIT
 export XDG_DATA_HOME="$data" WINEDLLOVERRIDES="mscoree,mshtml=" WINEDEBUG=-all
 export WINEPREFIX="$data/localzet/windows/prefixes/ci-smoke"
 mkdir -p "$WINEPREFIX"
@@ -500,8 +515,19 @@ printf 'Installed Wine x86 fixture exit code: %s\n' "$status"
 test "$status" -eq 42
 original="$WINEPREFIX"
 export WINEPREFIX="$data/localzet/windows/prefixes/ci-msi"
-timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/fixture.msi --profile ci-msi --run
+mkdir -p "$WINEPREFIX"
+wineboot --init
 "$WINESERVER" -w
+set +e
+WINEDEBUG=+msi timeout 240 python3 /opt/localzet-os/src/localzet/windows_runtime.py /run/localzet-candidate-check/fixture.msi --profile ci-msi --run > "$data/msi.log" 2>&1
+status=$?
+set -e
+printf 'Installed Wine MSI fixture exit code: %s\n' "$status"
+"$WINESERVER" -w
+if [[ "$status" -ne 0 ]]; then
+    tail -n 120 "$data/msi.log" >&2
+    exit "$status"
+fi
 test -s "$WINEPREFIX/system.reg"
 found="$(find "$WINEPREFIX/drive_c/users" -type f -path "*/LocalzetFixture/payload.txt")"
 test -n "$found"
