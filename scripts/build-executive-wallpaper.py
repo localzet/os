@@ -19,24 +19,24 @@ def render(source, output):
                              (3840, 2160), method=Image.Resampling.LANCZOS)
     # Preserve mountain/lake detail and moderate saturation. A dusk grade
     # rather than an artificial new sky or an opaque dark rectangle.
-    image = ImageEnhance.Color(image).enhance(.82)
+    image = ImageEnhance.Color(image).enhance(.76)
     curves = []
-    for floor, ceiling, exponent in ((8, 202, 1.20), (15, 185, 1.12), (30, 214, 1.02)):
+    for floor, ceiling, exponent in ((6, 171, 1.24), (12, 163, 1.18), (24, 196, 1.06)):
         curves.extend(round(floor + (ceiling - floor) * (v / 255) ** exponent)
                       for v in range(256))
     image = image.point(curves)
     # Subtle dark edges and warm light near the right-hand horizon.
     width, height = 480, 270
     light, shadow = Image.new("L", (width, height)), Image.new("L", (width, height))
-    light.putdata([round(42 * max(0, 1 - ((x/width - .76)/.62)**2
-                                      - ((y/height - .31)/.36)**2)**2)
+    light.putdata([round(70 * max(0, 1 - ((x/width - .76)/.58)**2
+                                      - ((y/height - .38)/.28)**2)**2)
                    for y in range(height) for x in range(width)])
-    shadow.putdata([round(min(75, 13 + 32 * ((x/width-.5)*2)**2 +
-                                      24 * ((y/height-.45)*2)**2))
+    shadow.putdata([round(min(110, 24 + 38 * ((x/width-.5)*2)**2 +
+                                      38 * ((y/height-.40)*2)**2))
                     for y in range(height) for x in range(width)])
-    image = Image.composite(Image.new("RGB", image.size, "#b76c64"), image,
+    image = Image.composite(Image.new("RGB", image.size, "#ce8e76"), image,
                             light.resize(image.size, Image.Resampling.BICUBIC))
-    image = Image.composite(Image.new("RGB", image.size, "#091321"), image,
+    image = Image.composite(Image.new("RGB", image.size, "#080f20"), image,
                             shadow.resize(image.size, Image.Resampling.BICUBIC))
     # Preblur in image space, with sufficient radius at 4K. The derivative
     # is tinted here, not by translucent CSS over an unblurred desktop.
