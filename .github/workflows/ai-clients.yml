@@ -61,7 +61,14 @@ jobs:
             python3 -c "from localzet.ai_workspace import main; raise SystemExit(main())" >out/ai-workspace/gui.log 2>&1 &
             pid=$!
             trap "kill $pid 2>/dev/null || true" EXIT
-            window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet AI" | head -n1)"
+            window=""
+            for attempt in $(seq 1 30); do
+              kill -0 "$pid" || { cat out/ai-workspace/gui.log; exit 1; }
+              window="$(xdotool search --onlyvisible --name "Localzet AI" | head -n1 || true)"
+              test -z "$window" || break
+              sleep 1
+            done
+            test -n "$window"
             sleep 3
             kill -0 "$pid"
             import -window "$window" out/ai-workspace/window.png

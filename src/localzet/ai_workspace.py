@@ -76,8 +76,8 @@ def main():
                 row = Adw.ActionRow(title=name)
                 install = Gtk.Button(label="Установить", valign=Gtk.Align.CENTER)
                 launch = Gtk.Button(label="Запустить", valign=Gtk.Align.CENTER)
-                install.connect("clicked", lambda _, t=tool: self.run(t, True))
-                launch.connect("clicked", lambda _, t=tool: self.run(t, False))
+                install.connect("clicked", lambda _, t=tool: self.run_client(t, True))
+                launch.connect("clicked", lambda _, t=tool: self.run_client(t, False))
                 row.add_suffix(install)
                 row.add_suffix(launch)
                 clients.add(row)
@@ -118,7 +118,7 @@ def main():
                 launch.set_sensitive(ready and exists)
             self.status.set_label(status)
 
-        def run(self, tool, install):
+        def run_client(self, tool, install):
             try:
                 if os.geteuid() == 0:
                     raise ValueError("Запуск от root запрещён")

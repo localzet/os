@@ -48,3 +48,7 @@ class AIInstallTests(unittest.TestCase):
                 self.assertEqual(cmd[cmd.index("--proto-redir")+1], "=https")
             with patch.object(a.subprocess, "run", side_effect=fake):
                 a.download("https://example.invalid/fixture", target, 10, "http://127.0.0.1:7890")
+
+    def test_anthropic_primary_key_is_full_openpgp_fingerprint(self):
+        self.assertEqual(len(a.FINGERPRINT), 40)
+        self.assertTrue(a.FINGERPRINT.endswith("BAA929FF1A7ECACE"))
