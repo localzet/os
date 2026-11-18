@@ -36,3 +36,16 @@ class NetworkCacheTests(unittest.TestCase):
                 path.unlink()
                 with self.assertRaisesRegex(ValueError, "Incomplete"):
                     installer.cached_packages("netbird", manifest, [asset["name"]], target)
+
+    def test_offline_plan_refuses_extra_packages_and_version_changes(self):
+        versions = {"netbird": "0.83.1", "netbird-ui": "0.83.1"}
+        plan = "Inst netbird (0.83.1 local-deb [amd64v1])\nInst netbird-ui (0.83.1 local-deb [amd64])\nConf netbird (0.83.1 local-deb [amd64])\n"
+        self.assertEqual(installer.offline_plan(plan, versions), set(versions))
+        for extra in ("Inst curl (9.0 Ubuntu [amd64])", "Remv curl [9.0]", "Conf netbird (9.0 local-deb [amd64])",
+                      "Inst netbird [0.83.1] (9.0 local-deb [amd64])"):
+            with self.assertRaises(ValueError):
+                installer.offline_plan(plan + extra, versions)
+
+    def test_offline_plan_accepts_existing_exact_package(self):
+        self.assertEqual(installer.offline_plan("Inst netbird-ui:amd64 (0.83.1 local-deb [amd64])",
+                         {"netbird": "0.83.1", "netbird-ui": "0.83.1"}), {"netbird-ui"})

@@ -41,17 +41,28 @@ install -d -m 0755 "$receipt"
 printf '%s\n' "$commit" > "$receipt/app-commit"
 # Flatpak list does not expose a commit column in the installed version.
 # Resolve every deployed ref separately through the supported info command.
-refs="$(flatpak list --system --columns=ref)"
-test -n "$refs"
 printf 'ref\tcommit\torigin\n' > "$receipt/refs.tsv"
-while IFS= read -r ref; do
-    [[ "$ref" =~ ^(app|runtime)/[a-zA-Z0-9._-]+/x86_64/[a-zA-Z0-9._-]+$ ]]
-    resolved="$(flatpak info --system --show-commit "$ref")"
-    [[ "$resolved" =~ ^[a-f0-9]{64}$ ]]
-    origin="$(flatpak info --system --show-origin "$ref")"
-    [[ "$origin" == flathub ]]
-    printf '%s\t%s\t%s\n' "$ref" "$resolved" "$origin" >> "$receipt/refs.tsv"
-done <<< "$refs"
+# Separate app/runtime enumeration: Flatpak versions may omit the type
+# prefix from the ref column. Resolve and verify the full canonical ref.
+for kind in app runtime; do
+    refs="$(flatpak list --system "--$kind" --columns=ref)"
+    test -n "$refs"
+    while IFS= read -r ref; do
+        case "$ref" in "$kind/"*) ;; *) ref="$kind/$ref" ;; esac
+        if [[ ! "$ref" =~ ^(app|runtime)/[a-zA-Z0-9._-]+/x86_64/[a-zA-Z0-9._-]+$ ]]; then
+            printf 'Unexpected deployed %s ref: %q\n' "$kind" "$ref" >&2
+            exit 2
+        fi
+        canonical="$(flatpak info --system --show-ref "$ref")"
+        [[ "$canonical" == "$ref" ]]
+        resolved="$(flatpak info --system --show-commit "$ref")"
+        [[ "$resolved" =~ ^[a-f0-9]{64}$ ]]
+        origin="$(flatpak info --system --show-origin "$ref")"
+        [[ "$origin" == flathub ]]
+        printf '%s\t%s\t%s\n' "$ref" "$resolved" "$origin" >> "$receipt/refs.tsv"
+    done <<< "$refs"
+done
+grep -Fqx "$(printf 'app/%s/x86_64/stable\t%s\tflathub' "$app" "$commit")" "$receipt/refs.tsv"
 flatpak info --system --show-permissions "$app" > "$receipt/permissions.txt"
 flatpak info --system "$app" > "$receipt/app-info.txt"
 cat "$receipt/refs.tsv"
