@@ -706,7 +706,7 @@ office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-revi
 printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
 runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
 runuser -u localzet-test -- test -w "$office_dir"
-printf 'Office diagnostic mode: RENDER_MODE (explicit X11 toolkit backend)\n'
+printf 'Office diagnostic mode: RENDER_MODE (explicit X11 toolkit backend; C.UTF-8 editor locale)\n'
 free -m
 # Only the disposable test user's session is changed.
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
@@ -730,7 +730,7 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
     --property=StandardOutput=journal --property=StandardError=journal \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
-    /usr/bin/env -u WAYLAND_DISPLAY /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
+    /usr/bin/env -u WAYLAND_DISPLAY LC_ALL=C.UTF-8 LANG=C.UTF-8 /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
         marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
         assert script.count(marker) == 1
