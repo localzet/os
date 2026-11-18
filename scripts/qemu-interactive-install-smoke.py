@@ -344,7 +344,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
-    if office_render_mode not in ("default", "software", "isolated-x11"):
+    if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -636,7 +636,14 @@ if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
 fi
 test -f /usr/lib/systemd/user/localzet-rootless-docker.service
 test -s /usr/share/localzet/docker-rootless.json
-runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+echo "Rootless guest prerequisites:"
+uname -r
+dpkg-query -W rootlesskit uidmap slirp4netns fuse-overlayfs docker.io
+grep -E '^(localzet-test|1000):' /etc/subuid /etc/subgid || true
+for key in kernel.unprivileged_userns_clone kernel.apparmor_restrict_unprivileged_userns user.max_user_namespaces; do
+    sysctl "$key" || true
+done
+if ! runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 -c '
 from localzet.rootless_docker import change
 from localzet.containers import Engine
@@ -646,7 +653,14 @@ try:
     print("PASS: installed managed rootless Docker responded to real inventory")
 finally:
     change("stop")
-'
+'; then
+    echo "Installed rootless Docker failure diagnostics:"
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        journalctl --user -u localzet-rootless-docker.service --no-pager -n 150 || true
+    journalctl -k --no-pager -b -n 200 | grep -Ei 'apparmor|audit|denied|rootless|overlay|netfilter|namespace' || true
+    lsmod || true
+    exit 2
+fi
 for unit in docker.service docker.socket containerd.service; do
     if systemctl is-enabled --quiet "$unit" || systemctl is-active --quiet "$unit"; then
         echo "Rootless test changed system Docker: $unit"; exit 2
@@ -735,7 +749,7 @@ printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user
         launch = r"""
 # Avoid late activation by earlier test applications; stop only transient
 # units created by this disposable validation session.
-for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus gnome-control-center localzet-apps; do
+for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus gnome-control-center localzet-apps localzet-ai-workspace; do
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
         systemctl --user stop "localzet-candidate-$app.service" || true
@@ -747,7 +761,7 @@ office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-revi
 printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
 runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
 runuser -u localzet-test -- test -w "$office_dir"
-printf 'Office diagnostic mode: RENDER_MODE\n'
+printf 'Office diagnostic mode: RENDER_MODE (explicit X11 toolkit backend; C.UTF-8 editor locale)\n'
 free -m
 # Only the disposable test user's session is changed.
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
@@ -770,13 +784,20 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
     --property=StandardOutput=journal --property=StandardError=journal \
-    --setenv=QT_QPA_PLATFORM=xcb RENDER_ENV \
-    /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
+    --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
+    /usr/bin/env -u WAYLAND_DISPLAY LC_ALL=C.UTF-8 LANG=C.UTF-8 /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
         marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
         assert script.count(marker) == 1
         render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
         render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        if office_render_mode == "fresh-profile":
+            # Same actual Mutter/Xwayland session, fresh editor settings.
+            render_env = ('--setenv=HOME="$office_dir/profile/home" '
+                          '--setenv=XDG_CONFIG_HOME="$office_dir/profile/config" '
+                          '--setenv=XDG_DATA_HOME="$office_dir/profile/data" '
+                          '--setenv=XDG_CACHE_HOME="$office_dir/profile/cache"')
+            launch = launch.replace("free -m", 'runuser -u localzet-test -- mkdir -p "$office_dir/profile/"{home,config,data,cache}\nfree -m')
         launch = (launch.replace("FIXTURE_BASE64", encoded)
                   .replace("RENDER_MODE", office_render_mode)
                   .replace("RENDER_ENV", render_env)
@@ -988,7 +1009,7 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "isolated-x11"), default="default",
+    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:

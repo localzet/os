@@ -86,3 +86,21 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("store.remove(key)", script)
         self.assertNotIn("installed managed rootless Docker responded", module.installed_script())
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_office_fresh_profile_preserves_real_session(self):
+        script = module.installed_script("complete", False, True, True, office_render_mode="fresh-profile")
+        self.assertIn("Office diagnostic mode: fresh-profile", script)
+        self.assertIn('--setenv=HOME="$office_dir/profile/home"', script)
+        self.assertIn('--setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11', script)
+        self.assertNotIn("office-isolated.sh", script)
+        self.assertNotIn("installed managed rootless Docker responded", script)
+        self.assertNotIn("--no-sandbox", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_rootless_failure_records_guest_journal(self):
+        script = module.installed_script("complete", True)
+        self.assertIn("Installed rootless Docker failure diagnostics", script)
+        self.assertIn("journalctl --user -u localzet-rootless-docker.service", script)
+        self.assertIn("kernel.apparmor_restrict_unprivileged_userns", script)
+        self.assertNotIn("sysctl -w", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

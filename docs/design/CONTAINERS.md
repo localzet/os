@@ -258,3 +258,5 @@ daemon restart, GPU-specific deployment options and physical compute test.
 ## Managed rootless engine — experimental
 
 The optional Containers package includes an unenabled systemd user unit using Ubuntu's packaged dockerd-rootless.sh and rootlesskit. The GUI explicitly starts/stops only this unit, checks subordinate UID/GID allocation, refuses Live, existing user Docker units or foreign sockets, and verifies the daemon reports rootless. Separate data directory ~/.local/share/localzet/docker, no Docker context mutation, no linger, no system daemon or group changes. Stop retains data. No AppArmor/sysctl weakening. Disposable CI exercises a real imported BusyBox image under the rootless daemon and verifies the system daemon remains stopped. Installed-image GUI and GPU acceptance remain open.
+
+The exact installed Complete 239fcc5 image failed starting the managed user service (44349355810), although the standalone runner passed. Installed test now emits user journal, kernel audit, namespace settings and module state on failure; failure remains fatal. No AppArmor or namespace security changes and no rootful fallback. Root cause is not yet established.
