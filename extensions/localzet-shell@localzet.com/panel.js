@@ -17,8 +17,9 @@ const SURFACE = 'localzet-system-surface';
 // effect to rounded surfaces without an antialiased clipping solution.
 // The experiment is opt-in at session startup until pixel/performance QA.
 export class AuroraPanel {
-    constructor(dock) {
+    constructor(dock, path) {
         this._dock = dock;
+        this._path = path;
         this._navigation = null;
         this._panel = Main.panel;
         this._effect = null;
@@ -108,8 +109,12 @@ export class AuroraPanel {
         item.add_style_class_name('localzet-panel-navigation');
         const content = new St.BoxLayout({style_class: 'localzet-panel-brand',
             y_align: Clutter.ActorAlign.CENTER});
-        content.add_child(new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 14}));
-        content.add_child(new St.Label({text: 'Localzet OS', y_align: Clutter.ActorAlign.CENTER}));
+        const brand = Gio.File.new_for_path(GLib.build_filenamev([this._path, 'icons', 'launcher.svg']));
+        const icon = brand.query_exists(null)
+            ? new St.Icon({gicon: new Gio.FileIcon({file: brand}), icon_size: 16})
+            : new St.Icon({icon_name: 'view-app-grid-symbolic', icon_size: 16});
+        content.add_child(icon);
+        content.add_child(new St.Label({text: 'Localzet', y_align: Clutter.ActorAlign.CENTER}));
         item.add_child(content);
         const activate = () => {
             if (Main.overview.visible)

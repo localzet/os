@@ -2,17 +2,17 @@
  * compositor glass is implemented and measured; not an alpha-only fake. */
 .localzet-dock {
     padding: 3px 7px;
-    spacing: 3px;
-    border-radius: 9px;
-    background-color: #303237;
-    border: 1px solid rgba(200, 201, 208, .15);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    spacing: 4px;
+    border-radius: 7px;
+    background-color: #292b30;
+    border: 1px solid #494b51;
+    box-shadow: 0 3px 9px rgba(0, 0, 0, 0.24);
 }
 .localzet-dock-button {
     min-width: 38px;
     min-height: 38px;
     padding: 2px;
-    border-radius: 6px;
+    border-radius: 5px;
     color: #f0f0f2;
     background-color: transparent;
 }
@@ -30,8 +30,8 @@
 /* Native panel controls retain the upstream input and popup behavior. */
 #panel.localzet-panel {
     height: 30px;
-    background-color: #282a2e;
-    border-bottom: 1px solid rgba(200,201,208,.15);
+    background-color: #24262a;
+    border-bottom: 1px solid #414349;
     color: #f0f0f2;
 }
 #panel.localzet-panel.localzet-panel-glass {
@@ -176,9 +176,37 @@
 #panel.localzet-panel .panel-button:hover { background-color: #3c3d42; }
 
 /* Executive navigation, native panel button. */
-#panel.localzet-panel .localzet-panel-navigation { padding: 0 9px; }
-.localzet-panel-brand { spacing: 6px; font-size: 12px; font-weight: 600; }
+#panel.localzet-panel .localzet-panel-navigation {
+    padding: 0 10px;
+    background-color: #303238;
+    border-left: 1px solid #414349;
+    border-right: 1px solid #414349;
+    border-radius: 0;
+}
+#panel.localzet-panel .localzet-panel-navigation:hover { background-color: #3c3e44; }
+#panel.localzet-panel .localzet-panel-navigation:focus { box-shadow: inset 0 -2px #78b8ff; }
+.localzet-panel-brand { spacing: 7px; font-size: 12px; font-weight: 600; }
 .localzet-panel-brand StIcon { color: #a9c7e9; }
+#panel.localzet-panel .clock-display { font-weight: 500; }
+#panel.localzet-panel .panel-button { border-radius: 3px; }
+#panel.localzet-panel .panel-button:active,
+#panel.localzet-panel .panel-button:checked { background-color: #414349; }
+.localzet-dock-launcher {
+    background-color: #34363b;
+    border: 1px solid #484a50;
+}
+.localzet-dock-launcher:hover { background-color: #414349; }
+.localzet-dock-high-contrast .localzet-dock-launcher {
+    background-color: #000000;
+    border: 1px solid #ffffff;
+}
+.localzet-dock-button.localzet-dock-focused {
+    background-color: #363b43;
+}
+.localzet-dock-high-contrast .localzet-dock-button.localzet-dock-focused {
+    background-color: #222222;
+}
+
 
 /* Separate the command hub from the task strip without inventing apps. */
 .localzet-dock-divider { width: 1px; height: 24px; margin: 0 4px; background-color: #45464b; }
