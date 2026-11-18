@@ -1,0 +1,46 @@
+name: Official AI client artifact verification
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/ai_*.py'
+      - 'apps/localzet-ai/**'
+      - 'tests/test_ai_*.py'
+      - '.github/workflows/ai-clients.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  client:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [codex, claude]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y curl gnupg
+      - name: Verify real vendor artifact
+        env:
+          TOOL: ${{ matrix.tool }}
+        run: |
+          export PYTHONPATH="$PWD/src"
+          python3 -m unittest discover -s tests -p test_ai_install.py -v
+          LOCALZET_DISPOSABLE_VM=1 python3 -m localzet.ai_install "$TOOL" --review-dir "$RUNNER_TEMP/client"
+          mkdir -p out/ai
+          cp "$RUNNER_TEMP/client/receipt.json" out/ai/
+          mkdir -p "$RUNNER_TEMP/offline-home"
+          sudo unshare --net -- runuser -u "$(id -un)" -- env -i HOME="$RUNNER_TEMP/offline-home" PATH=/usr/bin:/bin DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 timeout 45 "$RUNNER_TEMP/client/$TOOL" --version | tee out/ai/version.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path("out/ai/receipt.json").read_text())
+          assert receipt["version"] in Path("out/ai/version.txt").read_text()
+          PY
+          echo 'PASS: verified upstream binary executed offline, no account or provider calls'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-client-${{ matrix.tool }}-evidence
+          path: out/ai/
+          retention-days: 7

@@ -20,6 +20,15 @@ PORT = 18080
 PROXY = f"http://127.0.0.1:{PORT}"
 
 
+def client_path(tool):
+    if tool not in TOOLS:
+        raise ValueError("Unknown AI client")
+    managed = Path.home() / ".local/share/localzet/ai-clients" / tool / "current"
+    if managed.is_file() and os.access(managed, os.X_OK):
+        return str(managed)
+    return TOOLS[tool]
+
+
 def validate_endpoint(mode, host, port, installed):
     if not installed:
         raise ValueError("UserNet не установлен")
@@ -71,7 +80,7 @@ def sandbox_command(tool, args, relay, home, cwd):
     for key in ("NO_PROXY", "no_proxy"):
         command += ["--setenv", key, ""]
     command += ["--setenv", "BROWSER", "/bin/false",
-                "--setenv", "DISABLE_AUTOUPDATER", "1",
+                "--setenv", "DISABLE_AUTOUPDATER", "1", "--setenv", "DISABLE_UPDATES", "1",
                 "/usr/bin/localzet-ai",
                 "--inside", tool, *args]
     return command
@@ -104,7 +113,7 @@ def inside(tool, args):
         "UNIX-CONNECT:/run/localzet-ai/relay"], close_fds=True)
     try:
         wait_listener("127.0.0.1", PORT, relay)
-        return subprocess.call([TOOLS[tool], *args], close_fds=True)
+        return subprocess.call([client_path(tool), *args], close_fds=True)
     finally:
         relay.terminate()
         relay.wait(timeout=5)
@@ -113,7 +122,7 @@ def inside(tool, args):
 def launch(tool, args):
     if os.geteuid() == 0:
         raise RuntimeError("AI clients must run as a desktop user")
-    if not Path(TOOLS[tool]).is_file():
+    if not Path(client_path(tool)).is_file() or not os.access(client_path(tool), os.X_OK):
         raise RuntimeError("Официальный AI CLI ещё не установлен")
     port = usernet_port()
     # Refuse startup when the local proxy is not listening.

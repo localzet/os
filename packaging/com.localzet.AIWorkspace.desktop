@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet AI
+Comment=Launch official coding agents through Localzet proxy policy
+Exec=localzet-ai-workspace
+Icon=com.localzet.AIWorkspace
+Terminal=false
+Categories=Development;
+StartupNotify=true
