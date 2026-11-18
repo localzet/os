@@ -46,4 +46,9 @@ install -m 0644 "$work/plan" "$root/usr/share/localzet/office-review/apt-plan.tx
 install -m 0644 "$work/loader" "$root/usr/share/localzet/office-review/loader.txt"
 install -m 0644 "$repo/config/upstream/onlyoffice.json" "$root/usr/share/localzet/office-review/upstream.json"
 printf '%s\n' "$version" > "$root/usr/share/localzet/office-review/version.txt"
+# Product path uses the same toolkit and locale settings as the successful
+# native installed review. Preserve original vendor file and desktop ID.
+install -m 0755 "$repo/apps/localzet-office/localzet-office" "$root/usr/bin/localzet-office"
+python3 "$repo/scripts/install-office-desktop-overlay.py" "$root"
+chroot "$root" update-desktop-database /usr/local/share/applications
 echo "PASS: pinned native ONLYOFFICE installed into disposable rootfs; redistribution not approved"

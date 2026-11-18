@@ -704,6 +704,490 @@ test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
 test -s /opt/onlyoffice/desktopeditors/LICENSE.txt
 test -s /usr/share/localzet/office-review/upstream.json
 test -x /usr/bin/onlyoffice-desktopeditors
+test -x /usr/bin/localzet-office
+for entry in $(dpkg-query -L onlyoffice-desktopeditors | grep -E '^/usr/share/applications/[^/]+\.desktop 'DesktopEditors|onlyoffice-desktopeditors'
+cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+window=""
+for attempt in $(seq 1 90); do
+    # Enumerate managed clients directly, including windows obscured by
+    # earlier applications. Match identity before requesting activation.
+    clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)"
+    for hex in $(grep -Eo '0x[0-9a-fA-F]+' <<< "$clients" || true); do
+        candidate="$((hex))"
+        identity="$(xprop -id "$hex" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null)" || continue
+        grep -Eiq 'DesktopEditors|ONLYOFFICE|Desktop Editors' <<< "$identity" || continue
+        geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
+        width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+        height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+        [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
+        (( width >= 400 && height >= 300 )) || continue
+        # Avoid xdotool's synchronous desktop-switch wait on Mutter.
+        # The active-window check below remains mandatory.
+        timeout 2 xdotool windowactivate "$candidate" || continue
+        for poll in $(seq 1 5); do
+            if [[ "$(xdotool getactivewindow 2>/dev/null || true)" == "$candidate" ]]; then
+                window="$candidate"
+                break
+            fi
+            sleep 0.2
+        done
+        [[ -n "$window" ]] && break
+    done
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+if [[ -z "$window" ]]; then
+    echo "No activatable managed ONLYOFFICE window" >&2
+    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
+    xwininfo -root -tree >&2 || true
+    exit 1
+fi
+xdotool getwindowname "$window"
+geometry="$(xdotool getwindowgeometry --shell "$window")"
+width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+[[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
+(( width >= 400 && height >= 300 ))
+x="$(sed -n 's/^X=//p' <<< "$geometry")"
+y="$(sed -n 's/^Y=//p' <<< "$geometry")"
+[[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ ]]
+test "$(xdotool getactivewindow)" = "$window"
+printf 'LOCALZET_CANDIDATE_OFFICE_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
+printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
+OFFICETEST
+chmod 0755 /run/localzet-candidate-check/office-window.sh
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh
+printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\n'
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
+        assert "installed native ONLYOFFICE launched" in script
+    if executive_review and office:
+        # Use exactly the same original DOCX as the successful offline matrix.
+        spec = importlib.util.spec_from_file_location("office_fixture", Path(__file__).with_name("ci") / "office-fixture.py")
+        fixture_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixture_module)
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Path(directory) / "Localzet-offline-review.docx"
+            fixture_module.build(fixture)
+            encoded = base64.b64encode(fixture.read_bytes()).decode("ascii")
+        launch = r"""
+# Avoid late activation by earlier test applications; stop only transient
+# units created by this disposable validation session.
+for app in ptyxis localzet-settings localzet-windows localzet-connect vlc qbittorrent localzet-hardware-manager localzet-containers nautilus gnome-control-center localzet-apps localzet-ai-workspace; do
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemctl --user stop "localzet-candidate-$app.service" || true
+done
+# The test document must live in a writable directory of the authenticated
+# user, just like a real local file. The earlier root-owned /run fixture
+# did not allow the editor to create a sibling lock or temporary file.
+office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-review.XXXXXXXX")"
+printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
+runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
+runuser -u localzet-test -- test -w "$office_dir"
+printf 'Office diagnostic mode: RENDER_MODE (explicit X11 toolkit backend; C.UTF-8 editor locale)\n'
+free -m
+# Only the disposable test user's session is changed.
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gsettings set org.gnome.desktop.session idle-delay 0
+df -h "$home" /dev/shm
+echo "Office local runtime prerequisites:"
+ip -brief address show dev lo || true
+runuser -u localzet-test -- timeout 15 fc-match sans-serif || true
+runuser -u localzet-test -- timeout 15 fc-match Calibri || true
+for binary in /opt/onlyoffice/desktopeditors/DesktopEditors /opt/onlyoffice/desktopeditors/converter/x2t; do
+    if [[ -x "$binary" ]]; then
+        echo "Dynamic dependencies: $binary"
+        ldd "$binary" | grep -E 'not found|libcef|libstdc\+\+' || true
+    fi
+done
+printf 'Office shared memory and GPU:\n'
+ls -ld /dev/shm /dev/dri || true
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
+    --property=StandardOutput=journal --property=StandardError=journal \
+    --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
+    /usr/bin/localzet-office RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
+"""
+        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
+        assert script.count(marker) == 1
+        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
+        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        if office_render_mode == "fresh-profile":
+            # Same actual Mutter/Xwayland session, fresh editor settings.
+            render_env = ('--setenv=HOME="$office_dir/profile/home" '
+                          '--setenv=XDG_CONFIG_HOME="$office_dir/profile/config" '
+                          '--setenv=XDG_DATA_HOME="$office_dir/profile/data" '
+                          '--setenv=XDG_CACHE_HOME="$office_dir/profile/cache"')
+            launch = launch.replace("free -m", 'runuser -u localzet-test -- mkdir -p "$office_dir/profile/"{home,config,data,cache}\nfree -m')
+        launch = (launch.replace("FIXTURE_BASE64", encoded)
+                  .replace("RENDER_MODE", office_render_mode)
+                  .replace("RENDER_ENV", render_env)
+                  .replace("RENDER_FLAGS", render_flags))
+        if office_render_mode == "isolated-x11":
+            # Same installed package and fixture, separate X server and
+            # fresh user-local profile. Do not change the default session.
+            launch = launch[:launch.index('runuser -u localzet-test -- env XDG_RUNTIME_DIR=', launch.index('Office shared memory and GPU:'))]
+            launch += r"""
+cat > /run/localzet-candidate-check/office-isolated.sh <<'ISOLATEDOFFICE'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+work="$(mktemp -d)"
+wm=""
+editor=""
+cleanup() {
+    if [[ -n "$editor" ]]; then kill -TERM -- "-$editor" 2>/dev/null || true; fi
+    if [[ -n "$wm" ]]; then kill "$wm" 2>/dev/null || true; fi
+    rm -rf -- "$work"
+}
+trap cleanup EXIT
+export HOME="$work/home" XDG_CONFIG_HOME="$work/config" XDG_DATA_HOME="$work/data" XDG_CACHE_HOME="$work/cache"
+export QT_QPA_PLATFORM=xcb GDK_BACKEND=x11 LANG=C.UTF-8
+unset WAYLAND_DISPLAY
+mkdir -p "$HOME" "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+cp "$1" "$HOME/Localzet-offline-review.docx"
+openbox > "$work/openbox.log" 2>&1 &
+wm=$!
+sleep 2
+setsid /usr/bin/onlyoffice-desktopeditors "$HOME/Localzet-offline-review.docx" > "$work/editor.log" 2>&1 &
+editor=$!
+if ! /bin/bash /run/localzet-candidate-check/office-window.sh; then
+    tail -n 100 "$work/editor.log" "$work/openbox.log" >&2 || true
+    exit 1
+fi
+ISOLATEDOFFICE
+chmod 0755 /run/localzet-candidate-check/office-isolated.sh
+"""
+        script = script.replace(marker, launch)
+        first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
+        last = script.index("\nOFFICETEST", first)
+        script = script[:first] + r"""window=""
+for attempt in $(seq 1 90); do
+    window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+test -n "$window"
+xdotool getwindowname "$window" | grep -F Localzet-offline-review
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+for attempt in $(seq 1 45); do
+    timeout 4 xdotool windowactivate --sync "$window" || continue
+    sleep 2
+    [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
+    import -window "$window" "$work/document.png" || continue
+    [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
+    if python3 - "$work/document.png" <<'PY'
+from PIL import Image
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+w, h = im.size
+assert w >= 400 and h >= 300
+# Restrict the ink check to the document page, not the ribbon or titlebar.
+page = im.crop((w//8, h//3, w*7//8, h*4//5))
+ink = sum(20 <= r <= 65 and 65 <= g <= 125 and 130 <= b <= 205
+          and b > g+35 and g > r+25 for r,g,b in page.getdata())
+print("Fixture heading ink:", ink)
+assert ink >= 250
+PY
+    then
+        test "$(stat -c %s "$work/document.png")" -lt 1572864
+        printf 'LOCALZET_CANDIDATE_OFFICE_PNG '
+        base64 -w0 "$work/document.png"
+        printf '\nPASS: actual ONLYOFFICE document drawable captured\n'
+        exit 0
+    fi
+done
+# Leave the active document visible for an independent host QMP capture.
+printf 'LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY\n'
+sleep 8
+echo "No rendered fixture heading in named document window" >&2
+xdotool getwindowgeometry --shell "$window" >&2 || true
+xdotool getwindowname "$window" >&2 || true
+if [[ -s "$work/document.png" ]]; then
+    stat -c "Failed drawable bytes: %s" "$work/document.png" >&2
+fi
+if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 1572864 ]]; then
+    printf 'LOCALZET_CANDIDATE_OFFICE_FAILED_PNG '
+    base64 -w0 "$work/document.png"
+    printf '\n'
+fi
+exit 1""" + script[last:]
+        check_marker = "systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh"
+        assert script.count(check_marker) == 1
+        if office_render_mode == "isolated-x11":
+            script = script.replace(check_marker, 'systemd-run --user --wait --pipe --collect /usr/bin/xvfb-run -a -s "-screen 0 1440x900x24" /usr/bin/dbus-run-session -- /bin/bash /run/localzet-candidate-check/office-isolated.sh "$office_dir/Localzet-offline-review.docx"')
+            check_marker = 'systemd-run --user --wait --pipe --collect /usr/bin/xvfb-run -a -s "-screen 0 1440x900x24" /usr/bin/dbus-run-session -- /bin/bash /run/localzet-candidate-check/office-isolated.sh "$office_dir/Localzet-offline-review.docx"'
+            assert script.count(check_marker) == 1
+        script = script.replace(check_marker, check_marker + r""" || {
+    echo "Office user-service diagnostics:"
+    journalctl -b "_UID=$uid" --user-unit=localzet-candidate-onlyoffice-desktopeditors.service --no-pager -n 150 -o cat || true
+    journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
+    ps -u localzet-test -o pid,ppid,stat,pcpu,rss,comm
+    echo "Office local sockets:"
+    ss -lntp || true
+    echo "Office profile diagnostic files (synthetic user only):"
+    for directory in "$home/.local/share/onlyoffice" "$home/.config/onlyoffice" "$home/.cache/onlyoffice"; do
+        [[ -d "$directory" ]] || continue
+        find "$directory" -maxdepth 5 -type f \( -iname '*.log' -o -iname '*font*' -o -iname '*error*' \) -printf '%s %p\n' | head -n 60 || true
+        while IFS= read -r -d '' logfile; do
+            printf 'Office log: %s\n' "$logfile"
+            tail -c 8192 -- "$logfile" || true
+            printf '\n'
+        done < <(find "$directory" -maxdepth 5 -type f -iname '*.log' -print0 | head -z -n 8)
+    done
+    free -m
+    exit 2
+}""")
+    if native_files:
+        check = r"""
+for package in nautilus nautilus-data libnautilus-extension4; do
+    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet1 ]]
+done
+test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
+launch_app nautilus /usr/bin/nautilus
+printf '\nPASS: installed Executive Files package launched\n'
+"""
+        marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated installed Files insertion marker")
+        script = script.replace(marker, check + marker)
+        assert "installed Executive Files package launched" in script
+    if branded_control_center:
+        check = r"""
+for package in gnome-control-center gnome-control-center-data; do
+    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet3 ]]
+done
+test -s /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT
+test -s /usr/share/localzet/brand/localzet-about.svg
+test -s /usr/share/localzet/brand/localzet-about-dark.svg
+launch_app gnome-control-center /usr/bin/gnome-control-center
+printf '\nPASS: installed branded Control Center package launched\n'
+"""
+        if native_files:
+            check += r"""
+cmp /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
+"""
+        marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated installed Control Center insertion marker")
+        script = script.replace(marker, check + marker)
+    if executive_review and office:
+        # Keep the foreground editor available while the host checks actual
+        # content. This is a test delay, not a change to shipped software.
+        marker = r"printf '\nLOCALZET_CANDIDATE_WINE_START\n'"
+        if script.count(marker) != 1:
+            raise ValueError("Missing or duplicated office visual wait marker")
+        script = script.replace(marker, "sleep 30\n" + marker)
+    if executive_review:
+        script += r"""
+# Verify the native lock in the installed, authenticated Wayland session.
+# No unlock bypass, no fake login UI and no password entered on camera.
+test -s /usr/share/backgrounds/localzet/executive-dusk.jpg
+test -s /usr/share/backgrounds/localzet/executive-dusk-glass.jpg
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
+loginctl lock-session "$session"
+for attempt in $(seq 1 30); do
+    [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]] && break
+    sleep 1
+done
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-lock@localzet.com
+# The user-session shell extension must not be active on the lock screen.
+if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-shell@localzet.com; then
+    echo "Desktop extension unexpectedly active on lock screen"
+    exit 2
+fi
+journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
+printf '\nLOCALZET_CANDIDATE_LOCKED\n'
+# Keep the validation session alive for the host to wake the display.
+sleep 25
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+printf '\nLOCALZET_CANDIDATE_STILL_LOCKED\n'
+"""
+    return script
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("iso", type=Path)
+    parser.add_argument("--ovmf-code", type=Path, required=True)
+    parser.add_argument("--ovmf-vars", type=Path, required=True)
+    parser.add_argument("--logs", type=Path, required=True)
+    parser.add_argument("--fixture", type=Path, required=True)
+    parser.add_argument("--fixture32", type=Path)
+    parser.add_argument("--msi-fixture", type=Path)
+    parser.add_argument("--boot-media", choices=("optical", "usb"), default="optical")
+    parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
+    parser.add_argument("--expect-containers", action="store_true")
+    parser.add_argument("--expect-office", action="store_true")
+    parser.add_argument("--expect-executive-review", action="store_true")
+    parser.add_argument("--expect-native-files", action="store_true")
+    parser.add_argument("--expect-branded-control-center", action="store_true")
+    parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
+    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "isolated-x11"), default="default",
+                        help="Non-default modes are explicit diagnostics, not release acceptance.")
+    args = parser.parse_args()
+    if args.expect_office and not args.expect_archive_profile:
+        parser.error("Office candidate requires Standard or Complete archive profile")
+    if args.expect_containers and args.expect_archive_profile != "complete":
+        parser.error("Containers candidate requires complete archive profile")
+    for name in ("iso", "ovmf_code", "ovmf_vars"):
+        path = getattr(args, name).resolve(strict=True)
+        if not path.is_file():
+            parser.error(f"{name} must be a regular file")
+        setattr(args, name, path)
+    args.logs = args.logs.resolve()
+    args.logs.mkdir(parents=True, exist_ok=False)
+    args.fixture = args.fixture.resolve(strict=True)
+    if not args.fixture.is_file():
+        parser.error("fixture must be a regular file")
+    fixture = args.fixture.read_bytes()
+    if not fixture.startswith(b"MZ") or len(fixture) > 2 * 1024**2:
+        parser.error("expected a small original PE fixture")
+    if (args.fixture32 is None) != (args.msi_fixture is None):
+        parser.error("32-bit EXE and MSI fixtures must be supplied together")
+    if args.fixture32 is not None:
+        for name, magic in (("fixture32", b"MZ"), ("msi_fixture", bytes.fromhex("d0cf11e0a1b11ae1"))):
+            path = getattr(args, name).resolve(strict=True)
+            if not path.is_file() or not 0 < path.stat().st_size <= 2 * 1024**2:
+                parser.error("expected a small original Windows fixture")
+            with path.open("rb") as stream:
+                if stream.read(len(magic)) != magic:
+                    parser.error("invalid Windows fixture header")
+            setattr(args, name, path)
+    password = secrets.token_hex(12)
+    with tempfile.TemporaryDirectory(prefix="lz-candidate-") as temp:
+        directory = Path(temp)
+        disk = directory / "target.raw"
+        with disk.open("xb") as stream:
+            stream.truncate(32 * 1024**3)
+        script = directory / "install.sh"
+        foreign = directory / "foreign.raw" if args.expect_foreign_disk else None
+        fixture_tools = foreign_fixture_module() if foreign is not None else None
+        before = None
+        if foreign is not None:
+            fixture_tools.foreign_disk(directory, foreign)
+            before = fixture_tools.digest(foreign)
+        if foreign is not None:
+            script.write_text(foreign_refusal_script(password, args.boot_media))
+            script.chmod(0o600)
+            refusal_guest = Guest(args, directory, disk, script, "candidate-foreign-refusal", True, foreign)
+            try:
+                refusal_guest.connect()
+                refusal_guest.wait(LIVE, 480)
+                refusal_guest.launch("localzet-installer")
+                refusal_guest.launch("sudo -n bash -c 'modprobe qemu_fw_cfg; cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; bash /run/localzet-test.sh'")
+                refusal_guest.wait(b"LOCALZET_CANDIDATE_FOREIGN_REFUSED", 180)
+                refusal_guest.capture("refused")
+            finally:
+                refusal_guest.close()
+                after = fixture_tools.digest(foreign)
+                (args.logs / "foreign-disk.sha256").write_text(f"before {before}\nafter  {after}\n")
+                if after != before:
+                    raise RuntimeError("Non-target GPT disk was modified during refusal test")
+            print("PASS: foreign GPT disk unchanged after explicit refusal", flush=True)
+            # The current installer intentionally requires disconnected foreign
+            # disks. Boot the exact ISO again with only the blank target.
+            # Do not represent this as successful multi-disk installation.
+        script.write_text(installation_script(password, args.boot_media))
+        script.chmod(0o600)
+        live = Guest(args, directory, disk, script, "candidate-live", True)
+        try:
+            live.connect()
+            live.wait(LIVE, 480)
+            live.launch("localzet-installer")
+            live.capture("installer-launched")
+            live.launch("sudo -n bash -c 'modprobe qemu_fw_cfg; cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; bash /run/localzet-test.sh'")
+            live.wait(b"LOCALZET_CANDIDATE_INSTALL_STARTED", 90)
+            live.wait(INSTALL, 1200)
+        finally:
+            live.close()
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None))
+        installed = Guest(args, directory, disk, script, "candidate-installed", False)
+        try:
+            installed.connect()
+            # Installed image has no test service or automatic login.
+            # Drive the actual GDM greeter using the ephemeral account.
+            time.sleep(45 if installed.accel == "kvm" else 120)
+            installed.key("ret")
+            time.sleep(4)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(25 if installed.accel == "kvm" else 60)
+            # Authenticate the installed system via GDM, then switch to the
+            # real TTY before launching applications. No GUI key queue.
+            installed.capture("desktop-before-console")
+            installed.key("esc")
+            installed.key("ctrl-alt-f3")
+            time.sleep(20 if installed.accel == "kvm" else 45)
+            installed.capture("tty-login")
+            installed.text("localzet-test")
+            installed.key("ret")
+            time.sleep(8)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(12)
+            # Do not capture authentication screens: an unexpected prompt
+            # can echo the ephemeral password as a username.
+            installed.text("sudo -k; sudo -v")
+            installed.key("ret")
+            time.sleep(3)
+            installed.text(password)
+            installed.key("ret")
+            time.sleep(3)
+            installed.text("sudo -n modprobe qemu_fw_cfg; sudo -n cp /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/test/raw /run/localzet-test.sh; sudo -n bash /run/localzet-test.sh")
+            installed.key("ret")
+            try:
+                installed.wait(READY, (600 if args.expect_office and args.expect_executive_review else 300) + (600 if args.expect_containers else 0))
+            except RuntimeError:
+                if args.expect_office and args.expect_executive_review and installed.serial.exists():
+                    prefix = b"LOCALZET_CANDIDATE_OFFICE_FAILED_PNG "
+                    matches = [line[len(prefix):] for line in installed.serial.read_bytes().splitlines()
+                               if line.startswith(prefix)]
+                    if len(matches) == 1 and len(matches[0]) <= 2 * 1024**2:
+                        image = base64.b64decode(matches[0], validate=True)
+                        if image.startswith(b"\x89PNG\r\n\x1a\n"):
+                            installed.screen.with_name("candidate-installed-office-failed.png").write_bytes(image)
+                raise
+            installed.capture("desktop-verified")
+            if args.expect_containers:
+                installed.capture("containers-installed")
+            if args.expect_office:
+                if args.expect_executive_review:
+                    installed.office_document()
+                    installed.capture("office-installed")
+                else:
+                    installed.capture("office-installed")
+            installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
+            if args.expect_executive_review:
+                installed.wait(LOCK_READY, 45)
+                installed.visual_capture("native-lock", wake=True)
+                installed.wait(LOCK_RECHECK, 45)
+        finally:
+            installed.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+); do
+    test -s "/usr/local/share/applications/${entry##*/}"
+    grep -Fx 'Exec=/usr/bin/localzet-office %U' "/usr/local/share/applications/${entry##*/}" || grep -Eq '^Exec=/usr/bin/localzet-office([[:space:]]|$)' "/usr/local/share/applications/${entry##*/}"
+done
 launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
 cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash

@@ -37,3 +37,11 @@ class AppCatalogTests(unittest.TestCase):
         self.assertEqual(c.visible_keys("Офис", "steam", states), ())
         self.assertEqual(c.visible_keys("all", "VISUAL studio", states), ("vscode",))
         self.assertEqual(c.visible_keys("unknown", "", states), ())
+
+    def test_office_uses_managed_launcher_only_when_real_editor_exists(self):
+        with patch.object(c, "executable", return_value=True):
+            self.assertEqual(c.action("office", frozenset()), ("launch", ("/usr/bin/localzet-office",)))
+        with patch.object(c, "executable", side_effect=lambda p: p == "/usr/bin/localzet-office"):
+            self.assertEqual(c.action("office", frozenset())[0], "website")
+        with patch.object(c, "executable", side_effect=lambda p: p == "/usr/bin/onlyoffice-desktopeditors"):
+            self.assertEqual(c.action("office", frozenset()), ("launch", ("/usr/bin/onlyoffice-desktopeditors",)))

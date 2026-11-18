@@ -47,3 +47,7 @@ The 7edbc53 unified image passed BIOS/UEFI boot, explicit foreign-disk refusal w
 ## Independent installed diagnostics
 
 The combined 239fcc5 image failed at managed rootless Docker before Office (44349355810). Office-specific diagnostic images omit optional Containers to isolate the editor; unified acceptance still requires both. Four modes: authenticated GNOME/Xwayland, software graphics, fresh profile in same real session, and separate Xvfb. All require actual fixture ink and preserve editor sandbox. No diagnostic pass is unified release acceptance.
+
+## Normal menu and document launch
+
+The native installed diagnostic on product-next b8a23a8 (44384520726) rendered the DOCX heading (1399 matching pixels), passed Wine and lock checks; repeated software/fresh-profile variants did not render, so the success is not yet a stability guarantee. The target now installs /usr/bin/localzet-office only when the actual vendor editor is installed, using the exact successful process-local X11 and C.UTF-8 environment, keeping the vendor sandbox and acceleration. This scopes locale to the editor process (the system locale is unchanged; editor language preference remains a separate review). A /usr/local/share/applications override retains the original vendor desktop ID, MIME associations and known desktop action arguments, leaves vendor files intact and rejects unknown Exec commands. Installed tests invoke the real product launcher; the catalog falls back to vendor executable for manually installed editions. Redistribution remains pending.

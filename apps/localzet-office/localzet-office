@@ -1,0 +1,12 @@
+#!/bin/sh
+# Scoped compatibility for the reviewed native ONLYOFFICE package.
+# Do not modify the desktop session, GPU policy or vendor sandbox.
+set -eu
+if [ "$(id -u)" = 0 ]; then
+    echo "ONLYOFFICE requires an ordinary desktop user" >&2
+    exit 2
+fi
+export QT_QPA_PLATFORM=xcb GDK_BACKEND=x11
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
+unset WAYLAND_DISPLAY
+exec /usr/bin/onlyoffice-desktopeditors "$@"

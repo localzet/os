@@ -114,3 +114,10 @@ class CandidateScriptTests(unittest.TestCase):
             self.assertIn(marker, script)
         self.assertIn('mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX"', script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_office_uses_product_launcher(self):
+        script = module.installed_script("complete", False, True, True)
+        self.assertIn('/usr/bin/localzet-office RENDER_FLAGS'.replace(" RENDER_FLAGS", " "), script)
+        self.assertIn("test -x /usr/bin/localzet-office", script)
+        self.assertIn("/usr/local/share/applications/", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

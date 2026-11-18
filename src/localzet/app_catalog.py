@@ -29,7 +29,7 @@ APPS = {
     "vscode": App("Visual Studio Code", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-vscode", website="https://code.visualstudio.com/download"),
     "chrome": App("Google Chrome", "Разработка и браузеры", "Официальный пакет Google", "localzet-catalog-chrome", website="https://www.google.com/chrome/"),
     "edge": App("Microsoft Edge", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-edge", website="https://www.microsoft.com/edge"),
-    "office": App("ONLYOFFICE", "Офис", "Нативный редактор документов", "localzet-catalog-office", native="/usr/bin/desktopeditors", website="https://www.onlyoffice.com/download-desktop"),
+    "office": App("ONLYOFFICE", "Офис", "Нативный редактор документов", "localzet-catalog-office", native="/usr/bin/onlyoffice-desktopeditors", website="https://www.onlyoffice.com/download-desktop"),
     "microsoft365": App("Microsoft 365", "Офис", "Веб-версия; настольная версия требует лицензии и Windows", "com.localzet.Microsoft365Web", website="https://www.microsoft365.com/"),
 }
 FLATPAK = "/usr/bin/flatpak"
@@ -65,6 +65,8 @@ def flatpak_installed() -> frozenset[str]:
 def action(key: str, installed: frozenset[str]) -> tuple[str, tuple[str, ...] | str]:
     app = APPS[key]
     if app.native and executable(app.native):
+        if key == "office" and executable("/usr/bin/localzet-office"):
+            return "launch", ("/usr/bin/localzet-office",)
         return "launch", (app.native,)
     if app.flatpak_id and app.flatpak_id in installed:
         return "launch", (FLATPAK, "run", app.flatpak_id)
