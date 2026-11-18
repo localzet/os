@@ -45,8 +45,8 @@ def create_application():
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Containers")
             self.appearance = apply_midnight(self.window)
-            self.window.set_default_size(1220, 760)
-            self.window.set_size_request(900, 560)
+            self.window.set_default_size(1120, 680)
+            self.window.set_size_request(900, 540)
             self.window.add_css_class("aurora-containers")
             style = Adw.StyleManager.get_default()
             def update_style(*_):
@@ -66,13 +66,18 @@ def create_application():
                 .aurora-containers .workspace-heading { font-size: 19px; font-weight: 600; }
                 .aurora-containers .container-detail { border: 1px solid alpha(currentColor, .12); border-radius: 6px; padding: 10px; }
                 .aurora-containers columnview { border: 1px solid alpha(currentColor, .12); }
-                window.aurora-containers.aurora-dark { background-color: #091321; color: #e7edf7; }
-                .aurora-dark headerbar, .aurora-dark .workspace-sidebar { background-color: #101b2d; color: #e7edf7; }
-                .aurora-dark columnview, .aurora-dark .container-detail { background-color: #192a40; }
-                .aurora-dark columnview header button { background-color: #1b2c43; color: #b8c9dd; }
-                .aurora-dark columnview row:selected, .aurora-dark .workspace-sidebar button.active { background-color: #205ea8; color: #f1f6ff; }
-                .aurora-dark textview, .aurora-dark textview text { background-color: #0b1524; color: #e7edf7; }
-                .aurora-dark button.suggested-action { background-color: #4c9aff; color: #091321; }
+                window.aurora-containers.aurora-dark { background-color: #202124; color: #f0f0f2; }
+                .aurora-dark headerbar { background-color: #292a2e; color: #f0f0f2; }
+                .aurora-dark .workspace-sidebar { background-color: #343539; color: #f0f0f2; }
+                .aurora-dark columnview, .aurora-dark .container-detail { background-color: #2f3034; }
+                .aurora-dark columnview header button { background-color: #343539; color: #d2d3d8; }
+                .aurora-dark columnview row:selected { background-color: #39495e; color: #f0f0f2; }
+                .aurora-dark .workspace-sidebar button.active { background-color: #45464b; color: #f0f0f2; }
+                .aurora-dark textview, .aurora-dark textview text { background-color: #202124; color: #f0f0f2; }
+                .aurora-dark button.suggested-action { background-color: #2874c8; color: #ffffff; }
+                .aurora-containers columnview row { min-height: 32px; }
+                .aurora-containers columnview header button { min-height: 28px; }
+                .aurora-containers .container-detail button { min-height: 28px; border-radius: 6px; }
             """)
             Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider,
                                                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -89,10 +94,11 @@ def create_application():
             workspace = Gtk.Box(hexpand=True, vexpand=True)
             shell.append(workspace)
             toolbar.set_content(shell)
-            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, width_request=190)
+            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, width_request=176)
+            sidebar.set_hexpand(False)
             sidebar.add_css_class("workspace-sidebar")
             workspace.append(sidebar)
-            brand = Gtk.Label(label="WORKSPACE", xalign=0, margin_start=8, margin_bottom=8)
+            brand = Gtk.Label(label="РАБОЧАЯ ОБЛАСТЬ", xalign=0, margin_start=8, margin_bottom=8)
             brand.add_css_class("dim-label")
             sidebar.append(brand)
             self.nav_buttons = {}
@@ -216,7 +222,7 @@ def create_application():
             self.detail_text = Gtk.TextView(editable=False, cursor_visible=False, monospace=True,
                                            wrap_mode=Gtk.WrapMode.CHAR, top_margin=8, bottom_margin=8,
                                            left_margin=8, right_margin=8)
-            detail_scroll = Gtk.ScrolledWindow(min_content_height=130)
+            detail_scroll = Gtk.ScrolledWindow(min_content_height=110)
             detail_scroll.set_child(self.detail_text)
             detail_box.append(detail_scroll)
             main.append(detail_box)
