@@ -121,3 +121,14 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("test -x /usr/bin/localzet-office", script)
         self.assertIn("/usr/local/share/applications/", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_preloaded_telegram_requires_system_commit_and_real_sandbox(self):
+        script = module.installed_script("complete", telegram=True)
+        for marker in ("flatpak info --system --show-commit", "flatpak run --system org.telegram.desktop",
+                       "flatpak ps --columns=application", "preloaded system Telegram app",
+                       "telegram-review/refs.tsv"):
+            self.assertIn(marker, script)
+        self.assertNotIn("preloaded system Telegram app", module.installed_script())
+        with self.assertRaises(ValueError):
+            module.installed_script(telegram=True)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

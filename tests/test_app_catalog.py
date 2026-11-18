@@ -45,3 +45,11 @@ class AppCatalogTests(unittest.TestCase):
             self.assertEqual(c.action("office", frozenset())[0], "website")
         with patch.object(c, "executable", side_effect=lambda p: p == "/usr/bin/onlyoffice-desktopeditors"):
             self.assertEqual(c.action("office", frozenset()), ("launch", ("/usr/bin/onlyoffice-desktopeditors",)))
+
+    def test_native_vendor_apps_are_detected_without_reinstall(self):
+        for key, path in (("vscode", "/usr/bin/code"), ("chrome", "/usr/bin/google-chrome-stable"),
+                          ("edge", "/usr/bin/microsoft-edge-stable")):
+            with patch.object(c, "executable", side_effect=lambda p: p == path):
+                self.assertEqual(c.action(key, frozenset()), ("launch", (path,)))
+            with patch.object(c, "executable", return_value=False):
+                self.assertEqual(c.action(key, frozenset())[0], "website")

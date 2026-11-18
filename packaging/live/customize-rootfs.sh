@@ -30,6 +30,9 @@ fi
 if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
     bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
 fi
+if [[ "${LOCALZET_EXPERIMENTAL_TELEGRAM:-0}" == 1 ]]; then
+    bash "$LOCALZET_REPO/scripts/install-telegram-rootfs.sh" "$root"
+fi
 if [[ -n "${LOCALZET_PROFILE_PLAN:-}" ]]; then
     install -D -m 0644 "$LOCALZET_PROFILE_PLAN" "$root/usr/share/localzet/archive-profile-plan.json"
     PYTHONPATH="$LOCALZET_REPO/src" python3 "$LOCALZET_REPO/scripts/check-profile-rootfs.py" "$root" "$LOCALZET_PROFILE_PLAN"

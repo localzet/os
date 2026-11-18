@@ -26,9 +26,9 @@ APPS = {
     "discord": App("Discord", "Связь и медиа", "Flathub; ограничения интеграции с играми", "localzet-catalog-discord", flatpak_id="com.discordapp.Discord"),
     "music": App("Яндекс Музыка", "Связь и медиа", "Официальный Linux-клиент; подписка на сервис", "localzet-catalog-music", website="https://music.yandex.ru/download/"),
     "ai-workspace": App("Localzet AI", "Разработка и браузеры", "Установка проверенных Codex / Claude Code, запуск через локальный прокси", "com.localzet.AIWorkspace", native="/usr/bin/localzet-ai-workspace"),
-    "vscode": App("Visual Studio Code", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-vscode", website="https://code.visualstudio.com/download"),
-    "chrome": App("Google Chrome", "Разработка и браузеры", "Официальный пакет Google", "localzet-catalog-chrome", website="https://www.google.com/chrome/"),
-    "edge": App("Microsoft Edge", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-edge", website="https://www.microsoft.com/edge"),
+    "vscode": App("Visual Studio Code", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-vscode", native="/usr/bin/code", website="https://code.visualstudio.com/download"),
+    "chrome": App("Google Chrome", "Разработка и браузеры", "Официальный пакет Google", "localzet-catalog-chrome", native="/usr/bin/google-chrome-stable", website="https://www.google.com/chrome/"),
+    "edge": App("Microsoft Edge", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-edge", native="/usr/bin/microsoft-edge-stable", website="https://www.microsoft.com/edge"),
     "office": App("ONLYOFFICE", "Офис", "Нативный редактор документов", "localzet-catalog-office", native="/usr/bin/onlyoffice-desktopeditors", website="https://www.onlyoffice.com/download-desktop"),
     "microsoft365": App("Microsoft 365", "Офис", "Веб-версия; настольная версия требует лицензии и Windows", "com.localzet.Microsoft365Web", website="https://www.microsoft365.com/"),
 }

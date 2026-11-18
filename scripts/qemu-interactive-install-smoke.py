@@ -344,7 +344,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 """
 
 
-def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
+def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False, telegram=False):
     if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
@@ -606,6 +606,37 @@ pgrep -u localzet-test -x qbittorrent >/dev/null
         check = check.replace("ARCHIVE_PROFILE", repr(archive_profile))
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed archive profile package inventory" in script
+    if telegram:
+        if archive_profile not in ("standard", "complete"):
+            raise ValueError("Telegram preinstall requires an archive profile")
+        check = r"""
+test -s /usr/share/localzet/telegram-review/refs.tsv
+test -s /var/lib/flatpak/exports/share/applications/org.telegram.desktop.desktop
+test "$(flatpak info --system --show-commit org.telegram.desktop)" = "$(cat /usr/share/localzet/telegram-review/app-commit)"
+test "$(flatpak info --system --show-origin org.telegram.desktop)" = flathub
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    /usr/bin/python3 -c 'import sys; sys.path.insert(0, "/opt/localzet-os/src"); from localzet.app_catalog import action, flatpak_installed; assert action("telegram", flatpak_installed())[0] == "launch"'
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --collect --unit=localzet-candidate-telegram /usr/bin/flatpak run --system org.telegram.desktop
+telegram_ready=0
+for attempt in $(seq 1 90); do
+    if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" /usr/bin/flatpak ps --columns=application | grep -Fx org.telegram.desktop; then
+        sleep 5
+        if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" /usr/bin/flatpak ps --columns=application | grep -Fx org.telegram.desktop; then
+            telegram_ready=1; break
+        fi
+    fi
+    sleep 1
+done
+if [[ "$telegram_ready" != 1 ]]; then
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" journalctl --user -u localzet-candidate-telegram --no-pager -n 80 || true
+    exit 2
+fi
+printf 'PASS: preloaded system Telegram app and signed runtime launched offline as desktop user\n'
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemctl --user stop localzet-candidate-telegram.service
+"""
+        script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
     if containers:
         check = r"""
 test -x /usr/bin/localzet-hardware-manager
@@ -1040,6 +1071,7 @@ def main():
     parser.add_argument("--expect-archive-profile", choices=("standard", "complete"))
     parser.add_argument("--expect-containers", action="store_true")
     parser.add_argument("--expect-office", action="store_true")
+    parser.add_argument("--expect-preloaded-telegram", action="store_true")
     parser.add_argument("--expect-executive-review", action="store_true")
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
@@ -1122,7 +1154,7 @@ def main():
             live.wait(INSTALL, 1200)
         finally:
             live.close()
-        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None))
+        script.write_text(installed_script(args.expect_archive_profile, args.expect_containers, args.expect_office, args.expect_executive_review, args.expect_native_files, args.office_render_mode, args.expect_branded_control_center, args.fixture32 is not None, args.expect_preloaded_telegram))
         installed = Guest(args, directory, disk, script, "candidate-installed", False)
         try:
             installed.connect()
