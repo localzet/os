@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import sys
 
-from localzet import windows_runtime
+from localzet import windows_runtime, windows_shortcuts
 
 
 def main() -> int:
@@ -14,7 +14,18 @@ def main() -> int:
     gi.require_version("Gtk", "4.0")
     from gi.repository import Adw, Gio, Gtk
 
+    store = windows_shortcuts.ShortcutStore()
     initial = Path(sys.argv[1]) if len(sys.argv) == 2 else None
+    initial_profile = "default"
+    startup_error = None
+    if len(sys.argv) == 3 and sys.argv[1] == "--shortcut":
+        try:
+            saved = store.load(sys.argv[2])
+            initial, initial_profile = Path(saved["file"]), saved["profile"]
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            startup_error = str(error)
+    elif len(sys.argv) > 2:
+        startup_error = "Неизвестный параметр запуска"
 
     class Runtime(Adw.Application):
         def __init__(self):
@@ -30,7 +41,7 @@ def main() -> int:
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Windows Runtime")
             self.appearance = apply_midnight(self.window)
-            self.window.set_default_size(650, 480)
+            self.window.set_default_size(720, 680)
             toolbar = Adw.ToolbarView()
             toolbar.add_top_bar(Adw.HeaderBar())
             self.window.set_content(toolbar)
@@ -67,9 +78,12 @@ def main() -> int:
             self.file_row.add_suffix(choose)
             group.add(self.file_row)
             self.profile = Adw.EntryRow(title="Профиль Wine")
-            self.profile.set_text("default")
+            self.profile.set_text(initial_profile)
             self.profile.connect("changed", lambda *_: self.update())
             group.add(self.profile)
+            self.name = Adw.EntryRow(title="Название в меню")
+            self.name.connect("changed", lambda *_: self.update())
+            group.add(self.name)
             page.append(group)
             self.trusted = Gtk.CheckButton(label="Я доверяю этому файлу и разрешаю его запуск")
             self.trusted.connect("toggled", lambda *_: self.update())
@@ -84,13 +98,25 @@ def main() -> int:
             self.launch.add_css_class("suggested-action")
             self.launch.set_halign(Gtk.Align.START)
             self.launch.connect("clicked", self.run_file)
-            page.append(self.launch)
+            actions = Gtk.Box(spacing=8)
+            actions.append(self.launch)
+            self.save_button = Gtk.Button(label="Добавить в меню")
+            self.save_button.connect("clicked", self.save_shortcut)
+            actions.append(self.save_button)
+            page.append(actions)
+            self.saved_group = Adw.PreferencesGroup(title="Мои Windows-приложения",
+                description="Выберите ярлык, чтобы открыть сохранённый профиль. Удаление ярлыка не удаляет программу.")
+            self.saved_rows = []
+            page.append(self.saved_group)
             self.status = Gtk.Label(wrap=True, xalign=0, selectable=True)
             page.append(self.status)
+            self.refresh_shortcuts()
             if initial:
                 self.set_file(initial)
             else:
                 self.update()
+            if startup_error:
+                self.status.set_label(startup_error)
             self.window.present()
 
         def choose(self, *_):
@@ -118,6 +144,7 @@ def main() -> int:
         def set_file(self, path):
             self.file = path
             self.file_row.set_subtitle(str(path))
+            self.name.set_text(path.stem[:100])
             self.trusted.set_active(False)
             self.update()
 
@@ -129,6 +156,7 @@ def main() -> int:
 
         def update(self):
             self.launch.set_sensitive(False)
+            self.save_button.set_sensitive(False)
             try:
                 if os.geteuid() == 0:
                     raise ValueError("Запуск Windows-приложений от root запрещён.")
@@ -139,7 +167,63 @@ def main() -> int:
                                 "msi-unknown": "MSI, архитектура не определена"}[plan["architecture"]]
                 self.status.set_label(f"Профиль: {plan['profile']} · {architecture} · совместимость не проверена")
                 self.launch.set_sensitive(self.trusted.get_active())
+                if plan["architecture"] != "msi-unknown" and self.trusted.get_active():
+                    try:
+                        windows_shortcuts.clean_title(self.name.get_text())
+                        self.save_button.set_sensitive(True)
+                    except ValueError:
+                        pass
             except (OSError, ValueError, RuntimeError) as error:
+                self.status.set_label(str(error))
+
+        def refresh_shortcuts(self):
+            for row in self.saved_rows:
+                self.saved_group.remove(row)
+            self.saved_rows.clear()
+            try:
+                for key, record in store.list():
+                    row = Adw.ActionRow(title=record["title"], subtitle=record["profile"])
+                    row.set_use_markup(False)
+                    select = Gtk.Button(label="Выбрать", valign=Gtk.Align.CENTER)
+                    select.connect("clicked", lambda _, selected=key: self.select_shortcut(selected))
+                    remove = Gtk.Button(icon_name="user-trash-symbolic", valign=Gtk.Align.CENTER,
+                                        tooltip_text="Удалить только ярлык")
+                    remove.connect("clicked", lambda _, selected=key: self.remove_shortcut(selected))
+                    row.add_suffix(select)
+                    row.add_suffix(remove)
+                    self.saved_group.add(row)
+                    self.saved_rows.append(row)
+            except (OSError, ValueError, TypeError) as error:
+                self.status.set_label(str(error))
+
+        def select_shortcut(self, key):
+            try:
+                record = store.load(key)
+                self.profile.set_text(record["profile"])
+                self.set_file(Path(record["file"]))
+                self.name.set_text(record["title"])
+            except (OSError, ValueError, TypeError, KeyError) as error:
+                self.status.set_label(str(error))
+
+        def save_shortcut(self, *_):
+            if not self.trusted.get_active() or os.geteuid() == 0:
+                return
+            try:
+                store.save(self.file, self.profile.get_text(), self.name.get_text())
+                self.refresh_shortcuts()
+                self.trusted.set_active(False)
+                self.status.set_label("Ярлык добавлен в меню. Запуск требует подтверждения доверия.")
+            except (OSError, ValueError, TypeError) as error:
+                self.status.set_label(str(error))
+
+        def remove_shortcut(self, key):
+            if os.geteuid() == 0:
+                return
+            try:
+                store.remove(key)
+                self.refresh_shortcuts()
+                self.status.set_label("Ярлык удалён; файлы и профиль Wine сохранены.")
+            except (OSError, ValueError, TypeError, KeyError) as error:
                 self.status.set_label(str(error))
 
         def run_file(self, *_):

@@ -20,7 +20,7 @@ Status: engineering candidate, not a stable release. Individual CI passes do not
 ## P2 — Complete functionality
 | Requirement | Current evidence / remaining work |
 | --- | --- |
-| Windows applications | Wine x86/x64 and original MSI fixture passed separately; real app matrix, installer UX, file associations, shortcuts, per-app lifecycle still pending. Wine prefixes are not sandboxes. |
+| Windows applications | Wine x86/x64 and original MSI fixture passed separately; user-owned menu shortcuts with saved profile and explicit trust prompt added; real app matrix, installer UX, default file associations and lifecycle still pending. Wine prefixes are not sandboxes. |
 | Windows gaming / Witcher 3 | Lutris, GameMode, MangoHud, Vulkan Tools and Mesa Vulkan declared as actual signed archive dependencies for Complete. App center supports user-initiated Steam/Heroic installation. No verified game launch; Proton, DXVK/VKD3D, GPU/controller tests required. |
 | ONLYOFFICE | Native pinned package and offline rendering verified; exact Complete and redistribution review still open. |
 | Microsoft Office | Microsoft 365 web entry and optional licensed Windows-guest path only; no native desktop installation or verified Office compatibility. No license bypass or unauthorized activation. |
