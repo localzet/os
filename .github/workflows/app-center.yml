@@ -84,7 +84,10 @@ jobs:
                   colors = image.convert('RGB').getcolors(maxcolors=10000000)
                   assert colors is None or len(colors) >= 64, f'Blank screenshot: {path}'
           PY
-          ! grep -E 'Traceback|CRITICAL' out/app-center/gui.log
+          if grep -E 'Traceback|CRITICAL' out/app-center/gui.log; then
+            cat out/app-center/gui.log
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

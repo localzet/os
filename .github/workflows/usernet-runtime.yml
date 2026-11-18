@@ -7,6 +7,8 @@ on:
       - 'packaging/network/**'
       - 'src/localzet/network_provision.py'
       - '.github/workflows/usernet-runtime.yml'
+      - 'scripts/install-network-rootfs.sh'
+      - '.github/workflows/network-preloaded.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -61,3 +63,7 @@ jobs:
           name: usernet-installed-client-evidence
           path: out/usernet-runtime/
           retention-days: 7
+
+  installed-image:
+    if: github.head_ref == 'feat/network-preloaded'
+    uses: ./.github/workflows/network-preloaded.yml

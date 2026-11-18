@@ -193,7 +193,7 @@ def main() -> int:
                 self.status.set_label("Не удалось прочитать список Flatpak. Повторите обновление.")
             labels = {"launch": "Открыть", "install": "Установить", "website": "Сайт", "missing": "Недоступно"}
             states = {"launch": "Установлено", "install": "Доступно", "website": "Внешний сайт", "missing": "Не установлено"}
-            for key, (_, button, state) in self.rows.items():
+            for key, (row, button, state) in self.rows.items():
                 kind, command = app_catalog.action(key, self.installed)
                 self.kinds[key] = kind
                 button.set_label(labels[kind])

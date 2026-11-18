@@ -30,6 +30,9 @@ fi
 if [[ -n "${LOCALZET_CONTROL_CENTER_BUNDLE:-}" ]]; then
     bash "$LOCALZET_REPO/scripts/install-branded-control-center.sh" "$root" "$LOCALZET_CONTROL_CENTER_BUNDLE" "$LOCALZET_REPO"
 fi
+if [[ "${LOCALZET_EXPERIMENTAL_NETWORK:-0}" == 1 ]]; then
+    bash "$LOCALZET_REPO/scripts/install-network-rootfs.sh" "$root"
+fi
 if [[ "${LOCALZET_EXPERIMENTAL_TELEGRAM:-0}" == 1 ]]; then
     bash "$LOCALZET_REPO/scripts/install-telegram-rootfs.sh" "$root"
 fi

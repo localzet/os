@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Privileged, fixed on-demand installation. No enrollment or proxy changes."""
+import hashlib
 import json
+import shutil
 import os
 from pathlib import Path
 import re
@@ -23,6 +25,36 @@ def installed_version(package):
     if result.returncode == 0 and result.stdout.startswith("install ok installed\t"):
         return result.stdout.split("\t", 1)[1]
     return None
+
+
+CACHE = Path("/usr/share/localzet/network-preload")
+
+
+def cached_packages(kind, manifest, filenames, directory):
+    """Use only a complete exact artifact set copied into private staging.
+
+    SHA-256 pins cover all DEB data and reviewed maintainer scripts. Missing
+    cache means the normal online path; damaged cache is a hard failure.
+    """
+    source = CACHE / kind
+    if not source.exists():
+        return False
+    for name in filenames:
+        asset = (next(item for item in manifest["assets"].values() if item["name"] == name)
+                 if kind == "netbird" else manifest["asset"])
+        if Path(name).name != name:
+            raise ValueError("Invalid cache filename")
+        file = source / name
+        if not file.is_file() or file.is_symlink():
+            raise ValueError("Incomplete network preload")
+        destination = directory / name
+        shutil.copyfile(file, destination)
+        with destination.open("rb") as stream:
+            if (destination.stat().st_size != asset["size"]
+                    or hashlib.file_digest(stream, "sha256").hexdigest() != asset["sha256"]):
+                raise ValueError("Network preload integrity mismatch")
+        destination.chmod(0o644)
+    return True
 
 
 def main():
@@ -51,16 +83,20 @@ def main():
     with tempfile.TemporaryDirectory(prefix="localzet-network-", dir="/var/tmp") as temp:
         directory = Path(temp)
         directory.chmod(0o755)
-        run("/usr/bin/python3", "-I", str(ROOT / "scripts" / ("fetch-" + kind + ".py")), temp)
+        offline = cached_packages(kind, manifest, filenames, directory)
+        if not offline:
+            run("/usr/bin/python3", "-I", str(ROOT / "scripts" / ("fetch-" + kind + ".py")), temp)
         packages = [str(directory / name) for name in filenames]
         for filename in packages:
             Path(filename).chmod(0o644)
-        run("/usr/bin/apt-get", "-o", "Acquire::Retries=3", "-o", "APT::Get::AllowUnauthenticated=false", "update")
+        if not offline:
+            run("/usr/bin/apt-get", "-o", "Acquire::Retries=3", "-o", "APT::Get::AllowUnauthenticated=false", "update")
         # The pinned UserNet DEB omits EGL from Depends. The real runtime
         # test exposed the missing library. Install archive-provided GL
         # dependencies without changing the NVIDIA driver selection.
         runtime = ["libegl1", "libegl-mesa0", "libgl1", "libgl1-mesa-dri", "libgles2"] if kind == "usernet" else []
         run("/usr/bin/apt-get", "-o", "APT::Get::AllowUnauthenticated=false",
+            *(["--no-download"] if offline else []),
             "-y", "--no-remove", "--no-install-recommends", "install", *packages, *runtime)
         if any(installed_version(name) != version for name, version in versions.items()):
             raise ValueError("Installed package version mismatch")
