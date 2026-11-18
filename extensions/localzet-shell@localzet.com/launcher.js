@@ -226,10 +226,11 @@ export class AuroraLauncher {
             const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
                 x_align: Clutter.ActorAlign.CENTER});
             label.set_width(88);
-            label.set_height(29);
+            label.set_height(34);
             label.clutter_text.set_line_alignment(Pango.Alignment.CENTER);
             label.clutter_text.set_line_wrap(true);
             label.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+            label.clutter_text.set_single_line_mode(false);
             label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             tile.add_child(label);
             const button = new St.Button({child: tile, can_focus: true, reactive: true,

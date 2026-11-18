@@ -1,0 +1,57 @@
+name: Network Executive workspace
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/network_app.py'
+      - 'src/localzet/appearance.py'
+      - '.github/workflows/network-workspace.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native workspace prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth dbus-x11 xdotool imagemagick openbox python3-pil
+          mkdir -p out/network-workspace
+      - name: Exercise all three real pages
+        run: |
+          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash -euo pipefail -c '
+            openbox >out/network-workspace/wm.log 2>&1 &
+            wm=$!
+            PYTHONPATH=src GDK_BACKEND=x11 GTK_A11Y=none ADW_DEBUG_COLOR_SCHEME=prefer-dark /usr/bin/python3 -m localzet.network_app >out/network-workspace/gui.log 2>&1 &
+            pid=$!
+            trap "kill $pid $wm 2>/dev/null || true" EXIT
+            window=$(timeout 35 xdotool search --sync --onlyvisible --name "Localzet Network" | head -n1)
+            sleep 3
+            for entry in "1:Частная сеть:vpn" "2:Прокси:proxy" "3:Система:system"; do
+              IFS=: read -r key title file <<< "$entry"
+              xdotool windowactivate --sync "$window" key "ctrl+$key"
+              sleep 1
+              xdotool getwindowname "$window" | grep -F "$title"
+              import -window "$window" "out/network-workspace/$file.png"
+            done
+            kill -0 "$pid"
+            if grep -E "Traceback|CRITICAL|(^|[[:space:]])(TypeError|RuntimeError|ValueError|NameError|AttributeError):" out/network-workspace/gui.log; then exit 1; fi
+          '
+          python3 - <<'PY'
+          from PIL import Image, ImageStat
+          from pathlib import Path
+          paths = list(Path("out/network-workspace").glob("*.png"))
+          assert {p.stem for p in paths} == {"vpn", "proxy", "system"}
+          for path in paths:
+              with Image.open(path) as image:
+                  assert image.width >= 680 and image.height >= 420
+                  assert max(ImageStat.Stat(image.convert("RGB")).stddev) > 10, path
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: executive-network-workspace
+          path: out/network-workspace/
+          retention-days: 7
