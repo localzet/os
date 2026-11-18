@@ -214,6 +214,11 @@ class Guest:
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
                 return
+            # Capture the compositor output while the guest is still displaying
+            # the document, independently of the XWayland drawable capture.
+            if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
+                self.capture("office-compositor")
+                self._office_qmp_captured = True
             if any(line.startswith(FAIL) for line in lines) or self.process.poll() is not None:
                 break
             time.sleep(1)
@@ -735,6 +740,9 @@ PY
         exit 0
     fi
 done
+# Leave the active document visible for an independent host QMP capture.
+printf 'LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY\n'
+sleep 8
 echo "No rendered fixture heading in named document window" >&2
 xdotool getwindowgeometry --shell "$window" >&2 || true
 xdotool getwindowname "$window" >&2 || true
