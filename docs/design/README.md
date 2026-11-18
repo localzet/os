@@ -565,3 +565,7 @@ The native Containers window still overrode the common appearance with the old n
 ### Windows Runtime workspace
 
 Move the real EXE/MSI launch form ahead of optional Office links, and separate saved shortcuts and licensed Office information into their own native pages. Match the 176px graphite navigation/sidebar and shared status footer of Network. Selection from the saved library returns to the launch page with the trust confirmation reset; no autorun, no installation or compatibility claim, no activation changes. All existing Wine planning and shortcut safety rules remain in place. Test genuine GTK navigation and screenshots; backend Wine fixture acceptance is independent.
+
+### Icon family — distinct material subjects
+
+Replace remaining outlined system app glyphs with original, optically distinct material silhouettes for camera, calendar, clock, mail, VMs, scanner, printer, installer, help, optical media, desktop, office documents, graphics, torrent, chat and game controller. AI Workspace no longer shares the generic code glyph. Do not override the installed upstream VLC/GIMP/qBittorrent/UserNet brand icon names; original neutral catalog aliases are available instead. Keep the 64-unit grid, blue folders, silver devices and authentic upstream branding. Native GTK icon review now displays 36 samples at 48px and source tests check both new material coverage and brand exclusions. Use localized concise first-party launcher names while retaining original accessible and searchable application identity. Visual review remains pending.

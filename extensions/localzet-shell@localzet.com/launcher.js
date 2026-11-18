@@ -11,6 +11,17 @@ import {WallpaperGlass} from './wallpaper-glass.js';
 const MAX_COLUMNS = 4;
 const TILE_WIDTH = 96;
 const TILE_HEIGHT = 82;
+const SHORT_NAMES = {
+    'com.localzet.Apps.desktop': 'Приложения',
+    'com.localzet.Settings.desktop': 'Компоненты',
+    'com.localzet.Hardware.desktop': 'Оборудование',
+    'com.localzet.Containers.desktop': 'Контейнеры',
+    'com.localzet.Network.desktop': 'Сеть',
+    'com.localzet.WindowsRuntime.desktop': 'Windows Runtime',
+    'com.localzet.Connect.desktop': 'Телефон',
+    'com.localzet.AIWorkspace.desktop': 'AI Workspace',
+};
+const displayName = app => SHORT_NAMES[app.get_id()] ?? app.get_name();
 const FILTERS = [
     ['all', 'Все', []],
     ['system', 'Система', ['System', 'Settings']],
@@ -198,7 +209,7 @@ export class AuroraLauncher {
             const tags = (info.get_categories() ?? '').split(';');
             if (!query && categories.length && !categories.some(tag => tags.includes(tag)))
                 return false;
-            const text = [app.get_name(), info.get_generic_name(), info.get_description(), app.get_id(), ...(info.get_keywords?.() ?? [])]
+            const text = [app.get_name(), displayName(app), info.get_generic_name(), info.get_description(), app.get_id(), ...(info.get_keywords?.() ?? [])]
                 .filter(Boolean).join(' ').toLocaleLowerCase();
             return query.split(/\s+/).every(word => text.includes(word));
         }).sort((a, b) => favoriteRank(a) - favoriteRank(b) || a.get_name().localeCompare(b.get_name()));
@@ -223,7 +234,7 @@ export class AuroraLauncher {
             const icon = app.create_icon_texture(40);
             icon.set_x_align(Clutter.ActorAlign.CENTER);
             tile.add_child(icon);
-            const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
+            const label = new St.Label({text: displayName(app), style_class: 'localzet-launcher-label',
                 x_align: Clutter.ActorAlign.CENTER});
             label.set_width(88);
             label.set_height(34);
