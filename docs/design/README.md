@@ -561,3 +561,7 @@ The c2f436f visual gate passed (44414495397, optical ratio .031), but the actual
 ### Containers Soft Graphite correction
 
 The native Containers window still overrode the common appearance with the old navy palette. Align actual table/header/sidebar/detail surfaces to Files and Network; use restrained selection, a fixed 176px sidebar, compact table rows and smaller default workspace. Existing Docker commands, authorization and data retrieval are unchanged. Network 44415387599 navigated all three pages and produced real screenshots, but its Xvfb session lacked the accessibility bus and the log filter misidentified a GDBus warning as an exception. Use the existing CI-only GTK_A11Y=none convention and reject actual Python exceptions/critical messages; never disable accessibility in shipped apps. Require all three captures explicitly. Visual acceptance remains pending.
+
+### Windows Runtime workspace
+
+Move the real EXE/MSI launch form ahead of optional Office links, and separate saved shortcuts and licensed Office information into their own native pages. Match the 176px graphite navigation/sidebar and shared status footer of Network. Selection from the saved library returns to the launch page with the trust confirmation reset; no autorun, no installation or compatibility claim, no activation changes. All existing Wine planning and shortcut safety rules remain in place. Test genuine GTK navigation and screenshots; backend Wine fixture acceptance is independent.
