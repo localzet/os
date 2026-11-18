@@ -628,27 +628,39 @@ set -Eeuo pipefail
 [[ $EUID != 0 ]]
 window=""
 for attempt in $(seq 1 90); do
-    # XWayland may expose splash/helper windows that Mutter does not manage.
-    # Only accept a visible, sufficiently large EWMH client that can be activated.
+    # Enumerate managed clients directly, including windows obscured by
+    # earlier applications. Match identity before requesting activation.
     clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)"
-    for candidate in $(xdotool search --onlyvisible --class '[Dd]esktop[Ee]ditors|[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]' 2>/dev/null || true) $(xdotool search --onlyvisible --name '[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]|Desktop Editors' 2>/dev/null || true); do
-        [[ "$candidate" =~ ^[0-9]+$ ]] || continue
-        hex="$(printf '0x%x' "$candidate")"
-        grep -Eiq "(^|[ ,])${hex}([ ,]|$)" <<< "$clients" || continue
+    for hex in $(grep -Eo '0x[0-9a-fA-F]+' <<< "$clients" || true); do
+        candidate="$((hex))"
+        identity="$(xprop -id "$hex" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null)" || continue
+        grep -Eiq 'DesktopEditors|ONLYOFFICE|Desktop Editors' <<< "$identity" || continue
         geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
         width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
         height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
         [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
         (( width >= 400 && height >= 300 )) || continue
-        timeout 2 xdotool windowactivate --sync "$candidate" || continue
-        [[ "$(xdotool getactivewindow)" == "$candidate" ]] || continue
-        window="$candidate"
-        break
+        # Avoid xdotool's synchronous desktop-switch wait on Mutter.
+        # The active-window check below remains mandatory.
+        timeout 2 xdotool windowactivate "$candidate" || continue
+        for poll in $(seq 1 5); do
+            if [[ "$(xdotool getactivewindow 2>/dev/null || true)" == "$candidate" ]]; then
+                window="$candidate"
+                break
+            fi
+            sleep 0.2
+        done
+        [[ -n "$window" ]] && break
     done
     [[ -n "$window" ]] && break
     sleep 1
 done
-test -n "$window"
+if [[ -z "$window" ]]; then
+    echo "No activatable managed ONLYOFFICE window" >&2
+    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
+    xwininfo -root -tree >&2 || true
+    exit 1
+fi
 xdotool getwindowname "$window"
 geometry="$(xdotool getwindowgeometry --shell "$window")"
 width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
