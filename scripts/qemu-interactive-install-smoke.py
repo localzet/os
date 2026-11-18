@@ -628,15 +628,27 @@ set -Eeuo pipefail
 [[ $EUID != 0 ]]
 window=""
 for attempt in $(seq 1 90); do
-    window="$(xdotool search --onlyvisible --class '[Dd]esktop[Ee]ditors|[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]' 2>/dev/null | head -n1 || true)"
-    if [[ -z "$window" ]]; then
-        window="$(xdotool search --onlyvisible --name '[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]|Desktop Editors' 2>/dev/null | head -n1 || true)"
-    fi
+    # XWayland may expose splash/helper windows that Mutter does not manage.
+    # Only accept a visible, sufficiently large EWMH client that can be activated.
+    clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)"
+    for candidate in $(xdotool search --onlyvisible --class '[Dd]esktop[Ee]ditors|[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]' 2>/dev/null || true) $(xdotool search --onlyvisible --name '[Oo][Nn][Ll][Yy][Oo][Ff][Ff][Ii][Cc][Ee]|Desktop Editors' 2>/dev/null || true); do
+        [[ "$candidate" =~ ^[0-9]+$ ]] || continue
+        hex="$(printf '0x%x' "$candidate")"
+        grep -Eiq "(^|[ ,])${hex}([ ,]|$)" <<< "$clients" || continue
+        geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
+        width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+        height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+        [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
+        (( width >= 400 && height >= 300 )) || continue
+        timeout 2 xdotool windowactivate --sync "$candidate" || continue
+        [[ "$(xdotool getactivewindow)" == "$candidate" ]] || continue
+        window="$candidate"
+        break
+    done
     [[ -n "$window" ]] && break
     sleep 1
 done
 test -n "$window"
-timeout 15 xdotool windowactivate --sync "$window"
 xdotool getwindowname "$window"
 geometry="$(xdotool getwindowgeometry --shell "$window")"
 width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
