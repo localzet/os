@@ -143,3 +143,9 @@ class CandidateScriptTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.installed_script("standard", network_preload=True)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_network_preload_denies_enabled_helper_and_unexpected_tunnel(self):
+        script = module.installed_script("complete", network_preload=True)
+        self.assertIn("Unexpected UserNet helper or NetBird tunnel", script)
+        self.assertNotIn("! systemctl is-enabled --quiet usernet-helper.service", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

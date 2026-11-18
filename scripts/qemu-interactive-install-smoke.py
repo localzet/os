@@ -646,9 +646,10 @@ test -x /opt/UserNet/UserNet
 test -s /usr/share/applications/com.localzet.usernet.desktop
 test -s /usr/share/localzet/network-preload/netbird/netbird_0.83.1_linux_amd64.deb
 test -s /usr/share/localzet/network-preload/netbird/netbird-ui_0.83.1_linux_amd64.deb
-! systemctl is-enabled --quiet usernet-helper.service
-! systemctl is-active --quiet usernet-helper.service
-! ip link show wt0
+if systemctl is-enabled --quiet usernet-helper.service || systemctl is-active --quiet usernet-helper.service || ip link show wt0 >/dev/null 2>&1; then
+    echo "Unexpected UserNet helper or NetBird tunnel" >&2
+    exit 2
+fi
 ip -j route show table main > /run/localzet-candidate-check/network-before.json
 # Exercise the exact production installer in an authenticated, isolated
 # guest. No internet NIC, so any attempted download cannot succeed.
@@ -677,9 +678,10 @@ for attempt in $(seq 1 45); do
 done
 sleep 5
 pgrep -u localzet-test -f '/opt/UserNet/UserNet' >/dev/null
-! systemctl is-enabled --quiet usernet-helper.service
-! systemctl is-active --quiet usernet-helper.service
-! ip link show wt0
+if systemctl is-enabled --quiet usernet-helper.service || systemctl is-active --quiet usernet-helper.service || ip link show wt0 >/dev/null 2>&1; then
+    echo "Unexpected UserNet helper or NetBird tunnel" >&2
+    exit 2
+fi
 ip -j route show table main > /run/localzet-candidate-check/network-after.json
 python3 - <<'ROUTES'
 import json
