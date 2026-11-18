@@ -1,0 +1,45 @@
+name: Installed rootless Docker diagnostic
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/localzet/rootless_docker.py'
+      - 'packaging/containers/**'
+      - 'scripts/qemu-interactive-install-smoke.py'
+      - 'scripts/build-live-rootfs.sh'
+      - '.github/workflows/containers-installed.yml'
+permissions:
+  contents: read
+concurrency:
+  group: containers-installed-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  installed:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build diagnostic Complete archive profile without optional Office
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64 python3-pil
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
+          mkdir -p dist
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 LOCALZET_ARCHIVE_PROFILE=complete LOCALZET_EXPERIMENTAL_CONTAINERS=1 LOCALZET_EXPERIMENTAL_HARDWARE_AUTO=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/candidate-root"
+          sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/candidate-root" "$PWD/dist/rootless-diagnostic.iso"
+          (cd dist && sha256sum -c rootless-diagnostic.iso.sha256)
+      - name: Install and verify actual rootless daemon under authenticated desktop user
+        run: |
+          printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
+          x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
+          python3 scripts/qemu-interactive-install-smoke.py dist/rootless-diagnostic.iso \
+            --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
+            --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
+            --boot-media usb --fixture "$RUNNER_TEMP/smoke.exe" --logs dist/candidate-logs \
+            --expect-archive-profile complete --expect-containers
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: installed-rootless-diagnostic-evidence
+          path: dist/candidate-logs/
+          retention-days: 7
