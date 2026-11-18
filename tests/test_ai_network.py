@@ -28,3 +28,14 @@ class AINetworkTests(unittest.TestCase):
                 self.assertIn(["--setenv", key, ""], [command[i:i+3] for i in range(len(command))])
         with self.assertRaises(ValueError):
             sandbox_command("bash", [], Path("/tmp/relay"), Path("/home/test"), Path("/home/test"))
+
+    def test_missing_gsettings_schema_is_detected_before_constructor(self):
+        from unittest.mock import MagicMock, patch
+        import sys
+        from localzet.ai_network import usernet_port
+        gio = MagicMock()
+        gio.SettingsSchemaSource.get_default.return_value.lookup.return_value = None
+        with patch.dict(sys.modules, {"gi.repository": MagicMock(Gio=gio)}):
+            with self.assertRaisesRegex(ValueError, "GNOME"):
+                usernet_port()
+            gio.Settings.new.assert_not_called()

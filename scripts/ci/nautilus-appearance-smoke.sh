@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 mode="$1"
-export GDK_BACKEND=x11
+export GDK_BACKEND=x11 GSK_RENDERER=cairo
 export ADW_DEBUG_COLOR_SCHEME=prefer-dark ADW_DEBUG_HIGH_CONTRAST=0
 case "$mode" in
     dark) ;;
@@ -60,8 +60,28 @@ stop_window() {
     fi
     sleep 2
 }
+capture_window() {
+    local output="$1"
+    for attempt in $(seq 1 15); do
+        kill -0 "$pid"
+        import -window "$window" "$output"
+        if python3 - "$output" <<'PY'
+import sys
+from PIL import Image, ImageStat
+with Image.open(sys.argv[1]) as im:
+    rgb = im.convert("RGB")
+    assert rgb.width >= 800 and rgb.height >= 500, rgb.size
+    assert max(ImageStat.Stat(rgb).stddev) > 8, "Flat frame"
+    assert len(rgb.getcolors(maxcolors=1000000) or range(1000000)) >= 64, "Insufficient rendered detail"
+PY
+        then return 0; fi
+        sleep 1
+    done
+    echo "Nautilus did not paint its managed window" >&2
+    return 1
+}
 start_window icon-view "$work"
-import -window "$window" "$OUT/nautilus-$mode.png"
+capture_window "$OUT/nautilus-$mode.png"
 python3 - "$OUT/nautilus-$mode.png" "$mode" <<'PY'
 import sys
 from collections import Counter
@@ -86,7 +106,7 @@ mkdir -p "$list_root"/{Documents,Projects,Downloads,Pictures}
 cp "$work"/*.txt "$work"/*.md "$work"/*.json "$work"/*.tsv "$list_root/"
 stop_window
 start_window list-view "$list_root"
-import -window "$window" "$OUT/nautilus-$mode-list.png"
+capture_window "$OUT/nautilus-$mode-list.png"
 python3 - "$OUT/nautilus-$mode.png" "$OUT/nautilus-$mode-list.png" "$mode" <<'PY'
 from PIL import Image, ImageChops, ImageStat
 from collections import Counter
@@ -160,6 +180,6 @@ xdotool key --clearmodifiers alt+1
 wait_title Documents
 xdotool key --clearmodifiers alt+2
 wait_title Projects
-import -window "$window" "$OUT/nautilus-$mode-tabs.png"
+capture_window "$OUT/nautilus-$mode-tabs.png"
 ! grep -Ei 'theme parser error|css parser error|Gtk-CRITICAL|segmentation fault' "$OUT/nautilus-$mode.log"
 echo "PASS: $mode palette, grid, list, navigation and two native tabs"

@@ -98,7 +98,7 @@ GROUPS = {
         "music": "org.gnome.Music multimedia-audio-player localzet-catalog-music",
         "scanner": "org.gnome.SimpleScan simple-scan",
         "printer": "system-config-printer",
-        "code": "gvim vim CMakeSetup localzet-catalog-vscode",
+        "code": "gvim vim CMakeSetup localzet-catalog-vscode com.localzet.AIWorkspace",
         "vm": "virt-manager org.virt_manager.virt-manager",
         "network": "com.localzet.Network localzet-network",
         "netbird": "localzet-catalog-netbird",

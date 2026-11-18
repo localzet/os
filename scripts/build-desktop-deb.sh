@@ -27,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, curl, budgie-wallpapers-resolute, python3-pil${containers_dep}
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gnome-shell (>= 50), gnome-shell (<< 51), pkexec, curl, gnupg, budgie-wallpapers-resolute, python3-pil${containers_dep}
 Description: Localzet Aurora desktop components
  GNOME Shell extension, system settings, module catalog and Aurora wallpaper.
 EOF
@@ -42,6 +42,9 @@ install -m 0755 "$repo/apps/localzet-recovery/localzet-recovery" "$pkg/usr/bin/l
 install -m 0755 "$repo/apps/localzet-network/localzet-network" "$pkg/usr/bin/localzet-network"
 install -m 0755 "$repo/apps/localzet-ai/localzet-ai" "$pkg/usr/bin/localzet-ai"
 install -m 0755 "$repo/apps/localzet-ai/localzet-mcp" "$pkg/usr/bin/localzet-mcp"
+install -m 0755 "$repo/apps/localzet-ai/localzet-ai-workspace" "$pkg/usr/bin/localzet-ai-workspace"
+install -m 0755 "$repo/apps/localzet-ai/localzet-ai-install" "$pkg/usr/bin/localzet-ai-install"
+install -m 0644 "$repo/packaging/com.localzet.AIWorkspace.desktop" "$pkg/usr/share/applications/"
 install -m 0644 "$repo/packaging/com.localzet.Network.desktop" "$pkg/usr/share/applications/"
 install -D -m 0644 "$repo/config/upstream/netbird.json" "$pkg/opt/localzet-os/config/upstream/netbird.json"
 install -D -m 0644 "$repo/config/upstream/usernet.json" "$pkg/opt/localzet-os/config/upstream/usernet.json"

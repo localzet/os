@@ -25,6 +25,7 @@ APPS = {
     "telegram": App("Telegram Desktop", "Связь и медиа", "Flathub; установка для текущего пользователя", "localzet-catalog-telegram", flatpak_id="org.telegram.desktop"),
     "discord": App("Discord", "Связь и медиа", "Flathub; ограничения интеграции с играми", "localzet-catalog-discord", flatpak_id="com.discordapp.Discord"),
     "music": App("Яндекс Музыка", "Связь и медиа", "Официальный Linux-клиент; подписка на сервис", "localzet-catalog-music", website="https://music.yandex.ru/download/"),
+    "ai-workspace": App("Localzet AI", "Разработка и браузеры", "Установка проверенных Codex / Claude Code, запуск через локальный прокси", "com.localzet.AIWorkspace", native="/usr/bin/localzet-ai-workspace"),
     "vscode": App("Visual Studio Code", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-vscode", website="https://code.visualstudio.com/download"),
     "chrome": App("Google Chrome", "Разработка и браузеры", "Официальный пакет Google", "localzet-catalog-chrome", website="https://www.google.com/chrome/"),
     "edge": App("Microsoft Edge", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-edge", website="https://www.microsoft.com/edge"),

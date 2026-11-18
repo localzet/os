@@ -1,0 +1,89 @@
+name: Official AI client artifact verification
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/ai_*.py'
+      - 'apps/localzet-ai/**'
+      - 'tests/test_ai_*.py'
+      - '.github/workflows/ai-clients.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  client:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [codex, claude]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y curl gnupg
+      - name: Verify real vendor artifact
+        env:
+          TOOL: ${{ matrix.tool }}
+        run: |
+          export PYTHONPATH="$PWD/src"
+          python3 -m unittest discover -s tests -p test_ai_install.py -v
+          LOCALZET_DISPOSABLE_VM=1 python3 -m localzet.ai_install "$TOOL" --review-dir "$RUNNER_TEMP/client"
+          mkdir -p out/ai
+          cp "$RUNNER_TEMP/client/receipt.json" out/ai/
+          mkdir -p "$RUNNER_TEMP/offline-home"
+          sudo unshare --net -- runuser -u "$(id -un)" -- env -i HOME="$RUNNER_TEMP/offline-home" PATH=/usr/bin:/bin DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 timeout 45 "$RUNNER_TEMP/client/$TOOL" --version | tee out/ai/version.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          receipt = json.loads(Path("out/ai/receipt.json").read_text())
+          assert receipt["version"] in Path("out/ai/version.txt").read_text()
+          PY
+          echo 'PASS: verified upstream binary executed offline, no account or provider calls'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-client-${{ matrix.tool }}-evidence
+          path: out/ai/
+          retention-days: 7
+  workspace:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native UI and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gsettings-desktop-schemas xvfb xauth xdotool dbus-x11 imagemagick python3-pil
+      - name: Launch real GTK workspace without configured proxy
+        run: |
+          mkdir -p out/ai-workspace
+          export PYTHONPATH="$PWD/src" GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none
+          xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
+            python3 -c "from localzet.ai_workspace import main; raise SystemExit(main())" >out/ai-workspace/gui.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window=""
+            for attempt in $(seq 1 30); do
+              kill -0 "$pid" || { cat out/ai-workspace/gui.log; exit 1; }
+              window="$(xdotool search --onlyvisible --name "Localzet AI" | head -n1 || true)"
+              test -z "$window" || break
+              sleep 1
+            done
+            test -n "$window"
+            sleep 3
+            kill -0 "$pid"
+            import -window "$window" out/ai-workspace/window.png
+          '
+          ! grep -E 'Traceback|CRITICAL' out/ai-workspace/gui.log
+          python3 - <<'PY'
+          from PIL import Image
+          with Image.open("out/ai-workspace/window.png") as im:
+              assert im.width >= 500 and im.height >= 300
+              colors = im.convert("RGB").getcolors(maxcolors=1000000)
+              assert colors is None or len(colors) >= 64
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-workspace-evidence
+          path: out/ai-workspace/
+          retention-days: 7

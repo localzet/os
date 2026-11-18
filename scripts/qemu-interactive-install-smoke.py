@@ -585,6 +585,13 @@ test -x /usr/lib/localzet/install-netbird
 test -x /usr/lib/localzet/install-usernet
 test -f /usr/share/polkit-1/actions/org.localzet.install-network.policy
 launch_app localzet-apps /usr/bin/localzet-apps
+test -x /usr/bin/localzet-ai
+test -x /usr/bin/localzet-ai-install
+test -x /usr/bin/localzet-ai-workspace
+test -x /usr/bin/localzet-mcp
+test -x /usr/bin/gpg
+test -s /usr/share/icons/Aurora/scalable/apps/com.localzet.AIWorkspace.svg
+launch_app localzet-ai-workspace /usr/bin/localzet-ai-workspace
 launch_app vlc /usr/bin/vlc
 launch_app qbittorrent /usr/bin/qbittorrent
 pgrep -u localzet-test -x vlc >/dev/null
