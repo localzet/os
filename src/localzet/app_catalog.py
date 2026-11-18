@@ -19,16 +19,16 @@ class App:
 
 
 APPS = {
-    "lutris": App("Lutris", "Игры", "Пакет Ubuntu; Wine и игровые библиотеки", "net.lutris.Lutris", native="/usr/games/lutris"),
-    "steam": App("Steam", "Игры", "Flathub: сборка сообщества, не поддерживается Valve; нужен аккаунт", "com.valvesoftware.Steam", flatpak_id="com.valvesoftware.Steam"),
-    "heroic": App("Heroic Games Launcher", "Игры", "GOG / Epic; загрузка игр и Proton через Heroic", "com.heroicgameslauncher.hgl", flatpak_id="com.heroicgameslauncher.hgl"),
-    "telegram": App("Telegram Desktop", "Связь и медиа", "Flathub; установка для текущего пользователя", "org.telegram.desktop", flatpak_id="org.telegram.desktop"),
-    "discord": App("Discord", "Связь и медиа", "Flathub; ограничения интеграции с играми", "com.discordapp.Discord", flatpak_id="com.discordapp.Discord"),
-    "music": App("Яндекс Музыка", "Связь и медиа", "Официальный Linux-клиент; подписка на сервис", "yandex-music", website="https://music.yandex.ru/download/"),
-    "vscode": App("Visual Studio Code", "Разработка и браузеры", "Официальный пакет Microsoft", "code", website="https://code.visualstudio.com/download"),
-    "chrome": App("Google Chrome", "Разработка и браузеры", "Официальный пакет Google", "google-chrome", website="https://www.google.com/chrome/"),
-    "edge": App("Microsoft Edge", "Разработка и браузеры", "Официальный пакет Microsoft", "microsoft-edge", website="https://www.microsoft.com/edge"),
-    "office": App("ONLYOFFICE", "Офис", "Нативный редактор документов", "onlyoffice-desktopeditors", native="/usr/bin/desktopeditors", website="https://www.onlyoffice.com/download-desktop"),
+    "lutris": App("Lutris", "Игры", "Пакет Ubuntu; Wine и игровые библиотеки", "localzet-catalog-lutris", native="/usr/games/lutris"),
+    "steam": App("Steam", "Игры", "Flathub: сборка сообщества, не поддерживается Valve; нужен аккаунт", "localzet-catalog-steam", flatpak_id="com.valvesoftware.Steam"),
+    "heroic": App("Heroic Games Launcher", "Игры", "GOG / Epic; загрузка игр и Proton через Heroic", "localzet-catalog-heroic", flatpak_id="com.heroicgameslauncher.hgl"),
+    "telegram": App("Telegram Desktop", "Связь и медиа", "Flathub; установка для текущего пользователя", "localzet-catalog-telegram", flatpak_id="org.telegram.desktop"),
+    "discord": App("Discord", "Связь и медиа", "Flathub; ограничения интеграции с играми", "localzet-catalog-discord", flatpak_id="com.discordapp.Discord"),
+    "music": App("Яндекс Музыка", "Связь и медиа", "Официальный Linux-клиент; подписка на сервис", "localzet-catalog-music", website="https://music.yandex.ru/download/"),
+    "vscode": App("Visual Studio Code", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-vscode", website="https://code.visualstudio.com/download"),
+    "chrome": App("Google Chrome", "Разработка и браузеры", "Официальный пакет Google", "localzet-catalog-chrome", website="https://www.google.com/chrome/"),
+    "edge": App("Microsoft Edge", "Разработка и браузеры", "Официальный пакет Microsoft", "localzet-catalog-edge", website="https://www.microsoft.com/edge"),
+    "office": App("ONLYOFFICE", "Офис", "Нативный редактор документов", "localzet-catalog-office", native="/usr/bin/desktopeditors", website="https://www.onlyoffice.com/download-desktop"),
     "microsoft365": App("Microsoft 365", "Офис", "Веб-версия; настольная версия требует лицензии и Windows", "com.localzet.Microsoft365Web", website="https://www.microsoft365.com/"),
 }
 FLATPAK = "/usr/bin/flatpak"

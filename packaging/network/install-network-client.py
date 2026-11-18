@@ -59,7 +59,7 @@ def main():
         # The pinned UserNet DEB omits EGL from Depends. The real runtime
         # test exposed the missing library. Install archive-provided GL
         # dependencies without changing the NVIDIA driver selection.
-        runtime = ["libegl1", "libegl-mesa0", "libgl1", "libgl1-mesa-dri"] if kind == "usernet" else []
+        runtime = ["libegl1", "libegl-mesa0", "libgl1", "libgl1-mesa-dri", "libgles2"] if kind == "usernet" else []
         run("/usr/bin/apt-get", "-o", "APT::Get::AllowUnauthenticated=false",
             "-y", "--no-remove", "--no-install-recommends", "install", *packages, *runtime)
         if any(installed_version(name) != version for name, version in versions.items()):

@@ -20,7 +20,7 @@ jobs:
         run: |
           mkdir -p out/usernet-runtime
           sudo apt-get update
-          sudo apt-get install -y curl xvfb xauth dbus-x11 xdotool imagemagick libayatana-appindicator3-1 libsecret-1-0 libegl1 libegl-mesa0 libgl1 libgl1-mesa-dri
+          sudo apt-get install -y curl xvfb xauth dbus-x11 xdotool imagemagick libayatana-appindicator3-1 libsecret-1-0 libegl1 libegl-mesa0 libgl1 libgl1-mesa-dri libgles2
           python3 scripts/fetch-usernet.py "$RUNNER_TEMP/usernet"
           ip -j route show table main > out/usernet-runtime/routes-before.json
           sudo apt-get -y --no-remove --no-install-recommends install "$RUNNER_TEMP/usernet/UserNet-linux.deb"

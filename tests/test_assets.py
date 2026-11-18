@@ -100,7 +100,12 @@ class AssetsTests(unittest.TestCase):
             for name in ("drive-harddisk", "media-flash-usb"):
                 self.assertIn("url(#", (theme / "scalable/devices" / (name + ".svg")).read_text())
             self.assertIn("url(#graphite)", (theme / "scalable/apps/org.gnome.Ptyxis.svg").read_text())
-            for upstream in ("firefox", "google-chrome", "microsoft-edge", "steam", "netbird", "nectarlink"):
+            for upstream in ("firefox", "google-chrome", "google-chrome-stable", "microsoft-edge", "microsoft-edge-stable",
+                             "steam", "com.valvesoftware.Steam", "netbird", "org.wails.netbird", "nectarlink",
+                             "org.telegram.desktop", "telegram-desktop", "com.discordapp.Discord", "discord",
+                             "net.lutris.Lutris", "lutris", "com.heroicgameslauncher.hgl", "heroic",
+                             "onlyoffice-desktopeditors", "onlyoffice", "code", "com.visualstudio.code",
+                             "yandex-music", "YandexMusic"):
                 self.assertFalse((theme / "scalable/apps" / (upstream + ".svg")).exists())
             with self.assertRaises(FileExistsError):
                 module.build(directory)
