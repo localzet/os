@@ -65,6 +65,9 @@ def main() -> int:
             toolbar.set_content(shell)
             sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, width_request=166)
             sidebar.add_css_class("app-sidebar")
+            # Gtk propagates a child's hexpand to its ancestors by default.
+            # Explicitly fix navigation expansion so only the workspace grows.
+            sidebar.set_hexpand(False)
             workspace.append(sidebar)
             label = Gtk.Label(label="КАТАЛОГ", xalign=0, margin_start=9, margin_bottom=7)
             label.add_css_class("dim-label")
