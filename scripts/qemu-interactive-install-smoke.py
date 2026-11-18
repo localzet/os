@@ -214,6 +214,10 @@ class Guest:
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
                 return
+            # Capture Containers before subsequent applications cover its window.
+            if b"LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY" in lines and not getattr(self, "_containers_qmp_captured", False):
+                self.visual_capture("containers-launch", attempts=2)
+                self._containers_qmp_captured = True
             # Capture the compositor output while the guest is still displaying
             # the document, independently of the XWayland drawable capture.
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
@@ -617,6 +621,9 @@ if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
     echo "Unexpected docker group access"; exit 2
 fi
 printf 'PASS: installed Containers launched unprivileged; system daemon disabled\n'
+printf '\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n'
+# Give the host time to capture this stage before launching Office.
+sleep 12
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed Containers launched" in script
@@ -1077,9 +1084,9 @@ def main():
                         if image.startswith(b"\x89PNG\r\n\x1a\n"):
                             installed.screen.with_name("candidate-installed-office-failed.png").write_bytes(image)
                 raise
-            installed.capture("desktop-verified")
-            if args.expect_containers:
-                installed.capture("containers-installed")
+            installed.capture("post-application-checks")
+            if args.expect_containers and not getattr(installed, "_containers_qmp_captured", False):
+                raise RuntimeError("Missing Containers launch-stage compositor capture")
             if args.expect_office:
                 if args.expect_executive_review:
                     installed.office_document()
