@@ -36,3 +36,15 @@ class AIInstallTests(unittest.TestCase):
             a.publish(binary, second, root)
             self.assertTrue((root / "1.2.3/codex").is_file())
             self.assertEqual(current.readlink(), Path("1.2.4/codex"))
+
+    def test_proxy_is_explicit_and_no_bypass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "fixture"
+            def fake(cmd, **kwargs):
+                target.write_bytes(b"test")
+                self.assertIn("--proxy", cmd)
+                self.assertEqual(cmd[cmd.index("--proxy")+1], "http://127.0.0.1:7890")
+                self.assertEqual(cmd[cmd.index("--noproxy")+1], "")
+                self.assertEqual(cmd[cmd.index("--proto-redir")+1], "=https")
+            with patch.object(a.subprocess, "run", side_effect=fake):
+                a.download("https://example.invalid/fixture", target, 10, "http://127.0.0.1:7890")

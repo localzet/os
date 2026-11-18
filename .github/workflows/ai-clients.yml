@@ -44,3 +44,39 @@ jobs:
           name: ai-client-${{ matrix.tool }}-evidence
           path: out/ai/
           retention-days: 7
+  workspace:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native UI and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth xdotool dbus-x11 imagemagick python3-pil
+      - name: Launch real GTK workspace without configured proxy
+        run: |
+          mkdir -p out/ai-workspace
+          export PYTHONPATH="$PWD/src" GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none
+          xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
+            python3 -c "from localzet.ai_workspace import main; raise SystemExit(main())" >out/ai-workspace/gui.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet AI" | head -n1)"
+            sleep 3
+            kill -0 "$pid"
+            import -window "$window" out/ai-workspace/window.png
+          '
+          ! grep -E 'Traceback|CRITICAL' out/ai-workspace/gui.log
+          python3 - <<'PY'
+          from PIL import Image
+          with Image.open("out/ai-workspace/window.png") as im:
+              assert im.width >= 500 and im.height >= 300
+              colors = im.convert("RGB").getcolors(maxcolors=1000000)
+              assert colors is None or len(colors) >= 64
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-workspace-evidence
+          path: out/ai-workspace/
+          retention-days: 7

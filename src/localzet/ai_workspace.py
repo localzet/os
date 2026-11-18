@@ -104,7 +104,9 @@ def main():
             try:
                 port = usernet_port()
                 status = f"Локальный HTTP-прокси: 127.0.0.1:{port}. Маршрут не аттестован."
-                ready = os.geteuid() != 0 and Path(PTYXIS).is_file()
+                ready = os.geteuid() != 0 and all(Path(p).is_file() and os.access(p, os.X_OK) for p in (PTYXIS, "/usr/bin/bwrap", "/usr/bin/socat", "/usr/bin/curl", "/usr/bin/gpg"))
+                if not ready:
+                    status += " · Требуются компоненты профиля Complete."
             except Exception as error:
                 status = str(error)
                 ready = False

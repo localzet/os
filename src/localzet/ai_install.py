@@ -173,6 +173,8 @@ def publish(binary, receipt, root):
         raise ValueError("Invalid version")
     private(root)
     target = root / receipt["version"]
+    if receipt.get("tool") not in ("codex", "claude"):
+        raise ValueError("Invalid tool")
     if target.exists() or target.is_symlink():
         private(target)
         verify(target / receipt["tool"], receipt["sha256"])
