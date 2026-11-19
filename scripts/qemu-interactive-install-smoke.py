@@ -801,10 +801,14 @@ xdotool getwindowname "$window" | grep -F Localzet-offline-review
 work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
 for attempt in $(seq 1 45); do
-    timeout 4 xdotool windowactivate --sync "$window" || continue
+    # Do not repeatedly send activation requests to an already focused
+    # XWayland window. Mutter and Qt may still be processing the first one.
+    if [[ "$(xdotool getactivewindow 2>/dev/null || true)" != "$window" ]]; then
+        timeout 2 xdotool windowactivate "$window" || true
+    fi
     sleep 2
     [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
-    import -window "$window" "$work/document.png" || continue
+    timeout 5 import -window "$window" "$work/document.png" || continue
     [[ "$(xdotool getactivewindow)" == "$window" ]] || continue
     if python3 - "$work/document.png" <<'PY'
 from PIL import Image
