@@ -42,11 +42,11 @@ packages+=",ubuntu-drivers-common,python3-apt,mokutil,budgie-wallpapers-resolute
 packages+=",curl"
 # Private office visual verification requires real Xwayland window discovery.
 if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
-    packages+=",xdotool,imagemagick,x11-utils"
-    # Extra tools only in the isolated engineering diagnostic image.
-    if [[ "${LOCALZET_OFFICE_X11_DIAGNOSTIC:-0}" == 1 ]]; then
-        packages+=",xvfb,xauth,openbox,dbus-x11"
-    fi
+    # Isolated X11 uses all four tools at runtime (xvfb-run, dbus-run-session,
+    # openbox). Keep the package set identical across native and isolated
+    # rendering experiments; otherwise a missing launcher is misdiagnosed
+    # as a rendering regression.
+    packages+=",xdotool,imagemagick,x11-utils,xvfb,xauth,openbox,dbus-x11"
 fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     packages+=",docker.io,docker-compose-v2,gir1.2-vte-3.91,openssh-client,uidmap,slirp4netns,fuse-overlayfs"
