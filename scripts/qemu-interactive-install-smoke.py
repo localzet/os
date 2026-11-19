@@ -348,7 +348,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
-    if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
+    if office_render_mode not in ("default", "software", "fresh-profile", "private-bus", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -742,7 +742,7 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
     --property=StandardOutput=journal --property=StandardError=journal \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
-    /usr/bin/env -u WAYLAND_DISPLAY LC_ALL=C.UTF-8 LANG=C.UTF-8 /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
+    /usr/bin/env -u WAYLAND_DISPLAY LC_ALL=C.UTF-8 LANG=C.UTF-8 RENDER_BUS /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
         marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
         assert script.count(marker) == 1
@@ -757,7 +757,8 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         launch = (launch.replace("FIXTURE_BASE64", encoded)
                   .replace("RENDER_MODE", office_render_mode)
                   .replace("RENDER_ENV", render_env)
-                  .replace("RENDER_FLAGS", render_flags))
+                  .replace("RENDER_FLAGS", render_flags)
+                  .replace("RENDER_BUS", "/usr/bin/dbus-run-session --" if office_render_mode == "private-bus" else ""))
         if office_render_mode == "isolated-x11":
             # Same installed package and fixture, separate X server and
             # fresh user-local profile. Do not change the default session.
@@ -983,7 +984,7 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "isolated-x11"), default="default",
+    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "private-bus", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
