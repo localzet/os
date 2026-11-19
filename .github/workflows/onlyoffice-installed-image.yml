@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [native, software, fresh-profile, private-bus, isolated-x11]
+        mode: [native, software, fresh-profile, private-bus, isolated-x11, isolated-x11-minimal]
     steps:
       - uses: actions/checkout@v4
       - name: Validate source
@@ -64,6 +64,10 @@ jobs:
           # same session and isolated X11 as independent diagnostic jobs.
           render_mode="$OFFICE_MODE"
           if [[ "$render_mode" == native ]]; then render_mode=default; fi
+          # Same nested X11 rendering as isolated-x11, but without the
+          # LOCALZET_OFFICE_X11_DIAGNOSTIC package additions. This separates
+          # session effects from rootfs package effects; still fail on zero ink.
+          if [[ "$render_mode" == isolated-x11-minimal ]]; then render_mode=isolated-x11; fi
           review=(--expect-executive-review --office-render-mode "$render_mode")
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
