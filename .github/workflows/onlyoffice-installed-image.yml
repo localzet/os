@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [native, isolated-x11]
+        mode: [native, software, isolated-x11]
     steps:
       - uses: actions/checkout@v4
       - name: Validate source
@@ -53,19 +53,11 @@ jobs:
           x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
       - name: Install candidate from USB and authenticate installed GNOME desktop
         env:
-          REVIEW_BRANCH: ${{ github.head_ref }}
           OFFICE_MODE: ${{ matrix.mode }}
         run: |
-          review=(--expect-executive-review)
-          if [[ "$REVIEW_BRANCH" == integration/executive-complete-preview || "$REVIEW_BRANCH" == design/executive-system-actions || "$REVIEW_BRANCH" == integration/executive-visual-gate || "$REVIEW_BRANCH" == fix/executive-office-rendering || "$REVIEW_BRANCH" == integration/executive-document-gate || "$REVIEW_BRANCH" == fix/executive-installed-office ]]; then
-            review=(--expect-executive-review)
-          fi
-          # The separate Native Files workflow still tests default rendering.
-          # This branch's office-only workflow tests the software path for comparison.
-          if [[ "$REVIEW_BRANCH" == fix/executive-installed-office ]]; then
-            review+=(--office-render-mode software)
-          fi
-          if [[ "$OFFICE_MODE" == isolated-x11 ]]; then review=(--expect-executive-review --office-render-mode isolated-x11); fi
+          # Keep native GNOME mandatory; compare software rendering in the
+          # same session and isolated X11 as independent diagnostic jobs.
+          review=(--expect-executive-review --office-render-mode "$OFFICE_MODE")
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
