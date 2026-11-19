@@ -749,10 +749,11 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
         render_flags = "--disable-gpu" if office_render_mode == "software" else ""
         if office_render_mode == "fresh-profile":
-            # Preserve GNOME/XWayland and its D-Bus connection. Isolate
-            # XDG profile directories without changing the real HOME.
-            launch = launch.replace("printf 'Office diagnostic mode:", 'runuser -u localzet-test -- mkdir -p "$office_dir/config" "$office_dir/data" "$office_dir/cache"\n' + "printf 'Office diagnostic mode:")
-            render_env = '--setenv=XDG_CONFIG_HOME="$office_dir/config" --setenv=XDG_DATA_HOME="$office_dir/data" --setenv=XDG_CACHE_HOME="$office_dir/cache"'
+            # The previous XDG-only experiment left HOME unchanged.
+            # Qt/CEF and the editor can also use HOME-relative state.
+            # Preserve the real session bus and XWayland authentication.
+            launch = launch.replace("printf 'Office diagnostic mode:", 'runuser -u localzet-test -- mkdir -p "$office_dir/home" "$office_dir/config" "$office_dir/data" "$office_dir/cache"\n' + "printf 'Office diagnostic mode:")
+            render_env = '--setenv=HOME="$office_dir/home" --setenv=XDG_CONFIG_HOME="$office_dir/config" --setenv=XDG_DATA_HOME="$office_dir/data" --setenv=XDG_CACHE_HOME="$office_dir/cache"'
         launch = (launch.replace("FIXTURE_BASE64", encoded)
                   .replace("RENDER_MODE", office_render_mode)
                   .replace("RENDER_ENV", render_env)
