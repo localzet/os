@@ -850,7 +850,21 @@ exit 1""" + script[last:]
             assert script.count(check_marker) == 1
         script = script.replace(check_marker, check_marker + r""" || {
     echo "Office user-service diagnostics:"
-    journalctl -b "_UID=$uid" --user-unit=localzet-candidate-onlyoffice-desktopeditors.service --no-pager -n 150 -o cat || true
+    journalctl -b "_UID=$uid" "_SYSTEMD_USER_UNIT=localzet-candidate-onlyoffice-desktopeditors.service" --no-pager -n 150 -o cat || true
+    # A named window can exist while the CEF renderer or Qt main thread is
+    # stalled. Collect bounded, read-only thread diagnostics before teardown.
+    for pid in $(pgrep -u localzet-test -x 'DesktopEditors|editors_helper|Xwayland' || true); do
+        echo "Office thread state for PID $pid:"
+        ps -L -p "$pid" -o pid,tid,stat,pcpu,wchan:32,comm | head -n 80 || true
+        for task in /proc/"$pid"/task/"$pid"; do
+            [[ -r "$task/status" ]] || continue
+            grep -E '^(State|Threads|voluntary_ctxt_switches|nonvoluntary_ctxt_switches|Seccomp|NoNewPrivs):' "$task/status" || true
+            cat "$task/wchan" 2>/dev/null || true
+            printf '\n'
+        done
+    done
+    echo "Office CPU pressure:"
+    cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io || true
     journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
     ps -u localzet-test -o pid,ppid,stat,pcpu,rss,comm
     echo "Office local sockets:"
