@@ -57,7 +57,9 @@ jobs:
         run: |
           # Keep native GNOME mandatory; compare software rendering in the
           # same session and isolated X11 as independent diagnostic jobs.
-          review=(--expect-executive-review --office-render-mode "$OFFICE_MODE")
+          render_mode="$OFFICE_MODE"
+          if [[ "$render_mode" == native ]]; then render_mode=default; fi
+          review=(--expect-executive-review --office-render-mode "$render_mode")
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
