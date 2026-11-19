@@ -348,7 +348,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
-    if office_render_mode not in ("default", "software", "isolated-x11"):
+    if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -748,6 +748,11 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         assert script.count(marker) == 1
         render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
         render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        if office_render_mode == "fresh-profile":
+            # Preserve GNOME/XWayland and its D-Bus connection. Isolate
+            # XDG profile directories without changing the real HOME.
+            launch = launch.replace("printf 'Office diagnostic mode:", 'runuser -u localzet-test -- mkdir -p "$office_dir/config" "$office_dir/data" "$office_dir/cache"\n' + "printf 'Office diagnostic mode:")
+            render_env = '--setenv=XDG_CONFIG_HOME="$office_dir/config" --setenv=XDG_DATA_HOME="$office_dir/data" --setenv=XDG_CACHE_HOME="$office_dir/cache"'
         launch = (launch.replace("FIXTURE_BASE64", encoded)
                   .replace("RENDER_MODE", office_render_mode)
                   .replace("RENDER_ENV", render_env)
@@ -977,7 +982,7 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "isolated-x11"), default="default",
+    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
