@@ -91,7 +91,7 @@ jobs:
       - name: Install QEMU and Windows fixture compiler
         run: |
           sudo apt-get update
-          sudo apt-get install -y qemu-system-x86 ovmf gcc-mingw-w64-x86-64
+          sudo apt-get install -y qemu-system-x86 ovmf gcc-mingw-w64-x86-64 acl
           if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
       - name: Compile original Windows fixture
         run: |
