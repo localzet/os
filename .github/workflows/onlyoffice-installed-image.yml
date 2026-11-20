@@ -75,6 +75,9 @@ jobs:
     timeout-minutes: 90
     strategy:
       fail-fast: false
+      # Avoid concurrent full-system QEMU sessions competing for shared CI resources.
+      # Each mode still uses the identical SHA-256-verified ISO artifact.
+      max-parallel: 1
       matrix:
         mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["native"]' || '["native","software","fresh-profile","private-bus","isolated-x11"]') }}
     steps:
