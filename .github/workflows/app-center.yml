@@ -1,0 +1,88 @@
+name: Applications and gaming foundation
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/app_*.py'
+      - 'apps/localzet-apps/**'
+      - 'config/profiles.json'
+      - 'tests/test_app_catalog.py'
+      - '.github/workflows/app-center.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve and install signed archive gaming dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers ptyxis python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth xdotool dbus-x11 imagemagick python3-pil
+          dpkg-query -W flatpak gnome-software-plugin-flatpak lutris gamemode mangohud vulkan-tools mesa-vulkan-drivers
+          dpkg -L lutris | grep -Fx /usr/games/lutris
+          test -x /usr/games/lutris
+          test -x /usr/bin/flatpak
+          test -x /usr/bin/ptyxis
+          vulkaninfo --summary > vulkan-summary.txt 2>&1 || true
+      - name: Test curated catalog
+        run: PYTHONPATH=src python3 -m unittest discover -s tests -p test_app_catalog.py -v
+      - name: Launch native application center
+        run: |
+          mkdir -p out/app-center
+          export PYTHONPATH="$PWD/src"
+          python3 scripts/build-aurora-icons.py "$HOME/.local/share/icons"
+          mkdir -p "$HOME/.config/gtk-4.0"
+          printf '[Settings]\ngtk-icon-theme-name=Aurora\n' > "$HOME/.config/gtk-4.0/settings.ini"
+          python3 - <<'PY'
+          from pathlib import Path
+          from localzet.app_catalog import APPS
+          root = Path.home() / ".local/share/icons/Aurora/scalable/apps"
+          assert all((root / (app.icon + ".svg")).is_file() for app in APPS.values())
+          PY
+          export GDK_BACKEND=x11 GSK_RENDERER=cairo
+          export GTK_A11Y=none
+          xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
+            python3 -c "from localzet.app_center import main; raise SystemExit(main())" > out/app-center/gui.log 2>&1 &
+            pid=$!
+            trap "kill $pid 2>/dev/null || true" EXIT
+            window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet" | head -n 1)"
+            test -n "$window"
+            sleep 4
+            kill -0 "$pid"
+            import -window "$window" out/app-center/apps.png
+          '
+          python3 - <<'PY'
+          from PIL import Image
+          with Image.open('out/app-center/apps.png') as image:
+              assert image.width >= 500 and image.height >= 400, image.size
+              assert len(image.convert('RGB').getcolors(maxcolors=10000000)) >= 64, 'Blank app center screenshot'
+          PY
+          ! grep -E 'Traceback|CRITICAL' out/app-center/gui.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-center-gaming-evidence
+          path: |
+            out/app-center/
+            vulkan-summary.txt
+          retention-days: 7
+  telegram:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Flatpak
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak
+      - name: Install actual Telegram in disposable user installation
+        run: |
+          export XDG_DATA_HOME="$RUNNER_TEMP/localzet-app-data"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/localzet-app-config"
+          mkdir -p "$XDG_DATA_HOME" "$XDG_CONFIG_HOME"
+          # Explicit automated consent only in this disposable CI job.
+          flatpak install --user --noninteractive --assumeyes --from https://dl.flathub.org/repo/appstream/org.telegram.desktop.flatpakref
+          flatpak info --user org.telegram.desktop
+          PYTHONPATH=src python3 -c 'from localzet.app_catalog import flatpak_installed, action; assert action("telegram", flatpak_installed())[0] == "launch"'

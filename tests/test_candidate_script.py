@@ -39,6 +39,17 @@ class CandidateScriptTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.installed_script(office_render_mode="software")
 
+    def test_isolated_office_is_a_separate_x11_diagnostic(self):
+        normal = module.installed_script("complete", True, True, True)
+        isolated = module.installed_script("complete", True, True, True, office_render_mode="isolated-x11")
+        self.assertIn("Office diagnostic mode: isolated-x11", isolated)
+        self.assertIn("/usr/bin/xvfb-run", isolated)
+        self.assertIn("XDG_CONFIG_HOME", isolated)
+        self.assertIn("Fixture heading ink", isolated)
+        self.assertNotIn("office-isolated.sh", normal)
+        self.assertNotIn("--no-sandbox", isolated)
+        subprocess.run(["bash", "-n"], input=isolated, text=True, check=True)
+
     def test_combined_branded_packages_are_required(self):
         script = module.installed_script("complete", True, True, True, True, branded_control_center=True)
         for marker in ("installed branded Control Center package launched", "+localzet3",

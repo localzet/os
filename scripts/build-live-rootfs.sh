@@ -38,9 +38,15 @@ mkdir -p "$(dirname "$root")"
 # Use a minimal GNOME stack, not the Ubuntu-branded desktop metapackage.
 packages="ubuntu-keyring,ca-certificates,ubuntu-minimal,systemd-sysv,linux-generic,linux-firmware,casper,initramfs-tools,dbus,dbus-user-session,gdm3,gnome-session,gnome-shell,gnome-shell-extension-appindicator,gnome-control-center,gnome-settings-daemon,xdg-desktop-portal,xdg-desktop-portal-gnome,xdg-desktop-portal-gtk,gvfs,nautilus,ptyxis,network-manager,pipewire-audio,wireplumber,xwayland,libgl1-mesa-dri,fonts-dejavu-core,fonts-noto-core,dconf-cli,locales,language-pack-ru,language-pack-gnome-ru,python3,python3-gi,gir1.2-gtk-4.0,gir1.2-adw-1,pkexec,procps,pciutils,usbutils,nvme-cli,smartmontools,efibootmgr,gparted,gnome-disk-utility,ntfs-3g,exfatprogs,btrfs-progs,gnome-system-monitor,gnome-text-editor,gnome-calculator,gnome-software,file-roller,loupe,papers,epiphany-browser,adwaita-icon-theme,plymouth,plymouth-theme-spinner,librsvg2-bin,grub-common"
 packages+=",ubuntu-drivers-common,python3-apt,mokutil,budgie-wallpapers-resolute,python3-pil"
+# The desktop catalog downloader requires curl in every image, not just CI.
+packages+=",curl"
 # Private office visual verification requires real Xwayland window discovery.
 if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
-    packages+=",xdotool,imagemagick"
+    # Isolated X11 uses all four tools at runtime (xvfb-run, dbus-run-session,
+    # openbox). Keep the package set identical across native and isolated
+    # rendering experiments; otherwise a missing launcher is misdiagnosed
+    # as a rendering regression.
+    packages+=",xdotool,imagemagick,x11-utils,xvfb,xauth,openbox,dbus-x11"
 fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     packages+=",docker.io,docker-compose-v2,gir1.2-vte-3.91,openssh-client,uidmap,slirp4netns,fuse-overlayfs"

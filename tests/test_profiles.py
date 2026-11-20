@@ -39,6 +39,14 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("telegram", minimal["external_or_localzet_pending"])
         self.assertNotIn("telegram-desktop", standard["ubuntu_package_candidates"])
 
+    def test_real_distribution_and_gaming_support_in_profile(self):
+        standard = set(plan(self.data, "standard")["ubuntu_package_candidates"])
+        complete = set(plan(self.data, "complete")["ubuntu_package_candidates"])
+        self.assertTrue({"flatpak", "gnome-software-plugin-flatpak"} <= standard <= complete)
+        self.assertTrue({"lutris", "gamemode", "mangohud", "vulkan-tools", "mesa-vulkan-drivers"} <= complete)
+        self.assertNotIn("lutris", standard)
+        self.assertIn("gaming", plan(self.data, "complete")["external_or_localzet_pending"])
+
     def test_optional_and_exclusive_browser(self):
         result = plan(self.data, "complete", browser="chrome", extras=["discord"])
         self.assertIn("discord", result["external_or_localzet_pending"])

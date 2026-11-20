@@ -74,8 +74,9 @@ with Image.open(path) as im:
     w,h = im.size
 # Ignore titlebar, window border and side panels. Inspect actual editor.
 metrics = module.visual_metrics(path, (w//10, h//10, w*8//10, h*8//10))
-print(metrics)
-raise SystemExit(0 if module.meaningful(metrics) else 1)
+ink = module.document_ink(path)
+print(metrics, "fixture heading ink:", ink)
+raise SystemExit(0 if module.meaningful(metrics) and ink >= 250 else 1)
 PY
     then
         echo "PASS: $mode native offline document window rendered nonblank content"
