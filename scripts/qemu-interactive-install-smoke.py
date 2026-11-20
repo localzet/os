@@ -886,7 +886,30 @@ exit 1""" + script[last:]
         find "$directory" -maxdepth 5 -type f \( -iname '*.log' -o -iname '*font*' -o -iname '*error*' \) -printf '%s %p\n' | head -n 60 || true
         while IFS= read -r -d '' logfile; do
             printf 'Office log: %s\n' "$logfile"
-            tail -c 8192 -- "$logfile" || true
+            # Chromium LevelDB uses *.log for binary storage. Never dump
+            # arbitrary profile bytes into the serial console or CI output.
+            python3 - "$logfile" <<'OFFICELOG'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+if "Session Storage" in path.parts or "Local Storage" in path.parts:
+    print("Skipped browser storage log")
+    raise SystemExit(0)
+try:
+    if path.stat().st_size > 1024 * 1024:
+        print("Skipped oversized log")
+        raise SystemExit(0)
+    data = path.read_bytes()[-8192:]
+    decoded = data.decode("utf-8")
+except (OSError, UnicodeError):
+    print("Skipped unreadable or non-UTF8 log")
+    raise SystemExit(0)
+if any(ord(char) < 32 and char not in "\\n\\r\\t" for char in decoded):
+    print("Skipped binary log")
+    raise SystemExit(0)
+print(decoded)
+OFFICELOG
             printf '\n'
         done < <(find "$directory" -maxdepth 5 -type f -iname '*.log' -print0 | head -z -n 8)
     done
