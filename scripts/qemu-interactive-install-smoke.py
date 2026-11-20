@@ -56,7 +56,7 @@ class Guest:
         command = [
             "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
             "-global", "driver=cfi.pflash01,property=secure,value=on",
-            "-cpu", cpu, "-m", "6144", "-smp", "4", "-nic", "none",
+            "-cpu", cpu, "-m", "6144", "-smp", str(args.vcpus), "-nic", "none",
             "-vga", "virtio", "-device", "usb-tablet", "-display", "none", "-monitor", "none", "-no-reboot",
             "-qmp", f"unix:{self.socket},server=on,wait=off",
             "-serial", f"file:{self.serial}",
@@ -1007,6 +1007,8 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
+    parser.add_argument("--vcpus", type=int, choices=(2, 4, 8), default=4,
+                        help="QEMU vCPU diagnostic; default remains four.")
     parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "private-bus", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
