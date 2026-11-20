@@ -24,13 +24,12 @@ concurrency:
   cancel-in-progress: true
 jobs:
   candidate:
-    if: github.event_name != 'workflow_dispatch' || matrix.mode == 'native'
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        mode: [native, software, fresh-profile, private-bus, isolated-x11]
+        mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["native"]' || '["native","software","fresh-profile","private-bus","isolated-x11"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate source
