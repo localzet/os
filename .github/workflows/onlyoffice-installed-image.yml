@@ -1,6 +1,13 @@
 name: ONLYOFFICE installed image review
 on:
   workflow_dispatch:
+    inputs:
+      vcpus:
+        description: 'QEMU vCPUs for a native GNOME diagnostic (2, 4, or 8)'
+        required: true
+        default: '4'
+        type: choice
+        options: ['2', '4', '8']
   pull_request:
     paths:
       - 'scripts/install-onlyoffice-rootfs.sh'
@@ -17,6 +24,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   candidate:
+    if: github.event_name != 'workflow_dispatch' || matrix.mode == 'native'
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     strategy:
@@ -61,6 +69,9 @@ jobs:
           render_mode="$OFFICE_MODE"
           if [[ "$render_mode" == native ]]; then render_mode=default; fi
           review=(--expect-executive-review --office-render-mode "$render_mode")
+          if [[ "${{ github.event_name }}" == workflow_dispatch ]]; then
+            review+=(--vcpus "${{ inputs.vcpus }}")
+          fi
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
