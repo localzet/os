@@ -56,7 +56,7 @@ class Guest:
         command = [
             "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
             "-global", "driver=cfi.pflash01,property=secure,value=on",
-            "-cpu", cpu, "-m", "6144", "-smp", "4", "-nic", "none",
+            "-cpu", cpu, "-m", "6144", "-smp", str(args.vcpus), "-nic", "none",
             "-vga", "virtio", "-device", "usb-tablet", "-display", "none", "-monitor", "none", "-no-reboot",
             "-qmp", f"unix:{self.socket},server=on,wait=off",
             "-serial", f"file:{self.serial}",
@@ -348,7 +348,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
-    if office_render_mode not in ("default", "software", "fresh-profile", "private-bus", "isolated-x11"):
+    if office_render_mode not in ("default", "software", "software-libgl", "software-qt", "software-disable-gpu", "fresh-profile", "private-bus", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -746,8 +746,10 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
 """
         marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
         assert script.count(marker) == 1
-        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
-        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        render_env = ("--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else
+                      "--setenv=LIBGL_ALWAYS_SOFTWARE=1" if office_render_mode == "software-libgl" else
+                      "--setenv=QT_OPENGL=software" if office_render_mode == "software-qt" else "")
+        render_flags = "--disable-gpu" if office_render_mode in ("software", "software-disable-gpu") else ""
         if office_render_mode == "fresh-profile":
             # The previous XDG-only experiment left HOME unchanged.
             # Qt/CEF and the editor can also use HOME-relative state.
@@ -874,6 +876,18 @@ exit 1""" + script[last:]
             printf '\n'
         done
     done
+    echo "Office graphical session (non-secret fields):"
+    for pid in $(pgrep -u localzet-test -x 'DesktopEditors|Xwayland|gnome-shell|Xvfb|openbox' || true); do
+        printf 'PID %s: ' "$pid"
+        ps -p "$pid" -o comm=,stat=,etime= || true
+        if [[ -r "/proc/$pid/environ" ]]; then
+            tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_RUNTIME_DIR|QT_QPA_PLATFORM|QT_OPENGL|LIBGL_ALWAYS_SOFTWARE|GDK_BACKEND)=' | sort || true
+        fi
+    done
+    echo "Office user session and display:"
+    loginctl show-user localzet-test -p State -p Sessions -p RuntimePath || true
+    loginctl list-sessions --no-legend || true
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" busctl --user --no-pager --no-legend list 2>&1 | grep -E 'org.freedesktop.DBus|org.gnome.Shell|org.a11y.Bus|org.freedesktop.portal' | head -n 20 || true
     echo "Office CPU pressure:"
     cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io || true
     journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
@@ -1007,7 +1021,9 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "private-bus", "isolated-x11"), default="default",
+    parser.add_argument("--vcpus", type=int, choices=(2, 4, 8), default=4,
+                        help="QEMU vCPU diagnostic; default remains four.")
+    parser.add_argument("--office-render-mode", choices=("default", "software", "software-libgl", "software-qt", "software-disable-gpu", "fresh-profile", "private-bus", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
