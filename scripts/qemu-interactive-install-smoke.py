@@ -848,6 +848,24 @@ xdotool getwindowgeometry --shell "$window" >&2 || true
 xdotool getwindowname "$window" >&2 || true
 if [[ -s "$work/document.png" ]]; then
     stat -c "Failed drawable bytes: %s" "$work/document.png" >&2
+    python3 - "$work/document.png" <<'PY' >&2
+from PIL import Image
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+w, h = im.size
+def ink(region):
+    return sum(20 <= r <= 65 and 65 <= g <= 125 and 130 <= b <= 205
+               and b > g + 35 and g > r + 25 for r, g, b in region.getdata())
+print("Diagnostic drawable dimensions:", w, h)
+print("Diagnostic blue ink whole-window:", ink(im))
+for name, bounds in (
+    ("top", (0, 0, w, h // 3)),
+    ("middle", (0, h // 3, w, 2 * h // 3)),
+    ("bottom", (0, 2 * h // 3, w, h)),
+    ("acceptance-crop", (w // 8, h // 3, w * 7 // 8, h * 4 // 5)),
+):
+    print("Diagnostic blue ink", name + ":", ink(im.crop(bounds)))
+PY
 fi
 if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 1572864 ]]; then
     printf 'LOCALZET_CANDIDATE_OFFICE_FAILED_PNG '
