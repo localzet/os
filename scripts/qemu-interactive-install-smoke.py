@@ -879,7 +879,7 @@ exit 1""" + script[last:]
         printf 'PID %s: ' "$pid"
         ps -p "$pid" -o comm=,stat=,etime= || true
         if [[ -r "/proc/$pid/environ" ]]; then
-            tr '\\0' '\\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_RUNTIME_DIR|QT_QPA_PLATFORM|QT_OPENGL|LIBGL_ALWAYS_SOFTWARE|GDK_BACKEND)=' | sort || true
+            tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_RUNTIME_DIR|QT_QPA_PLATFORM|QT_OPENGL|LIBGL_ALWAYS_SOFTWARE|GDK_BACKEND)=' | sort || true
         fi
     done
     echo "Office user session and display:"
