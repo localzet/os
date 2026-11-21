@@ -874,6 +874,18 @@ exit 1""" + script[last:]
             printf '\n'
         done
     done
+    echo "Office graphical session (non-secret fields):"
+    for pid in $(pgrep -u localzet-test -x 'DesktopEditors|Xwayland|gnome-shell|Xvfb|openbox' || true); do
+        printf 'PID %s: ' "$pid"
+        ps -p "$pid" -o comm=,stat=,etime= || true
+        if [[ -r "/proc/$pid/environ" ]]; then
+            tr '\\0' '\\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_RUNTIME_DIR|QT_QPA_PLATFORM|QT_OPENGL|LIBGL_ALWAYS_SOFTWARE|GDK_BACKEND)=' | sort || true
+        fi
+    done
+    echo "Office user session and display:"
+    loginctl show-user localzet-test -p State -p Sessions -p RuntimePath || true
+    loginctl list-sessions --no-legend || true
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" busctl --user --no-pager --no-legend list 2>&1 | grep -E 'org.freedesktop.DBus|org.gnome.Shell|org.a11y.Bus|org.freedesktop.portal' | head -n 20 || true
     echo "Office CPU pressure:"
     cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io || true
     journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
