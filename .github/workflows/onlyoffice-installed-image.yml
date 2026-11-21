@@ -83,9 +83,10 @@ jobs:
       fail-fast: false
       # Avoid concurrent full-system QEMU sessions competing for shared CI resources.
       # Each mode still uses the identical SHA-256-verified ISO artifact.
+      # Split GPU flags into independent experiments; keep all five acceptance modes.
       max-parallel: 1
       matrix:
-        mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.mode) || '["native","software","fresh-profile","private-bus","isolated-x11"]') }}
+        mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.mode) || '["native","software","software-libgl","software-qt","software-disable-gpu","fresh-profile","private-bus","isolated-x11"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Download exact shared ISO
