@@ -2,6 +2,12 @@ name: ONLYOFFICE installed image review
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'Rendering experiment on the same verified ISO'
+        required: true
+        default: 'native'
+        type: choice
+        options: ['native', 'software', 'software-libgl', 'software-qt', 'software-disable-gpu', 'private-bus', 'fresh-profile', 'isolated-x11']
       vcpus:
         description: 'QEMU vCPUs for a native GNOME diagnostic (2, 4, or 8)'
         required: true
@@ -79,7 +85,7 @@ jobs:
       # Each mode still uses the identical SHA-256-verified ISO artifact.
       max-parallel: 1
       matrix:
-        mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["native"]' || '["native","software","fresh-profile","private-bus","isolated-x11"]') }}
+        mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.mode) || '["native","software","fresh-profile","private-bus","isolated-x11"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Download exact shared ISO
