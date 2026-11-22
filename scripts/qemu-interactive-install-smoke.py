@@ -725,6 +725,14 @@ office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-revi
 printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
 runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
 runuser -u localzet-test -- test -w "$office_dir"
+# Read the installed launchers without modifying vendor files or user defaults.
+echo "Office desktop launcher inventory:"
+for desktop in /usr/share/applications/onlyoffice*.desktop /usr/local/share/applications/onlyoffice*.desktop "$home/.local/share/applications/"*onlyoffice*.desktop; do
+    [[ -f "$desktop" ]] || continue
+    printf 'Desktop entry: %s\\n' "$desktop"
+    dpkg-query -S "$desktop" 2>/dev/null || true
+    grep -E '^(Name|Exec|TryExec|DBusActivatable|MimeType|StartupWMClass)=' "$desktop" || true
+done
 printf 'Office diagnostic mode: RENDER_MODE (explicit X11 toolkit backend; C.UTF-8 editor locale)\n'
 free -m
 # Only the disposable test user's session is changed.
@@ -764,8 +772,10 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
     /usr/bin/env -u WAYLAND_DISPLAY LC_ALL=C.UTF-8 LANG=C.UTF-8 RENDER_BUS /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
-        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
-        assert script.count(marker) == 1
+        # The executive review uses its own authenticated user unit rather
+        # than the generic launch_app helper. Assert that exact invocation.
+        marker = '/usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"'
+        assert launch.count(marker) == 1
         render_env = ("--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else
                       "--setenv=LIBGL_ALWAYS_SOFTWARE=1" if office_render_mode == "software-libgl" else
                       "--setenv=QT_OPENGL=software" if office_render_mode == "software-qt" else "")
