@@ -826,7 +826,12 @@ fi
 ISOLATEDOFFICE
 chmod 0755 /run/localzet-candidate-check/office-isolated.sh
 """
-        script = script.replace(marker, launch)
+        # Insert the authenticated editor launch before the window assertion.
+        # The marker above identifies the command inside `launch`, not inside
+        # the existing candidate script. Replacing it in `script` was a no-op.
+        office_success = "printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\\n'"
+        assert script.count(office_success) == 1
+        script = script.replace(office_success, launch + "\n" + office_success)
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
         script = script[:first] + r"""window=""
