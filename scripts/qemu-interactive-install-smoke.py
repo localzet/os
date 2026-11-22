@@ -640,7 +640,8 @@ while IFS= read -r desktop; do
     printf 'desktop-entry: %s\n' "$desktop"
     dpkg-query -S "$desktop" || true
     grep -E '^(Exec|TryExec|DBusActivatable|MimeType|StartupWMClass)=' "$desktop" || true
-done < <(dpkg-query -L onlyoffice-desktopeditors | grep -E '/(applications|autostart)/[^/]+[.]desktop
+done < <(dpkg-query -L onlyoffice-desktopeditors | grep -E '/(applications|autostart)/[^/]+[.]desktop$' || true)
+cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
