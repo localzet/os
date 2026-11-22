@@ -737,6 +737,19 @@ for binary in /opt/onlyoffice/desktopeditors/DesktopEditors /opt/onlyoffice/desk
 done
 printf 'Office shared memory and GPU:\n'
 ls -ld /dev/shm /dev/dri || true
+# Record the actual launch environment before testing the editor.  Never
+# dump the complete environment: it can contain tokens and credentials.
+echo "Office graphical session diagnostics:"
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemctl --user show-environment 2>/dev/null \
+    | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_SESSION_DESKTOP|QT_QPA_PLATFORM|GDK_BACKEND)=' || true
+loginctl show-user localzet-test -p State -p Linger -p Sessions || true
+for session in $(loginctl show-user localzet-test -p Sessions --value 2>/dev/null); do
+    loginctl show-session "$session" -p Type -p Desktop -p State -p Active -p Display -p Remote || true
+done
+echo "Office runtime process and memory snapshot:"
+ps -eo pid,ppid,stat,pcpu,rss,comm | grep -E '(^ *PID|gnome-shell|Xwayland|DesktopEditors|editors_helper)' | head -n 35 || true
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
