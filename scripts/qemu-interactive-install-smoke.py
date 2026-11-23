@@ -831,10 +831,11 @@ chmod 0755 /run/localzet-candidate-check/office-isolated.sh
         # the existing candidate script. Replacing it in `script` was a no-op.
         office_success = "printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\\n'"
         assert script.count(office_success) == 1
-        # Launch before the blocking window check, never after it.
-        window_check = 'systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh'
+        # Launch before the complete runuser invocation, not in the middle
+        # of its continued shell command or after the blocking wait.
+        window_check = 'chmod 0755 /run/localzet-candidate-check/office-window.sh\nrunuser -u localzet-test -- env'
         assert script.count(window_check) == 1
-        script = script.replace(window_check, launch + "\n" + window_check)
+        script = script.replace(window_check, 'chmod 0755 /run/localzet-candidate-check/office-window.sh\n' + launch + '\nrunuser -u localzet-test -- env')
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
         script = script[:first] + r"""window=""
