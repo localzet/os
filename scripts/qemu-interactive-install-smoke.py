@@ -56,7 +56,7 @@ class Guest:
         command = [
             "qemu-system-x86_64", "-machine", "q35,smm=on,usb=on", "-accel", self.accel,
             "-global", "driver=cfi.pflash01,property=secure,value=on",
-            "-cpu", cpu, "-m", "6144", "-smp", "4", "-nic", "none",
+            "-cpu", cpu, "-m", "6144", "-smp", str(args.vcpus), "-nic", "none",
             "-vga", "virtio", "-device", "usb-tablet", "-display", "none", "-monitor", "none", "-no-reboot",
             "-qmp", f"unix:{self.socket},server=on,wait=off",
             "-serial", f"file:{self.serial}",
@@ -348,7 +348,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False):
-    if office_render_mode not in ("default", "software", "fresh-profile", "private-bus", "isolated-x11"):
+    if office_render_mode not in ("default", "software", "software-libgl", "software-qt", "software-disable-gpu", "fresh-profile", "private-bus", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -633,7 +633,28 @@ test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
 test -s /opt/onlyoffice/desktopeditors/LICENSE.txt
 test -s /usr/share/localzet/office-review/upstream.json
 test -x /usr/bin/onlyoffice-desktopeditors
-launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
+# Inventory vendor desktop entries without modifying their package-owned files.
+echo "ONLYOFFICE desktop entry inventory:"
+while IFS= read -r desktop; do
+    [[ -f "$desktop" ]] || continue
+    printf 'desktop-entry: %s\n' "$desktop"
+    dpkg-query -S "$desktop" || true
+    grep -E '^(Exec|TryExec|DBusActivatable|MimeType|StartupWMClass)=' "$desktop" || true
+done < <(dpkg-query -L onlyoffice-desktopeditors | grep -E '/(applications|autostart)/[^/]+[.]desktop$' || true)
+# Verify package-owned GNOME launcher and DOCX MIME metadata without patching vendor files.
+office_desktop_found=0
+while IFS= read -r desktop; do
+    [[ -f "$desktop" ]] || continue
+    owner="$(dpkg-query -S "$desktop")"
+    [[ "$owner" == onlyoffice-desktopeditors:* ]] || continue
+    grep -Eq '^Type=Application$' "$desktop" || continue
+    grep -Eq '^Exec=.*(onlyoffice|desktopeditors)' "$desktop" || continue
+    grep -Eq '^MimeType=.*application/vnd.openxmlformats-officedocument.wordprocessingml.document' "$desktop" || continue
+    office_desktop_found=1
+    break
+done < <(dpkg-query -L onlyoffice-desktopeditors | grep -E '^/usr/share/applications/[^/]+[.]desktop$' || true)
+[[ "$office_desktop_found" == 1 ]] || { echo 'Missing vendor-owned ONLYOFFICE DOCX launcher' >&2; exit 1; }
+printf 'PASS: vendor-owned ONLYOFFICE DOCX desktop launcher metadata\\n'
 cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash
 set -Eeuo pipefail
@@ -718,6 +739,14 @@ office_dir="$(runuser -u localzet-test -- mktemp -d "$home/.localzet-office-revi
 printf '%s' 'FIXTURE_BASE64' | base64 -d | runuser -u localzet-test -- tee "$office_dir/Localzet-offline-review.docx" >/dev/null
 runuser -u localzet-test -- test -w "$office_dir/Localzet-offline-review.docx"
 runuser -u localzet-test -- test -w "$office_dir"
+# Read the installed launchers without modifying vendor files or user defaults.
+echo "Office desktop launcher inventory:"
+for desktop in /usr/share/applications/onlyoffice*.desktop /usr/local/share/applications/onlyoffice*.desktop "$home/.local/share/applications/"*onlyoffice*.desktop; do
+    [[ -f "$desktop" ]] || continue
+    printf 'Desktop entry: %s\\n' "$desktop"
+    dpkg-query -S "$desktop" 2>/dev/null || true
+    grep -E '^(Name|Exec|TryExec|DBusActivatable|MimeType|StartupWMClass)=' "$desktop" || true
+done
 printf 'Office diagnostic mode: RENDER_MODE (explicit X11 toolkit backend; C.UTF-8 editor locale)\n'
 free -m
 # Only the disposable test user's session is changed.
@@ -737,6 +766,19 @@ for binary in /opt/onlyoffice/desktopeditors/DesktopEditors /opt/onlyoffice/desk
 done
 printf 'Office shared memory and GPU:\n'
 ls -ld /dev/shm /dev/dri || true
+# Record the actual launch environment before testing the editor.  Never
+# dump the complete environment: it can contain tokens and credentials.
+echo "Office graphical session diagnostics:"
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemctl --user show-environment 2>/dev/null \
+    | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_SESSION_DESKTOP|QT_QPA_PLATFORM|GDK_BACKEND)=' || true
+loginctl show-user localzet-test -p State -p Linger -p Sessions || true
+for session in $(loginctl show-user localzet-test -p Sessions --value 2>/dev/null); do
+    loginctl show-session "$session" -p Type -p Desktop -p State -p Active -p Display -p Remote || true
+done
+echo "Office runtime process and memory snapshot:"
+ps -eo pid,ppid,stat,pcpu,rss,comm | grep -E '(^ *PID|gnome-shell|Xwayland|DesktopEditors|editors_helper)' | head -n 35 || true
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --unit=localzet-candidate-onlyoffice-desktopeditors \
@@ -744,10 +786,14 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
     /usr/bin/env -u WAYLAND_DISPLAY LC_ALL=C.UTF-8 LANG=C.UTF-8 RENDER_BUS /usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
-        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
-        assert script.count(marker) == 1
-        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
-        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        # The executive review uses its own authenticated user unit rather
+        # than the generic launch_app helper. Assert that exact invocation.
+        marker = '/usr/bin/onlyoffice-desktopeditors RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"'
+        assert launch.count(marker) == 1
+        render_env = ("--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else
+                      "--setenv=LIBGL_ALWAYS_SOFTWARE=1" if office_render_mode == "software-libgl" else
+                      "--setenv=QT_OPENGL=software" if office_render_mode == "software-qt" else "")
+        render_flags = "--disable-gpu" if office_render_mode in ("software", "software-disable-gpu") else ""
         if office_render_mode == "fresh-profile":
             # The previous XDG-only experiment left HOME unchanged.
             # Qt/CEF and the editor can also use HOME-relative state.
@@ -794,7 +840,16 @@ fi
 ISOLATEDOFFICE
 chmod 0755 /run/localzet-candidate-check/office-isolated.sh
 """
-        script = script.replace(marker, launch)
+        # Insert the authenticated editor launch before the window assertion.
+        # The marker above identifies the command inside `launch`, not inside
+        # the existing candidate script. Replacing it in `script` was a no-op.
+        office_success = "printf 'PASS: installed native ONLYOFFICE launched in authenticated offline user session\\n'"
+        assert script.count(office_success) == 1
+        # Launch before the complete runuser invocation, not in the middle
+        # of its continued shell command or after the blocking wait.
+        window_check = 'chmod 0755 /run/localzet-candidate-check/office-window.sh\nrunuser -u localzet-test -- env'
+        assert script.count(window_check) == 1
+        script = script.replace(window_check, 'chmod 0755 /run/localzet-candidate-check/office-window.sh\n' + launch + '\nrunuser -u localzet-test -- env')
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
         script = script[:first] + r"""window=""
@@ -846,6 +901,24 @@ xdotool getwindowgeometry --shell "$window" >&2 || true
 xdotool getwindowname "$window" >&2 || true
 if [[ -s "$work/document.png" ]]; then
     stat -c "Failed drawable bytes: %s" "$work/document.png" >&2
+    python3 - "$work/document.png" <<'PY' >&2
+from PIL import Image
+import sys
+im = Image.open(sys.argv[1]).convert("RGB")
+w, h = im.size
+def ink(region):
+    return sum(20 <= r <= 65 and 65 <= g <= 125 and 130 <= b <= 205
+               and b > g + 35 and g > r + 25 for r, g, b in region.getdata())
+print("Diagnostic drawable dimensions:", w, h)
+print("Diagnostic blue ink whole-window:", ink(im))
+for name, bounds in (
+    ("top", (0, 0, w, h // 3)),
+    ("middle", (0, h // 3, w, 2 * h // 3)),
+    ("bottom", (0, 2 * h // 3, w, h)),
+    ("acceptance-crop", (w // 8, h // 3, w * 7 // 8, h * 4 // 5)),
+):
+    print("Diagnostic blue ink", name + ":", ink(im.crop(bounds)))
+PY
 fi
 if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 1572864 ]]; then
     printf 'LOCALZET_CANDIDATE_OFFICE_FAILED_PNG '
@@ -874,6 +947,18 @@ exit 1""" + script[last:]
             printf '\n'
         done
     done
+    echo "Office graphical session (non-secret fields):"
+    for pid in $(pgrep -u localzet-test -x 'DesktopEditors|Xwayland|gnome-shell|Xvfb|openbox' || true); do
+        printf 'PID %s: ' "$pid"
+        ps -p "$pid" -o comm=,stat=,etime= || true
+        if [[ -r "/proc/$pid/environ" ]]; then
+            tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP|XDG_RUNTIME_DIR|QT_QPA_PLATFORM|QT_OPENGL|LIBGL_ALWAYS_SOFTWARE|GDK_BACKEND)=' | sort || true
+        fi
+    done
+    echo "Office user session and display:"
+    loginctl show-user localzet-test -p State -p Sessions -p RuntimePath || true
+    loginctl list-sessions --no-legend || true
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" busctl --user --no-pager --no-legend list 2>&1 | grep -E 'org.freedesktop.DBus|org.gnome.Shell|org.a11y.Bus|org.freedesktop.portal' | head -n 20 || true
     echo "Office CPU pressure:"
     cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io || true
     journalctl -k -b --no-pager -o cat | grep -Ei 'apparmor|segfault|oom|out of memory|virtio_gpu' | tail -n 80 || true
@@ -1007,7 +1092,9 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "private-bus", "isolated-x11"), default="default",
+    parser.add_argument("--vcpus", type=int, choices=(2, 4, 8), default=4,
+                        help="QEMU vCPU diagnostic; default remains four.")
+    parser.add_argument("--office-render-mode", choices=("default", "software", "software-libgl", "software-qt", "software-disable-gpu", "fresh-profile", "private-bus", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:

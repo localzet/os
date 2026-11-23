@@ -1,6 +1,19 @@
 name: ONLYOFFICE installed image review
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Rendering experiment on the same verified ISO'
+        required: true
+        default: 'native'
+        type: choice
+        options: ['native', 'software', 'software-libgl', 'software-qt', 'software-disable-gpu', 'private-bus', 'fresh-profile', 'isolated-x11']
+      vcpus:
+        description: 'QEMU vCPUs for a native GNOME diagnostic (2, 4, or 8)'
+        required: true
+        default: '4'
+        type: choice
+        options: ['2', '4', '8']
   pull_request:
     paths:
       - 'scripts/install-onlyoffice-rootfs.sh'
@@ -16,13 +29,9 @@ concurrency:
   group: office-installed-image-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
-  candidate:
+  build-candidate:
     runs-on: ubuntu-26.04
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [native, software, fresh-profile, private-bus, isolated-x11]
     steps:
       - uses: actions/checkout@v4
       - name: Validate source
@@ -48,6 +57,52 @@ jobs:
           xorriso -osirrox on -indev dist/localzet-uefi-candidate.iso -extract /casper/filesystem.manifest dist/filesystem.manifest
           sudo python3 scripts/collect-release-inventory.py "$RUNNER_TEMP/candidate-root" --iso-manifest dist/filesystem.manifest > dist/package-inventory.json
           git rev-parse HEAD > dist/BUILD-COMMIT
+      - name: Preserve exact ISO and provenance for all rendering modes
+        run: |
+          sudo cat "$RUNNER_TEMP/candidate-root/usr/share/localzet/archive-profile-plan.json" > dist/archive-profile-plan.json
+          (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
+      - name: Upload single immutable candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: onlyoffice-shared-candidate
+          path: |
+            dist/localzet-uefi-candidate.iso
+            dist/localzet-uefi-candidate.iso.sha256
+            dist/filesystem.manifest
+            dist/package-inventory.json
+            dist/BUILD-COMMIT
+            dist/archive-profile-plan.json
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+  candidate:
+    needs: build-candidate
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      # Avoid concurrent full-system QEMU sessions competing for shared CI resources.
+      # Each mode still uses the identical SHA-256-verified ISO artifact.
+      # Split GPU flags into independent experiments; keep all five acceptance modes.
+      max-parallel: 1
+      matrix:
+        mode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.mode) || '["native","software","software-libgl","software-qt","software-disable-gpu","fresh-profile","private-bus","isolated-x11"]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact shared ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: onlyoffice-shared-candidate
+          path: dist
+      - name: Verify shared candidate identity
+        run: |
+          test "$(cat dist/BUILD-COMMIT)" = "$(git rev-parse HEAD)"
+          (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
+      - name: Install QEMU and Windows fixture compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 ovmf gcc-mingw-w64-x86-64 acl python3-pil
+          if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
       - name: Compile original Windows fixture
         run: |
           printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
@@ -61,6 +116,9 @@ jobs:
           render_mode="$OFFICE_MODE"
           if [[ "$render_mode" == native ]]; then render_mode=default; fi
           review=(--expect-executive-review --office-render-mode "$render_mode")
+          if [[ "${{ github.event_name }}" == workflow_dispatch ]]; then
+            review+=(--vcpus "${{ inputs.vcpus }}")
+          fi
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
             --ovmf-vars /usr/share/OVMF/OVMF_VARS_4M.fd \
@@ -84,7 +142,6 @@ jobs:
         if: success() && matrix.mode == 'native' && github.event_name == 'pull_request' && github.head_ref == 'integration/executive-complete-preview' && github.event.pull_request.head.repo.full_name == github.repository
         run: |
           git rev-parse HEAD > dist/BUILD-COMMIT
-          sudo cat "$RUNNER_TEMP/candidate-root/usr/share/localzet/archive-profile-plan.json" > dist/archive-profile-plan.json
           (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
       - name: Publish verified engineering candidate (not a release)
         if: success() && matrix.mode == 'native' && github.event_name == 'pull_request' && github.head_ref == 'integration/executive-complete-preview' && github.event.pull_request.head.repo.full_name == github.repository
