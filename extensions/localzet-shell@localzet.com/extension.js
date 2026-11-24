@@ -16,10 +16,21 @@ const VISUAL_TEST_MODE = '/usr/lib/localzet/localzet-visual-test-mode';
 const VISUAL_TEST_INTERFACE = `
 <node>
   <interface name="org.localzet.VisualTest">
-    <method name="OpenLauncher" />
-    <method name="OpenQuickSettings" />
+    <method name="OpenLauncher">
+      <arg name="ready" type="b" direction="out" />
+    </method>
+    <method name="OpenQuickSettings">
+      <arg name="ready" type="b" direction="out" />
+    </method>
   </interface>
 </node>`;
+
+function openMenuAndReport(menu) {
+    if (!menu)
+        return false;
+    menu.open();
+    return menu.isOpen === true;
+}
 
 function addGlassBlur(actor, name) {
     const backgroundMode = Shell.BlurMode?.BACKGROUND;
@@ -150,8 +161,10 @@ export default class LocalzetShell extends Extension {
                 this._visualTestObject = Gio.DBusExportedObject.wrapJSObject(
                     VISUAL_TEST_INTERFACE,
                     {
-                        OpenLauncher: () => this._indicator?.menu.open(),
-                        OpenQuickSettings: () => Main.panel.statusArea.quickSettings?.menu.open(),
+                        OpenLauncher: () => openMenuAndReport(this._indicator?.menu),
+                        OpenQuickSettings: () => openMenuAndReport(
+                            Main.panel.statusArea.quickSettings?.menu,
+                        ),
                     },
                 );
                 this._visualTestObject.export(connection, '/org/localzet/VisualTest');

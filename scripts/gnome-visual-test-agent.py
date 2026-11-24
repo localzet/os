@@ -32,8 +32,6 @@ PAGES = {
     "system": ("Система", "О системе"),
 }
 POPUPS = {
-    "launcher": ("LOCALZET OS", "Найти приложение"),
-    "quick_settings": ("Wi-Fi", "Bluetooth"),
     "notification": ("Localzet Aurora notification", "Aurora visual capture"),
 }
 NO_ARGUMENTS = {
@@ -395,7 +393,7 @@ def _open_popup(popup: str) -> dict:
     method = methods.get(popup)
     if method is None:
         raise RequestError("unsupported shell popup action")
-    subprocess.run(
+    completed = subprocess.run(
         [
             "gdbus", "call", "--session", "--dest", "org.localzet.VisualTest",
             "--object-path", "/org/localzet/VisualTest", "--method",
@@ -406,7 +404,9 @@ def _open_popup(popup: str) -> dict:
         text=True,
         timeout=5,
     )
-    return {**_wait_popup(popup), "action": method}
+    if completed.stdout.strip() != "(true,)":
+        raise RuntimeError(f"GNOME {popup} menu did not report an open state")
+    return {"popup": popup, "ready": True, "action": method}
 
 
 def _desktop_ready() -> dict:

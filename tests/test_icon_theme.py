@@ -81,6 +81,8 @@ class IconThemeTests(unittest.TestCase):
         self.assertIn("this._indicator.accessible_name = 'Localzet OS'", extension)
         self.assertIn("GLib.file_test(VISUAL_TEST_MODE", extension)
         self.assertIn("org.localzet.VisualTest", extension)
+        self.assertIn('<arg name="ready" type="b" direction="out" />', extension)
+        self.assertIn("return menu.isOpen === true;", extension)
         self.assertIn("OpenQuickSettings", extension)
         svg = ET.parse(asset).getroot()
         self.assertEqual(len(svg.findall(f"{NAMESPACE}ellipse")), 0)

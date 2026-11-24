@@ -133,13 +133,10 @@ class QemuLiveVisualTests(unittest.TestCase):
                 validate(request)
 
     def test_shell_popup_action_is_allowlisted_and_confirmed(self):
-        visible = {
-            "popup": "launcher",
-            "visible_controls": list(visual_agent.POPUPS["launcher"]),
-            "ready": True,
-        }
-        with patch.object(visual_agent.subprocess, "run") as run, \
-                patch.object(visual_agent, "_wait_popup", return_value=visible) as wait:
+        completed = type("Completed", (), {"stdout": "(true,)\n"})()
+        with patch.object(
+            visual_agent.subprocess, "run", return_value=completed
+        ) as run:
             result = visual_agent._open_popup("launcher")
 
         run.assert_called_once_with(
@@ -153,9 +150,15 @@ class QemuLiveVisualTests(unittest.TestCase):
             text=True,
             timeout=5,
         )
-        wait.assert_called_once_with("launcher")
         self.assertTrue(result["ready"])
+        self.assertEqual(result["popup"], "launcher")
         self.assertEqual(result["action"], "OpenLauncher")
+
+    def test_shell_popup_action_rejects_unconfirmed_open_state(self):
+        completed = type("Completed", (), {"stdout": "(false,)\n"})()
+        with patch.object(visual_agent.subprocess, "run", return_value=completed):
+            with self.assertRaisesRegex(RuntimeError, "did not report an open state"):
+                visual_agent._open_popup("launcher")
 
     def test_visual_runner_does_not_type_commands_and_uses_virtio_control(self):
         source = SCRIPT.read_text(encoding="utf-8")
