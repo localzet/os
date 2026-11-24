@@ -58,7 +58,18 @@ jobs:
       - name: BIOS smoke
         run: python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
       - name: Capture real GNOME 50 Wayland scenes
-        run: python3 scripts/qemu-live-visual.py dist/localzet-dev.iso --out dist/gnome-visual --timeout 480
+        run: |
+          visual_accel=tcg
+          if test -c /dev/kvm; then
+            if command -v setfacl >/dev/null; then
+              sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+            fi
+            if test -r /dev/kvm && test -w /dev/kvm; then
+              visual_accel=kvm
+            fi
+          fi
+          echo "Visual QEMU acceleration: $visual_accel"
+          python3 scripts/qemu-live-visual.py dist/localzet-dev.iso --out dist/gnome-visual --timeout 480 --accel "$visual_accel"
       - name: Publish BIOS diagnostic log
         if: always()
         run: |

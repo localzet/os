@@ -22,6 +22,12 @@ GRAPHICAL_VT_KEY = b"LOCALZET_LIVE_GRAPHICAL_VT"
 QCODE_ALIASES = {"enter": "ret"}
 
 
+def choose_acceleration(requested: str) -> str:
+    if requested != "auto":
+        return requested
+    return "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
+
+
 class QMP:
     def __init__(self, path: Path, timeout: int):
         deadline = time.monotonic() + timeout
@@ -354,6 +360,7 @@ def main() -> int:
     parser.add_argument("iso", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--timeout", type=int, default=480)
+    parser.add_argument("--accel", choices=("auto", "kvm", "tcg"), default="auto")
     args = parser.parse_args()
     if not args.iso.is_file():
         parser.error("Live ISO does not exist")
@@ -375,7 +382,7 @@ def main() -> int:
         qemu_stderr = tmp / "qemu-stderr.log"
         monitor = tmp / "qmp.sock"
         vnc_socket = tmp / "display.sock"
-        accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
+        accel = choose_acceleration(args.accel)
         cpu = "host" if accel == "kvm" else "max"
         command = [
             qemu, "-machine", "q35", "-accel", accel, "-cpu", cpu,
@@ -387,7 +394,11 @@ def main() -> int:
             "-no-reboot", "-boot", "order=d", "-cdrom", str(args.iso.resolve()),
             "-serial", f"file:{serial}",
         ]
-        print(f"Starting real GNOME 50 Live guest with {accel}", flush=True)
+        print(
+            f"Starting real GNOME 50 Live guest with {accel} "
+            f"(requested {args.accel})",
+            flush=True,
+        )
         stderr_stream = qemu_stderr.open("w", encoding="utf-8")
         process = subprocess.Popen(
             command, stdout=subprocess.DEVNULL, stderr=stderr_stream,
