@@ -64,6 +64,29 @@ class IconThemeTests(unittest.TestCase):
                 with self.subTest(icon=path.name):
                     ET.parse(path)
 
+            for relative in (
+                "scalable/actions/window-close-symbolic.svg",
+                "scalable/status/network-wireless-symbolic.svg",
+                "scalable/status/audio-volume-high-symbolic.svg",
+                "scalable/status/system-shutdown-symbolic.svg",
+            ):
+                icon = ET.parse(destination / relative).getroot()
+                with self.subTest(icon=relative):
+                    self.assertEqual(icon.attrib["stroke"], "#eff6ff")
+
+            close = ET.parse(
+                destination / "scalable/actions/window-close-symbolic.svg"
+            ).getroot()
+            self.assertEqual(
+                close.find(f"{NAMESPACE}path").attrib["d"],
+                "M5 5l14 14M19 5 5 19",
+            )
+
+            app_grid = ET.parse(
+                destination / "scalable/actions/view-app-grid-symbolic.svg"
+            ).getroot()
+            self.assertEqual(len(app_grid.findall(f"{NAMESPACE}circle")), 9)
+
     def test_shell_brand_mark_matches_approved_asset_source(self):
         asset = ROOT / "assets/icons/aurora/localzet-symbol.svg"
         installed = THEME / "scalable/apps/localzet-symbol.svg"
@@ -84,6 +107,8 @@ class IconThemeTests(unittest.TestCase):
         self.assertIn('<arg name="ready" type="b" direction="out" />', extension)
         self.assertIn("return menu.isOpen === true;", extension)
         self.assertIn("OpenQuickSettings", extension)
+        self.assertIn("FindWindow", extension)
+        self.assertIn("global.get_window_actors()", extension)
         svg = ET.parse(asset).getroot()
         self.assertEqual(len(svg.findall(f"{NAMESPACE}ellipse")), 0)
         self.assertEqual(len(svg.findall(f"{NAMESPACE}g/{NAMESPACE}ellipse")), 3)

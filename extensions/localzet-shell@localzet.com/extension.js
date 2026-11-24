@@ -22,14 +22,39 @@ const VISUAL_TEST_INTERFACE = `
     <method name="OpenQuickSettings">
       <arg name="ready" type="b" direction="out" />
     </method>
+    <method name="FindWindow">
+      <arg name="app" type="s" direction="in" />
+      <arg name="title" type="s" direction="out" />
+    </method>
   </interface>
 </node>`;
+const VISUAL_TEST_WINDOW_CLASSES = {
+    settings: ['com.localzet.settings', 'localzet-settings'],
+    files: ['org.gnome.nautilus', 'nautilus'],
+    terminal: ['org.gnome.ptyxis', 'ptyxis'],
+};
 
 function openMenuAndReport(menu) {
     if (!menu)
         return false;
     menu.open();
     return menu.isOpen === true;
+}
+
+function findVisualTestWindow(app) {
+    const expectedClasses = VISUAL_TEST_WINDOW_CLASSES[app];
+    if (!expectedClasses)
+        return '';
+
+    for (const actor of global.get_window_actors()) {
+        const window = actor.meta_window;
+        if (!window || !actor.visible)
+            continue;
+        const wmClass = String(window.get_wm_class() || '').toLowerCase();
+        if (expectedClasses.some(candidate => wmClass === candidate))
+            return window.get_title() || wmClass;
+    }
+    return '';
 }
 
 function addGlassBlur(actor, name) {
@@ -165,6 +190,7 @@ export default class LocalzetShell extends Extension {
                         OpenQuickSettings: () => openMenuAndReport(
                             Main.panel.statusArea.quickSettings?.menu,
                         ),
+                        FindWindow: app => findVisualTestWindow(app),
                     },
                 );
                 this._visualTestObject.export(connection, '/org/localzet/VisualTest');

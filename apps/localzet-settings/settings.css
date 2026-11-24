@@ -42,6 +42,13 @@ window.localzet-settings button.suggested-action {
 window.localzet-settings button.flat {
     color: #c5d5fb;
 }
+window.localzet-settings toast {
+    color: #f1f5ff;
+    background-color: alpha(#13203a, 0.97);
+    border: 1px solid alpha(#8fb0ec, 0.38);
+    border-radius: 14px;
+    box-shadow: 0 10px 26px alpha(#020816, 0.48);
+}
 
 window.localzet-settings.aurora-purple {
     color: #f8f0ff;
@@ -65,6 +72,11 @@ window.localzet-settings.aurora-purple .localzet-summary {
 window.localzet-settings.aurora-purple button.suggested-action {
     background-color: #9b6acb;
 }
+window.localzet-settings.aurora-purple toast {
+    color: #f8f0ff;
+    background-color: alpha(#2f1a3e, 0.97);
+    border-color: alpha(#c391df, 0.40);
+}
 
 window.localzet-settings.aurora-black {
     color: #f4f4f6;
@@ -87,4 +99,9 @@ window.localzet-settings.aurora-black .localzet-summary {
 }
 window.localzet-settings.aurora-black button.suggested-action {
     background-color: #8256aa;
+}
+window.localzet-settings.aurora-black toast {
+    color: #f4f4f6;
+    background-color: alpha(#131318, 0.97);
+    border-color: alpha(#8b8797, 0.36);
 }

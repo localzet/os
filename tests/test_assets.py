@@ -66,6 +66,20 @@ class AssetsTests(unittest.TestCase):
                 self.assertIn(selector, css)
                 self.assertIn(surface, css)
 
+    def test_appearance_toasts_follow_each_aurora_surface(self):
+        css = (ROOT / 'apps/localzet-settings/settings.css').read_text()
+        for theme, surface in (
+            ('blue', '#13203a'),
+            ('purple', '#2f1a3e'),
+            ('black', '#131318'),
+        ):
+            selector = 'window.localzet-settings toast'
+            if theme != 'blue':
+                selector = f'window.localzet-settings.aurora-{theme} toast'
+            with self.subTest(theme=theme):
+                self.assertIn(selector, css)
+                self.assertIn(f'background-color: alpha({surface}, 0.97)', css)
+
     def test_live_iso_workflow_captures_screens_on_draft_pull_requests(self):
         workflow = (ROOT / '.github/workflows/live-iso.yml').read_text()
         self.assertIn('Capture real GNOME 50 Wayland scenes', workflow)

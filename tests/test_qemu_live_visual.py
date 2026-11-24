@@ -232,6 +232,26 @@ class QemuLiveVisualTests(unittest.TestCase):
                 patch.object(visual_agent, "_is_showing", lambda _node: True):
             self.assertTrue(visual_agent._find_window("settings")["ready"])
 
+    def test_guest_window_readiness_can_use_gnome_window_state(self):
+        with patch.object(visual_agent, "_find_window", return_value=None), \
+                patch.object(visual_agent, "_shell_window_title", return_value="Ptyxis"):
+            window = visual_agent._wait_window("terminal")
+
+        self.assertEqual(window["title"], "Ptyxis")
+        self.assertEqual(window["source"], "gnome-shell")
+        self.assertTrue(window["ready"])
+
+    def test_gnome_window_query_uses_only_allowlisted_app_names(self):
+        with self.assertRaisesRegex(visual_agent.RequestError, "unsupported application"):
+            visual_agent._shell_window_title("arbitrary")
+
+        completed = type("Completed", (), {"stdout": "('Ptyxis',)\n"})()
+        with patch.object(visual_agent.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(visual_agent._shell_window_title("terminal"), "Ptyxis")
+
+        args = run.call_args.args[0]
+        self.assertEqual(args[-2:], ["org.localzet.VisualTest.FindWindow", "terminal"])
+
     def test_desktop_readiness_requires_local_wallpaper_and_visible_dock(self):
         with tempfile.TemporaryDirectory() as directory:
             wallpaper = Path(directory) / "aurora-blue.webp"

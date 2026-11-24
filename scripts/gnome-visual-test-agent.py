@@ -2,6 +2,7 @@
 """Test-only, allowlisted control channel for an isolated GNOME guest."""
 from __future__ import annotations
 
+import ast
 import json
 import os
 from pathlib import Path
@@ -310,14 +311,49 @@ def _find_window(app: str) -> dict | None:
     return None
 
 
+def _shell_window_title(app: str) -> str | None:
+    if app not in APP_IDS:
+        raise RequestError("unsupported application")
+    completed = subprocess.run(
+        [
+            "gdbus", "call", "--session", "--dest", "org.localzet.VisualTest",
+            "--object-path", "/org/localzet/VisualTest", "--method",
+            "org.localzet.VisualTest.FindWindow", app,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    try:
+        result = ast.literal_eval(completed.stdout.strip())
+    except (SyntaxError, ValueError) as error:
+        raise RuntimeError(
+            "GNOME returned an invalid visual-test window response"
+        ) from error
+    if (not isinstance(result, tuple) or len(result) != 1
+            or not isinstance(result[0], str)):
+        raise RuntimeError("GNOME returned an invalid visual-test window response")
+    return result[0] or None
+
+
 def _wait_window(app: str) -> dict:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         window = _find_window(app)
         if window is not None:
             return window
+        title = _shell_window_title(app)
+        if title:
+            return {
+                "app": app,
+                "title": title,
+                "role": "window",
+                "ready": True,
+                "source": "gnome-shell",
+            }
         time.sleep(0.25)
-    raise TimeoutError(f"{app} window was not exposed by GNOME accessibility")
+    raise TimeoutError(f"{app} window was not visible in GNOME")
 
 
 def _open_app(app: str) -> dict:
