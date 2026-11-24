@@ -63,13 +63,22 @@ class QMP:
         self.connection.close()
 
 
-def wait_for_ready(serial: Path, process: subprocess.Popen, timeout: int) -> None:
+def wait_for_ready(
+    serial: Path,
+    process: subprocess.Popen,
+    timeout: int,
+    stderr_log: Path,
+) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if serial.is_file() and READY_MARKER in serial.read_bytes().splitlines(keepends=True):
             return
         if process.poll() is not None:
-            raise RuntimeError(f"QEMU exited before the GNOME readiness marker ({process.returncode})")
+            details = stderr_log.read_text(encoding="utf-8", errors="replace").strip()
+            raise RuntimeError(
+                f"QEMU exited before the GNOME readiness marker ({process.returncode})"
+                + (f": {details[-4000:]}" if details else "")
+            )
         time.sleep(0.5)
     raise TimeoutError("Live GNOME Wayland session did not become ready")
 
@@ -283,6 +292,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="localzet-gnome-visual-") as temporary:
         tmp = Path(temporary)
         serial = tmp / "serial.log"
+        qemu_stderr = tmp / "qemu-stderr.log"
         monitor = tmp / "qmp.sock"
         vnc_socket = tmp / "display.sock"
         accel = "kvm" if Path("/dev/kvm").exists() and Path("/dev/kvm").is_char_device() else "tcg"
@@ -298,10 +308,13 @@ def main() -> int:
             "-serial", f"file:{serial}",
         ]
         print(f"Starting real GNOME 50 Live guest with {accel}", flush=True)
-        process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        stderr_stream = qemu_stderr.open("w", encoding="utf-8")
+        process = subprocess.Popen(
+            command, stdout=subprocess.DEVNULL, stderr=stderr_stream,
+        )
         qmp = None
         try:
-            wait_for_ready(serial, process, args.timeout)
+            wait_for_ready(serial, process, args.timeout, qemu_stderr)
             qmp = QMP(monitor, timeout=20)
             pause(12.0)
 
@@ -358,6 +371,10 @@ def main() -> int:
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+            stderr_stream.flush()
+            stderr_stream.close()
+            if qemu_stderr.is_file():
+                shutil.copyfile(qemu_stderr, args.out / "qemu-stderr.log")
             if serial.is_file():
                 shutil.copyfile(serial, args.out / "guest-serial.log")
     return 0
