@@ -1,3 +1,5 @@
+import runpy
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -51,6 +53,22 @@ class LiveDefaultsTests(unittest.TestCase):
 
         self.assertIn("libglib2.0-bin", rootfs_builder)
         self.assertIn("libnotify-bin", rootfs_builder)
+
+    def test_qemu_readiness_accepts_crlf_serial_marker(self):
+        visual = runpy.run_path(
+            str(ROOT / "scripts/qemu-live-visual.py"), run_name="visual_test"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            serial = Path(directory) / "serial.log"
+            stderr = Path(directory) / "qemu-stderr.log"
+            serial.write_bytes(b"LOCALZET_LIVE_READY\r\n")
+            stderr.write_text("", encoding="utf-8")
+
+            class RunningProcess:
+                def poll(self):
+                    return None
+
+            visual["wait_for_ready"](serial, RunningProcess(), 1, stderr)
 
 
 if __name__ == "__main__":

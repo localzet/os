@@ -17,7 +17,7 @@ from PIL import Image
 
 WIDTH = 1536
 HEIGHT = 1024
-READY_MARKER = b"LOCALZET_LIVE_READY\n"
+READY_MARKER = b"LOCALZET_LIVE_READY"
 
 
 class QMP:
@@ -72,7 +72,7 @@ def wait_for_ready(
 ) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if serial.is_file() and READY_MARKER in serial.read_bytes().splitlines(keepends=True):
+        if serial.is_file() and READY_MARKER in serial.read_bytes().splitlines():
             return
         if process.poll() is not None:
             details = stderr_log.read_text(encoding="utf-8", errors="replace").strip()
