@@ -44,6 +44,14 @@ class LiveDefaultsTests(unittest.TestCase):
         self.assertIn("this._settings.disconnect(this._pinnedAppsChanged)", dock)
         self.assertIn("this._pinnedAppsChanged = 0", dock)
 
+    def test_live_image_has_gsettings_and_notification_commands(self):
+        rootfs_builder = (ROOT / "scripts/build-live-rootfs.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("libglib2.0-bin", rootfs_builder)
+        self.assertIn("libnotify-bin", rootfs_builder)
+
 
 if __name__ == "__main__":
     unittest.main()
