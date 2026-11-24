@@ -6,6 +6,22 @@ captures its window, then runs GNOME Shell devkit captures. The GTK capture
 checks a real GTK window but is not a full GNOME session; devkit screenshots
 must be labeled separately from full-session evidence.
 
+## Latest CI evidence
+
+PR #137 ran Ubuntu 26.04.1 with GNOME Shell 50.1. The isolated GNOME Shell
+DevKit smoke enabled Localzet Shell, changed the appearance setting through
+Blue/Purple/Black at 1536×1024 and 1920×1080, and completed without `JS ERROR`
+after commit `5b0cdef`. Screenshots and logs are in [workflow run 45324219667](https://github.com/localzet/os/actions/runs/45324219667).
+This is a DevKit/overview smoke, not a full desktop session; it does not cover
+Nautilus, Appearance, Quick Settings, launcher, or PNG side-by-side review.
+The separate GTK artifact captures only the Settings start page.
+
+The first DevKit run logged `global.stage.remove_style_class_name` as a
+JavaScript error even though the job passed. The extension now applies classes
+to `Main.layoutManager.uiGroup`, and the smoke fails if the Shell log contains
+`JS ERROR:`. Draft PRs now skip the expensive Live ISO workflow; manual
+dispatch and non-draft pull requests retain it.
+
 ## Test environment
 
 - Fresh Ubuntu **26.04 LTS** virtual machine with standard GNOME 50 on Wayland.

@@ -24,10 +24,12 @@ Ubuntu 26.04 LTS, GNOME 50 и Wayland. Русский язык — первый 
 
 В коде добавлены масштабируемая тема значков Localzet с fallback Adwaita/hicolor
 и страница Appearance с Blue/Purple/Black и восстановлением сохранённых
-пользовательских параметров. `make test` проходит (107 тестов и 8 манифестов),
-DEB и shell bundle собираются. GTK-процесс запущен в GNOME 50.1 Wayland, но
-реальный screenshot недоступен в текущей среде; CI и полный GNOME/QEMU visual
-gate для этой ветки ещё не выполнены.
+пользовательских параметров. `make test` проходит (109 тестов и 8 манифестов),
+DEB и shell bundle собираются. После фикса GTK-процесс проходит в GNOME 50.1
+DevKit/Xvfb на 1536×1024 и 1920×1080 без JavaScript-ошибок. CI artifact
+показывает только ограниченный Shell/overview smoke, а не полноценную сессию.
+Скриншоты Nautilus, Appearance, Quick Settings, launcher и сравнение с PNG
+остаются NOT TESTED.
 
 Интерфейсный этап в текущей ветке ещё не прошёл runtime-приёмку GNOME 50.
 См. [дизайн-приёмку](docs/DESIGN_ACCEPTANCE.ru.md); browser/preview-изображения

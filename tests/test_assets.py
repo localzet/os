@@ -49,3 +49,11 @@ class AssetsTests(unittest.TestCase):
         self.assertIn('uiGroup.remove_style_class_name(appearance)', extension)
         self.assertNotIn('global.stage.add_style_class_name', extension)
         self.assertIn("grep -Fq 'JS ERROR:'", smoke)
+
+    def test_live_iso_workflow_defers_draft_pull_requests(self):
+        workflow = (ROOT / '.github/workflows/live-iso.yml').read_text()
+        self.assertIn(
+            "if: ${{ github.event_name != 'pull_request' || "
+            "github.event.pull_request.draft == false }}",
+            workflow,
+        )

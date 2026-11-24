@@ -18,7 +18,7 @@
   ],
   "checks": {
     "baseline_make_test": "PASS: 84 tests and 8 manifests on clean baseline",
-    "changed_make_test": "PASS: 107 tests and 8 valid manifests",
+    "changed_make_test": "PASS: 109 tests and 8 valid manifests",
     "desktop_deb": "PASS: built and staged; icon cache and global schema compiled in temporary directory",
     "extension_bundle": "PASS: make extension-zip; dock.js and nested schema included",
     "desktop_metadata": "PASS: desktop-file-validate and strict offline AppStream validation",
@@ -26,12 +26,13 @@
     "icon_optical_review": "PARTIAL PASS: all icons checked in contact sheet; 18 first-party app/status glyphs inspected at 16/24/32/48 px across the three theme backgrounds",
     "approved_reference_review": "PASS: all three owner-approved PNGs visually viewed from the private archive; no native screenshot comparison yet",
     "gtk_host_launch": "PARTIAL: Settings process stayed alive in GNOME Wayland 50.1; Shell D-Bus screenshot call was denied",
-    "gnome_50_runtime": "NOT TESTED: isolated CI workflow is pending",
+    "gnome_50_runtime": "PARTIAL PASS: Ubuntu 26.04.1 / GNOME Shell 50.1 DevKit under Xvfb, Localzet Shell enabled, Blue/Purple/Black setting exercised at 1536x1024 and 1920x1080; no JS ERROR after commit 5b0cdef. Limited overview captures only; not a full desktop session. Artifact: workflow run 45324219667 (sha256:f906accccda360db6b91286ba56d5cf14f358c6e621cf7f185fe9cd7d6745ac7).",
     "approved_png_native_comparison": "NOT TESTED",
+    "qemu_live_bios_uefi_smoke": "PASS on commit 5b0cdef via automatic workflow run 45324219623 before the draft gate was added; live boot-marker smoke only, not installation or design acceptance.",
     "qemu_uefi_install": "NOT RUN"
   },
   "blockers": [
-    "GNOME Shell devkit CI and disposable full-session screenshots have not yet run",
+    "CI captures are limited to GNOME Shell DevKit/overview and the Settings start page; a disposable full-session screenshot set is still required",
     "Real scaling/accessibility review and approved PNG side-by-side comparison remain incomplete",
     "QEMU UEFI install gate remains deferred until visual acceptance"
   ],
@@ -45,5 +46,5 @@
       "sha256": "b2651f05bb89bf3a501d177a730a0787a3542b0cfe6b2d254feb7c61fcf6cd28"
     }
   },
-  "publication": "Implementation committed locally as ea216993051a3768f4667ac90c96bae36e1f42e5; push, PR, CI and issue update pending"
+  "publication": "Draft PR #137: https://github.com/localzet/os/pull/137. Branch feat/aurora-native-appearance. Issue #38 updated in comments 7121620993 and 7121826528. CI DevKit artifact: run 45324219667. Draft PRs now skip the Live ISO BIOS/UEFI workflow; manual dispatch and ready PRs still run it."
 }
