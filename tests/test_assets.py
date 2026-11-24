@@ -40,3 +40,12 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(schema.find('./schema').get('id'), 'com.localzet.shell')
         keys = {item.get('name') for item in schema.findall('./schema/key')}
         self.assertEqual(keys, {'appearance', 'pinned-apps'})
+
+    def test_shell_appearance_classes_use_a_styled_widget_and_smoke_checks_js_errors(self):
+        extension = (ROOT / 'extensions/localzet-shell@localzet.com/extension.js').read_text()
+        smoke = (ROOT / 'scripts/ci/gnome50-visual-smoke.sh').read_text()
+        self.assertIn('const uiGroup = Main.layoutManager.uiGroup;', extension)
+        self.assertIn('uiGroup.add_style_class_name(appearance)', extension)
+        self.assertIn('uiGroup.remove_style_class_name(appearance)', extension)
+        self.assertNotIn('global.stage.add_style_class_name', extension)
+        self.assertIn("grep -Fq 'JS ERROR:'", smoke)

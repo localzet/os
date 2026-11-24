@@ -101,6 +101,12 @@ done
 printf 'GNOME Shell devkit appearance run: %s\n' "$RESOLUTION" >> "$OUT/result.txt"
 GNOME_SESSION
 
+if grep -Fq 'JS ERROR:' "$OUT/gnome-shell-$RESOLUTION.log"; then
+    echo "GNOME Shell logged a JavaScript error during the appearance smoke" >&2
+    grep -F 'JS ERROR:' "$OUT/gnome-shell-$RESOLUTION.log" >&2 || true
+    exit 1
+fi
+
     kill "$xvfb_pid" 2>/dev/null || true
     wait "$xvfb_pid" 2>/dev/null || true
     xvfb_pid=

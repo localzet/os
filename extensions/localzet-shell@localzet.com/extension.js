@@ -109,13 +109,14 @@ export default class LocalzetShell extends Extension {
     _applyAppearance() {
         if (!this._settings)
             return;
+        const uiGroup = Main.layoutManager.uiGroup;
         for (const appearance of APPEARANCE_CLASSES)
-            global.stage.remove_style_class_name(appearance);
+            uiGroup.remove_style_class_name(appearance);
         const selected = this._settings.get_string('appearance');
         const appearance = APPEARANCE_CLASSES.includes(`localzet-theme-${selected}`)
             ? `localzet-theme-${selected}`
             : 'localzet-theme-blue';
-        global.stage.add_style_class_name(appearance);
+        uiGroup.add_style_class_name(appearance);
     }
 
     _updateApps(rawQuery) {
@@ -199,8 +200,9 @@ export default class LocalzetShell extends Extension {
             this._settings.disconnect(this._appearanceChanged);
             this._appearanceChanged = 0;
         }
+        const uiGroup = Main.layoutManager.uiGroup;
         for (const appearance of APPEARANCE_CLASSES)
-            global.stage.remove_style_class_name(appearance);
+            uiGroup.remove_style_class_name(appearance);
         this._settings = null;
     }
 }
