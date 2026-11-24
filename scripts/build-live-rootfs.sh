@@ -31,6 +31,10 @@ fi
 if [[ "${LOCALZET_WINDOWS:-0}" == 1 ]]; then
     packages+=",wine,wine64,fonts-wine"
 fi
+if [[ "${LOCALZET_LIVE_VISUAL_TEST:-0}" == 1 ]]; then
+    export LOCALZET_LIVE_VISUAL_TEST
+    packages+=",python3-pyatspi"
+fi
 mmdebstrap --mode=root --variant=apt --format=directory --architectures=amd64 \
     --keyring="$keyring" --include="$packages" \
     --customize-hook='bash "$LOCALZET_REPO/packaging/live/customize-rootfs.sh" "$1"' \

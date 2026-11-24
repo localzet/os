@@ -13,6 +13,7 @@ import stat
 import subprocess
 import tempfile
 from typing import Callable, ParamSpec, Protocol, TypeVar
+import uuid
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -23,6 +24,8 @@ INTERFACE_SCHEMA = "org.gnome.desktop.interface"
 BACKGROUND_SCHEMA = "org.gnome.desktop.background"
 LOCAL_SCHEMA = "com.localzet.settings"
 LOCAL_APPEARANCE_KEY = "appearance"
+PTYXIS_SCHEMA = "org.gnome.Ptyxis"
+PTYXIS_PROFILE_SCHEMA = "org.gnome.Ptyxis.Profile"
 P = ParamSpec("P")
 R = TypeVar("R")
 SAFE_KEYS = {
@@ -122,13 +125,19 @@ class GSettingsStore:
         return completed.stdout.strip()
 
     def supports(self, schema: str, key: str) -> bool:
+        schema_id = schema.partition(":")[0]
         if self._schemas is None:
-            self._schemas = set(self._run("list-schemas").splitlines())
-        if schema not in self._schemas:
+            schemas = set(self._run("list-schemas").splitlines())
+            try:
+                schemas.update(self._run("list-relocatable-schemas").splitlines())
+            except AppearanceError:
+                pass
+            self._schemas = schemas
+        if schema_id not in self._schemas:
             return False
-        if schema not in self._keys:
-            self._keys[schema] = set(self._run("list-keys", schema).splitlines())
-        return key in self._keys[schema]
+        if schema_id not in self._keys:
+            self._keys[schema_id] = set(self._run("list-keys", schema_id).splitlines())
+        return key in self._keys[schema_id]
 
     def get(self, schema: str, key: str) -> str:
         raw = self._run("get", schema, key)
@@ -236,6 +245,90 @@ def _changes(theme: str) -> list[SettingValue]:
     ]
 
 
+def _ptyxis_profile_schema(settings: SettingsStore) -> str | None:
+    if not settings.supports(PTYXIS_SCHEMA, "default-profile-uuid"):
+        return None
+    raw_uuid = settings.get(PTYXIS_SCHEMA, "default-profile-uuid")
+    try:
+        profile_uuid = str(uuid.UUID(raw_uuid))
+    except (ValueError, AttributeError):
+        return None
+    return (
+        f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/"
+        f"{profile_uuid}/"
+    )
+
+
+def _ensure_ptyxis_palettes() -> None:
+    sources = (
+        Path("/usr/share/localzet/ptyxis-palettes"),
+        ROOT / "assets/terminal-palettes",
+    )
+    source = next(
+        (candidate for candidate in sources if all(
+            (candidate / f"Aurora {theme.title()}.palette").is_file()
+            for theme in THEMES
+        )),
+        None,
+    )
+    if source is None:
+        raise AppearanceError("Не найдены цветовые палитры Aurora для Ptyxis")
+
+    data_home = os.environ.get("XDG_DATA_HOME")
+    base = Path(data_home) if data_home else Path.home() / ".local/share"
+    if not base.is_absolute():
+        raise AppearanceError("XDG_DATA_HOME должен быть абсолютным путём")
+    destination = base / "org.gnome.Ptyxis" / "palettes"
+    try:
+        destination.mkdir(mode=0o700, parents=True, exist_ok=True)
+        for theme in THEMES:
+            target = destination / f"Aurora {theme.title()}.palette"
+            descriptor, temporary = tempfile.mkstemp(
+                prefix=".localzet-palette-", dir=destination
+            )
+            try:
+                os.fchmod(descriptor, 0o600)
+                with os.fdopen(descriptor, "wb") as stream:
+                    stream.write((source / f"Aurora {theme.title()}.palette").read_bytes())
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, target)
+            except BaseException:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
+                raise
+    except OSError as error:
+        raise AppearanceError("Не удалось установить палитры Aurora для Ptyxis") from error
+
+
+def _is_safe_setting(schema: str, key: str) -> bool:
+    if (schema, key) in SAFE_KEYS:
+        return True
+    prefix = f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/"
+    if key != "palette" or not schema.startswith(prefix) or not schema.endswith("/"):
+        return False
+    raw_uuid = schema[len(prefix):-1]
+    try:
+        return str(uuid.UUID(raw_uuid)) == raw_uuid.lower()
+    except ValueError:
+        return False
+
+
+def _ptyxis_palette_setting(
+    theme: str, settings: SettingsStore
+) -> SettingValue | None:
+    schema = _ptyxis_profile_schema(settings)
+    if schema is None or not settings.supports(schema, "palette"):
+        return None
+    return SettingValue(schema, "palette", f"Aurora {theme.title()}")
+
+
 def _write_snapshot(path: Path, values: list[SettingValue]) -> None:
     if path.is_symlink():
         raise AppearanceError("Файл восстановления не должен быть символической ссылкой")
@@ -279,7 +372,7 @@ def _read_snapshot(path: Path) -> list[SettingValue]:
         value = item["value"]
         if not all(isinstance(part, str) for part in (schema, key, value)):
             raise AppearanceError("Файл восстановления содержит неизвестные настройки")
-        if (schema, key) not in SAFE_KEYS:
+        if not _is_safe_setting(schema, key):
             raise AppearanceError("Файл восстановления содержит неизвестные настройки")
         if ((schema, key) == (LOCAL_SCHEMA, LOCAL_APPEARANCE_KEY)
                 and value not in THEMES):
@@ -302,7 +395,13 @@ def apply_appearance(
 
     settings = store or GSettingsStore()
     target = snapshot or state_path()
-    changes = [item for item in _changes(theme) if settings.supports(item.schema, item.key)]
+    changes = _changes(theme)
+    if settings.supports(PTYXIS_SCHEMA, "default-profile-uuid"):
+        _ensure_ptyxis_palettes()
+        palette = _ptyxis_palette_setting(theme, settings)
+        if palette is not None:
+            changes.append(palette)
+    changes = [item for item in changes if settings.supports(item.schema, item.key)]
     required = {
         (INTERFACE_SCHEMA, "icon-theme"),
         (BACKGROUND_SCHEMA, "picture-uri"),

@@ -1,0 +1,1 @@
+SUBSYSTEM=="virtio-ports", ATTR{name}=="org.localzet.visual-test", ENV{ID_SEAT}="seat0", TAG+="uaccess"

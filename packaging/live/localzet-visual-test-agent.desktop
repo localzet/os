@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Localzet visual test agent
+Exec=/usr/bin/python3 /usr/lib/localzet/gnome-visual-test-agent.py
+NoDisplay=true
+OnlyShowIn=GNOME;
+X-GNOME-Autostart-enabled=true

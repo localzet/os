@@ -64,6 +64,11 @@ class IconThemeTests(unittest.TestCase):
                 with self.subTest(icon=path.name):
                     ET.parse(path)
 
+    def test_shell_brand_mark_matches_approved_asset_source(self):
+        asset = ROOT / "assets/icons/aurora/localzet-symbol.svg"
+        installed = THEME / "scalable/apps/localzet-symbol.svg"
+        self.assertEqual(asset.read_bytes(), installed.read_bytes())
+
     def test_own_desktop_entries_have_packaged_icon_and_metainfo(self):
         applications = ROOT / "packaging"
         icon_names = {
@@ -94,9 +99,9 @@ class IconThemeTests(unittest.TestCase):
         except (ImportError, ValueError):
             self.skipTest("python3-gi with GdkPixbuf is not installed")
 
+        icons = sorted((THEME / "scalable").rglob("*.svg"))
+        self.assertEqual(len(icons), 121)
         with tempfile.TemporaryDirectory() as directory:
-            icons = sorted((THEME / "scalable").rglob("*.svg"))
-            self.assertEqual(len(icons), 120)
             for icon in icons:
                 for size in (16, 20, 24, 32, 48, 64, 128, 256):
                     with self.subTest(icon=icon.name, size=size):

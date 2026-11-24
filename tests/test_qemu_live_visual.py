@@ -1,7 +1,13 @@
 import importlib.util
+import json
+import runpy
+import socket
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from threading import Event, Thread
+import time
 from unittest.mock import patch
 
 
@@ -15,6 +21,13 @@ visual_script = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = visual_script
 spec.loader.exec_module(visual_script)
 choose_acceleration = visual_script.choose_acceleration
+
+agent_spec = importlib.util.spec_from_file_location(
+    "gnome_visual_test_agent", ROOT / "scripts" / "gnome-visual-test-agent.py"
+)
+assert agent_spec and agent_spec.loader
+visual_agent = importlib.util.module_from_spec(agent_spec)
+agent_spec.loader.exec_module(visual_agent)
 
 
 class QemuLiveVisualTests(unittest.TestCase):
@@ -33,6 +46,117 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertEqual(choose_acceleration("kvm"), "kvm")
         self.assertEqual(choose_acceleration("tcg"), "tcg")
         access.assert_not_called()
+
+    def test_visual_guest_control_uses_a_strict_allowlist(self):
+        agent = runpy.run_path(str(ROOT / "scripts/gnome-visual-test-agent.py"))
+        validate = agent["validate_request"]
+
+        self.assertEqual(
+            validate({"id": 3, "op": "select_theme", "args": {"theme": "blue"}}),
+            (3, "select_theme", {"theme": "blue"}),
+        )
+        for request in (
+            {"id": 4, "op": "run", "args": {"command": "gsettings get"}},
+            {"id": 4, "op": "open_app", "args": {"app": "shell"}},
+            {"id": 4, "op": "select_theme", "args": {"theme": "ubuntu"}},
+            {"id": 4, "op": "state", "args": {"path": "/etc/passwd"}},
+        ):
+            with self.subTest(request=request), self.assertRaises(agent["RequestError"]):
+                validate(request)
+
+    def test_visual_runner_does_not_type_commands_and_uses_virtio_control(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("type_text", source)
+        self.assertNotIn("live-appearance-verify.py", source)
+        self.assertIn('"virtserialport,chardev=visual-control,name=org.localzet.visual-test"', source)
+        self.assertIn('qmp.execute("screendump"', source)
+
+    def test_guest_control_uses_structured_request_and_response_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "visual-control.sock"
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            listener.bind(str(path))
+            listener.listen(1)
+            errors = []
+
+            def serve():
+                try:
+                    connection, _ = listener.accept()
+                    with connection:
+                        greeting = json.dumps({
+                            "event": "ready", "protocol": 1, "wayland": True,
+                        }).encode() + b"\n"
+                        connection.sendall(greeting[:12])
+                        time.sleep(0.01)
+                        connection.sendall(greeting[12:])
+                        buffer = bytearray()
+                        while b"\n" not in buffer:
+                            buffer.extend(connection.recv(4096))
+                        request = json.loads(bytes(buffer).split(b"\n", 1)[0])
+                        response = json.dumps({
+                            "id": request["id"],
+                            "ok": True,
+                            "result": {"scene": "desktop", "ready": True},
+                        }).encode() + b"\n"
+                        connection.sendall(response)
+                except Exception as error:
+                    errors.append(error)
+                finally:
+                    listener.close()
+
+            server = Thread(target=serve, daemon=True)
+            server.start()
+            control = visual_script.GuestControl(path, timeout=2)
+            try:
+                greeting = control.wait_ready(timeout=2)
+                result = control.call("desktop_ready", timeout=2)
+            finally:
+                control.close()
+            server.join(timeout=2)
+
+        self.assertFalse(errors)
+        self.assertEqual(greeting["protocol"], 1)
+        self.assertEqual(result, {"scene": "desktop", "ready": True})
+
+    def test_guest_window_readiness_requires_a_showing_window(self):
+        class Window:
+            name = "Localzet Settings"
+
+            @staticmethod
+            def getRoleName():
+                return "frame"
+
+        with patch.object(visual_agent, "_accessible_nodes", lambda: [Window()]), \
+                patch.object(visual_agent, "_is_showing", lambda _node: False):
+            self.assertIsNone(visual_agent._find_window("settings"))
+
+        with patch.object(visual_agent, "_accessible_nodes", lambda: [Window()]), \
+                patch.object(visual_agent, "_is_showing", lambda _node: True):
+            self.assertTrue(visual_agent._find_window("settings")["ready"])
+
+    def test_desktop_readiness_requires_local_wallpaper_and_visible_dock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            wallpaper = Path(directory) / "aurora-blue.webp"
+            wallpaper.touch()
+            state = {
+                "picture_uri": wallpaper.as_uri(),
+                "icon_theme": "Localzet",
+            }
+            dock_launcher = object()
+            with patch.object(visual_agent, "_state", lambda: state), \
+                    patch.object(visual_agent, "_find_name", lambda _names: dock_launcher), \
+                    patch.object(visual_agent, "_is_showing", lambda _node: True), \
+                    patch.object(visual_agent, "_node_name", lambda _node: "Приложения"):
+                ready = visual_agent._desktop_ready()
+
+            self.assertTrue(ready["ready"])
+            self.assertEqual(ready["wallpaper_uri"], wallpaper.as_uri())
+            self.assertEqual(ready["dock_launcher"], "Приложения")
+
+            with patch.object(visual_agent, "_state", lambda: state), \
+                    patch.object(visual_agent, "_find_name", lambda _names: None):
+                with self.assertRaisesRegex(RuntimeError, "Dock launcher"):
+                    visual_agent._desktop_ready()
 
 
 if __name__ == "__main__":

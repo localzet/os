@@ -8,3 +8,4 @@ First-party semantic vector artwork, **not** replicas of Firefox, VS Code, Steam
 - Installed icon theme: `theme/icons/Localzet/scalable/apps/localzet-*.svg` plus existing places icons. Inherits `Adwaita,hicolor` for missing icons; this is **not** a comprehensive freedesktop icon theme yet.
 - The browser demo includes no runtime app integration and must not use unofficial icons to imply one exists.
 - Brand marks: do not clone third-party trademarks as a shortcut; native app integration should use real installed program icons where appropriate.
+- `localzet-symbol.svg` is the reviewed first-party Aurora mark; the installed `localzet-symbol` icon is kept byte-identical.

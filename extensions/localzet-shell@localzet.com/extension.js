@@ -36,6 +36,9 @@ export default class LocalzetShell extends Extension {
             'changed::appearance', () => this._applyAppearance());
         this._applyAppearance();
 
+        Main.panel.add_style_class_name('localzet-panel');
+        addGlassBlur(Main.panel, 'localzet-panel-blur');
+
         this._indicator = new PanelMenu.Button(0.0, 'Localzet OS', false);
         this._indicator.add_style_class_name('localzet-indicator');
 
@@ -44,7 +47,7 @@ export default class LocalzetShell extends Extension {
             vertical: false,
         });
         mark.add_child(new St.Icon({
-            icon_name: 'applications-system-symbolic',
+            icon_name: 'localzet-symbol',
             style_class: 'system-status-icon localzet-brand-icon',
         }));
         mark.add_child(new St.Label({
@@ -217,6 +220,8 @@ export default class LocalzetShell extends Extension {
         const uiGroup = Main.layoutManager.uiGroup;
         for (const appearance of APPEARANCE_CLASSES)
             uiGroup.remove_style_class_name(appearance);
+        Main.panel.remove_effect_by_name('localzet-panel-blur');
+        Main.panel.remove_style_class_name('localzet-panel');
         this._settings = null;
     }
 }

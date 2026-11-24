@@ -14,6 +14,7 @@ pkg="$stage/package"
 mkdir -p "$pkg/DEBIAN" "$pkg/opt/localzet-os/src" "$pkg/opt/localzet-os/config" \
     "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/share/localzet/styles" \
     "$pkg/usr/share/backgrounds/localzet" "$pkg/usr/share/icons" \
+    "$pkg/usr/share/localzet/ptyxis-palettes" \
     "$pkg/usr/share/glib-2.0/schemas" \
     "$pkg/usr/share/metainfo" "$pkg/usr/share/gnome-shell/extensions" \
     "$pkg/usr/share/doc/localzet-desktop" "$pkg/opt/localzet-os/scripts" \
@@ -36,6 +37,8 @@ cp -a "$repo/extensions/localzet-shell@localzet.com" "$pkg/usr/share/gnome-shell
 glib-compile-schemas --strict "$pkg/usr/share/gnome-shell/extensions/localzet-shell@localzet.com/schemas"
 install -m 0644 "$repo/extensions/localzet-shell@localzet.com/schemas/com.localzet.shell.gschema.xml" \
     "$pkg/usr/share/glib-2.0/schemas/"
+install -m 0644 "$repo/packaging/99-localzet-ptyxis.gschema.override" \
+    "$pkg/usr/share/glib-2.0/schemas/"
 cp -a "$repo/theme/icons/Localzet" "$pkg/usr/share/icons/"
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/applications/"
@@ -47,6 +50,8 @@ install -m 0644 "$repo/apps/localzet-settings/settings.css" "$pkg/usr/share/loca
 install -m 0644 "$repo/assets/wallpapers/aurora.svg" "$pkg/usr/share/backgrounds/localzet/"
 install -m 0644 "$repo/assets/wallpapers/aurora-blue.webp" "$repo/assets/wallpapers/aurora-purple.webp" \
     "$repo/assets/wallpapers/aurora-black.webp" "$pkg/usr/share/backgrounds/localzet/"
+install -m 0644 "$repo/assets/terminal-palettes/"*.palette \
+    "$pkg/usr/share/localzet/ptyxis-palettes/"
 install -m 0644 "$repo/LICENSE" "$pkg/usr/share/doc/localzet-desktop/copyright"
 install -m 0755 "$repo/apps/localzet-connect/localzet-connect" "$pkg/usr/bin/localzet-connect"
 install -m 0644 "$repo/packaging/com.localzet.Connect.desktop" "$pkg/usr/share/applications/"

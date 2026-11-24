@@ -56,6 +56,23 @@ class LiveDefaultsTests(unittest.TestCase):
         self.assertIn("libglib2.0-bin", rootfs_builder)
         self.assertIn("libnotify-bin", rootfs_builder)
 
+    def test_visual_control_agent_is_opt_in_for_disposable_visual_builds(self):
+        rootfs_builder = (ROOT / "scripts/build-live-rootfs.sh").read_text(
+            encoding="utf-8"
+        )
+        customizer = (ROOT / "packaging/live/customize-rootfs.sh").read_text(
+            encoding="utf-8"
+        )
+        workflow = (ROOT / ".github/workflows/live-iso.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('LOCALZET_LIVE_VISUAL_TEST:-0', rootfs_builder)
+        self.assertIn('LOCALZET_LIVE_VISUAL_TEST:-0', customizer)
+        self.assertIn('LOCALZET_LIVE_VISUAL_TEST=1', workflow)
+        self.assertIn('scripts/gnome-visual-test-agent.py"', customizer)
+        self.assertIn('python3-pyatspi', rootfs_builder)
+
     def test_qemu_readiness_accepts_crlf_serial_marker(self):
         visual = runpy.run_path(
             str(ROOT / "scripts/qemu-live-visual.py"), run_name="visual_test"

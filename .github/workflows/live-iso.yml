@@ -9,6 +9,8 @@ on:
       - 'scripts/build-desktop-deb.sh'
       - 'scripts/qemu-iso-smoke.py'
       - 'scripts/qemu-live-visual.py'
+      - 'scripts/gnome-visual-test-agent.py'
+      - 'assets/terminal-palettes/**'
       - 'scripts/qemu_serial.py'
       - 'scripts/live-appearance-verify.py'
       - 'scripts/gnome-icon-resolution-smoke.py'
@@ -39,7 +41,7 @@ jobs:
           for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh; do
             bash -n "$script"
           done
-          python3 -m py_compile scripts/qemu-iso-smoke.py scripts/qemu-live-visual.py scripts/qemu_serial.py scripts/qemu-install-smoke.py scripts/live-appearance-verify.py scripts/gnome-icon-resolution-smoke.py scripts/gnome-shell-log-smoke.py packaging/live/localzet-live-ready.py
+          python3 -m py_compile scripts/qemu-iso-smoke.py scripts/qemu-live-visual.py scripts/gnome-visual-test-agent.py scripts/qemu_serial.py scripts/qemu-install-smoke.py scripts/live-appearance-verify.py scripts/gnome-icon-resolution-smoke.py scripts/gnome-shell-log-smoke.py packaging/live/localzet-live-ready.py
       - name: Install build tools
         run: |
           sudo apt-get update
@@ -52,7 +54,7 @@ jobs:
       - name: Build experimental image
         run: |
           mkdir -p dist
-          sudo env LOCALZET_DISPOSABLE_VM=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
+          sudo env LOCALZET_DISPOSABLE_VM=1 LOCALZET_LIVE_VISUAL_TEST=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/localzet-root"
           sudo bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/localzet-root" "$PWD/dist/localzet-dev.iso"
           (cd dist && sha256sum -c localzet-dev.iso.sha256)
       - name: BIOS smoke

@@ -14,6 +14,8 @@ from localzet.settings.appearance import (
     BACKGROUND_SCHEMA,
     EXTENSION_SCHEMA,
     INTERFACE_SCHEMA,
+    PTYXIS_PROFILE_SCHEMA,
+    PTYXIS_SCHEMA,
     apply_appearance,
     current_appearance,
     restore_appearance,
@@ -55,6 +57,41 @@ class AppearanceTests(unittest.TestCase):
         environment = patch.dict("os.environ", {"XDG_STATE_HOME": state_home.name})
         environment.start()
         self.addCleanup(environment.stop)
+
+    def test_ptyxis_palette_tracks_theme_and_is_restored(self):
+        profile_uuid = "a3d6b7e2-186b-4b5b-9225-6abcde123456"
+        profile_schema = (
+            f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/"
+            f"{profile_uuid}/"
+        )
+        settings = FakeSettings()
+        settings.values[(PTYXIS_SCHEMA, "default-profile-uuid")] = profile_uuid
+        settings.values[(profile_schema, "palette")] = "Ubuntu"
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict("os.environ", {"XDG_DATA_HOME": directory}):
+                snapshot = Path(directory) / "appearance.json"
+                apply_appearance("purple", store=settings, snapshot=snapshot)
+                self.assertEqual(settings.get(profile_schema, "palette"), "Aurora Purple")
+                palette_dir = Path(directory) / "org.gnome.Ptyxis" / "palettes"
+                self.assertTrue((palette_dir / "Aurora Blue.palette").is_file())
+                self.assertTrue((palette_dir / "Aurora Purple.palette").is_file())
+                self.assertTrue((palette_dir / "Aurora Black.palette").is_file())
+
+                result = restore_appearance(store=settings, snapshot=snapshot)
+
+        self.assertEqual(result.pending, 0)
+        self.assertEqual(settings.get(profile_schema, "palette"), "Ubuntu")
+
+    def test_snapshot_rejects_untrusted_ptyxis_profile_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = Path(directory) / "appearance.json"
+            snapshot.write_text(json.dumps([{
+                "schema": f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/../../",
+                "key": "palette",
+                "value": "Ubuntu",
+            }]), encoding="utf-8")
+            with self.assertRaisesRegex(AppearanceError, "неизвестные настройки"):
+                restore_appearance(store=FakeSettings(), snapshot=snapshot)
 
     def test_invalid_theme_does_not_modify_settings(self):
         settings = FakeSettings()

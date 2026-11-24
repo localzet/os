@@ -144,6 +144,10 @@ def main() -> int:
                 button.set_tooltip_text(
                     f"Текущая тема {title}" if selected else f"Применить тему {title}"
                 )
+                button.update_property(
+                    [Gtk.AccessibleProperty.LABEL],
+                    [f"Выбрана тема {title}" if selected else f"Применить {title}"],
+                )
                 button.connect("clicked", lambda _button, value=key: self._choose_appearance(value))
                 row.add_suffix(button)
                 group.add(row)
@@ -164,6 +168,10 @@ def main() -> int:
                 description="Сохраняется снимок значений GNOME до первого изменения.",
             )
             restore = Gtk.Button(label="Восстановить исходный вид")
+            restore.update_property(
+                [Gtk.AccessibleProperty.LABEL],
+                ["Восстановить исходные настройки оформления"],
+            )
             restore.set_valign(Gtk.Align.CENTER)
             restore.connect("clicked", lambda _button: self._restore_appearance())
             row = self._row(
@@ -183,6 +191,13 @@ def main() -> int:
                 button.set_tooltip_text(
                     f"Текущая тема Aurora {theme.title()}"
                     if active else f"Применить тему Aurora {theme.title()}"
+                )
+                button.update_property(
+                    [Gtk.AccessibleProperty.LABEL],
+                    [
+                        f"Выбрана тема Aurora {theme.title()}"
+                        if active else f"Применить Aurora {theme.title()}"
+                    ],
                 )
                 button.remove_css_class("suggested-action")
                 button.remove_css_class("flat")

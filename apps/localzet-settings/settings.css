@@ -11,7 +11,16 @@ window.localzet-settings {
     background-color: #0a1120;
 }
 window.localzet-settings headerbar {
-    background-color: #101a30;
+    background-color: alpha(#101a30, 0.92);
+    border-bottom: 1px solid alpha(#8fb0ec, 0.22);
+}
+window.localzet-settings .card {
+    border: 1px solid alpha(#8fb0ec, 0.20);
+    border-radius: 16px;
+    background-color: alpha(#13203a, 0.82);
+}
+window.localzet-settings row {
+    min-height: 54px;
 }
 window.localzet-settings .localzet-summary {
     border-radius: 14px;
@@ -34,7 +43,12 @@ window.localzet-settings.aurora-purple {
     background-color: #20112e;
 }
 window.localzet-settings.aurora-purple headerbar {
-    background-color: #271831;
+    background-color: alpha(#271831, 0.94);
+    border-bottom-color: alpha(#c391df, 0.24);
+}
+window.localzet-settings.aurora-purple .card {
+    background-color: alpha(#2f1a3e, 0.90);
+    border-color: alpha(#c391df, 0.24);
 }
 window.localzet-settings.aurora-purple .localzet-summary {
     background-color: alpha(#bb84e8, 0.10);
@@ -48,7 +62,12 @@ window.localzet-settings.aurora-black {
     background-color: #0c0c0f;
 }
 window.localzet-settings.aurora-black headerbar {
-    background-color: #131318;
+    background-color: alpha(#131318, 0.96);
+    border-bottom-color: alpha(#8b8797, 0.22);
+}
+window.localzet-settings.aurora-black .card {
+    background-color: alpha(#131318, 0.92);
+    border-color: alpha(#8b8797, 0.20);
 }
 window.localzet-settings.aurora-black .localzet-summary {
     background-color: alpha(#b476ed, 0.09);
