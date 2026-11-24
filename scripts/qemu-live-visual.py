@@ -285,7 +285,8 @@ def capture_shell_scenes(
     ready = agent.call("desktop_ready")
     capture(qmp, output, f"{theme}-desktop", theme, records, ready)
 
-    ready = agent.call("open_popup", {"popup": "launcher"})
+    click(qmp, 80, 16)
+    ready = agent.call("wait_popup", {"popup": "launcher"})
     capture(qmp, output, f"{theme}-launcher", theme, records, ready)
     press(qmp, "esc")
     agent.call("desktop_ready")

@@ -118,39 +118,22 @@ class QemuLiveVisualTests(unittest.TestCase):
             validate({"id": 3, "op": "select_theme", "args": {"theme": "blue"}}),
             (3, "select_theme", {"theme": "blue"}),
         )
-        self.assertEqual(
-            validate({"id": 5, "op": "open_popup", "args": {"popup": "launcher"}}),
-            (5, "open_popup", {"popup": "launcher"}),
-        )
         for request in (
             {"id": 4, "op": "run", "args": {"command": "gsettings get"}},
             {"id": 4, "op": "open_app", "args": {"app": "shell"}},
             {"id": 4, "op": "select_theme", "args": {"theme": "ubuntu"}},
             {"id": 4, "op": "state", "args": {"path": "/etc/passwd"}},
-            {"id": 6, "op": "open_popup", "args": {"popup": "power"}},
         ):
             with self.subTest(request=request), self.assertRaises(agent["RequestError"]):
                 validate(request)
-
-    def test_launcher_opens_through_accessible_action_and_confirms_contents(self):
-        with patch.object(visual_agent, "_showing_name_fragment", return_value=False), \
-                patch.object(visual_agent, "_activate_name", return_value="Localzet OS") as activate, \
-                patch.object(visual_agent, "_wait_popup", return_value={
-                    "popup": "launcher", "visible_controls": list(visual_agent.POPUPS["launcher"]),
-                    "ready": True,
-                }) as wait:
-            result = visual_agent._open_popup("launcher")
-
-        activate.assert_called_once_with(("Localzet OS",))
-        wait.assert_called_once_with("launcher")
-        self.assertTrue(result["ready"])
-        self.assertEqual(result["activated"], "Localzet OS")
 
     def test_visual_runner_does_not_type_commands_and_uses_virtio_control(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("type_text", source)
         self.assertNotIn("live-appearance-verify.py", source)
         self.assertIn('"virtserialport,chardev=visual-control,name=org.localzet.visual-test"', source)
+        self.assertIn("click(qmp, 80, 16)", source)
+        self.assertIn('agent.call("wait_popup", {"popup": "launcher"})', source)
         self.assertIn('qmp.execute("screendump"', source)
 
     def test_guest_control_uses_structured_request_and_response_lines(self):
