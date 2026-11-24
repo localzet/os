@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import socket
@@ -295,7 +296,7 @@ def main() -> int:
         qemu_stderr = tmp / "qemu-stderr.log"
         monitor = tmp / "qmp.sock"
         vnc_socket = tmp / "display.sock"
-        accel = "kvm" if Path("/dev/kvm").exists() and Path("/dev/kvm").is_char_device() else "tcg"
+        accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
         cpu = "host" if accel == "kvm" else "max"
         command = [
             qemu, "-machine", "q35", "-accel", accel, "-cpu", cpu,
