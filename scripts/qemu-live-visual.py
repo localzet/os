@@ -107,6 +107,25 @@ def press(qmp: QMP, *keys: str) -> None:
     })
 
 
+def press_combo(qmp: QMP, *keys: str, hold_time: float = 0.5) -> None:
+    codes = [QCODE_ALIASES.get(key, key) for key in keys]
+    qmp.execute("input-send-event", {"events": [
+        {"type": "key", "data": {
+            "down": True,
+            "key": {"type": "qcode", "data": code},
+        }}
+        for code in codes
+    ]})
+    pause(hold_time)
+    qmp.execute("input-send-event", {"events": [
+        {"type": "key", "data": {
+            "down": False,
+            "key": {"type": "qcode", "data": code},
+        }}
+        for code in reversed(codes)
+    ]})
+
+
 def type_text(qmp: QMP, value: str) -> None:
     codes = {
         " ": "spc",
@@ -229,6 +248,13 @@ def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) 
         raise RuntimeError(
             f"Unexpected guest resolution for {name}: {size[0]}x{size[1]}"
         )
+    try:
+        ocr_text = inspect_frame(png)
+    except RuntimeError as error:
+        raise RuntimeError(
+            f"{error}; mean={mean}, stddev={stddev}; "
+            f"diagnostic frame saved to {png}"
+        ) from error
     if max(stddev) < 3 or max(mean) < 8:
         raise RuntimeError(
             f"Framebuffer is black or inactive: {name}; mean={mean}, stddev={stddev}; "
@@ -240,7 +266,7 @@ def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) 
         "scene": name.removeprefix(f"{theme}-"),
         "resolution": size,
         "sha256": hashlib.sha256(png.read_bytes()).hexdigest(),
-        "ocr_text": inspect_frame(png),
+        "ocr_text": ocr_text,
     })
     print(f"Captured {theme} {records[-1]['scene']}: {size[0]}x{size[1]}", flush=True)
 
@@ -389,7 +415,7 @@ def main() -> int:
         try:
             graphical_vt = wait_for_ready(serial, process, args.timeout, qemu_stderr)
             qmp = QMP(monitor, timeout=20)
-            press(qmp, "ctrl", "alt", f"f{graphical_vt}")
+            press_combo(qmp, "ctrl", "alt", f"f{graphical_vt}")
             pause(12.0)
 
             capture(qmp, args.out, "first-login-defaults", "blue", records)
