@@ -70,6 +70,21 @@ class LiveDefaultsTests(unittest.TestCase):
 
             visual["wait_for_ready"](serial, RunningProcess(), 1, stderr)
 
+    def test_qemu_keyboard_maps_enter_to_qcode_ret(self):
+        visual = runpy.run_path(
+            str(ROOT / "scripts/qemu-live-visual.py"), run_name="visual_test"
+        )
+        calls = []
+
+        class RecordingQMP:
+            def execute(self, command, arguments):
+                calls.append((command, arguments))
+
+        visual["press"](RecordingQMP(), "enter")
+
+        self.assertEqual(calls[0][0], "send-key")
+        self.assertEqual(calls[0][1]["keys"], [{"type": "qcode", "data": "ret"}])
+
 
 if __name__ == "__main__":
     unittest.main()

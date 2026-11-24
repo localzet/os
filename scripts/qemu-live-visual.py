@@ -16,6 +16,7 @@ import time
 WIDTH = 1536
 HEIGHT = 1024
 READY_MARKER = b"LOCALZET_LIVE_READY"
+QCODE_ALIASES = {"enter": "ret"}
 
 
 class QMP:
@@ -88,7 +89,10 @@ def pause(seconds: float = 1.0) -> None:
 
 def press(qmp: QMP, *keys: str) -> None:
     qmp.execute("send-key", {
-        "keys": [{"type": "qcode", "data": key} for key in keys],
+        "keys": [
+            {"type": "qcode", "data": QCODE_ALIASES.get(key, key)}
+            for key in keys
+        ],
         "hold-time": 100,
     })
 
@@ -317,6 +321,7 @@ def main() -> int:
         try:
             wait_for_ready(serial, process, args.timeout, qemu_stderr)
             qmp = QMP(monitor, timeout=20)
+            press(qmp, "ctrl", "alt", "f2")
             pause(12.0)
 
             capture(qmp, args.out, "first-login-defaults", "blue", records)
