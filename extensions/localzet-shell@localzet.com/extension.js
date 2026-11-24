@@ -41,6 +41,7 @@ export default class LocalzetShell extends Extension {
 
         this._indicator = new PanelMenu.Button(0.0, 'Localzet OS', false);
         this._indicator.add_style_class_name('localzet-indicator');
+        this._indicator.accessible_name = 'Localzet OS';
 
         const mark = new St.BoxLayout({
             style_class: 'localzet-brand',

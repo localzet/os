@@ -78,6 +78,7 @@ class IconThemeTests(unittest.TestCase):
         extension = (ROOT / "extensions/localzet-shell@localzet.com/extension.js").read_text()
         self.assertIn("new Gio.FileIcon", extension)
         self.assertIn("this.dir.get_child('localzet-brand.svg')", extension)
+        self.assertIn("this._indicator.accessible_name = 'Localzet OS'", extension)
         svg = ET.parse(asset).getroot()
         self.assertEqual(len(svg.findall(f"{NAMESPACE}ellipse")), 0)
         self.assertEqual(len(svg.findall(f"{NAMESPACE}g/{NAMESPACE}ellipse")), 3)
