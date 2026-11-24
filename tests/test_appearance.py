@@ -2,6 +2,9 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
+import time
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +24,7 @@ from localzet.settings.appearance import (
 class FakeSettings:
     def __init__(self, *, extension=True):
         self.values = {
+            (INTERFACE_SCHEMA, "accent-color"): "blue",
             (INTERFACE_SCHEMA, "color-scheme"): "default",
             (INTERFACE_SCHEMA, "icon-theme"): "Adwaita",
             (BACKGROUND_SCHEMA, "picture-uri"): "file:///usr/share/backgrounds/old.jpg",
@@ -67,11 +71,94 @@ class AppearanceTests(unittest.TestCase):
             snapshot = Path(directory) / "appearance.json"
             apply_appearance("purple", store=settings, snapshot=snapshot)
             first_snapshot = json.loads(snapshot.read_text())
+            self.assertEqual(settings.get(INTERFACE_SCHEMA, "accent-color"), "purple")
             apply_appearance("black", store=settings, snapshot=snapshot)
             self.assertEqual(json.loads(snapshot.read_text()), first_snapshot)
             self.assertEqual(settings.get(EXTENSION_SCHEMA, "appearance"), "black")
+            self.assertEqual(settings.get(INTERFACE_SCHEMA, "accent-color"), "purple")
             result = restore_appearance(store=settings, snapshot=snapshot)
             self.assertEqual(result.restored, len(before))
+            self.assertEqual(result.pending, 0)
+            self.assertEqual(settings.values, before)
+            self.assertFalse(snapshot.exists())
+
+    def test_restore_waits_for_in_progress_apply(self):
+        apply_started = Event()
+        allow_apply_to_finish = Event()
+        restore_started = Event()
+
+        class BlockingSettings(FakeSettings):
+            def set(self, schema, key, value):
+                super().set(schema, key, value)
+                if (schema, key, value) == (EXTENSION_SCHEMA, "appearance", "purple"):
+                    apply_started.set()
+                    if not allow_apply_to_finish.wait(timeout=5):
+                        raise RuntimeError("timed out waiting for test release")
+
+        settings = BlockingSettings()
+        before = settings.values.copy()
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = Path(directory) / "appearance.json"
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                applying = executor.submit(
+                    apply_appearance, "purple", store=settings, snapshot=snapshot
+                )
+                self.assertTrue(apply_started.wait(timeout=2))
+
+                def restore():
+                    restore_started.set()
+                    return restore_appearance(store=settings, snapshot=snapshot)
+
+                restoring = executor.submit(restore)
+                try:
+                    self.assertTrue(restore_started.wait(timeout=2))
+                    time.sleep(0.05)
+                    self.assertFalse(restoring.done())
+                finally:
+                    allow_apply_to_finish.set()
+
+                applying.result(timeout=2)
+                result = restoring.result(timeout=2)
+
+            self.assertEqual(result.pending, 0)
+            self.assertEqual(settings.values, before)
+            self.assertFalse(snapshot.exists())
+
+    def test_parallel_apply_calls_preserve_the_original_restore_point(self):
+        apply_started = Event()
+        allow_apply_to_finish = Event()
+
+        class BlockingSettings(FakeSettings):
+            def set(self, schema, key, value):
+                super().set(schema, key, value)
+                if (schema, key, value) == (EXTENSION_SCHEMA, "appearance", "purple"):
+                    apply_started.set()
+                    if not allow_apply_to_finish.wait(timeout=5):
+                        raise RuntimeError("timed out waiting for test release")
+
+        settings = BlockingSettings()
+        before = settings.values.copy()
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = Path(directory) / "appearance.json"
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                applying_purple = executor.submit(
+                    apply_appearance, "purple", store=settings, snapshot=snapshot
+                )
+                self.assertTrue(apply_started.wait(timeout=2))
+                applying_black = executor.submit(
+                    apply_appearance, "black", store=settings, snapshot=snapshot
+                )
+                try:
+                    time.sleep(0.05)
+                    self.assertFalse(applying_black.done())
+                finally:
+                    allow_apply_to_finish.set()
+
+                applying_purple.result(timeout=2)
+                applying_black.result(timeout=2)
+
+            self.assertEqual(settings.get(EXTENSION_SCHEMA, "appearance"), "black")
+            result = restore_appearance(store=settings, snapshot=snapshot)
             self.assertEqual(result.pending, 0)
             self.assertEqual(settings.values, before)
             self.assertFalse(snapshot.exists())

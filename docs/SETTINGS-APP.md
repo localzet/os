@@ -27,9 +27,9 @@ system state. No telemetry, network queries or privileged actions.
 ## Aurora Appearance
 
 The page offers Blue (default), Purple and Black. A selection updates the
-user's wallpaper, `org.gnome.desktop.interface` color scheme and icon theme,
-plus the Localzet Shell accent when that schema is installed. It does not edit
-`org.gnome.shell.extensions.user-theme`; the Localzet extension styles its own
+user's wallpaper, `org.gnome.desktop.interface` color scheme, accent color and
+icon theme, plus the Localzet Shell accent when that schema is installed. It
+does not edit `org.gnome.shell.extensions.user-theme`; the Localzet extension styles its own
 actors and does not require User Themes. Without the Localzet Shell extension,
 the wallpaper, icon theme and dark color scheme still apply, and the page says
 that Shell accents are unavailable.

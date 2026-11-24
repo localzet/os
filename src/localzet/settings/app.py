@@ -124,6 +124,8 @@ def main() -> int:
 
         def _appearance_page(self):
             page = Adw.PreferencesPage()
+            current = current_appearance()
+            self._appearance_buttons = {}
             group = Adw.PreferencesGroup(
                 title="Aurora",
                 description="Выберите одну из трёх утверждённых тёмных тем.",
@@ -135,17 +137,24 @@ def main() -> int:
             )
             for key, title, detail in choices:
                 row = self._row(title, detail)
-                button = Gtk.Button(label="Выбрать")
-                button.add_css_class("suggested-action")
+                selected = key == current
+                button = Gtk.Button(label="Выбрано" if selected else "Применить")
+                button.add_css_class("suggested-action" if selected else "flat")
                 button.set_valign(Gtk.Align.CENTER)
-                button.set_tooltip_text(f"Применить тему {title}")
+                button.set_tooltip_text(
+                    f"Текущая тема {title}" if selected else f"Применить тему {title}"
+                )
                 button.connect("clicked", lambda _button, value=key: self._choose_appearance(value))
                 row.add_suffix(button)
                 group.add(row)
+                self._appearance_buttons[key] = button
 
             self._appearance_status = self._row(
                 "Область применения",
-                "Обои, значки и элементы Localzet Shell. Выбор не требует расширения User Themes.",
+                (
+                    f"Активна Aurora {current.title()}. Обои, значки и Localzet Shell; "
+                    "User Themes не требуется."
+                ),
             )
             group.add(self._appearance_status)
             page.add(group)
@@ -166,6 +175,19 @@ def main() -> int:
             page.add(recovery)
             return page
 
+        def _refresh_appearance_selection(self):
+            selected = current_appearance()
+            for theme, button in self._appearance_buttons.items():
+                active = theme == selected
+                button.set_label("Выбрано" if active else "Применить")
+                button.set_tooltip_text(
+                    f"Текущая тема Aurora {theme.title()}"
+                    if active else f"Применить тему Aurora {theme.title()}"
+                )
+                button.remove_css_class("suggested-action")
+                button.remove_css_class("flat")
+                button.add_css_class("suggested-action" if active else "flat")
+
         def _refresh_appearance_css(self):
             if not self.window:
                 return
@@ -180,11 +202,12 @@ def main() -> int:
                 self.toasts.add_toast(Adw.Toast.new(str(error)))
                 return
             self._refresh_appearance_css()
+            self._refresh_appearance_selection()
             if f"{EXTENSION_SCHEMA} appearance" in changed:
                 detail = "Localzet Shell обновится, если расширение включено; User Themes не требуется."
             else:
                 detail = "Расширение Localzet Shell недоступно; применены обои, значки и тёмная схема."
-            self._appearance_status.set_subtitle(detail)
+            self._appearance_status.set_subtitle(f"Aurora {theme.title()} активна. {detail}")
             self.toasts.add_toast(Adw.Toast.new(f"Aurora {theme.title()} применена"))
 
         def _restore_appearance(self):
@@ -194,6 +217,7 @@ def main() -> int:
                 self.toasts.add_toast(Adw.Toast.new(str(error)))
                 return
             self._refresh_appearance_css()
+            self._refresh_appearance_selection()
             if result.pending:
                 self._appearance_status.set_subtitle(
                     "Основные параметры восстановлены. Настройка Localzet Shell сохранена "

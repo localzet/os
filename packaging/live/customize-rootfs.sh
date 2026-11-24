@@ -28,17 +28,21 @@ enabled-extensions=['localzet-shell@localzet.com']
 disable-user-extensions=false
 
 [org/gnome/desktop/background]
-picture-uri='file:///usr/share/backgrounds/localzet/aurora.svg'
-picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora.svg'
+picture-uri='file:///usr/share/backgrounds/localzet/aurora-blue.webp'
+picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora-blue.webp'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
+accent-color='blue'
+icon-theme='Localzet'
 
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]
 EOF
 chroot "$root" dconf update
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
+install -D -m 0644 "$LOCALZET_REPO/scripts/gnome-icon-resolution-smoke.py" "$root/usr/lib/localzet/gnome-icon-resolution-smoke.py"
+install -D -m 0644 "$LOCALZET_REPO/scripts/gnome-shell-log-smoke.py" "$root/usr/lib/localzet/gnome-shell-log-smoke.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
 systemctl --root="$root" enable localzet-live-ready.service NetworkManager.service
 systemctl --root="$root" set-default graphical.target

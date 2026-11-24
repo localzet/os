@@ -9,6 +9,8 @@ export class LocalzetDock {
     constructor(settings) {
         this._appSystem = Shell.AppSystem.get_default();
         this._settings = settings;
+        this._pinnedAppsChanged = settings?.connect(
+            'changed::pinned-apps', () => this._rebuild()) || 0;
         this._appStateSignals = [];
         this._actor = new St.BoxLayout({
             style_class: 'localzet-dock',
@@ -16,6 +18,17 @@ export class LocalzetDock {
             reactive: true,
             track_hover: true,
         });
+        const backgroundMode = Shell.BlurMode?.BACKGROUND;
+        if (typeof Shell.BlurEffect === 'function' && backgroundMode !== undefined) {
+            try {
+                this._actor.add_effect_with_name('localzet-dock-blur', new Shell.BlurEffect({
+                    mode: backgroundMode,
+                    radius: 18,
+                }));
+            } catch (error) {
+                console.warn('Localzet Dock: background blur unavailable: ' + error);
+            }
+        }
 
         this._monitorsChanged = Main.layoutManager.connect(
             'monitors-changed', () => this._place());
@@ -122,6 +135,10 @@ export class LocalzetDock {
         if (this._appsChanged) {
             this._appSystem.disconnect(this._appsChanged);
             this._appsChanged = 0;
+        }
+        if (this._pinnedAppsChanged) {
+            this._settings.disconnect(this._pinnedAppsChanged);
+            this._pinnedAppsChanged = 0;
         }
         if (this._overviewShowing) {
             Main.overview.disconnect(this._overviewShowing);

@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import ast
+from contextlib import contextmanager
 from dataclasses import dataclass
+import fcntl
+from functools import wraps
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import tempfile
-from typing import Protocol
+from typing import Callable, ParamSpec, Protocol, TypeVar
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -19,8 +23,11 @@ INTERFACE_SCHEMA = "org.gnome.desktop.interface"
 BACKGROUND_SCHEMA = "org.gnome.desktop.background"
 LOCAL_SCHEMA = "com.localzet.settings"
 LOCAL_APPEARANCE_KEY = "appearance"
+P = ParamSpec("P")
+R = TypeVar("R")
 SAFE_KEYS = {
     (EXTENSION_SCHEMA, "appearance"),
+    (INTERFACE_SCHEMA, "accent-color"),
     (INTERFACE_SCHEMA, "icon-theme"),
     (INTERFACE_SCHEMA, "color-scheme"),
     (BACKGROUND_SCHEMA, "picture-uri"),
@@ -52,6 +59,48 @@ class SettingValue:
 class RestoreResult:
     restored: int
     pending: int
+
+
+@contextmanager
+def _appearance_lock(target: Path):
+    try:
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        lock_path = target.with_name(f".{target.name}.lock")
+        descriptor = os.open(
+            lock_path,
+            os.O_CREAT | os.O_RDWR | os.O_CLOEXEC | os.O_NOFOLLOW,
+            0o600,
+        )
+    except OSError as error:
+        raise AppearanceError("Не удалось заблокировать изменение оформления") from error
+    try:
+        metadata = os.fstat(descriptor)
+        if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid()
+                or metadata.st_nlink != 1):
+            os.close(descriptor)
+            raise AppearanceError("Файл блокировки Appearance имеет неверный тип или владельца")
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+    except OSError as error:
+        os.close(descriptor)
+        raise AppearanceError("Не удалось заблокировать изменение оформления") from error
+    try:
+        yield
+    finally:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(descriptor)
+
+
+def _serialize_appearance(function: Callable[P, R]) -> Callable[P, R]:
+    @wraps(function)
+    def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+        target = kwargs.get("snapshot") or state_path()
+        with _appearance_lock(Path(target)):
+            return function(*args, **kwargs)
+
+    return wrapped
 
 
 class GSettingsStore:
@@ -176,8 +225,10 @@ def _wallpaper_uri(theme: str) -> str:
 
 def _changes(theme: str) -> list[SettingValue]:
     wallpaper = _wallpaper_uri(theme)
+    accent = "blue" if theme == "blue" else "purple"
     return [
         SettingValue(INTERFACE_SCHEMA, "color-scheme", "prefer-dark"),
+        SettingValue(INTERFACE_SCHEMA, "accent-color", accent),
         SettingValue(INTERFACE_SCHEMA, "icon-theme", "Localzet"),
         SettingValue(BACKGROUND_SCHEMA, "picture-uri", wallpaper),
         SettingValue(BACKGROUND_SCHEMA, "picture-uri-dark", wallpaper),
@@ -237,6 +288,7 @@ def _read_snapshot(path: Path) -> list[SettingValue]:
     return values
 
 
+@_serialize_appearance
 def apply_appearance(
     theme: str,
     *,
@@ -295,6 +347,7 @@ def apply_appearance(
     return tuple(f"{item.schema} {item.key}" for item in changes)
 
 
+@_serialize_appearance
 def restore_appearance(
     *,
     store: SettingsStore | None = None,

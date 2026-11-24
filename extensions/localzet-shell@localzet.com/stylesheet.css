@@ -28,7 +28,7 @@
     min-width: 365px;
     spacing: 4px;
     padding: 12px;
-    background-color: rgba(9, 22, 42, 0.94);
+    background-color: rgba(16, 35, 61, 0.88);
     border: 1px solid rgba(143, 176, 236, 0.36);
     border-radius: 18px;
 }
@@ -87,7 +87,7 @@
     padding: 8px 10px;
     spacing: 5px;
     border-radius: 21px;
-    background-color: rgba(9, 22, 42, 0.82);
+    background-color: rgba(9, 22, 42, 0.79);
     border: 1px solid rgba(143, 176, 236, 0.43);
     box-shadow: 0 10px 28px rgba(2, 8, 22, 0.54);
 }
@@ -129,12 +129,12 @@
 }
 
 .localzet-theme-purple .localzet-dock {
-    background-color: rgba(32, 17, 46, 0.92);
+    background-color: rgba(32, 17, 46, 0.80);
     border-color: rgba(195, 145, 223, 0.44);
 }
 
 .localzet-theme-purple .localzet-launcher {
-    background-color: rgba(33, 19, 50, 0.95);
+    background-color: rgba(47, 26, 62, 0.91);
     border-color: rgba(195, 145, 223, 0.40);
 }
 
@@ -166,12 +166,12 @@
 }
 
 .localzet-theme-black .localzet-dock {
-    background-color: rgba(12, 12, 15, 0.94);
-    border-color: rgba(139, 135, 151, 0.40);
+    background-color: rgba(12, 12, 15, 0.87);
+    border-color: rgba(139, 135, 151, 0.36);
 }
 
 .localzet-theme-black .localzet-launcher {
-    background-color: rgba(12, 12, 15, 0.96);
+    background-color: rgba(19, 19, 24, 0.94);
     border-color: rgba(139, 135, 151, 0.36);
 }
 
@@ -189,4 +189,34 @@
 
 .localzet-theme-black .localzet-dock-indicator {
     background-color: #b476ed;
+}
+
+.localzet-theme-blue .popup-menu-content {
+    background-color: rgba(16, 35, 61, 0.88);
+    border-color: rgba(143, 176, 236, 0.43);
+}
+
+.localzet-theme-purple .popup-menu-content {
+    background-color: rgba(47, 26, 62, 0.91);
+    border-color: rgba(195, 145, 223, 0.44);
+}
+
+.localzet-theme-black .popup-menu-content {
+    background-color: rgba(19, 19, 24, 0.94);
+    border-color: rgba(139, 135, 151, 0.36);
+}
+
+.localzet-theme-blue .quick-settings .quick-toggle:checked,
+.localzet-theme-blue .quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(87, 153, 245, 0.34);
+}
+
+.localzet-theme-purple .quick-settings .quick-toggle:checked,
+.localzet-theme-purple .quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(187, 132, 232, 0.34);
+}
+
+.localzet-theme-black .quick-settings .quick-toggle:checked,
+.localzet-theme-black .quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(180, 118, 237, 0.30);
 }

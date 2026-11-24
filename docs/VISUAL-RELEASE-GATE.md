@@ -42,6 +42,9 @@ larger Dock glyphs are included.
 
 This code does not establish full GNOME acceptance. The real-session matrix,
 approved-reference comparison, scale/accessibility review and UEFI gate remain
-open; see [`DESIGN_ACCEPTANCE.ru.md`](DESIGN_ACCEPTANCE.ru.md). Shell CSS uses
-translucent colors, borders and shadows. GNOME Shell's St stylesheet does not
-provide browser `backdrop-filter`, so this increment does not claim live blur.
+open; see [`DESIGN_ACCEPTANCE.ru.md`](DESIGN_ACCEPTANCE.ru.md). The Dock and
+launcher use GNOME Shell's background blur effect with restrained opacity,
+borders and shadows from the approved glass tokens. If the effect is
+unavailable, they fall back to translucent surfaces without blur. The QEMU
+captures must confirm that rounded edges, contrast and software rendering
+remain acceptable.

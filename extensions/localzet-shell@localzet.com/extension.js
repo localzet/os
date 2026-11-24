@@ -8,10 +8,23 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {LocalzetDock} from './dock.js';
 
-// Localzet design tokens are mirrored in stylesheet.css. GNOME Shell does
-// not support the full CSS syntax of web browsers (no backdrop-filter).
+// Localzet design tokens are mirrored in stylesheet.css; blur uses a Shell effect.
 const MAX_VISIBLE_APPS = 8;
 const APPEARANCE_CLASSES = ['localzet-theme-blue', 'localzet-theme-purple', 'localzet-theme-black'];
+
+function addGlassBlur(actor, name) {
+    const backgroundMode = Shell.BlurMode?.BACKGROUND;
+    if (typeof Shell.BlurEffect !== 'function' || backgroundMode === undefined)
+        return;
+    try {
+        actor.add_effect_with_name(name, new Shell.BlurEffect({
+            mode: backgroundMode,
+            radius: 18,
+        }));
+    } catch (error) {
+        console.warn('Localzet Shell: background blur unavailable: ' + error);
+    }
+}
 
 export default class LocalzetShell extends Extension {
     enable() {
@@ -41,6 +54,7 @@ export default class LocalzetShell extends Extension {
         }));
         this._indicator.add_child(mark);
         this._indicator.menu.box.add_style_class_name('localzet-launcher');
+        addGlassBlur(this._indicator.menu.box, 'localzet-launcher-blur');
 
         const heading = new PopupMenu.PopupMenuItem('LOCALZET OS', {
             reactive: false,

@@ -1,56 +1,62 @@
-# GNOME 50 smoke test — disposable VM
+# GNOME 50 live-session visual review
 
-The CI packaging job uses the GNOME 50 `gnome-extensions pack` command from Ubuntu 26.04, then verifies the ZIP. **It does not prove that GNOME Shell starts or that the extension works.**
-The visual workflow separately launches the GTK Settings app under Xvfb and
-captures its window, then runs GNOME Shell devkit captures. The GTK capture
-checks a real GTK window but is not a full GNOME session; devkit screenshots
-must be labeled separately from full-session evidence.
+The visual gate uses a freshly built Ubuntu 26.04 Live ISO booted as a regular
+GNOME 50 Wayland session in QEMU. `scripts/qemu-live-visual.py` drives the UI
+through QMP and saves the virtual display framebuffer; it does not call the
+GNOME Shell screenshot D-Bus API. The capture artifact records QEMU version,
+guest resolution, scene, theme and SHA-256 for each PNG.
 
-## Latest CI evidence
+Earlier DevKit/Xvfb captures are rejected as visual evidence. The previous
+Blue/Purple/Black captures differed only around a small panel glyph and did not
+establish that the full interface follows the selected theme. A successful
+capture run means only that frames were obtained; it is not a visual quality or
+design-acceptance result.
 
-PR #137 ran Ubuntu 26.04.1 with GNOME Shell 50.1. The isolated GNOME Shell
-DevKit smoke enabled Localzet Shell, changed the appearance setting through
-Blue/Purple/Black at 1536×1024 and 1920×1080, and completed without `JS ERROR`
-after commit `5b0cdef`. Screenshots and logs are in [workflow run 45324219667](https://github.com/localzet/os/actions/runs/45324219667).
-This is a DevKit/overview smoke, not a full desktop session; it does not cover
-Nautilus, Appearance, Quick Settings, launcher, or PNG side-by-side review.
-The separate GTK artifact captures only the Settings start page.
+## Required capture matrix
 
-The first DevKit run logged `global.stage.remove_style_class_name` as a
-JavaScript error even though the job passed. The extension now applies classes
-to `Main.layoutManager.uiGroup`, and the smoke fails if the Shell log contains
-`JS ERROR:`. Draft PRs now skip the expensive Live ISO workflow; manual
-dispatch and non-draft pull requests retain it.
+At 1536×1024, capture each theme after applying it in Localzet Settings:
 
-## Test environment
+- Desktop with the approved mountain wallpaper and the complete Localzet Dock.
+- Nautilus, Localzet launcher, GNOME Quick Settings, Appearance, Settings home,
+  and a visible notification.
+- The original pre-change Appearance and desktop after restore.
 
-- Fresh Ubuntu **26.04 LTS** virtual machine with standard GNOME 50 on Wayland.
-- Regular non-root user; create a VM snapshot before installing the extension.
-- Do not perform this first test on a production workstation.
+The first-login Blue desktop must also be captured before changing the session.
+The scenario then sets a distinct user-scoped restore source, applies all three
+themes through the Appearance UI, and restores the source. This makes restore
+observable while preserving evidence of the installed first-login defaults.
 
-## Manual test
+## Inspecting the result
 
-1. Clone `localzet/os` in a disposable Ubuntu 26.04 VM and run `gnome-shell --version`; expect GNOME Shell 50.x. `scripts/ci/gnome50-visual-smoke.sh` can capture a separate GNOME Shell devkit matrix at 1536×1024 and 1920×1080; label those files **GNOME Shell devkit**, not a full desktop session.
-2. Run `bash scripts/install-shell-dev.sh`. It must refuse to overwrite existing installations.
-3. Log out and log back in. Enable **Localzet Shell** in GNOME Extensions.
-4. Run `bash scripts/check-gnome-session.sh`; expect `PASS` with the expected UUID.
-5. Click the Localzet icon on the top panel, choose **Настройки системы** and confirm GNOME Settings opens.
-6. Disable the extension in GNOME Extensions. Confirm the indicator disappears and the desktop stays responsive.
-7. Enable again, confirm exactly one indicator. Review `journalctl --user -b --no-pager` locally for related errors; logs may contain sensitive information.
-8. Capture a **genuine** VM desktop screenshot and record GNOME, Ubuntu, screen resolution and GPU/renderer details.
-9. Open Localzet Settings → Оформление. Select Blue, Purple and Black in turn; confirm the wallpaper, desktop icon theme and Localzet Dock/launcher accent follow the selection. Confirm there is no theme selector in the top bar.
-10. Restore the saved appearance. Confirm the previous wallpaper, icon theme and color scheme return. Repeat with the Localzet Shell extension disabled; appearance must report the missing Shell integration without failing or changing privileged/system settings.
-11. In Nautilus, inspect folders and common MIME icons. Confirm third-party applications retain their own upstream logos through Adwaita fallback.
+1. Download the `localzet-gnome-50-qemu-screens` artifact from the pull request
+   workflow and read `manifest.json` for capture provenance.
+2. Inspect every Blue, Purple and Black scene at native resolution. Confirm
+   that the mountain wallpaper and all installed Dock entries are visible on
+   the desktop; compare shell colors, GTK surfaces, spacing, icon geometry and
+   glass treatment against the matching approved PNG.
+3. Check that Appearance visibly marks the active theme, applying each choice
+   changes the full interface, and Restore returns the distinct saved source.
+4. Inspect `installed-icon-resolution-page-1.png` through `-page-4.png`. The GTK
+   check resolves all 120 names against the active installed theme; the frames
+   show the resolved file paths for each name and upstream Nautilus/Ptyxis.
+   Confirm Localzet artwork resolves inside `Localzet`, while application icons
+   resolve outside that directory. Inspect Nautilus at rendered size too.
+5. Inspect `shell-log-check.png` after the theme changes and restore; it must
+   show `LOCALZET_SHELL_LOG_RESULT PASS js_errors=0`.
+6. Record concrete mismatches and fix them before asking the owner to accept the
+   design. Do not infer visual quality from filenames, hashes, or pixel-change
+   percentages alone.
 
 ## Acceptance criteria
 
-- Extension discovered, enabled and disabled without a GNOME Shell crash.
-- The Localzet menu and its Settings action function correctly.
-- No duplicate indicators after disabling/enabling and re-login.
-- A real screenshot and test notes are reviewed before the runtime milestone is marked complete.
-- The GNOME 50 package job passes separately; it is not runtime evidence.
-- Record Blue/Purple/Black captures separately at 1536×1024 and 1920×1080, including the scale factor and screenshot provenance.
+- The full GNOME 50 Wayland Live session reaches the QEMU readiness marker.
+- All required scenes for Blue/Purple/Black and restore have recorded provenance.
+- Human review confirms distinct styling across the full interface and compares
+  it with the approved references.
+- Nautilus shows resolved installed icon names and upstream third-party icons.
+- No `JS ERROR` appears during the captured session.
+- The owner accepts the visual result before the PR gate is marked complete.
 
-## Recovery
-
-Use GNOME Extensions to disable the extension. If the test VM cannot start a graphical session, recover from its VM snapshot or, using a VM recovery console, remove the user-scoped directory at `~/.local/share/gnome-shell/extensions/localzet-shell@localzet.com`. Do not alter a host OS.
+The capture VM is disposable and has no network interface. If a run fails,
+inspect its uploaded serial log and keep the PR draft. Never weaken GNOME
+screenshot or D-Bus protections to obtain a frame.

@@ -8,6 +8,17 @@ on:
       - 'scripts/assemble-live-iso.sh'
       - 'scripts/build-desktop-deb.sh'
       - 'scripts/qemu-iso-smoke.py'
+      - 'scripts/qemu-live-visual.py'
+      - 'scripts/gnome-icon-resolution-smoke.py'
+      - 'scripts/gnome-shell-log-smoke.py'
+      - 'extensions/**'
+      - 'apps/localzet-settings/**'
+      - 'src/localzet/settings/**'
+      - 'theme/icons/**'
+      - 'assets/design-tokens.json'
+      - 'assets/wallpapers/**'
+      - 'packaging/com.localzet.Settings.desktop'
+      - 'packaging/com.localzet.Settings.metainfo.xml'
       - 'packaging/live/**'
 concurrency:
   group: live-iso-${{ github.event.pull_request.number || github.ref }}
@@ -16,7 +27,6 @@ permissions:
   contents: read
 jobs:
   live:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-26.04
     timeout-minutes: 90
     steps:
@@ -27,11 +37,11 @@ jobs:
           for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh; do
             bash -n "$script"
           done
-          python3 -m py_compile scripts/qemu-iso-smoke.py packaging/live/localzet-live-ready.py
+          python3 -m py_compile scripts/qemu-iso-smoke.py scripts/qemu-live-visual.py scripts/gnome-icon-resolution-smoke.py scripts/gnome-shell-log-smoke.py packaging/live/localzet-live-ready.py
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf python3-pil
           df -h
           if test -c /dev/kvm && command -v setfacl >/dev/null; then
             sudo setfacl -m "u:$(id -un):rw" /dev/kvm
@@ -45,6 +55,8 @@ jobs:
           (cd dist && sha256sum -c localzet-dev.iso.sha256)
       - name: BIOS smoke
         run: python3 scripts/qemu-iso-smoke.py dist/localzet-dev.iso --firmware bios --timeout 480 --marker LOCALZET_LIVE_READY --log dist/bios.log
+      - name: Capture real GNOME 50 Wayland scenes
+        run: python3 scripts/qemu-live-visual.py dist/localzet-dev.iso --out dist/gnome-visual --timeout 480
       - name: Publish BIOS diagnostic log
         if: always()
         run: |
@@ -66,6 +78,14 @@ jobs:
           path: |
             dist/*.log
             dist/*.ppm
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload GNOME framebuffer captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localzet-gnome-50-qemu-screens
+          path: dist/gnome-visual/
           if-no-files-found: warn
           retention-days: 7
       - name: Upload development ISO

@@ -20,6 +20,14 @@ window.localzet-settings .localzet-summary {
 window.localzet-settings .heading {
     font-weight: 700;
 }
+window.localzet-settings button.suggested-action {
+    background-color: #5799f5;
+    color: #ffffff;
+    border-radius: 10px;
+}
+window.localzet-settings button.flat {
+    color: #c5d5fb;
+}
 
 window.localzet-settings.aurora-purple {
     color: #f8f0ff;

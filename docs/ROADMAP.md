@@ -4,7 +4,8 @@
 - [x] Ubuntu 26.04 LTS, GNOME 50 and project boundaries.
 - [x] Aurora shell extension, persistent dock, launcher, wallpaper and tokens.
 - [x] Read-only module catalogue/resolver and source checks.
-- [x] Extension ZIP packaging, GNOME visual smoke and GTK Settings smoke.
+- [x] Extension ZIP packaging and GTK Settings smoke.
+- [ ] Full GNOME 50 Wayland screenshots for all three themes and scenes; compare with approved references and obtain owner visual acceptance.
 - [x] Rootless desktop DEB packaging.
 
 ## P1 — first installable release (current)
