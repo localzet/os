@@ -72,6 +72,16 @@ class LiveDefaultsTests(unittest.TestCase):
         self.assertIn('LOCALZET_LIVE_VISUAL_TEST=1', workflow)
         self.assertIn('scripts/gnome-visual-test-agent.py"', customizer)
         self.assertIn('python3-pyatspi', rootfs_builder)
+        udev_rule = (
+            ROOT / "packaging/live/90-localzet-visual-test-uaccess.rules"
+        ).read_text(encoding="utf-8")
+        autostart = (
+            ROOT / "packaging/live/localzet-visual-test-agent.desktop"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('OWNER="1000"', udev_rule)
+        self.assertIn('MODE="0600"', udev_rule)
+        self.assertIn('X-GNOME-Autostart-Phase=Applications', autostart)
 
     def test_qemu_readiness_accepts_crlf_serial_marker(self):
         visual = runpy.run_path(
