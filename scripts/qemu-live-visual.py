@@ -286,14 +286,12 @@ def capture_shell_scenes(
 
     ready = agent.call("open_app", {"app": "files"})
     capture(qmp, output, f"{theme}-nautilus", theme, records, ready)
-    press(qmp, "alt", "f4")
-    pause(0.5)
+    agent.call("close_app", {"app": "files"})
     agent.call("desktop_ready")
 
     ready = agent.call("open_app", {"app": "terminal"})
     capture(qmp, output, f"{theme}-terminal", theme, records, ready)
-    press(qmp, "alt", "f4")
-    pause(0.5)
+    agent.call("close_app", {"app": "terminal"})
     agent.call("desktop_ready")
 
     agent.call("notify")
@@ -437,8 +435,7 @@ def main() -> int:
                 capture(qmp, args.out, f"{theme}-appearance", theme, records, applied)
                 settings_ready = agent.call("open_page", {"page": "system"})
                 capture(qmp, args.out, f"{theme}-settings", theme, records, settings_ready)
-                press(qmp, "alt", "f4")
-                pause(0.5)
+                agent.call("close_app", {"app": "settings"})
                 agent.call("desktop_ready")
                 capture_shell_scenes(qmp, agent, args.out, theme, records)
 
@@ -456,8 +453,7 @@ def main() -> int:
                     or restored_state["restore_point"]):
                 raise RuntimeError(f"Appearance did not restore the source state: {restored_state}")
             capture(qmp, args.out, "restored-appearance", "restored", records, restored)
-            press(qmp, "alt", "f4")
-            pause(0.5)
+            agent.call("close_app", {"app": "settings"})
             ready = agent.call("desktop_ready")
             capture(qmp, args.out, "restored-desktop", "restored", records, ready)
             check_shell_logs(agent, args.out)

@@ -40,7 +40,8 @@ NO_ARGUMENTS = {
     "notify", "icon_resolution", "shell_logs",
 }
 OPERATIONS = NO_ARGUMENTS | {
-    "open_app", "open_page", "open_popup", "select_theme", "wait_window", "wait_popup",
+    "close_app", "open_app", "open_page", "open_popup", "select_theme",
+    "wait_window", "wait_popup",
 }
 
 
@@ -66,6 +67,7 @@ def validate_request(request: object) -> tuple[int, str, dict[str, str]]:
         raise RequestError("args must contain string values")
 
     required = {
+        "close_app": {"app"},
         "open_app": {"app"},
         "open_page": {"page"},
         "open_popup": {"popup"},
@@ -75,7 +77,8 @@ def validate_request(request: object) -> tuple[int, str, dict[str, str]]:
     }.get(operation, set())
     if set(arguments) != required:
         raise RequestError("unexpected or missing operation arguments")
-    if operation in {"open_app", "wait_window"} and arguments.get("app") not in APP_IDS:
+    if operation in {"close_app", "open_app", "wait_window"} \
+            and arguments.get("app") not in APP_IDS:
         raise RequestError("unsupported application")
     if operation == "open_page" and arguments.get("page") not in PAGES:
         raise RequestError("unsupported Settings page")
@@ -337,6 +340,31 @@ def _shell_window_title(app: str) -> str | None:
     return result[0] or None
 
 
+def _close_app(app: str) -> dict:
+    if app not in APP_IDS:
+        raise RequestError("unsupported application")
+    completed = subprocess.run(
+        [
+            "gdbus", "call", "--session", "--dest", "org.localzet.VisualTest",
+            "--object-path", "/org/localzet/VisualTest", "--method",
+            "org.localzet.VisualTest.CloseWindow", app,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if completed.stdout.strip() != "(true,)":
+        raise RuntimeError(f"GNOME did not request closing the {app} window")
+
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if _find_window(app) is None and _shell_window_title(app) is None:
+            return {"app": app, "closed": True, "ready": True}
+        time.sleep(0.25)
+    raise TimeoutError(f"{app} window remained visible after close request")
+
+
 def _wait_window(app: str) -> dict:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -544,6 +572,8 @@ def dispatch(operation: str, arguments: dict[str, str]) -> dict:
         return {"state": _state(), "ready": True}
     if operation == "open_app":
         return _open_app(arguments["app"])
+    if operation == "close_app":
+        return _close_app(arguments["app"])
     if operation == "wait_window":
         return _wait_window(arguments["app"])
     if operation == "open_page":

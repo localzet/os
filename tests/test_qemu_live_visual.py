@@ -122,6 +122,10 @@ class QemuLiveVisualTests(unittest.TestCase):
             validate({"id": 5, "op": "open_popup", "args": {"popup": "launcher"}}),
             (5, "open_popup", {"popup": "launcher"}),
         )
+        self.assertEqual(
+            validate({"id": 6, "op": "close_app", "args": {"app": "terminal"}}),
+            (6, "close_app", {"app": "terminal"}),
+        )
         for request in (
             {"id": 4, "op": "run", "args": {"command": "gsettings get"}},
             {"id": 4, "op": "open_app", "args": {"app": "shell"}},
@@ -163,10 +167,12 @@ class QemuLiveVisualTests(unittest.TestCase):
     def test_visual_runner_does_not_type_commands_and_uses_virtio_control(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("type_text", source)
+        self.assertNotIn('press(qmp, "alt", "f4")', source)
         self.assertNotIn("live-appearance-verify.py", source)
         self.assertIn('"virtserialport,chardev=visual-control,name=org.localzet.visual-test"', source)
         self.assertIn('agent.call("open_popup", {"popup": "launcher"})', source)
         self.assertIn('agent.call("open_popup", {"popup": "quick_settings"})', source)
+        self.assertIn('agent.call("close_app", {"app": "terminal"})', source)
         self.assertIn('qmp.execute("screendump"', source)
 
     def test_guest_control_uses_structured_request_and_response_lines(self):
@@ -251,6 +257,31 @@ class QemuLiveVisualTests(unittest.TestCase):
 
         args = run.call_args.args[0]
         self.assertEqual(args[-2:], ["org.localzet.VisualTest.FindWindow", "terminal"])
+
+    def test_guest_close_app_confirms_the_window_is_gone(self):
+        completed = type("Completed", (), {"stdout": "(true,)\n"})()
+        with patch.object(visual_agent.subprocess, "run", return_value=completed) as run, \
+                patch.object(
+                    visual_agent,
+                    "_find_window",
+                    side_effect=[{"app": "terminal"}, None],
+                ) as find_window, \
+                patch.object(visual_agent, "_shell_window_title", return_value=None):
+            with patch.object(visual_agent.time, "sleep"):
+                result = visual_agent._close_app("terminal")
+
+        self.assertEqual(result, {"app": "terminal", "closed": True, "ready": True})
+        self.assertEqual(find_window.call_count, 2)
+        self.assertEqual(
+            run.call_args.args[0][-2:],
+            ["org.localzet.VisualTest.CloseWindow", "terminal"],
+        )
+
+    def test_guest_close_app_rejects_an_unconfirmed_close_request(self):
+        completed = type("Completed", (), {"stdout": "(false,)\n"})()
+        with patch.object(visual_agent.subprocess, "run", return_value=completed):
+            with self.assertRaisesRegex(RuntimeError, "did not request closing"):
+                visual_agent._close_app("settings")
 
     def test_desktop_readiness_requires_local_wallpaper_and_visible_dock(self):
         with tempfile.TemporaryDirectory() as directory:

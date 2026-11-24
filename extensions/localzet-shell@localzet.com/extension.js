@@ -26,6 +26,10 @@ const VISUAL_TEST_INTERFACE = `
       <arg name="app" type="s" direction="in" />
       <arg name="title" type="s" direction="out" />
     </method>
+    <method name="CloseWindow">
+      <arg name="app" type="s" direction="in" />
+      <arg name="requested" type="b" direction="out" />
+    </method>
   </interface>
 </node>`;
 const VISUAL_TEST_WINDOW_CLASSES = {
@@ -41,10 +45,10 @@ function openMenuAndReport(menu) {
     return menu.isOpen === true;
 }
 
-function findVisualTestWindow(app) {
+function findVisualTestWindowActor(app) {
     const expectedClasses = VISUAL_TEST_WINDOW_CLASSES[app];
     if (!expectedClasses)
-        return '';
+        return null;
 
     for (const actor of global.get_window_actors()) {
         const window = actor.meta_window;
@@ -52,9 +56,25 @@ function findVisualTestWindow(app) {
             continue;
         const wmClass = String(window.get_wm_class() || '').toLowerCase();
         if (expectedClasses.some(candidate => wmClass === candidate))
-            return window.get_title() || wmClass;
+            return actor;
     }
-    return '';
+    return null;
+}
+
+function findVisualTestWindow(app) {
+    const actor = findVisualTestWindowActor(app);
+    if (!actor)
+        return '';
+    const window = actor.meta_window;
+    return window.get_title() || window.get_wm_class() || '';
+}
+
+function closeVisualTestWindow(app) {
+    const actor = findVisualTestWindowActor(app);
+    if (!actor)
+        return false;
+    actor.meta_window.delete(global.get_current_time());
+    return true;
 }
 
 function addGlassBlur(actor, name) {
@@ -191,6 +211,7 @@ export default class LocalzetShell extends Extension {
                             Main.panel.statusArea.quickSettings?.menu,
                         ),
                         FindWindow: app => findVisualTestWindow(app),
+                        CloseWindow: app => closeVisualTestWindow(app),
                     },
                 );
                 this._visualTestObject.export(connection, '/org/localzet/VisualTest');
