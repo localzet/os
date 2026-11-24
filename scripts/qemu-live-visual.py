@@ -18,6 +18,7 @@ from qemu_serial import has_serial_marker, serial_integer
 
 WIDTH = 1536
 HEIGHT = 1024
+ABSOLUTE_POINTER_MAX = 0x7FFFF
 READY_MARKER = b"LOCALZET_LIVE_READY"
 GRAPHICAL_VT_KEY = b"LOCALZET_LIVE_GRAPHICAL_VT"
 GUEST_AGENT_READY_TIMEOUT = 30
@@ -191,8 +192,14 @@ def click(qmp: QMP, x: int, y: int) -> None:
     if not (0 <= x < WIDTH and 0 <= y < HEIGHT):
         raise ValueError("Click is outside the configured QEMU display")
     qmp.execute("input-send-event", {"events": [
-        {"type": "abs", "data": {"axis": "x", "value": round(x * 32767 / (WIDTH - 1))}},
-        {"type": "abs", "data": {"axis": "y", "value": round(y * 32767 / (HEIGHT - 1))}},
+        {"type": "abs", "data": {
+            "axis": "x",
+            "value": round(x * ABSOLUTE_POINTER_MAX / (WIDTH - 1)),
+        }},
+        {"type": "abs", "data": {
+            "axis": "y",
+            "value": round(y * ABSOLUTE_POINTER_MAX / (HEIGHT - 1)),
+        }},
         {"type": "btn", "data": {"button": "left", "down": True}},
         {"type": "btn", "data": {"button": "left", "down": False}},
     ]})

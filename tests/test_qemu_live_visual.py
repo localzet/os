@@ -34,6 +34,27 @@ class QemuLiveVisualTests(unittest.TestCase):
     def test_guest_agent_startup_timeout_is_bounded(self):
         self.assertEqual(visual_script.GUEST_AGENT_READY_TIMEOUT, 30)
 
+    def test_qmp_pointer_coordinates_use_the_full_absolute_axis_range(self):
+        class Recorder:
+            events = None
+
+            def execute(self, command, arguments):
+                self.assert_command = command
+                self.events = arguments["events"]
+
+        qmp = Recorder()
+        visual_script.click(qmp, 80, 16)
+
+        self.assertEqual(qmp.assert_command, "input-send-event")
+        self.assertEqual(qmp.events[0]["data"]["value"], round(
+            80 * visual_script.ABSOLUTE_POINTER_MAX / (visual_script.WIDTH - 1)
+        ))
+        self.assertEqual(qmp.events[1]["data"]["value"], round(
+            16 * visual_script.ABSOLUTE_POINTER_MAX / (visual_script.HEIGHT - 1)
+        ))
+        self.assertEqual(qmp.events[2]["data"], {"button": "left", "down": True})
+        self.assertEqual(qmp.events[3]["data"], {"button": "left", "down": False})
+
     def test_appearance_theme_action_uses_its_row_when_button_label_is_generic(self):
         class Action:
             nActions = 1
