@@ -77,10 +77,11 @@ install -m 0644 "$LOCALZET_REPO/assets/terminal-palettes/"*.palette \
 if [[ "${LOCALZET_LIVE_VISUAL_TEST:-0}" == 1 ]]; then
     install -D -m 0644 "$LOCALZET_REPO/scripts/gnome-visual-test-agent.py" \
         "$root/usr/lib/localzet/gnome-visual-test-agent.py"
-    install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-visual-test-agent.desktop" \
-        "$root/etc/xdg/autostart/localzet-visual-test-agent.desktop"
+    install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-visual-test-agent.service" \
+        "$root/usr/lib/systemd/system/localzet-visual-test-agent.service"
     install -D -m 0644 "$LOCALZET_REPO/packaging/live/90-localzet-visual-test-uaccess.rules" \
         "$root/etc/udev/rules.d/90-localzet-visual-test-uaccess.rules"
+    systemctl --root="$root" enable localzet-visual-test-agent.service
 fi
 
 if [[ "${LOCALZET_INSTALL_TEST:-0}" == 1 ]]; then

@@ -20,6 +20,7 @@ WIDTH = 1536
 HEIGHT = 1024
 READY_MARKER = b"LOCALZET_LIVE_READY"
 GRAPHICAL_VT_KEY = b"LOCALZET_LIVE_GRAPHICAL_VT"
+GUEST_AGENT_READY_TIMEOUT = 30
 QCODE_ALIASES = {"enter": "ret"}
 
 
@@ -389,7 +390,16 @@ def main() -> int:
             qmp = QMP(monitor, timeout=20)
             agent = GuestControl(control_socket, timeout=20)
             graphical_vt = wait_for_ready(serial, process, args.timeout, qemu_stderr)
-            greeting = agent.wait_ready(timeout=args.timeout)
+            try:
+                greeting = agent.wait_ready(
+                    timeout=min(args.timeout, GUEST_AGENT_READY_TIMEOUT)
+                )
+            except TimeoutError as error:
+                channels = qmp.execute("query-chardev")
+                raise RuntimeError(
+                    "guest visual test agent did not open its virtio-serial port; "
+                    f"QEMU channel state: {channels}"
+                ) from error
             print(f"Guest control ready: {greeting}", flush=True)
             pause(3.0)
 

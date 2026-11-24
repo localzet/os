@@ -31,6 +31,9 @@ agent_spec.loader.exec_module(visual_agent)
 
 
 class QemuLiveVisualTests(unittest.TestCase):
+    def test_guest_agent_startup_timeout_is_bounded(self):
+        self.assertEqual(visual_script.GUEST_AGENT_READY_TIMEOUT, 30)
+
     @patch("qemu_live_visual.os.access", return_value=True)
     def test_auto_uses_kvm_when_device_is_accessible(self, access):
         self.assertEqual(choose_acceleration("auto"), "kvm")

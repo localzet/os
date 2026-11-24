@@ -71,17 +71,23 @@ class LiveDefaultsTests(unittest.TestCase):
         self.assertIn('LOCALZET_LIVE_VISUAL_TEST:-0', customizer)
         self.assertIn('LOCALZET_LIVE_VISUAL_TEST=1', workflow)
         self.assertIn('scripts/gnome-visual-test-agent.py"', customizer)
+        self.assertIn('packaging/live/localzet-visual-test-agent.service', customizer)
+        self.assertIn('enable localzet-visual-test-agent.service', customizer)
         self.assertIn('python3-pyatspi', rootfs_builder)
         udev_rule = (
             ROOT / "packaging/live/90-localzet-visual-test-uaccess.rules"
         ).read_text(encoding="utf-8")
-        autostart = (
-            ROOT / "packaging/live/localzet-visual-test-agent.desktop"
+        agent_service = (
+            ROOT / "packaging/live/localzet-visual-test-agent.service"
         ).read_text(encoding="utf-8")
 
         self.assertIn('OWNER="1000"', udev_rule)
         self.assertIn('MODE="0600"', udev_rule)
-        self.assertIn('X-GNOME-Autostart-Phase=Applications', autostart)
+        self.assertIn('User=localzet', agent_service)
+        self.assertIn('WAYLAND_DISPLAY=wayland-0', agent_service)
+        self.assertIn('DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus', agent_service)
+        self.assertIn('Requires=localzet-live-ready.service', agent_service)
+        self.assertIn('WantedBy=graphical.target', agent_service)
 
     def test_qemu_readiness_accepts_crlf_serial_marker(self):
         visual = runpy.run_path(
