@@ -18,13 +18,15 @@ At 1536×1024, capture each theme after applying it in Localzet Settings:
 
 - Desktop with the approved mountain wallpaper and the complete Localzet Dock.
 - Nautilus, Localzet launcher, GNOME Quick Settings, Appearance, Settings home,
-  and a visible notification.
+  Ptyxis with the selected Aurora palette, and a visible notification.
 - The original pre-change Appearance and desktop after restore.
 
 The first-login Blue desktop must also be captured before changing the session.
 The scenario then sets a distinct user-scoped restore source, applies all three
 themes through the Appearance UI, and restores the source. This makes restore
 observable while preserving evidence of the installed first-login defaults.
+The test-only guest helper starts Ptyxis as a separate instance for each
+capture so the selected palette is read before its window is reported ready.
 
 ## Inspecting the result
 

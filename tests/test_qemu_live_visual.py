@@ -94,6 +94,43 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertEqual(result["state"], state)
         self.assertEqual(result["window"], window)
 
+    def test_appearance_restore_accepts_visible_button_label_and_confirms_state(self):
+        wallpaper = "file:///usr/share/backgrounds/localzet/aurora-black.webp"
+        state = {
+            "appearance": "purple",
+            "icon_theme": "Adwaita",
+            "picture_uri": wallpaper,
+            "picture_uri_dark": wallpaper,
+            "color_scheme": "default",
+            "restore_point": False,
+        }
+        window = {"app": "settings", "title": "Localzet Settings", "ready": True}
+        with patch.object(visual_agent, "_activate_name") as activate, \
+                patch.object(visual_agent, "_state", return_value=state), \
+                patch.object(visual_agent, "_wait_window", return_value=window):
+            result = visual_agent._restore()
+
+        activate.assert_called_once_with((
+            "Восстановить исходные настройки оформления",
+            "Восстановить исходный вид",
+        ))
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["state"], state)
+        self.assertEqual(result["window"], window)
+
+    def test_terminal_capture_launches_fresh_allowlisted_ptyxis_window(self):
+        window = {"app": "terminal", "title": "Ptyxis", "ready": True}
+        with patch.object(visual_agent.subprocess, "Popen") as launch, \
+                patch.object(visual_agent, "_wait_window", return_value=window):
+            result = visual_agent._open_app("terminal")
+
+        launch.assert_called_once_with(
+            ["ptyxis", "--standalone", "--new-window"],
+            close_fds=True,
+            start_new_session=True,
+        )
+        self.assertTrue(result["ready"])
+
     @patch("qemu_live_visual.os.access", return_value=True)
     def test_auto_uses_kvm_when_device_is_accessible(self, access):
         self.assertEqual(choose_acceleration("auto"), "kvm")

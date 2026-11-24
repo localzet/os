@@ -1,6 +1,6 @@
 /* Localzet Aurora Dark: GNOME Shell stylesheet (not browser CSS). */
 #panel.localzet-panel {
-    background-color: rgba(9, 22, 42, 0.72);
+    background-color: rgba(9, 22, 42, 0.62);
     border-bottom: 1px solid rgba(143, 176, 236, 0.42);
     box-shadow: 0 3px 18px rgba(2, 8, 22, 0.36);
 }
@@ -15,10 +15,10 @@
     background-color: rgba(108, 146, 237, 0.19);
 }
 .localzet-panel .system-status-icon {
-    icon-size: 18px;
+    icon-size: 20px;
 }
 .localzet-panel .panel-status-indicators {
-    spacing: 3px;
+    spacing: 6px;
 }
 .localzet-indicator {
     border-radius: 11px;
@@ -38,7 +38,7 @@
 }
 .localzet-panel .localzet-brand-icon {
     color: #d1c8ff;
-    icon-size: 22px;
+    icon-size: 24px;
 }
 .system-status-icon {
     icon-size: 18px;
@@ -153,7 +153,7 @@
 }
 
 .localzet-theme-purple #panel.localzet-panel {
-    background-color: rgba(32, 17, 46, 0.62);
+    background-color: rgba(32, 17, 46, 0.58);
     border-bottom-color: rgba(195, 145, 223, 0.34);
 }
 .localzet-theme-purple #panel.localzet-panel .panel-button:hover,
@@ -199,7 +199,7 @@
 }
 
 .localzet-theme-black #panel.localzet-panel {
-    background-color: rgba(12, 12, 15, 0.74);
+    background-color: rgba(12, 12, 15, 0.68);
     border-bottom-color: rgba(139, 135, 151, 0.30);
 }
 .localzet-theme-black #panel.localzet-panel .panel-button:hover,

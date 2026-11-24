@@ -385,13 +385,20 @@ def _wait_window(app: str) -> dict:
 
 
 def _open_app(app: str) -> dict:
-    import gi
-    gi.require_version("Gio", "2.0")
-    from gi.repository import Gio
+    if app == "terminal":
+        subprocess.Popen(
+            ["ptyxis", "--standalone", "--new-window"],
+            close_fds=True,
+            start_new_session=True,
+        )
+    else:
+        import gi
+        gi.require_version("Gio", "2.0")
+        from gi.repository import Gio
 
-    info = Gio.DesktopAppInfo.new(APP_IDS[app])
-    if info is None or not info.launch([], None):
-        raise RuntimeError(f"could not launch allowlisted app: {app}")
+        info = Gio.DesktopAppInfo.new(APP_IDS[app])
+        if info is None or not info.launch([], None):
+            raise RuntimeError(f"could not launch allowlisted app: {app}")
     return _wait_window(app)
 
 
@@ -419,7 +426,10 @@ def _apply_theme(theme: str) -> dict:
 
 
 def _restore() -> dict:
-    _activate_name(("Восстановить исходные настройки оформления",))
+    _activate_name((
+        "Восстановить исходные настройки оформления",
+        "Восстановить исходный вид",
+    ))
     expected_wallpaper = "file:///usr/share/backgrounds/localzet/aurora-black.webp"
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:

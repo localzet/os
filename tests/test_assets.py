@@ -43,6 +43,7 @@ class AssetsTests(unittest.TestCase):
 
     def test_shell_appearance_classes_use_styled_widget_and_qemu_capture(self):
         extension = (ROOT / 'extensions/localzet-shell@localzet.com/extension.js').read_text()
+        stylesheet = (ROOT / 'extensions/localzet-shell@localzet.com/stylesheet.css').read_text()
         capture = (ROOT / 'scripts/qemu-live-visual.py').read_text()
         self.assertIn('const uiGroup = Main.layoutManager.uiGroup;', extension)
         self.assertIn('uiGroup.add_style_class_name(appearance)', extension)
@@ -51,6 +52,9 @@ class AssetsTests(unittest.TestCase):
         self.assertIn('QEMU QMP', capture)
         self.assertIn('qmp.execute("screendump"', capture)
         self.assertIn('vnc=unix:', capture)
+        self.assertIn('rgba(9, 22, 42, 0.62)', stylesheet)
+        self.assertIn('icon-size: 20px', stylesheet)
+        self.assertIn('icon-size: 24px', stylesheet)
 
     def test_appearance_boxed_lists_follow_each_aurora_surface(self):
         css = (ROOT / 'apps/localzet-settings/settings.css').read_text()
