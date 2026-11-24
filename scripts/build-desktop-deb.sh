@@ -40,6 +40,11 @@ install -m 0644 "$repo/extensions/localzet-shell@localzet.com/schemas/com.localz
 install -m 0644 "$repo/packaging/99-localzet-ptyxis.gschema.override" \
     "$pkg/usr/share/glib-2.0/schemas/"
 cp -a "$repo/theme/icons/Localzet" "$pkg/usr/share/icons/"
+mkdir -p "$pkg/usr/share/icons/hicolor/scalable/apps"
+for icon in localzet-settings localzet-connect localzet-windows; do
+    install -m 0644 "$repo/theme/icons/Localzet/scalable/apps/$icon.svg" \
+        "$pkg/usr/share/icons/hicolor/scalable/apps/$icon.svg"
+done
 install -m 0755 "$repo/apps/localzet-settings/localzet-settings" "$pkg/usr/bin/localzet-settings"
 install -m 0644 "$repo/packaging/com.localzet.Settings.desktop" "$pkg/usr/share/applications/"
 install -m 0644 "$repo/packaging/com.localzet.Settings.metainfo.xml" "$pkg/usr/share/metainfo/"
@@ -66,6 +71,7 @@ set -eu
 glib-compile-schemas --strict /usr/share/glib-2.0/schemas
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache --force --quiet /usr/share/icons/Localzet || true
+    gtk-update-icon-cache --force --quiet /usr/share/icons/hicolor || true
 fi
 exit 0
 EOF
@@ -79,6 +85,10 @@ fi
 if test -f /usr/share/icons/Localzet/index.theme \
         && command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache --force --quiet /usr/share/icons/Localzet || true
+fi
+if test -d /usr/share/icons/hicolor \
+        && command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache --force --quiet /usr/share/icons/hicolor || true
 fi
 exit 0
 EOF

@@ -82,6 +82,18 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertEqual(activated, "Применить")
         self.assertTrue(click.invoked)
 
+    def test_appearance_apply_reports_ready_after_state_and_window_confirmation(self):
+        state = {"appearance": "purple"}
+        window = {"app": "settings", "title": "Localzet Settings", "ready": True}
+        with patch.object(visual_agent, "_activate_theme"), \
+                patch.object(visual_agent, "_state", return_value=state), \
+                patch.object(visual_agent, "_wait_window", return_value=window):
+            result = visual_agent._apply_theme("purple")
+
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["state"], state)
+        self.assertEqual(result["window"], window)
+
     @patch("qemu_live_visual.os.access", return_value=True)
     def test_auto_uses_kvm_when_device_is_accessible(self, access):
         self.assertEqual(choose_acceleration("auto"), "kvm")

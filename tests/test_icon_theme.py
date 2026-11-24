@@ -73,6 +73,11 @@ class IconThemeTests(unittest.TestCase):
         asset = ROOT / "assets/icons/aurora/localzet-brand.svg"
         installed = THEME / "scalable/apps/localzet-brand.svg"
         self.assertEqual(asset.read_bytes(), installed.read_bytes())
+        shell_asset = ROOT / "extensions/localzet-shell@localzet.com/localzet-brand.svg"
+        self.assertEqual(asset.read_bytes(), shell_asset.read_bytes())
+        extension = (ROOT / "extensions/localzet-shell@localzet.com/extension.js").read_text()
+        self.assertIn("new Gio.FileIcon", extension)
+        self.assertIn("this.dir.get_child('localzet-brand.svg')", extension)
         svg = ET.parse(asset).getroot()
         self.assertEqual(len(svg.findall(f"{NAMESPACE}ellipse")), 0)
         self.assertEqual(len(svg.findall(f"{NAMESPACE}g/{NAMESPACE}ellipse")), 3)
@@ -95,8 +100,12 @@ class IconThemeTests(unittest.TestCase):
     def test_package_builder_installs_and_refreshes_theme(self):
         builder = (ROOT / "scripts/build-desktop-deb.sh").read_text(encoding="utf-8")
         self.assertIn('"$pkg/usr/share/icons/"', builder)
+        self.assertIn('"$pkg/usr/share/icons/hicolor/scalable/apps"', builder)
+        self.assertIn("for icon in localzet-settings localzet-connect localzet-windows; do", builder)
+        self.assertIn("/scalable/apps/$icon.svg", builder)
         self.assertIn("gtk-update-icon-cache, libglib2.0-bin", builder)
         self.assertIn('gtk-update-icon-cache --force --quiet /usr/share/icons/Localzet', builder)
+        self.assertIn('gtk-update-icon-cache --force --quiet /usr/share/icons/hicolor', builder)
         self.assertIn("rm -f /usr/share/icons/Localzet/icon-theme.cache", builder)
 
     def test_svg_renders_at_required_sizes_when_gdk_pixbuf_is_available(self):

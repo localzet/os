@@ -47,7 +47,9 @@ export default class LocalzetShell extends Extension {
             vertical: false,
         });
         mark.add_child(new St.Icon({
-            icon_name: 'localzet-brand',
+            gicon: new Gio.FileIcon({
+                file: this.dir.get_child('localzet-brand.svg'),
+            }),
             style_class: 'system-status-icon localzet-brand-icon',
         }));
         mark.add_child(new St.Label({

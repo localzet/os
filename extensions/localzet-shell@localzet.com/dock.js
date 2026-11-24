@@ -117,7 +117,8 @@ export class LocalzetDock {
         if (!monitor)
             return;
         const count = this._actor.get_n_children();
-        const width = Math.min(monitor.width - 24, Math.max(90, 20 + count * 60));
+        const naturalWidth = 15 + count * 63;
+        const width = Math.min(monitor.width - 24, Math.max(90, naturalWidth));
         const height = 70;
         this._actor.set_size(width, height);
         this._actor.set_position(

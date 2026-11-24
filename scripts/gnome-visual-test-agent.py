@@ -343,7 +343,12 @@ def _apply_theme(theme: str) -> dict:
     while time.monotonic() < deadline:
         state = _state()
         if state["appearance"] == theme:
-            return {"theme": theme, "state": state, "window": _wait_window("settings")}
+            return {
+                "theme": theme,
+                "state": state,
+                "window": _wait_window("settings"),
+                "ready": True,
+            }
         time.sleep(0.25)
     raise TimeoutError(f"Aurora {theme.title()} did not apply in Appearance")
 

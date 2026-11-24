@@ -1,8 +1,8 @@
 /* Localzet Aurora Dark: GNOME Shell stylesheet (not browser CSS). */
 #panel.localzet-panel {
-    background-color: rgba(9, 22, 42, 0.56);
-    border-bottom: 1px solid rgba(143, 176, 236, 0.30);
-    box-shadow: 0 3px 18px rgba(2, 8, 22, 0.28);
+    background-color: rgba(9, 22, 42, 0.72);
+    border-bottom: 1px solid rgba(143, 176, 236, 0.42);
+    box-shadow: 0 3px 18px rgba(2, 8, 22, 0.36);
 }
 #panel.localzet-panel .panel-button {
     min-height: 32px;
@@ -32,6 +32,9 @@
 .localzet-brand {
     spacing: 7px;
     padding: 0 8px;
+}
+.localzet-brand-icon {
+    icon-size: 22px;
 }
 .localzet-panel .localzet-brand-icon {
     color: #d1c8ff;
