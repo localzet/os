@@ -220,14 +220,19 @@ def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) 
     with Image.open(raw) as image:
         rgb = image.convert("RGB")
         stats = ImageStat.Stat(rgb)
-        if max(stats.stddev) < 3 or max(stats.mean) < 8:
-            raise RuntimeError(f"Framebuffer is black or inactive: {name}")
         rgb.save(png, optimize=True)
         size = list(rgb.size)
+        mean = [round(value, 2) for value in stats.mean]
+        stddev = [round(value, 2) for value in stats.stddev]
     raw.unlink()
     if size != [WIDTH, HEIGHT]:
         raise RuntimeError(
             f"Unexpected guest resolution for {name}: {size[0]}x{size[1]}"
+        )
+    if max(stddev) < 3 or max(mean) < 8:
+        raise RuntimeError(
+            f"Framebuffer is black or inactive: {name}; mean={mean}, stddev={stddev}; "
+            f"diagnostic frame saved to {png}"
         )
     records.append({
         "file": png.name,
