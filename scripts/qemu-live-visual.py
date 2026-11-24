@@ -107,25 +107,6 @@ def press(qmp: QMP, *keys: str) -> None:
     })
 
 
-def press_combo(qmp: QMP, *keys: str, hold_time: float = 0.5) -> None:
-    codes = [QCODE_ALIASES.get(key, key) for key in keys]
-    qmp.execute("input-send-event", {"events": [
-        {"type": "key", "data": {
-            "down": True,
-            "key": {"type": "qcode", "data": code},
-        }}
-        for code in codes
-    ]})
-    pause(hold_time)
-    qmp.execute("input-send-event", {"events": [
-        {"type": "key", "data": {
-            "down": False,
-            "key": {"type": "qcode", "data": code},
-        }}
-        for code in reversed(codes)
-    ]})
-
-
 def type_text(qmp: QMP, value: str) -> None:
     codes = {
         " ": "spc",
@@ -415,7 +396,6 @@ def main() -> int:
         try:
             graphical_vt = wait_for_ready(serial, process, args.timeout, qemu_stderr)
             qmp = QMP(monitor, timeout=20)
-            press_combo(qmp, "ctrl", "alt", f"f{graphical_vt}")
             pause(12.0)
 
             capture(qmp, args.out, "first-login-defaults", "blue", records)
@@ -483,6 +463,7 @@ def main() -> int:
                 "capture_method": "QEMU QMP screendump from the Ubuntu 26.04 GNOME 50 Wayland Live session",
                 "qemu": qemu_version,
                 "guest_resolution": [WIDTH, HEIGHT],
+                "active_graphical_vt": graphical_vt,
                 "desktop_theme_changed_pixel_ratios": theme_differences,
                 "records": records,
             }, indent=2) + "\n", encoding="utf-8")

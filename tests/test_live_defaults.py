@@ -110,31 +110,6 @@ class LiveDefaultsTests(unittest.TestCase):
         self.assertEqual(calls[0][0], "send-key")
         self.assertEqual(calls[0][1]["keys"], [{"type": "qcode", "data": "ret"}])
 
-    def test_qemu_vt_switch_sends_explicit_key_down_and_up(self):
-        visual = runpy.run_path(
-            str(ROOT / "scripts/qemu-live-visual.py"), run_name="visual_test"
-        )
-        calls = []
-
-        class RecordingQMP:
-            def execute(self, command, arguments):
-                calls.append((command, arguments))
-
-        visual["pause"] = lambda _seconds: None
-        visual["press_combo"](RecordingQMP(), "ctrl", "alt", "f7")
-
-        self.assertEqual([call[0] for call in calls], [
-            "input-send-event", "input-send-event",
-        ])
-        self.assertEqual(
-            [event["data"]["down"] for event in calls[0][1]["events"]],
-            [True, True, True],
-        )
-        self.assertEqual(
-            [event["data"]["down"] for event in calls[1][1]["events"]],
-            [False, False, False],
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

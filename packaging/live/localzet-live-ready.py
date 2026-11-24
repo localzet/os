@@ -17,6 +17,16 @@ def run(*args):
         return ""
 
 
+def active_vt_number() -> int | None:
+    try:
+        active = Path("/sys/class/tty/tty0/active").read_text().strip()
+    except OSError:
+        return None
+    if not active.startswith("tty") or not active[3:].isdigit():
+        return None
+    return int(active[3:])
+
+
 def readiness() -> int | str:
     if "boot=casper" not in Path("/proc/cmdline").read_text().split():
         return "not-casper"
@@ -50,7 +60,17 @@ def readiness() -> int | str:
                 vt_number = int(props.get("VTNr", ""))
             except ValueError:
                 return "active-gnome-wayland-session-vtnr-unavailable"
-            return vt_number if vt_number > 0 else "active-gnome-wayland-session-vtnr-unavailable"
+            if vt_number <= 0:
+                return "active-gnome-wayland-session-vtnr-unavailable"
+            if active_vt_number() != vt_number:
+                run("loginctl", "activate", session)
+                deadline = time.monotonic() + 3
+                while time.monotonic() < deadline:
+                    if active_vt_number() == vt_number:
+                        return vt_number
+                    time.sleep(0.1)
+                return "active-gnome-wayland-session-vt-not-foreground"
+            return vt_number
     import json
     return "active-gnome-wayland-session-not-found " + json.dumps(
         {"sessions": observations, "gnome_shell": shell_running},
