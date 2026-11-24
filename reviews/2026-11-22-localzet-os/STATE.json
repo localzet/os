@@ -1,6 +1,6 @@
 {
   "repository": "localzet/os",
-  "branch": "feat/aurora-icon-theme",
+  "branch": "feat/aurora-native-appearance",
   "baseline_commit": "41c2e25",
   "scope": "Native icon theme, Aurora Appearance, shell icon sizing and dock state indicators",
   "status": "implementation-ready; visual runtime evidence pending",
@@ -45,5 +45,5 @@
       "sha256": "b2651f05bb89bf3a501d177a730a0787a3542b0cfe6b2d254feb7c61fcf6cd28"
     }
   },
-  "publication": "No commit, push, PR, CI run or issue update yet"
+  "publication": "Implementation committed locally as ea216993051a3768f4667ac90c96bae36e1f42e5; push, PR, CI and issue update pending"
 }
