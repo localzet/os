@@ -428,7 +428,11 @@ def main() -> int:
             appearance_results = {}
             for theme in ("blue", "purple", "black"):
                 agent.call("open_app", {"app": "settings"})
-                agent.call("open_page", {"page": "appearance"})
+                appearance_page = agent.call("open_page", {"page": "appearance"})
+                capture(
+                    qmp, args.out, f"{theme}-appearance-page",
+                    theme, records, appearance_page,
+                )
                 applied = agent.call("select_theme", {"theme": theme}, timeout=45)
                 state = applied["state"]
                 expected_wallpaper = f"file:///usr/share/backgrounds/localzet/aurora-{theme}.webp"

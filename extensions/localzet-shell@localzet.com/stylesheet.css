@@ -33,9 +33,9 @@
     spacing: 7px;
     padding: 0 8px;
 }
-.localzet-brand-icon {
+.localzet-panel .localzet-brand-icon {
     color: #d1c8ff;
-    icon-size: 23px;
+    icon-size: 22px;
 }
 .system-status-icon {
     icon-size: 18px;

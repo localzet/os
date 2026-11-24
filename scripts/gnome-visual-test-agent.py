@@ -226,6 +226,65 @@ def _activate_name(names: tuple[str, ...]) -> str:
     return _node_name(node)
 
 
+def _action_count(node) -> int:
+    try:
+        return node.queryAction().nActions
+    except Exception:
+        return 0
+
+
+def _activate_theme(theme: str) -> str:
+    label = f"Применить Aurora {theme.title()}"
+    action = _find_name((label,), actionable=True)
+    if action is not None:
+        if action.queryAction().doAction(0):
+            return _node_name(action)
+        raise RuntimeError(f"Appearance action failed for {theme}")
+
+    target = f"Aurora {theme.title()}".casefold()
+    for candidate in _accessible_nodes():
+        if target not in _node_name(candidate).casefold():
+            continue
+
+        ancestor = candidate
+        for _ in range(6):
+            pending = [ancestor]
+            actions = []
+            visited = 0
+            while pending and visited < 100:
+                node = pending.pop()
+                visited += 1
+                if "button" in _role_name(node) and _action_count(node) > 0:
+                    actions.append(node)
+                try:
+                    pending.extend(
+                        node.getChildAtIndex(index)
+                        for index in range(min(node.getChildCount(), 50))
+                    )
+                except Exception:
+                    continue
+            if len(actions) == 1:
+                button = actions[0]
+                if not button.queryAction().doAction(0):
+                    raise RuntimeError(f"Appearance action failed for {theme}")
+                return _node_name(button)
+            try:
+                ancestor = ancestor.parent
+            except Exception:
+                ancestor = None
+            if ancestor is None:
+                break
+
+    available = [
+        f"{_role_name(node)}:{_node_name(node)}"
+        for node in _accessible_nodes()
+        if _is_showing(node) and _action_count(node) > 0
+    ][:20]
+    raise RuntimeError(
+        f"Appearance action not found for {theme}; accessible actions: {available}"
+    )
+
+
 def _wait_for_name(names: tuple[str, ...], timeout: float = 30.0) -> str:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -279,16 +338,14 @@ def _page_ready(page: str) -> dict:
 
 
 def _apply_theme(theme: str) -> dict:
-    title = theme.title()
-    _activate_name((f"Применить Aurora {title}", f"Выбрана тема Aurora {title}"))
+    _activate_theme(theme)
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         state = _state()
-        selected = _find_name((f"Выбрана тема Aurora {title}",))
-        if state["appearance"] == theme and selected is not None:
+        if state["appearance"] == theme:
             return {"theme": theme, "state": state, "window": _wait_window("settings")}
         time.sleep(0.25)
-    raise TimeoutError(f"Aurora {title} did not apply in Appearance")
+    raise TimeoutError(f"Aurora {theme.title()} did not apply in Appearance")
 
 
 def _restore() -> dict:

@@ -34,6 +34,54 @@ class QemuLiveVisualTests(unittest.TestCase):
     def test_guest_agent_startup_timeout_is_bounded(self):
         self.assertEqual(visual_script.GUEST_AGENT_READY_TIMEOUT, 30)
 
+    def test_appearance_theme_action_uses_its_row_when_button_label_is_generic(self):
+        class Action:
+            nActions = 1
+
+            def __init__(self):
+                self.invoked = False
+
+            def doAction(self, _index):
+                self.invoked = True
+                return True
+
+        class Node:
+            def __init__(self, name, role, children=(), action=None):
+                self.name = name
+                self.role = role
+                self.children = list(children)
+                self.action = action
+                self.parent = None
+                for child in self.children:
+                    child.parent = self
+
+            def getRoleName(self):
+                return self.role
+
+            def getChildCount(self):
+                return len(self.children)
+
+            def getChildAtIndex(self, index):
+                return self.children[index]
+
+            def queryAction(self):
+                return self.action
+
+        click = Action()
+        apply_button = Node("Применить", "push button", action=click)
+        blue_row = Node("Aurora Blue", "list item", [apply_button])
+        settings = Node("Localzet Settings", "frame", [blue_row])
+
+        with patch.object(
+            visual_agent, "_accessible_nodes",
+            lambda: [settings, blue_row, apply_button],
+        ), \
+                patch.object(visual_agent, "_is_showing", lambda _node: True):
+            activated = visual_agent._activate_theme("blue")
+
+        self.assertEqual(activated, "Применить")
+        self.assertTrue(click.invoked)
+
     @patch("qemu_live_visual.os.access", return_value=True)
     def test_auto_uses_kvm_when_device_is_accessible(self, access):
         self.assertEqual(choose_acceleration("auto"), "kvm")

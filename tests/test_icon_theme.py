@@ -69,6 +69,14 @@ class IconThemeTests(unittest.TestCase):
         installed = THEME / "scalable/apps/localzet-symbol.svg"
         self.assertEqual(asset.read_bytes(), installed.read_bytes())
 
+    def test_shell_wordmark_matches_approved_atom_geometry(self):
+        asset = ROOT / "assets/icons/aurora/localzet-brand.svg"
+        installed = THEME / "scalable/apps/localzet-brand.svg"
+        self.assertEqual(asset.read_bytes(), installed.read_bytes())
+        svg = ET.parse(asset).getroot()
+        self.assertEqual(len(svg.findall(f"{NAMESPACE}ellipse")), 0)
+        self.assertEqual(len(svg.findall(f"{NAMESPACE}g/{NAMESPACE}ellipse")), 3)
+
     def test_own_desktop_entries_have_packaged_icon_and_metainfo(self):
         applications = ROOT / "packaging"
         icon_names = {
@@ -100,7 +108,7 @@ class IconThemeTests(unittest.TestCase):
             self.skipTest("python3-gi with GdkPixbuf is not installed")
 
         icons = sorted((THEME / "scalable").rglob("*.svg"))
-        self.assertEqual(len(icons), 121)
+        self.assertEqual(len(icons), 122)
         with tempfile.TemporaryDirectory() as directory:
             for icon in icons:
                 for size in (16, 20, 24, 32, 48, 64, 128, 256):
