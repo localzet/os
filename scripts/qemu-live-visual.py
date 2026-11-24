@@ -12,8 +12,6 @@ import subprocess
 import tempfile
 import time
 
-from PIL import Image
-
 
 WIDTH = 1536
 HEIGHT = 1024
@@ -146,6 +144,8 @@ def open_app(qmp: QMP, query: str) -> None:
 
 
 def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) -> None:
+    from PIL import Image
+
     raw = output / f".{name}.ppm"
     png = output / f"{name}.png"
     qmp.execute("screendump", {"filename": str(raw)})
