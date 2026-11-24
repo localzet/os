@@ -34,27 +34,6 @@ class QemuLiveVisualTests(unittest.TestCase):
     def test_guest_agent_startup_timeout_is_bounded(self):
         self.assertEqual(visual_script.GUEST_AGENT_READY_TIMEOUT, 30)
 
-    def test_qmp_pointer_coordinates_use_the_full_absolute_axis_range(self):
-        class Recorder:
-            events = None
-
-            def execute(self, command, arguments):
-                self.assert_command = command
-                self.events = arguments["events"]
-
-        qmp = Recorder()
-        visual_script.click(qmp, 80, 16)
-
-        self.assertEqual(qmp.assert_command, "input-send-event")
-        self.assertEqual(qmp.events[0]["data"]["value"], round(
-            80 * visual_script.ABSOLUTE_POINTER_MAX / (visual_script.WIDTH - 1)
-        ))
-        self.assertEqual(qmp.events[1]["data"]["value"], round(
-            16 * visual_script.ABSOLUTE_POINTER_MAX / (visual_script.HEIGHT - 1)
-        ))
-        self.assertEqual(qmp.events[2]["data"], {"button": "left", "down": True})
-        self.assertEqual(qmp.events[3]["data"], {"button": "left", "down": False})
-
     def test_appearance_theme_action_uses_its_row_when_button_label_is_generic(self):
         class Action:
             nActions = 1
@@ -139,22 +118,52 @@ class QemuLiveVisualTests(unittest.TestCase):
             validate({"id": 3, "op": "select_theme", "args": {"theme": "blue"}}),
             (3, "select_theme", {"theme": "blue"}),
         )
+        self.assertEqual(
+            validate({"id": 5, "op": "open_popup", "args": {"popup": "launcher"}}),
+            (5, "open_popup", {"popup": "launcher"}),
+        )
         for request in (
             {"id": 4, "op": "run", "args": {"command": "gsettings get"}},
             {"id": 4, "op": "open_app", "args": {"app": "shell"}},
             {"id": 4, "op": "select_theme", "args": {"theme": "ubuntu"}},
             {"id": 4, "op": "state", "args": {"path": "/etc/passwd"}},
+            {"id": 6, "op": "open_popup", "args": {"popup": "notification"}},
         ):
             with self.subTest(request=request), self.assertRaises(agent["RequestError"]):
                 validate(request)
+
+    def test_shell_popup_action_is_allowlisted_and_confirmed(self):
+        visible = {
+            "popup": "launcher",
+            "visible_controls": list(visual_agent.POPUPS["launcher"]),
+            "ready": True,
+        }
+        with patch.object(visual_agent.subprocess, "run") as run, \
+                patch.object(visual_agent, "_wait_popup", return_value=visible) as wait:
+            result = visual_agent._open_popup("launcher")
+
+        run.assert_called_once_with(
+            [
+                "gdbus", "call", "--session", "--dest", "org.localzet.VisualTest",
+                "--object-path", "/org/localzet/VisualTest", "--method",
+                "org.localzet.VisualTest.OpenLauncher",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        wait.assert_called_once_with("launcher")
+        self.assertTrue(result["ready"])
+        self.assertEqual(result["action"], "OpenLauncher")
 
     def test_visual_runner_does_not_type_commands_and_uses_virtio_control(self):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("type_text", source)
         self.assertNotIn("live-appearance-verify.py", source)
         self.assertIn('"virtserialport,chardev=visual-control,name=org.localzet.visual-test"', source)
-        self.assertIn("click(qmp, 80, 16)", source)
-        self.assertIn('agent.call("wait_popup", {"popup": "launcher"})', source)
+        self.assertIn('agent.call("open_popup", {"popup": "launcher"})', source)
+        self.assertIn('agent.call("open_popup", {"popup": "quick_settings"})', source)
         self.assertIn('qmp.execute("screendump"', source)
 
     def test_guest_control_uses_structured_request_and_response_lines(self):

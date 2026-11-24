@@ -1,5 +1,6 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -11,6 +12,14 @@ import {LocalzetDock} from './dock.js';
 // Localzet design tokens are mirrored in stylesheet.css; blur uses a Shell effect.
 const MAX_VISIBLE_APPS = 8;
 const APPEARANCE_CLASSES = ['localzet-theme-blue', 'localzet-theme-purple', 'localzet-theme-black'];
+const VISUAL_TEST_MODE = '/usr/lib/localzet/localzet-visual-test-mode';
+const VISUAL_TEST_INTERFACE = `
+<node>
+  <interface name="org.localzet.VisualTest">
+    <method name="OpenLauncher" />
+    <method name="OpenQuickSettings" />
+  </interface>
+</node>`;
 
 function addGlassBlur(actor, name) {
     const backgroundMode = Shell.BlurMode?.BACKGROUND;
@@ -32,6 +41,8 @@ export default class LocalzetShell extends Extension {
             return;
 
         this._settings = this.getSettings();
+        this._visualTestNameOwner = 0;
+        this._visualTestObject = null;
         this._appearanceChanged = this._settings.connect(
             'changed::appearance', () => this._applyAppearance());
         this._applyAppearance();
@@ -123,7 +134,33 @@ export default class LocalzetShell extends Extension {
         });
         this._updateApps('');
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
+        this._enableVisualTestControl();
         this._dock = new LocalzetDock(this._settings);
+    }
+
+    _enableVisualTestControl() {
+        if (!GLib.file_test(VISUAL_TEST_MODE, GLib.FileTest.EXISTS))
+            return;
+
+        this._visualTestNameOwner = Gio.bus_own_name(
+            Gio.BusType.SESSION,
+            'org.localzet.VisualTest',
+            Gio.BusNameOwnerFlags.NONE,
+            connection => {
+                this._visualTestObject = Gio.DBusExportedObject.wrapJSObject(
+                    VISUAL_TEST_INTERFACE,
+                    {
+                        OpenLauncher: () => this._indicator?.menu.open(),
+                        OpenQuickSettings: () => Main.panel.statusArea.quickSettings?.menu.open(),
+                    },
+                );
+                this._visualTestObject.export(connection, '/org/localzet/VisualTest');
+            },
+            null,
+            (_connection, name) => console.warn(
+                `Localzet Shell: visual test bus name ${name} is unavailable`,
+            ),
+        );
     }
 
     _applyAppearance() {
@@ -209,6 +246,12 @@ export default class LocalzetShell extends Extension {
     }
 
     disable() {
+        this._visualTestObject?.unexport();
+        this._visualTestObject = null;
+        if (this._visualTestNameOwner) {
+            Gio.bus_unown_name(this._visualTestNameOwner);
+            this._visualTestNameOwner = 0;
+        }
         this._dock?.destroy();
         this._dock = null;
         this._indicator?.destroy();

@@ -70,6 +70,7 @@ class LiveDefaultsTests(unittest.TestCase):
         self.assertIn('LOCALZET_LIVE_VISUAL_TEST:-0', rootfs_builder)
         self.assertIn('LOCALZET_LIVE_VISUAL_TEST:-0', customizer)
         self.assertIn('LOCALZET_LIVE_VISUAL_TEST=1', workflow)
+        self.assertIn('localzet-visual-test-mode', customizer)
         self.assertIn('scripts/gnome-visual-test-agent.py"', customizer)
         self.assertIn('packaging/live/localzet-visual-test-agent.service', customizer)
         self.assertIn('enable localzet-visual-test-agent.service', customizer)

@@ -41,7 +41,7 @@ NO_ARGUMENTS = {
     "notify", "icon_resolution", "shell_logs",
 }
 OPERATIONS = NO_ARGUMENTS | {
-    "open_app", "open_page", "select_theme", "wait_window", "wait_popup",
+    "open_app", "open_page", "open_popup", "select_theme", "wait_window", "wait_popup",
 }
 
 
@@ -69,6 +69,7 @@ def validate_request(request: object) -> tuple[int, str, dict[str, str]]:
     required = {
         "open_app": {"app"},
         "open_page": {"page"},
+        "open_popup": {"popup"},
         "select_theme": {"theme"},
         "wait_window": {"app"},
         "wait_popup": {"popup"},
@@ -79,6 +80,8 @@ def validate_request(request: object) -> tuple[int, str, dict[str, str]]:
         raise RequestError("unsupported application")
     if operation == "open_page" and arguments.get("page") not in PAGES:
         raise RequestError("unsupported Settings page")
+    if operation == "open_popup" and arguments.get("popup") not in {"launcher", "quick_settings"}:
+        raise RequestError("unsupported shell popup action")
     if operation == "select_theme" and arguments.get("theme") not in THEMES:
         raise RequestError("unsupported Aurora theme")
     if operation == "wait_popup" and arguments.get("popup") not in POPUPS:
@@ -384,6 +387,28 @@ def _wait_popup(popup: str) -> dict:
     raise TimeoutError(f"GNOME {popup} popup is not accessible")
 
 
+def _open_popup(popup: str) -> dict:
+    methods = {
+        "launcher": "OpenLauncher",
+        "quick_settings": "OpenQuickSettings",
+    }
+    method = methods.get(popup)
+    if method is None:
+        raise RequestError("unsupported shell popup action")
+    subprocess.run(
+        [
+            "gdbus", "call", "--session", "--dest", "org.localzet.VisualTest",
+            "--object-path", "/org/localzet/VisualTest", "--method",
+            f"org.localzet.VisualTest.{method}",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    return {**_wait_popup(popup), "action": method}
+
+
 def _desktop_ready() -> dict:
     state = _state()
     wallpaper = urlparse(state["picture_uri"])
@@ -501,6 +526,8 @@ def dispatch(operation: str, arguments: dict[str, str]) -> dict:
         return _desktop_ready()
     if operation == "wait_popup":
         return _wait_popup(arguments["popup"])
+    if operation == "open_popup":
+        return _open_popup(arguments["popup"])
     if operation == "notify":
         subprocess.run(
             ["notify-send", "--app-name=Localzet", "--expire-time=10000",

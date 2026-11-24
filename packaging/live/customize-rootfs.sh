@@ -75,6 +75,7 @@ install -m 0644 "$LOCALZET_REPO/assets/terminal-palettes/"*.palette \
     "$root/etc/skel/.local/share/org.gnome.Ptyxis/palettes/"
 
 if [[ "${LOCALZET_LIVE_VISUAL_TEST:-0}" == 1 ]]; then
+    install -D -m 0644 /dev/null "$root/usr/lib/localzet/localzet-visual-test-mode"
     install -D -m 0644 "$LOCALZET_REPO/scripts/gnome-visual-test-agent.py" \
         "$root/usr/lib/localzet/gnome-visual-test-agent.py"
     install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-visual-test-agent.service" \

@@ -18,7 +18,6 @@ from qemu_serial import has_serial_marker, serial_integer
 
 WIDTH = 1536
 HEIGHT = 1024
-ABSOLUTE_POINTER_MAX = 0x7FFFF
 READY_MARKER = b"LOCALZET_LIVE_READY"
 GRAPHICAL_VT_KEY = b"LOCALZET_LIVE_GRAPHICAL_VT"
 GUEST_AGENT_READY_TIMEOUT = 30
@@ -188,23 +187,6 @@ def press(qmp: QMP, *keys: str) -> None:
     })
 
 
-def click(qmp: QMP, x: int, y: int) -> None:
-    if not (0 <= x < WIDTH and 0 <= y < HEIGHT):
-        raise ValueError("Click is outside the configured QEMU display")
-    qmp.execute("input-send-event", {"events": [
-        {"type": "abs", "data": {
-            "axis": "x",
-            "value": round(x * ABSOLUTE_POINTER_MAX / (WIDTH - 1)),
-        }},
-        {"type": "abs", "data": {
-            "axis": "y",
-            "value": round(y * ABSOLUTE_POINTER_MAX / (HEIGHT - 1)),
-        }},
-        {"type": "btn", "data": {"button": "left", "down": True}},
-        {"type": "btn", "data": {"button": "left", "down": False}},
-    ]})
-
-
 def inspect_frame(path: Path) -> str:
     if not shutil.which("tesseract"):
         raise RuntimeError("tesseract-ocr is required to validate framebuffer content")
@@ -292,14 +274,12 @@ def capture_shell_scenes(
     ready = agent.call("desktop_ready")
     capture(qmp, output, f"{theme}-desktop", theme, records, ready)
 
-    click(qmp, 80, 16)
-    ready = agent.call("wait_popup", {"popup": "launcher"})
+    ready = agent.call("open_popup", {"popup": "launcher"})
     capture(qmp, output, f"{theme}-launcher", theme, records, ready)
     press(qmp, "esc")
     agent.call("desktop_ready")
 
-    click(qmp, WIDTH - 64, 16)
-    ready = agent.call("wait_popup", {"popup": "quick_settings"})
+    ready = agent.call("open_popup", {"popup": "quick_settings"})
     capture(qmp, output, f"{theme}-quick-settings", theme, records, ready)
     press(qmp, "esc")
     agent.call("desktop_ready")
