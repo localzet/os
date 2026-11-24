@@ -1,5 +1,5 @@
 /* Localzet Aurora Dark, scoped to our application. GTK CSS, not web CSS. */
-@define-color accent_bg_color #6c92ed;
+@define-color accent_bg_color #5799f5;
 @define-color accent_fg_color #ffffff;
 @define-color window_bg_color #0a1120;
 @define-color window_fg_color #f1f5ff;
@@ -15,8 +15,36 @@ window.localzet-settings headerbar {
 }
 window.localzet-settings .localzet-summary {
     border-radius: 14px;
-    background-color: alpha(#6c92ed, 0.08);
+    background-color: alpha(#5799f5, 0.08);
 }
 window.localzet-settings .heading {
     font-weight: 700;
+}
+
+window.localzet-settings.aurora-purple {
+    color: #f8f0ff;
+    background-color: #20112e;
+}
+window.localzet-settings.aurora-purple headerbar {
+    background-color: #271831;
+}
+window.localzet-settings.aurora-purple .localzet-summary {
+    background-color: alpha(#bb84e8, 0.10);
+}
+window.localzet-settings.aurora-purple button.suggested-action {
+    background-color: #9b6acb;
+}
+
+window.localzet-settings.aurora-black {
+    color: #f4f4f6;
+    background-color: #0c0c0f;
+}
+window.localzet-settings.aurora-black headerbar {
+    background-color: #131318;
+}
+window.localzet-settings.aurora-black .localzet-summary {
+    background-color: alpha(#b476ed, 0.09);
+}
+window.localzet-settings.aurora-black button.suggested-action {
+    background-color: #8256aa;
 }

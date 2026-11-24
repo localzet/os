@@ -32,6 +32,16 @@
 | Install | Calamares integration, bootloader confined to selected SSD, standalone boot |
 | Release | Signed artifacts, checksum, BIOS/UEFI/Secure Boot handling and real hardware QA |
 
-## Scope of this change
+## Current native visual increment
 
-A GNOME 50 searchable launcher with a branded menu replaces the temporary four-action popup. It still needs live GUI acceptance, screenshot review and interaction tests; it is *not* a completed graphical shell or final visual design.
+Localzet Settings has an Appearance page for Aurora Blue, Purple and Black,
+with a user-scoped restore snapshot. The package ships a scalable Localzet
+icon theme with Adwaita/hicolor fallback, and the Shell extension reads the
+same appearance setting for its own dock and launcher. App indicators and
+larger Dock glyphs are included.
+
+This code does not establish full GNOME acceptance. The real-session matrix,
+approved-reference comparison, scale/accessibility review and UEFI gate remain
+open; see [`DESIGN_ACCEPTANCE.ru.md`](DESIGN_ACCEPTANCE.ru.md). Shell CSS uses
+translucent colors, borders and shadows. GNOME Shell's St stylesheet does not
+provide browser `backdrop-filter`, so this increment does not claim live blur.

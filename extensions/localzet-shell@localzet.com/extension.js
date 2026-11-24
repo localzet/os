@@ -11,11 +11,17 @@ import {LocalzetDock} from './dock.js';
 // Localzet design tokens are mirrored in stylesheet.css. GNOME Shell does
 // not support the full CSS syntax of web browsers (no backdrop-filter).
 const MAX_VISIBLE_APPS = 8;
+const APPEARANCE_CLASSES = ['localzet-theme-blue', 'localzet-theme-purple', 'localzet-theme-black'];
 
 export default class LocalzetShell extends Extension {
     enable() {
         if (this._indicator)
             return;
+
+        this._settings = this.getSettings();
+        this._appearanceChanged = this._settings.connect(
+            'changed::appearance', () => this._applyAppearance());
+        this._applyAppearance();
 
         this._indicator = new PanelMenu.Button(0.0, 'Localzet OS', false);
         this._indicator.add_style_class_name('localzet-indicator');
@@ -97,7 +103,19 @@ export default class LocalzetShell extends Extension {
         });
         this._updateApps('');
         Main.panel.addToStatusArea(this.uuid, this._indicator, 0, 'left');
-        this._dock = new LocalzetDock();
+        this._dock = new LocalzetDock(this._settings);
+    }
+
+    _applyAppearance() {
+        if (!this._settings)
+            return;
+        for (const appearance of APPEARANCE_CLASSES)
+            global.stage.remove_style_class_name(appearance);
+        const selected = this._settings.get_string('appearance');
+        const appearance = APPEARANCE_CLASSES.includes(`localzet-theme-${selected}`)
+            ? `localzet-theme-${selected}`
+            : 'localzet-theme-blue';
+        global.stage.add_style_class_name(appearance);
     }
 
     _updateApps(rawQuery) {
@@ -177,5 +195,12 @@ export default class LocalzetShell extends Extension {
         this._appsSection = null;
         this._search = null;
         this._phoneAction = null;
+        if (this._settings && this._appearanceChanged) {
+            this._settings.disconnect(this._appearanceChanged);
+            this._appearanceChanged = 0;
+        }
+        for (const appearance of APPEARANCE_CLASSES)
+            global.stage.remove_style_class_name(appearance);
+        this._settings = null;
     }
 }

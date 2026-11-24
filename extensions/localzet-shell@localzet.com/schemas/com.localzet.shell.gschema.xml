@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="com.localzet.shell" path="/com/localzet/shell/">
+    <key name="appearance" type="s">
+      <default>'blue'</default>
+      <summary>Aurora accent applied by Localzet Shell</summary>
+      <description>One of the supported Aurora appearances: blue, purple, or black.</description>
+    </key>
+    <key name="pinned-apps" type="as">
+      <default>['com.microsoft.Edge.desktop', 'microsoft-edge.desktop', 'org.mozilla.firefox.desktop', 'firefox.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop', 'com.localzet.Settings.desktop', 'com.localzet.Connect.desktop', 'com.localzet.WindowsRuntime.desktop']</default>
+      <summary>Desktop IDs shown in the Localzet Dock</summary>
+      <description>Only installed applications with visible desktop entries are shown.</description>
+    </key>
+  </schema>
+</schemalist>

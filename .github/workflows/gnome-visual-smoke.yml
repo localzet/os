@@ -5,7 +5,16 @@ on:
     paths:
       - '.github/workflows/gnome-visual-smoke.yml'
       - 'scripts/ci/gnome50-visual-smoke.sh'
+      - 'scripts/ci/settings-gtk-smoke.sh'
       - 'extensions/localzet-shell@localzet.com/**'
+      - 'assets/design-tokens.json'
+      - 'assets/icons/**'
+      - 'assets/wallpapers/**'
+      - 'theme/icons/**'
+      - 'scripts/generate-icon-theme.py'
+      - 'src/localzet/settings/**'
+      - 'apps/localzet-settings/**'
+      - 'packaging/com.localzet.Settings.*'
 concurrency:
   group: gnome-visual-${{ github.ref }}
   cancel-in-progress: true
@@ -22,7 +31,7 @@ jobs:
           installed=0
           for attempt in 1 2 3; do
             sudo apt-get -o Acquire::Retries=2 update
-            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil x11-utils pipewire wireplumber ptyxis; then
+            if sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install -y --no-install-recommends gnome-shell mutter-dev-bin xwayland xvfb dbus-x11 mesa-utils imagemagick python3-pil python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libglib2.0-bin x11-utils xdotool pipewire wireplumber ptyxis nautilus gnome-control-center; then
               installed=1
               break
             fi
@@ -31,7 +40,10 @@ jobs:
           done
           test "$installed" -eq 1
           gnome-shell --version
-      - name: Launch GNOME 50 and capture actual screen
+      - name: Launch Localzet Settings in isolated GTK display
+        timeout-minutes: 3
+        run: xvfb-run -a -s '-screen 0 1280x800x24 -nolisten tcp' bash scripts/ci/settings-gtk-smoke.sh
+      - name: Launch GNOME Shell devkit and capture screens
         timeout-minutes: 7
         run: bash scripts/ci/gnome50-visual-smoke.sh
       - name: Upload screenshot and runtime logs
@@ -39,6 +51,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gnome50-devkit-screenshot-and-logs
-          path: out/gnome-smoke/
+          path: |
+            out/gnome-smoke/
+            out/settings/
           if-no-files-found: ignore
           retention-days: 7

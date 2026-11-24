@@ -2,6 +2,7 @@
   "uuid": "localzet-shell@localzet.com",
   "name": "Localzet Shell",
   "description": "Localzet OS P1 launcher for GNOME 50",
+  "settings-schema": "com.localzet.shell",
   "shell-version": [
     "50"
   ],
