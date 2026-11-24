@@ -43,6 +43,7 @@ chroot "$root" dconf update
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/scripts/gnome-icon-resolution-smoke.py" "$root/usr/lib/localzet/gnome-icon-resolution-smoke.py"
 install -D -m 0644 "$LOCALZET_REPO/scripts/gnome-shell-log-smoke.py" "$root/usr/lib/localzet/gnome-shell-log-smoke.py"
+install -D -m 0644 "$LOCALZET_REPO/scripts/live-appearance-verify.py" "$root/usr/lib/localzet/live-appearance-verify.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
 systemctl --root="$root" enable localzet-live-ready.service NetworkManager.service
 systemctl --root="$root" set-default graphical.target

@@ -6,16 +6,19 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import socket
 import subprocess
 import tempfile
 import time
+from qemu_serial import has_serial_marker, serial_integer
 
 
 WIDTH = 1536
 HEIGHT = 1024
 READY_MARKER = b"LOCALZET_LIVE_READY"
+GRAPHICAL_VT_KEY = b"LOCALZET_LIVE_GRAPHICAL_VT"
 QCODE_ALIASES = {"enter": "ret"}
 
 
@@ -68,11 +71,18 @@ def wait_for_ready(
     process: subprocess.Popen,
     timeout: int,
     stderr_log: Path,
-) -> None:
+) -> int:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if serial.is_file() and READY_MARKER in serial.read_bytes().splitlines():
-            return
+        if serial.is_file():
+            data = serial.read_bytes()
+            if has_serial_marker(data, READY_MARKER):
+                vt_number = serial_integer(data, GRAPHICAL_VT_KEY)
+                if vt_number is None or vt_number <= 0:
+                    raise RuntimeError(
+                        "GNOME readiness marker appeared without an active graphical VT"
+                    )
+                return vt_number
         if process.poll() is not None:
             details = stderr_log.read_text(encoding="utf-8", errors="replace").strip()
             raise RuntimeError(
@@ -138,6 +148,55 @@ def click(qmp: QMP, x: int, y: int) -> None:
     ]})
 
 
+def inspect_frame(path: Path) -> str:
+    if not shutil.which("tesseract"):
+        raise RuntimeError("tesseract-ocr is required to validate framebuffer content")
+    result = subprocess.run(
+        ["tesseract", str(path), "stdout", "--psm", "11"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    text = " ".join(result.stdout.casefold().split())
+    if not text:
+        raise RuntimeError(f"Framebuffer has no readable GNOME UI text: {path.name}")
+    if "display output is not active" in text:
+        raise RuntimeError(f"Framebuffer has no active display output: {path.name}")
+    if re.search(r"systemd\s*\[\s*1\s*\]|gnu grub|kernel panic|\btty\d+\b|login:", text):
+        raise RuntimeError(f"Framebuffer shows a boot or login console: {path.name}")
+    return text
+
+
+def assert_appearance_state(qmp: QMP, theme: str) -> None:
+    press(qmp, "ctrl", "alt", "t")
+    pause(2.0)
+    type_text(qmp, f"python3 /usr/lib/localzet/live-appearance-verify.py {theme}")
+    press(qmp, "enter")
+    pause(2.0)
+    from PIL import Image
+
+    with tempfile.TemporaryDirectory(prefix="localzet-appearance-check-") as tmp:
+        raw = Path(tmp) / "verify.ppm"
+        png = Path(tmp) / "verify.png"
+        qmp.execute("screendump", {"filename": str(raw)})
+        deadline = time.monotonic() + 10
+        while not raw.is_file() and time.monotonic() < deadline:
+            time.sleep(0.1)
+        if not raw.is_file():
+            raise RuntimeError(f"No framebuffer for {theme} appearance verification")
+        with Image.open(raw) as image:
+            image.convert("RGB").save(png)
+        text = inspect_frame(png)
+    expected_profile = "purple" if theme == "restore" else theme
+    if not all(token in text for token in ("pass aurora profile", expected_profile)):
+        raise RuntimeError(
+            f"Appearance state did not verify as {theme}; terminal showed: {text[-500:]}"
+        )
+    press(qmp, "alt", "f4")
+    pause(1.0)
+
+
 def open_app(qmp: QMP, query: str) -> None:
     press(qmp, "meta_l")
     pause(1.0)
@@ -148,7 +207,7 @@ def open_app(qmp: QMP, query: str) -> None:
 
 
 def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) -> None:
-    from PIL import Image
+    from PIL import Image, ImageStat
 
     raw = output / f".{name}.ppm"
     png = output / f"{name}.png"
@@ -160,6 +219,9 @@ def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) 
         raise RuntimeError(f"QMP did not write framebuffer capture {name}")
     with Image.open(raw) as image:
         rgb = image.convert("RGB")
+        stats = ImageStat.Stat(rgb)
+        if max(stats.stddev) < 3 or max(stats.mean) < 8:
+            raise RuntimeError(f"Framebuffer is black or inactive: {name}")
         rgb.save(png, optimize=True)
         size = list(rgb.size)
     raw.unlink()
@@ -173,6 +235,7 @@ def capture(qmp: QMP, output: Path, name: str, theme: str, records: list[dict]) 
         "scene": name.removeprefix(f"{theme}-"),
         "resolution": size,
         "sha256": hashlib.sha256(png.read_bytes()).hexdigest(),
+        "ocr_text": inspect_frame(png),
     })
     print(f"Captured {theme} {records[-1]['scene']}: {size[0]}x{size[1]}", flush=True)
 
@@ -319,9 +382,9 @@ def main() -> int:
         )
         qmp = None
         try:
-            wait_for_ready(serial, process, args.timeout, qemu_stderr)
+            graphical_vt = wait_for_ready(serial, process, args.timeout, qemu_stderr)
             qmp = QMP(monitor, timeout=20)
-            press(qmp, "ctrl", "alt", "f2")
+            press(qmp, "ctrl", "alt", f"f{graphical_vt}")
             pause(12.0)
 
             capture(qmp, args.out, "first-login-defaults", "blue", records)
@@ -332,6 +395,7 @@ def main() -> int:
             open_app(qmp, "localzet")
             click_appearance_tab(qmp)
             apply_theme_in_ui(qmp, "blue")
+            assert_appearance_state(qmp, "blue")
             capture(qmp, args.out, "blue-appearance", "blue", records)
             click_settings_tab(qmp)
             capture(qmp, args.out, "blue-settings", "blue", records)
@@ -343,6 +407,7 @@ def main() -> int:
                 open_app(qmp, "localzet")
                 click_appearance_tab(qmp)
                 apply_theme_in_ui(qmp, theme)
+                assert_appearance_state(qmp, theme)
                 capture(qmp, args.out, f"{theme}-appearance", theme, records)
                 click_settings_tab(qmp)
                 capture(qmp, args.out, f"{theme}-settings", theme, records)
@@ -353,17 +418,41 @@ def main() -> int:
             open_app(qmp, "localzet")
             click_appearance_tab(qmp)
             restore_in_ui(qmp)
+            assert_appearance_state(qmp, "restore")
             capture(qmp, args.out, "restored-appearance", "restored", records)
             press(qmp, "alt", "f4")
             pause(1.0)
             capture(qmp, args.out, "restored-desktop", "restored", records)
             check_shell_logs(qmp, args.out, records)
 
+            from PIL import Image, ImageChops
+
+            desktops = {
+                theme: Image.open(args.out / f"{theme}-desktop.png").convert("RGB")
+                for theme in ("blue", "purple", "black")
+            }
+            theme_differences = {}
+            for left, right in (("blue", "purple"), ("blue", "black"), ("purple", "black")):
+                difference = ImageChops.difference(desktops[left], desktops[right])
+                max_channel = ImageChops.lighter(
+                    ImageChops.lighter(difference.getchannel(0), difference.getchannel(1)),
+                    difference.getchannel(2),
+                )
+                changed = sum(max_channel.histogram()[16:])
+                ratio = changed / (WIDTH * HEIGHT)
+                theme_differences[f"{left}-{right}"] = ratio
+                if ratio < 0.10:
+                    raise RuntimeError(
+                        f"Aurora {left} and {right} desktops are visually indistinguishable "
+                        f"({ratio:.2%} changed pixels)"
+                    )
+
             (args.out / "manifest.json").write_text(json.dumps({
                 "captured_at_utc": datetime.now(timezone.utc).isoformat(),
                 "capture_method": "QEMU QMP screendump from the Ubuntu 26.04 GNOME 50 Wayland Live session",
                 "qemu": qemu_version,
                 "guest_resolution": [WIDTH, HEIGHT],
+                "desktop_theme_changed_pixel_ratios": theme_differences,
                 "records": records,
             }, indent=2) + "\n", encoding="utf-8")
             print(f"Captured {len(records)} real GNOME framebuffer screens in {args.out}", flush=True)

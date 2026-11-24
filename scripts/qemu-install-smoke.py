@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from qemu_serial import has_serial_marker, normalized_serial_lines
 
 SIZE = 32 * 1024**3
 KEEP_SIZE = 64 * 1024**2
@@ -53,8 +54,9 @@ def boot(args, scratch: Path, target: Path, sentinel: Path | None,
         try:
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
-                lines = serial.read_bytes().splitlines() if serial.exists() else []
-                if marker.encode() in lines:
+                data = serial.read_bytes() if serial.exists() else b""
+                lines = normalized_serial_lines(data)
+                if has_serial_marker(data, marker.encode()):
                     found = True
                     break
                 if any(line.startswith(b"LOCALZET_INSTALL_FAILED") for line in lines):

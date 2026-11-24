@@ -1,10 +1,12 @@
 import runpy
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 
 
 class LiveDefaultsTests(unittest.TestCase):
@@ -61,6 +63,28 @@ class LiveDefaultsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             serial = Path(directory) / "serial.log"
             stderr = Path(directory) / "qemu-stderr.log"
+            serial.write_bytes(
+                b"\x1b[KLOCALZET_LIVE_GRAPHICAL_VT=7\r\n"
+                b"\x1b[KLOCALZET_LIVE_READY\r\n"
+            )
+            stderr.write_text("", encoding="utf-8")
+
+            class RunningProcess:
+                def poll(self):
+                    return None
+
+            self.assertEqual(
+                visual["wait_for_ready"](serial, RunningProcess(), 1, stderr),
+                7,
+            )
+
+    def test_qemu_readiness_requires_logind_graphical_vt(self):
+        visual = runpy.run_path(
+            str(ROOT / "scripts/qemu-live-visual.py"), run_name="visual_test"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            serial = Path(directory) / "serial.log"
+            stderr = Path(directory) / "qemu-stderr.log"
             serial.write_bytes(b"LOCALZET_LIVE_READY\r\n")
             stderr.write_text("", encoding="utf-8")
 
@@ -68,7 +92,8 @@ class LiveDefaultsTests(unittest.TestCase):
                 def poll(self):
                     return None
 
-            visual["wait_for_ready"](serial, RunningProcess(), 1, stderr)
+            with self.assertRaisesRegex(RuntimeError, "graphical VT"):
+                visual["wait_for_ready"](serial, RunningProcess(), 1, stderr)
 
     def test_qemu_keyboard_maps_enter_to_qcode_ret(self):
         visual = runpy.run_path(

@@ -17,7 +17,7 @@ def run(*args):
         return ""
 
 
-def readiness():
+def readiness() -> int | str:
     if "boot=casper" not in Path("/proc/cmdline").read_text().split():
         return "not-casper"
     if run("findmnt", "-n", "-o", "FSTYPE", "/") != "overlay":
@@ -36,17 +36,21 @@ def readiness():
         props = dict(line.split("=", 1) for line in run(
             "loginctl", "show-session", session, "-p", "Name", "-p", "Active",
             "-p", "Type", "-p", "Class", "-p", "Remote", "-p", "Desktop",
-            "-p", "Seat", "-p", "State"
+            "-p", "Seat", "-p", "State", "-p", "VTNr"
         ).splitlines() if "=" in line)
         observations.append({key: props.get(key, "") for key in
-                             ("Name", "Type", "Class", "Seat", "Active", "Desktop", "State", "Remote")})
+                             ("Name", "Type", "Class", "Seat", "Active", "Desktop", "State", "Remote", "VTNr")})
         # GNOME Shell is the actual compositor. Desktop is informational:
         # logind may leave Desktop blank or report a distribution-specific name.
         if (props.get("Name") == "localzet" and props.get("Active") == "yes"
                 and props.get("Type") == "wayland" and props.get("Class") == "user"
                 and props.get("Remote") == "no" and props.get("Seat") == "seat0"
                 and shell_running):
-            return None
+            try:
+                vt_number = int(props.get("VTNr", ""))
+            except ValueError:
+                return "active-gnome-wayland-session-vtnr-unavailable"
+            return vt_number if vt_number > 0 else "active-gnome-wayland-session-vtnr-unavailable"
     import json
     return "active-gnome-wayland-session-not-found " + json.dumps(
         {"sessions": observations, "gnome_shell": shell_running},
@@ -71,8 +75,9 @@ def main():
     previous = None
     while time.monotonic() < deadline:
         reason = readiness()
-        if reason is None:
-            return 0 if serial_write(MARKER) else 1
+        if isinstance(reason, int):
+            vt_marker = f"LOCALZET_LIVE_GRAPHICAL_VT={reason}\n".encode()
+            return 0 if serial_write(vt_marker) and serial_write(MARKER) else 1
         if reason != previous:
             print(f"Live readiness: {reason}", flush=True)
             serial_write(f"LOCALZET_LIVE_WAIT {reason}\n".encode())

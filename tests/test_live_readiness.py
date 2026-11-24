@@ -30,12 +30,22 @@ class LiveReadinessTests(unittest.TestCase):
 
     def properties(self, **overrides):
         result = dict(Name="localzet", Active="yes", Type="wayland",
-                      Class="user", Remote="no", Seat="seat0", Desktop="")
+                      Class="user", Remote="no", Seat="seat0", Desktop="",
+                      VTNr="9")
         result.update(overrides)
         return result
 
     def test_real_local_session_without_desktop_metadata(self):
-        self.assertIsNone(self.check_session(self.properties()))
+        self.assertEqual(self.check_session(self.properties()), 9)
+
+    def test_graphical_vt_comes_from_active_logind_session(self):
+        self.assertEqual(self.check_session(self.properties(VTNr="7")), 7)
+
+    def test_missing_graphical_vt_keeps_readiness_false(self):
+        self.assertEqual(
+            self.check_session(self.properties(VTNr="")),
+            "active-gnome-wayland-session-vtnr-unavailable",
+        )
 
     def test_missing_compositor(self):
         self.assertIn('"gnome_shell":false', self.check_session(self.properties(), shell=False))

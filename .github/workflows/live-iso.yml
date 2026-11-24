@@ -9,6 +9,8 @@ on:
       - 'scripts/build-desktop-deb.sh'
       - 'scripts/qemu-iso-smoke.py'
       - 'scripts/qemu-live-visual.py'
+      - 'scripts/qemu_serial.py'
+      - 'scripts/live-appearance-verify.py'
       - 'scripts/gnome-icon-resolution-smoke.py'
       - 'scripts/gnome-shell-log-smoke.py'
       - 'extensions/**'
@@ -37,11 +39,11 @@ jobs:
           for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh; do
             bash -n "$script"
           done
-          python3 -m py_compile scripts/qemu-iso-smoke.py scripts/qemu-live-visual.py scripts/gnome-icon-resolution-smoke.py scripts/gnome-shell-log-smoke.py packaging/live/localzet-live-ready.py
+          python3 -m py_compile scripts/qemu-iso-smoke.py scripts/qemu-live-visual.py scripts/qemu_serial.py scripts/qemu-install-smoke.py scripts/live-appearance-verify.py scripts/gnome-icon-resolution-smoke.py scripts/gnome-shell-log-smoke.py packaging/live/localzet-live-ready.py
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf python3-pil
+          sudo apt-get install -y mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf python3-pil tesseract-ocr
           df -h
           if test -c /dev/kvm && command -v setfacl >/dev/null; then
             sudo setfacl -m "u:$(id -un):rw" /dev/kvm
@@ -77,7 +79,6 @@ jobs:
           name: localzet-live-diagnostics
           path: |
             dist/*.log
-            dist/*.ppm
           if-no-files-found: warn
           retention-days: 7
       - name: Upload GNOME framebuffer captures
