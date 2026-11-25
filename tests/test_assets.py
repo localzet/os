@@ -67,6 +67,8 @@ class AssetsTests(unittest.TestCase):
             name = f'Localzet-Aurora-{theme}'
             css = (ROOT / 'theme/gtk' / name / 'gtk-4.0/gtk.css').read_text()
             with self.subTest(theme=theme):
+                self.assertIn('@define-color window_bg_color', css)
+                self.assertIn('window.background.csd', css)
                 self.assertIn('window .navigation-sidebar', css)
                 self.assertIn('window .view', css)
                 self.assertIn('border-radius: 14px', css)

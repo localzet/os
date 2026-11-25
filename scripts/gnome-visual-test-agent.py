@@ -416,14 +416,8 @@ def _wait_window(app: str) -> dict:
 
 def _open_app(app: str) -> dict:
     if app == "terminal":
-        profile_uuid = _default_profile_uuid()
-        arguments = ["ptyxis"]
-        if profile_uuid:
-            arguments.append(f"--tab-with-profile={profile_uuid}")
-        else:
-            arguments.append("--new-window")
         subprocess.Popen(
-            arguments,
+            ["ptyxis", "--standalone", "--new-window"],
             close_fds=True,
             start_new_session=True,
         )

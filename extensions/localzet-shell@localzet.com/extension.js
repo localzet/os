@@ -385,7 +385,7 @@ export default class LocalzetShell extends Extension {
     _attachWindowGlass(actor) {
         if (!this._usesAuroraGtkTheme() || this._windowGlassActors.has(actor))
             return;
-        if (!addGlassBlur(actor, 'localzet-window-blur', 16))
+        if (!addGlassBlur(actor, 'localzet-window-blur', 8))
             return;
         const destroyed = actor.connect('destroy', () => {
             this._windowGlassActors.delete(actor);

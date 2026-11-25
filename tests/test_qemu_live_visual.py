@@ -196,7 +196,7 @@ class QemuLiveVisualTests(unittest.TestCase):
                 result = visual_agent._open_app("terminal")
 
         launch.assert_called_once_with(
-            ["ptyxis", f"--tab-with-profile={profile_uuid}"],
+            ["ptyxis", "--standalone", "--new-window"],
             close_fds=True,
             start_new_session=True,
         )
@@ -214,7 +214,7 @@ class QemuLiveVisualTests(unittest.TestCase):
             result = visual_agent._open_app("terminal")
 
         launch.assert_called_once_with(
-            ["ptyxis", "--new-window"],
+            ["ptyxis", "--standalone", "--new-window"],
             close_fds=True,
             start_new_session=True,
         )
