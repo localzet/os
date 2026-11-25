@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Capture a real GNOME 50 Wayland session from the Live ISO using QMP."""
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -22,6 +23,11 @@ READY_MARKER = b"LOCALZET_LIVE_READY"
 GRAPHICAL_VT_KEY = b"LOCALZET_LIVE_GRAPHICAL_VT"
 GUEST_AGENT_READY_TIMEOUT = 30
 QCODE_ALIASES = {"enter": "ret"}
+TERMINAL_PALETTE_BACKGROUNDS = {
+    "blue": "#0a1120",
+    "purple": "#20112e",
+    "black": "#0c0c0f",
+}
 
 
 def choose_acceleration(requested: str) -> str:
@@ -214,7 +220,7 @@ def capture(
     theme: str,
     records: list[dict],
     readiness: dict,
-) -> None:
+) -> dict:
     from PIL import Image, ImageStat
 
     if not readiness.get("ready"):
@@ -262,6 +268,43 @@ def capture(
         "ocr_text": ocr_text,
     })
     print(f"Captured {theme} {records[-1]['scene']}: {size[0]}x{size[1]}", flush=True)
+    return records[-1]
+
+
+def verify_terminal_palette(path: Path, theme: str) -> dict:
+    from PIL import Image
+
+    expected_hex = TERMINAL_PALETTE_BACKGROUNDS[theme]
+    expected = tuple(
+        int(expected_hex[index:index + 2], 16)
+        for index in (1, 3, 5)
+    )
+    with Image.open(path) as image:
+        if image.size != (WIDTH, HEIGHT):
+            raise RuntimeError(f"Unexpected terminal framebuffer size: {image.size}")
+        sample = image.convert("RGB").crop((
+            WIDTH // 2 - 32, HEIGHT // 2 - 32,
+            WIDTH // 2 + 32, HEIGHT // 2 + 32,
+        ))
+        pixels = sample.tobytes()
+        colors = Counter(zip(pixels[0::3], pixels[1::3], pixels[2::3]))
+        color, count = colors.most_common(1)[0]
+    ratio = count / (sample.width * sample.height)
+    color_error = max(
+        abs(actual - wanted) for actual, wanted in zip(color, expected)
+    )
+    if ratio < 0.90 or color_error > 2:
+        raise RuntimeError(
+            f"Ptyxis framebuffer does not render Aurora {theme.title()}: "
+            f"expected {expected_hex}, got #{color[0]:02x}{color[1]:02x}{color[2]:02x} "
+            f"({ratio:.1%} dominant pixels); frame={path}"
+        )
+    return {
+        "palette": f"Aurora {theme.title()}",
+        "expected_background": expected_hex,
+        "sampled_background": "#%02x%02x%02x" % color,
+        "dominant_ratio": round(ratio, 4),
+    }
 
 
 def capture_shell_scenes(
@@ -290,7 +333,16 @@ def capture_shell_scenes(
     agent.call("desktop_ready")
 
     ready = agent.call("open_app", {"app": "terminal"})
-    capture(qmp, output, f"{theme}-terminal", theme, records, ready)
+    expected_palette = f"Aurora {theme.title()}"
+    if ready.get("profile_palette") != expected_palette:
+        raise RuntimeError(
+            f"Ptyxis opened with the wrong profile palette: "
+            f"expected {expected_palette}, got {ready}"
+        )
+    record = capture(qmp, output, f"{theme}-terminal", theme, records, ready)
+    record["terminal_palette_render"] = verify_terminal_palette(
+        output / f"{theme}-terminal.png", theme,
+    )
     agent.call("close_app", {"app": "terminal"})
     agent.call("desktop_ready")
 

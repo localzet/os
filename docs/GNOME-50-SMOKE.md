@@ -26,7 +26,9 @@ The scenario then sets a distinct user-scoped restore source, applies all three
 themes through the Appearance UI, and restores the source. This makes restore
 observable while preserving evidence of the installed first-login defaults.
 The test-only guest helper starts Ptyxis as a separate instance for each
-capture so the selected palette is read before its window is reported ready.
+capture and requests the current profile UUID explicitly. Readiness includes
+the selected profile and palette; QMP then checks the rendered framebuffer
+background against that Aurora palette before accepting the capture.
 
 ## Inspecting the result
 

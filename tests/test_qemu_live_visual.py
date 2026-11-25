@@ -10,6 +10,8 @@ from threading import Event, Thread
 import time
 from unittest.mock import patch
 
+from PIL import Image
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "qemu-live-visual.py"
@@ -118,9 +120,32 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertEqual(result["state"], state)
         self.assertEqual(result["window"], window)
 
-    def test_terminal_capture_launches_fresh_allowlisted_ptyxis_window(self):
+    def test_terminal_capture_uses_the_selected_ptyxis_profile(self):
         window = {"app": "terminal", "title": "Ptyxis", "ready": True}
-        with patch.object(visual_agent.subprocess, "Popen") as launch, \
+        profile_uuid = "a3d6b7e2-186b-4b5b-9225-6abcde123456"
+        profile = type("Profile", (), {
+            "get_string": lambda _self, _key: "Aurora Purple",
+        })()
+        with patch.object(visual_agent, "_default_profile_uuid", return_value=profile_uuid), \
+                patch.object(visual_agent, "_profile_settings", return_value=profile), \
+                patch.object(visual_agent.subprocess, "Popen") as launch, \
+                patch.object(visual_agent, "_wait_window", return_value=window):
+            result = visual_agent._open_app("terminal")
+
+        launch.assert_called_once_with(
+            ["ptyxis", "--standalone", f"--tab-with-profile={profile_uuid}"],
+            close_fds=True,
+            start_new_session=True,
+        )
+        self.assertEqual(result["profile_uuid"], profile_uuid)
+        self.assertEqual(result["profile_palette"], "Aurora Purple")
+        self.assertTrue(result["ready"])
+
+    def test_terminal_first_launch_uses_the_default_profile(self):
+        window = {"app": "terminal", "title": "Ptyxis", "ready": True}
+        with patch.object(visual_agent, "_default_profile_uuid", return_value=None), \
+                patch.object(visual_agent, "_profile_settings", return_value=None), \
+                patch.object(visual_agent.subprocess, "Popen") as launch, \
                 patch.object(visual_agent, "_wait_window", return_value=window):
             result = visual_agent._open_app("terminal")
 
@@ -129,7 +154,20 @@ class QemuLiveVisualTests(unittest.TestCase):
             close_fds=True,
             start_new_session=True,
         )
-        self.assertTrue(result["ready"])
+        self.assertIsNone(result["profile_uuid"])
+        self.assertIsNone(result["profile_palette"])
+
+    def test_terminal_framebuffer_must_render_the_selected_palette(self):
+        with tempfile.TemporaryDirectory() as directory:
+            screenshot = Path(directory) / "terminal.png"
+            Image.new("RGB", (1536, 1024), "#20112e").save(screenshot)
+            result = visual_script.verify_terminal_palette(screenshot, "purple")
+            self.assertEqual(result["sampled_background"], "#20112e")
+            self.assertGreaterEqual(result["dominant_ratio"], 0.90)
+
+            Image.new("RGB", (1536, 1024), "#0a1120").save(screenshot)
+            with self.assertRaisesRegex(RuntimeError, "expected #20112e, got #0a1120"):
+                visual_script.verify_terminal_palette(screenshot, "purple")
 
     @patch("qemu_live_visual.os.access", return_value=True)
     def test_auto_uses_kvm_when_device_is_accessible(self, access):

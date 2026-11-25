@@ -103,19 +103,25 @@ def _settings(schema: str, path: str | None = None):
 
 
 def _profile_settings():
-    root = _settings("org.gnome.Ptyxis")
-    profile_uuid = root.get_string("default-profile-uuid")
-    if not profile_uuid:
-        return None
-    import uuid
-    try:
-        profile_uuid = str(uuid.UUID(profile_uuid))
-    except ValueError:
+    profile_uuid = _default_profile_uuid()
+    if profile_uuid is None:
         return None
     path = f"/org/gnome/Ptyxis/Profiles/{profile_uuid}/"
     try:
         return _settings("org.gnome.Ptyxis.Profile", path)
     except RuntimeError:
+        return None
+
+
+def _default_profile_uuid() -> str | None:
+    root = _settings("org.gnome.Ptyxis")
+    raw_uuid = root.get_string("default-profile-uuid")
+    if not raw_uuid:
+        return None
+    import uuid
+    try:
+        return str(uuid.UUID(raw_uuid))
+    except ValueError:
         return None
 
 
@@ -386,8 +392,14 @@ def _wait_window(app: str) -> dict:
 
 def _open_app(app: str) -> dict:
     if app == "terminal":
+        profile_uuid = _default_profile_uuid()
+        arguments = ["ptyxis", "--standalone"]
+        if profile_uuid:
+            arguments.append(f"--tab-with-profile={profile_uuid}")
+        else:
+            arguments.append("--new-window")
         subprocess.Popen(
-            ["ptyxis", "--standalone", "--new-window"],
+            arguments,
             close_fds=True,
             start_new_session=True,
         )
@@ -399,7 +411,13 @@ def _open_app(app: str) -> dict:
         info = Gio.DesktopAppInfo.new(APP_IDS[app])
         if info is None or not info.launch([], None):
             raise RuntimeError(f"could not launch allowlisted app: {app}")
-    return _wait_window(app)
+    window = _wait_window(app)
+    if app == "terminal":
+        profile_uuid = _default_profile_uuid()
+        profile = _profile_settings()
+        window["profile_uuid"] = profile_uuid
+        window["profile_palette"] = profile.get_string("palette") if profile else None
+    return window
 
 
 def _page_ready(page: str) -> dict:
