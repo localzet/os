@@ -8,17 +8,19 @@
 
 window.localzet-settings {
     color: #f1f5ff;
-    background-color: #0a1120;
+    background-color: alpha(#0a1120, 0.76);
+    border: 1px solid alpha(#8fb0ec, 0.34);
+    border-radius: 18px;
 }
 window.localzet-settings headerbar {
-    background-color: alpha(#101a30, 0.92);
+    background-color: alpha(#101a30, 0.78);
     border-bottom: 1px solid alpha(#8fb0ec, 0.22);
 }
 window.localzet-settings .card,
 window.localzet-settings list.boxed-list {
     border: 1px solid alpha(#8fb0ec, 0.20);
     border-radius: 16px;
-    background-color: alpha(#13203a, 0.82);
+    background-color: alpha(#13203a, 0.76);
 }
 window.localzet-settings list.boxed-list > row {
     color: #f1f5ff;
@@ -52,15 +54,15 @@ window.localzet-settings toast {
 
 window.localzet-settings.aurora-purple {
     color: #f8f0ff;
-    background-color: #20112e;
+    background-color: alpha(#20112e, 0.76);
 }
 window.localzet-settings.aurora-purple headerbar {
-    background-color: alpha(#271831, 0.94);
+    background-color: alpha(#271831, 0.80);
     border-bottom-color: alpha(#c391df, 0.24);
 }
 window.localzet-settings.aurora-purple .card,
 window.localzet-settings.aurora-purple list.boxed-list {
-    background-color: alpha(#2f1a3e, 0.90);
+    background-color: alpha(#2f1a3e, 0.80);
     border-color: alpha(#c391df, 0.24);
 }
 window.localzet-settings.aurora-purple list.boxed-list > row {
@@ -80,15 +82,15 @@ window.localzet-settings.aurora-purple toast {
 
 window.localzet-settings.aurora-black {
     color: #f4f4f6;
-    background-color: #0c0c0f;
+    background-color: alpha(#0c0c0f, 0.80);
 }
 window.localzet-settings.aurora-black headerbar {
-    background-color: alpha(#131318, 0.96);
+    background-color: alpha(#131318, 0.84);
     border-bottom-color: alpha(#8b8797, 0.22);
 }
 window.localzet-settings.aurora-black .card,
 window.localzet-settings.aurora-black list.boxed-list {
-    background-color: alpha(#131318, 0.92);
+    background-color: alpha(#131318, 0.84);
     border-color: alpha(#8b8797, 0.20);
 }
 window.localzet-settings.aurora-black list.boxed-list > row {

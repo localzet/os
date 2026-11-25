@@ -96,6 +96,8 @@ function addGlassBlur(actor, name, radius = 18) {
 const GLASS_WINDOW_CLASSES = new Set([
     'nautilus', 'org.gnome.nautilus',
     'ptyxis', 'org.gnome.ptyxis',
+    'localzet-settings', 'com.localzet.settings',
+    'gnome-control-center',
 ]);
 
 export default class LocalzetShell extends Extension {

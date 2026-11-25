@@ -57,6 +57,7 @@ class AssetsTests(unittest.TestCase):
         self.assertIn('icon-size: 24px', stylesheet)
         self.assertIn('.workspace-indicator .workspace.active', stylesheet)
         self.assertIn('localzet-quick-settings-blur', extension)
+        self.assertIn("'localzet-settings', 'com.localzet.settings'", extension)
 
     def test_gtk_glass_themes_are_packaged_for_all_aurora_palettes(self):
         builder = (ROOT / 'scripts/build-desktop-deb.sh').read_text()
@@ -72,6 +73,8 @@ class AssetsTests(unittest.TestCase):
 
     def test_appearance_boxed_lists_follow_each_aurora_surface(self):
         css = (ROOT / 'apps/localzet-settings/settings.css').read_text()
+        self.assertIn('background-color: alpha(#0a1120, 0.76)', css)
+        self.assertIn('border-radius: 18px', css)
         for theme, surface in (
             ('blue', '#13203a'),
             ('purple', '#2f1a3e'),

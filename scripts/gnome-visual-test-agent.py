@@ -160,6 +160,7 @@ def _state() -> dict:
         "gtk_theme": interface.get_string("gtk-theme"),
         "picture_uri": background.get_string("picture-uri"),
         "picture_uri_dark": background.get_string("picture-uri-dark"),
+        "ptyxis_profile_uuid": _default_profile_uuid(),
         "ptyxis_palette": profile.get_string("palette") if profile else None,
         "restore_point": _state_file().is_file(),
         "session_type": os.environ.get("XDG_SESSION_TYPE", ""),
@@ -465,12 +466,17 @@ def _apply_theme(theme: str) -> dict:
         "gtk_theme": f"Localzet-Aurora-{theme.title()}",
         "picture_uri": expected_wallpaper,
         "picture_uri_dark": expected_wallpaper,
-        "ptyxis_palette": f"Aurora {theme.title()}",
     }
+    expected_palette = f"Aurora {theme.title()}"
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         state = _state()
-        if all(state.get(key) == value for key, value in expected_state.items()):
+        palette_ready = (
+            state.get("ptyxis_profile_uuid") is None
+            or state.get("ptyxis_palette") == expected_palette
+        )
+        if (all(state.get(key) == value for key, value in expected_state.items())
+                and palette_ready):
             return {
                 "theme": theme,
                 "state": state,

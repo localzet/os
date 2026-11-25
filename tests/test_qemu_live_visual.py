@@ -92,6 +92,7 @@ class QemuLiveVisualTests(unittest.TestCase):
             "gtk_theme": "Localzet-Aurora-Purple",
             "picture_uri": wallpaper,
             "picture_uri_dark": wallpaper,
+            "ptyxis_profile_uuid": "a3d6b7e2-186b-4b5b-9225-6abcde123456",
             "ptyxis_palette": "Aurora Purple",
         }
         window = {"app": "settings", "title": "Localzet Settings", "ready": True}
@@ -114,6 +115,7 @@ class QemuLiveVisualTests(unittest.TestCase):
             "gtk_theme": "Localzet-Aurora-Purple",
             "picture_uri": wallpaper,
             "picture_uri_dark": wallpaper,
+            "ptyxis_profile_uuid": "a3d6b7e2-186b-4b5b-9225-6abcde123456",
             "ptyxis_palette": "Aurora Purple",
         }
         pending = {**expected, "ptyxis_palette": "Aurora Blue"}
@@ -125,6 +127,28 @@ class QemuLiveVisualTests(unittest.TestCase):
 
         self.assertEqual(read_state.call_count, 2)
         self.assertEqual(result["state"], expected)
+
+    def test_appearance_apply_allows_palette_before_first_ptyxis_profile(self):
+        wallpaper = "file:///usr/share/backgrounds/localzet/aurora-blue.webp"
+        state = {
+            "appearance": "blue",
+            "accent_color": "blue",
+            "color_scheme": "prefer-dark",
+            "icon_theme": "Localzet",
+            "gtk_theme": "Localzet-Aurora-Blue",
+            "picture_uri": wallpaper,
+            "picture_uri_dark": wallpaper,
+            "ptyxis_profile_uuid": None,
+            "ptyxis_palette": None,
+        }
+        window = {"app": "settings", "title": "Localzet Settings", "ready": True}
+        with patch.object(visual_agent, "_activate_theme"), \
+                patch.object(visual_agent, "_state", return_value=state), \
+                patch.object(visual_agent, "_wait_window", return_value=window):
+            result = visual_agent._apply_theme("blue")
+
+        self.assertTrue(result["ready"])
+        self.assertIsNone(result["state"]["ptyxis_profile_uuid"])
 
     def test_appearance_restore_accepts_visible_button_label_and_confirms_state(self):
         wallpaper = "file:///usr/share/backgrounds/localzet/aurora-black.webp"
