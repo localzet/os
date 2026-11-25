@@ -55,6 +55,20 @@ class AssetsTests(unittest.TestCase):
         self.assertIn('rgba(9, 22, 42, 0.62)', stylesheet)
         self.assertIn('icon-size: 20px', stylesheet)
         self.assertIn('icon-size: 24px', stylesheet)
+        self.assertIn('.workspace-indicator .workspace.active', stylesheet)
+        self.assertIn('localzet-quick-settings-blur', extension)
+
+    def test_gtk_glass_themes_are_packaged_for_all_aurora_palettes(self):
+        builder = (ROOT / 'scripts/build-desktop-deb.sh').read_text()
+        self.assertIn('yaru-theme-gtk', builder)
+        self.assertIn('theme/gtk/$gtk_theme/gtk-4.0/gtk.css', builder)
+        for theme in ('Blue', 'Purple', 'Black'):
+            name = f'Localzet-Aurora-{theme}'
+            css = (ROOT / 'theme/gtk' / name / 'gtk-4.0/gtk.css').read_text()
+            with self.subTest(theme=theme):
+                self.assertIn('window .navigation-sidebar', css)
+                self.assertIn('window .view', css)
+                self.assertIn('border-radius: 14px', css)
 
     def test_appearance_boxed_lists_follow_each_aurora_surface(self):
         css = (ROOT / 'apps/localzet-settings/settings.css').read_text()

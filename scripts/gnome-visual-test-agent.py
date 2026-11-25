@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import configparser
 import json
 import os
 from pathlib import Path
@@ -125,6 +126,27 @@ def _default_profile_uuid() -> str | None:
         return None
 
 
+def _profile_palette_details(profile_uuid: str | None) -> dict | None:
+    if profile_uuid is None:
+        return None
+    profile = _profile_settings()
+    if profile is None:
+        return None
+    palette_id = profile.get_string("palette")
+    data_home = os.environ.get("XDG_DATA_HOME")
+    base = Path(data_home) if data_home else Path.home() / ".local/share"
+    palette_path = base / "org.gnome.Ptyxis" / "palettes" / f"{palette_id}.palette"
+    details = {"id": palette_id, "file": str(palette_path), "background": None}
+    if not palette_path.is_file():
+        return details
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read(palette_path, encoding="utf-8")
+    if parser.has_section("Palette"):
+        details["name"] = parser["Palette"].get("Name")
+        details["background"] = parser["Palette"].get("Background")
+    return details
+
+
 def _state() -> dict:
     interface = _settings("org.gnome.desktop.interface")
     background = _settings("org.gnome.desktop.background")
@@ -135,6 +157,7 @@ def _state() -> dict:
         "accent_color": interface.get_string("accent-color"),
         "color_scheme": interface.get_string("color-scheme"),
         "icon_theme": interface.get_string("icon-theme"),
+        "gtk_theme": interface.get_string("gtk-theme"),
         "picture_uri": background.get_string("picture-uri"),
         "picture_uri_dark": background.get_string("picture-uri-dark"),
         "ptyxis_palette": profile.get_string("palette") if profile else None,
@@ -393,7 +416,7 @@ def _wait_window(app: str) -> dict:
 def _open_app(app: str) -> dict:
     if app == "terminal":
         profile_uuid = _default_profile_uuid()
-        arguments = ["ptyxis", "--standalone"]
+        arguments = ["ptyxis"]
         if profile_uuid:
             arguments.append(f"--tab-with-profile={profile_uuid}")
         else:
@@ -414,9 +437,11 @@ def _open_app(app: str) -> dict:
     window = _wait_window(app)
     if app == "terminal":
         profile_uuid = _default_profile_uuid()
-        profile = _profile_settings()
         window["profile_uuid"] = profile_uuid
-        window["profile_palette"] = profile.get_string("palette") if profile else None
+        window["palette"] = _profile_palette_details(profile_uuid)
+        window["profile_palette"] = (
+            window["palette"]["id"] if window["palette"] else None
+        )
     return window
 
 
@@ -429,10 +454,23 @@ def _page_ready(page: str) -> dict:
 
 def _apply_theme(theme: str) -> dict:
     _activate_theme(theme)
+    expected_wallpaper = (
+        f"file:///usr/share/backgrounds/localzet/aurora-{theme}.webp"
+    )
+    expected_state = {
+        "appearance": theme,
+        "accent_color": "blue" if theme == "blue" else "purple",
+        "color_scheme": "prefer-dark",
+        "icon_theme": "Localzet",
+        "gtk_theme": f"Localzet-Aurora-{theme.title()}",
+        "picture_uri": expected_wallpaper,
+        "picture_uri_dark": expected_wallpaper,
+        "ptyxis_palette": f"Aurora {theme.title()}",
+    }
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
         state = _state()
-        if state["appearance"] == theme:
+        if all(state.get(key) == value for key, value in expected_state.items()):
             return {
                 "theme": theme,
                 "state": state,
@@ -440,7 +478,9 @@ def _apply_theme(theme: str) -> dict:
                 "ready": True,
             }
         time.sleep(0.25)
-    raise TimeoutError(f"Aurora {theme.title()} did not apply in Appearance")
+    raise TimeoutError(
+        f"Aurora {theme.title()} settings did not settle in Appearance: {_state()}"
+    )
 
 
 def _restore() -> dict:
@@ -454,6 +494,7 @@ def _restore() -> dict:
         state = _state()
         if (state["appearance"] == "purple"
                 and state["icon_theme"] == "Adwaita"
+                and state["gtk_theme"] == "Yaru-dark"
                 and state["picture_uri"] == expected_wallpaper
                 and state["picture_uri_dark"] == expected_wallpaper
                 and state["color_scheme"] == "default"
@@ -592,6 +633,7 @@ def dispatch(operation: str, arguments: dict[str, str]) -> dict:
             _set_string("org.gnome.desktop.background", key, value)
         for key, value in (
             ("icon-theme", "Adwaita"),
+            ("gtk-theme", "Yaru-dark"),
             ("accent-color", "blue"),
             ("color-scheme", "default"),
         ):

@@ -20,6 +20,19 @@
 .localzet-panel .panel-status-indicators {
     spacing: 6px;
 }
+#panel.localzet-panel .workspace-indicator .workspace {
+    width: 18px;
+    height: 8px;
+    border: 1px solid rgba(143, 176, 236, 0.34);
+    border-radius: 999px;
+    background-color: rgba(174, 190, 217, 0.16);
+}
+#panel.localzet-panel .workspace-indicator .workspace.active {
+    width: 26px;
+    border-color: rgba(143, 176, 236, 0.68);
+    background-color: rgba(87, 153, 245, 0.34);
+    box-shadow: 0 0 0 1px rgba(87, 153, 245, 0.12);
+}
 .localzet-indicator {
     border-radius: 11px;
     margin: 3px 6px;
@@ -160,6 +173,14 @@
 .localzet-theme-purple #panel.localzet-panel .panel-button:focus {
     background-color: rgba(195, 145, 223, 0.20);
 }
+.localzet-theme-purple #panel.localzet-panel .workspace-indicator .workspace {
+    border-color: rgba(195, 145, 223, 0.34);
+}
+.localzet-theme-purple #panel.localzet-panel .workspace-indicator .workspace.active {
+    border-color: rgba(212, 188, 223, 0.76);
+    background-color: rgba(187, 132, 232, 0.36);
+    box-shadow: 0 0 0 1px rgba(187, 132, 232, 0.14);
+}
 
 .localzet-theme-purple .localzet-dock {
     background-color: rgba(32, 17, 46, 0.80);
@@ -205,6 +226,15 @@
 .localzet-theme-black #panel.localzet-panel .panel-button:hover,
 .localzet-theme-black #panel.localzet-panel .panel-button:focus {
     background-color: rgba(155, 105, 206, 0.17);
+}
+.localzet-theme-black #panel.localzet-panel .workspace-indicator .workspace {
+    border-color: rgba(139, 135, 151, 0.36);
+    background-color: rgba(188, 186, 195, 0.10);
+}
+.localzet-theme-black #panel.localzet-panel .workspace-indicator .workspace.active {
+    border-color: rgba(180, 118, 237, 0.72);
+    background-color: rgba(180, 118, 237, 0.30);
+    box-shadow: 0 0 0 1px rgba(180, 118, 237, 0.12);
 }
 
 .localzet-theme-black .localzet-dock {

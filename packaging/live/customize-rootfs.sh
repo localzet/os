@@ -35,6 +35,7 @@ picture-uri-dark='file:///usr/share/backgrounds/localzet/aurora-blue.webp'
 color-scheme='prefer-dark'
 accent-color='blue'
 icon-theme='Localzet'
+gtk-theme='Localzet-Aurora-Blue'
 
 [org/gnome/desktop/input-sources]
 sources=[('xkb', 'us'), ('xkb', 'ru')]

@@ -351,6 +351,21 @@ def capture_shell_scenes(
             f"Ptyxis opened with the wrong profile palette: "
             f"expected {expected_palette}, got {ready}"
         )
+    expected_background = TERMINAL_PALETTE_BACKGROUNDS[theme]
+    palette = ready.get("palette") or {}
+    palette_background = palette.get("background")
+    if (palette.get("id") != expected_palette
+            or palette.get("name") != expected_palette
+            or not isinstance(palette_background, str)
+            or palette_background.casefold() != expected_background):
+        raise RuntimeError(
+            f"Ptyxis palette file does not match Aurora {theme.title()}: {ready}"
+        )
+    print(
+        "PTYXIS_WINDOW_READY="
+        + json.dumps(ready, ensure_ascii=False, sort_keys=True),
+        flush=True,
+    )
     record = capture(qmp, output, f"{theme}-terminal", theme, records, ready)
     record["terminal_palette_render"] = verify_terminal_palette(
         output / f"{theme}-terminal.png", theme,
@@ -457,6 +472,7 @@ def main() -> int:
             first_login = agent.call("state")
             expected_blue = "file:///usr/share/backgrounds/localzet/aurora-blue.webp"
             if (first_login["icon_theme"] != "Localzet"
+                    or first_login["gtk_theme"] != "Localzet-Aurora-Blue"
                     or first_login["picture_uri"] != expected_blue
                     or first_login["picture_uri_dark"] != expected_blue
                     or first_login["appearance"] != "blue"):
@@ -488,6 +504,7 @@ def main() -> int:
                 expected_accent = "blue" if theme == "blue" else "purple"
                 if (state["appearance"] != theme
                         or state["icon_theme"] != "Localzet"
+                        or state["gtk_theme"] != f"Localzet-Aurora-{theme.title()}"
                         or state["picture_uri"] != expected_wallpaper
                         or state["picture_uri_dark"] != expected_wallpaper
                         or state["accent_color"] != expected_accent
@@ -509,6 +526,7 @@ def main() -> int:
             restored_state = restored["state"]
             if (restored_state["appearance"] != "purple"
                     or restored_state["icon_theme"] != "Adwaita"
+                    or restored_state["gtk_theme"] != "Yaru-dark"
                     or restored_state["picture_uri"] != expected_black
                     or restored_state["picture_uri_dark"] != expected_black
                     or restored_state["accent_color"] != "blue"

@@ -15,6 +15,7 @@ mkdir -p "$pkg/DEBIAN" "$pkg/opt/localzet-os/src" "$pkg/opt/localzet-os/config" 
     "$pkg/usr/bin" "$pkg/usr/share/applications" "$pkg/usr/share/localzet/styles" \
     "$pkg/usr/share/backgrounds/localzet" "$pkg/usr/share/icons" \
     "$pkg/usr/share/localzet/ptyxis-palettes" \
+    "$pkg/usr/share/themes" \
     "$pkg/usr/share/glib-2.0/schemas" \
     "$pkg/usr/share/metainfo" "$pkg/usr/share/gnome-shell/extensions" \
     "$pkg/usr/share/doc/localzet-desktop" "$pkg/opt/localzet-os/scripts" \
@@ -26,7 +27,7 @@ Architecture: all
 Maintainer: Localzet OS <https://github.com/localzet/os>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gtk-update-icon-cache, libglib2.0-bin, gnome-shell (>= 50), gnome-shell (<< 51), pkexec
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, gtk-update-icon-cache, libglib2.0-bin, yaru-theme-gtk, gnome-shell (>= 50), gnome-shell (<< 51), pkexec
 Description: Localzet Aurora desktop components
  GNOME Shell extension, settings, icon theme, module catalog and Aurora wallpapers.
 EOF
@@ -40,6 +41,11 @@ install -m 0644 "$repo/extensions/localzet-shell@localzet.com/schemas/com.localz
 install -m 0644 "$repo/packaging/99-localzet-ptyxis.gschema.override" \
     "$pkg/usr/share/glib-2.0/schemas/"
 cp -a "$repo/theme/icons/Localzet" "$pkg/usr/share/icons/"
+for theme in Blue Purple Black; do
+    gtk_theme="Localzet-Aurora-$theme"
+    install -D -m 0644 "$repo/theme/gtk/$gtk_theme/gtk-4.0/gtk.css" \
+        "$pkg/usr/share/themes/$gtk_theme/gtk-4.0/gtk.css"
+done
 mkdir -p "$pkg/usr/share/icons/hicolor/scalable/apps"
 for icon in localzet-settings localzet-connect localzet-windows; do
     install -m 0644 "$repo/theme/icons/Localzet/scalable/apps/$icon.svg" \

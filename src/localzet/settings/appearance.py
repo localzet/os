@@ -32,6 +32,7 @@ SAFE_KEYS = {
     (EXTENSION_SCHEMA, "appearance"),
     (INTERFACE_SCHEMA, "accent-color"),
     (INTERFACE_SCHEMA, "icon-theme"),
+    (INTERFACE_SCHEMA, "gtk-theme"),
     (INTERFACE_SCHEMA, "color-scheme"),
     (BACKGROUND_SCHEMA, "picture-uri"),
     (BACKGROUND_SCHEMA, "picture-uri-dark"),
@@ -232,6 +233,19 @@ def _wallpaper_uri(theme: str) -> str:
     raise AppearanceError("Не найден файл выбранных обоев Aurora")
 
 
+def _gtk_theme_name(theme: str) -> str:
+    return f"Localzet-Aurora-{theme.title()}"
+
+
+def _gtk_theme_available(theme: str) -> bool:
+    name = _gtk_theme_name(theme)
+    candidates = (
+        Path("/usr/share/themes") / name / "gtk-4.0/gtk.css",
+        ROOT / "theme/gtk" / name / "gtk-4.0/gtk.css",
+    )
+    return any(path.is_file() for path in candidates)
+
+
 def _changes(theme: str) -> list[SettingValue]:
     wallpaper = _wallpaper_uri(theme)
     accent = "blue" if theme == "blue" else "purple"
@@ -396,6 +410,11 @@ def apply_appearance(
     settings = store or GSettingsStore()
     target = snapshot or state_path()
     changes = _changes(theme)
+    if (settings.supports(INTERFACE_SCHEMA, "gtk-theme")
+            and _gtk_theme_available(theme)):
+        changes.append(SettingValue(
+            INTERFACE_SCHEMA, "gtk-theme", _gtk_theme_name(theme),
+        ))
     if settings.supports(PTYXIS_SCHEMA, "default-profile-uuid"):
         _ensure_ptyxis_palettes()
         palette = _ptyxis_palette_setting(theme, settings)

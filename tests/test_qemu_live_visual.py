@@ -83,7 +83,17 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertTrue(click.invoked)
 
     def test_appearance_apply_reports_ready_after_state_and_window_confirmation(self):
-        state = {"appearance": "purple"}
+        wallpaper = "file:///usr/share/backgrounds/localzet/aurora-purple.webp"
+        state = {
+            "appearance": "purple",
+            "accent_color": "purple",
+            "color_scheme": "prefer-dark",
+            "icon_theme": "Localzet",
+            "gtk_theme": "Localzet-Aurora-Purple",
+            "picture_uri": wallpaper,
+            "picture_uri_dark": wallpaper,
+            "ptyxis_palette": "Aurora Purple",
+        }
         window = {"app": "settings", "title": "Localzet Settings", "ready": True}
         with patch.object(visual_agent, "_activate_theme"), \
                 patch.object(visual_agent, "_state", return_value=state), \
@@ -94,11 +104,34 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertEqual(result["state"], state)
         self.assertEqual(result["window"], window)
 
+    def test_appearance_apply_waits_for_terminal_palette_and_all_desktop_settings(self):
+        wallpaper = "file:///usr/share/backgrounds/localzet/aurora-purple.webp"
+        expected = {
+            "appearance": "purple",
+            "accent_color": "purple",
+            "color_scheme": "prefer-dark",
+            "icon_theme": "Localzet",
+            "gtk_theme": "Localzet-Aurora-Purple",
+            "picture_uri": wallpaper,
+            "picture_uri_dark": wallpaper,
+            "ptyxis_palette": "Aurora Purple",
+        }
+        pending = {**expected, "ptyxis_palette": "Aurora Blue"}
+        window = {"app": "settings", "title": "Localzet Settings", "ready": True}
+        with patch.object(visual_agent, "_activate_theme"), \
+                patch.object(visual_agent, "_state", side_effect=[pending, expected]) as read_state, \
+                patch.object(visual_agent, "_wait_window", return_value=window):
+            result = visual_agent._apply_theme("purple")
+
+        self.assertEqual(read_state.call_count, 2)
+        self.assertEqual(result["state"], expected)
+
     def test_appearance_restore_accepts_visible_button_label_and_confirms_state(self):
         wallpaper = "file:///usr/share/backgrounds/localzet/aurora-black.webp"
         state = {
             "appearance": "purple",
             "icon_theme": "Adwaita",
+            "gtk_theme": "Yaru-dark",
             "picture_uri": wallpaper,
             "picture_uri_dark": wallpaper,
             "color_scheme": "default",
@@ -124,19 +157,28 @@ class QemuLiveVisualTests(unittest.TestCase):
         profile = type("Profile", (), {
             "get_string": lambda _self, _key: "Aurora Purple",
         })()
-        with patch.object(visual_agent, "_default_profile_uuid", return_value=profile_uuid), \
+        with tempfile.TemporaryDirectory() as directory:
+            palette_dir = Path(directory) / "org.gnome.Ptyxis" / "palettes"
+            palette_dir.mkdir(parents=True)
+            (palette_dir / "Aurora Purple.palette").write_text(
+                "[Palette]\nName=Aurora Purple\nBackground=#20112e\n",
+                encoding="utf-8",
+            )
+            with patch.dict("os.environ", {"XDG_DATA_HOME": directory}), \
+                patch.object(visual_agent, "_default_profile_uuid", return_value=profile_uuid), \
                 patch.object(visual_agent, "_profile_settings", return_value=profile), \
                 patch.object(visual_agent.subprocess, "Popen") as launch, \
                 patch.object(visual_agent, "_wait_window", return_value=window):
-            result = visual_agent._open_app("terminal")
+                result = visual_agent._open_app("terminal")
 
         launch.assert_called_once_with(
-            ["ptyxis", "--standalone", f"--tab-with-profile={profile_uuid}"],
+            ["ptyxis", f"--tab-with-profile={profile_uuid}"],
             close_fds=True,
             start_new_session=True,
         )
         self.assertEqual(result["profile_uuid"], profile_uuid)
         self.assertEqual(result["profile_palette"], "Aurora Purple")
+        self.assertEqual(result["palette"]["background"], "#20112e")
         self.assertTrue(result["ready"])
 
     def test_terminal_first_launch_uses_the_default_profile(self):
@@ -148,7 +190,7 @@ class QemuLiveVisualTests(unittest.TestCase):
             result = visual_agent._open_app("terminal")
 
         launch.assert_called_once_with(
-            ["ptyxis", "--standalone", "--new-window"],
+            ["ptyxis", "--new-window"],
             close_fds=True,
             start_new_session=True,
         )

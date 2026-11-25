@@ -12,6 +12,7 @@ THEMES = {
         "wallpaper_dark": "aurora-blue",
         "icons": "Localzet",
         "accent": "blue",
+        "gtk_theme": "Localzet-Aurora-Blue",
     },
     "purple": {
         "appearance": "purple",
@@ -19,6 +20,7 @@ THEMES = {
         "wallpaper_dark": "aurora-purple",
         "icons": "Localzet",
         "accent": "purple",
+        "gtk_theme": "Localzet-Aurora-Purple",
     },
     "black": {
         "appearance": "black",
@@ -26,6 +28,7 @@ THEMES = {
         "wallpaper_dark": "aurora-black",
         "icons": "Localzet",
         "accent": "purple",
+        "gtk_theme": "Localzet-Aurora-Black",
     },
     "restore": {
         "appearance": "purple",
@@ -33,6 +36,7 @@ THEMES = {
         "wallpaper_dark": "aurora-black",
         "icons": "Adwaita",
         "accent": "blue",
+        "gtk_theme": "Yaru-dark",
     },
 }
 
@@ -43,6 +47,7 @@ SETTINGS = {
     "wallpaper_dark": ("org.gnome.desktop.background", "picture-uri-dark"),
     "icons": ("org.gnome.desktop.interface", "icon-theme"),
     "accent": ("org.gnome.desktop.interface", "accent-color"),
+    "gtk_theme": ("org.gnome.desktop.interface", "gtk-theme"),
 }
 
 
@@ -79,6 +84,7 @@ def verify(profile: str) -> int:
         ),
         "icons": actual["icons"] == expected["icons"],
         "accent": actual["accent"] == expected["accent"],
+        "gtk_theme": actual["gtk_theme"] == expected["gtk_theme"],
     }
     if not all(checks.values()):
         print(f"LOCALZET_APPEARANCE_VERIFY=FAIL {actual}", flush=True)

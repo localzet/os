@@ -27,9 +27,13 @@ class LiveDefaultsTests(unittest.TestCase):
             defaults,
         )
         self.assertIn("icon-theme='Localzet'", defaults)
+        self.assertIn("gtk-theme='Localzet-Aurora-Blue'", defaults)
         self.assertIn("accent-color='blue'", defaults)
         self.assertTrue((ROOT / "assets/wallpapers/aurora-blue.webp").is_file())
         self.assertNotIn("aurora.svg", defaults)
+        for theme in ("Blue", "Purple", "Black"):
+            path = ROOT / "theme/gtk" / f"Localzet-Aurora-{theme}" / "gtk-4.0/gtk.css"
+            self.assertTrue(path.is_file(), path)
         self.assertIn(
             'gnome-icon-resolution-smoke.py" "$root/usr/lib/localzet/gnome-icon-resolution-smoke.py"',
             customizer,

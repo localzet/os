@@ -29,6 +29,7 @@ class FakeSettings:
             (INTERFACE_SCHEMA, "accent-color"): "blue",
             (INTERFACE_SCHEMA, "color-scheme"): "default",
             (INTERFACE_SCHEMA, "icon-theme"): "Adwaita",
+            (INTERFACE_SCHEMA, "gtk-theme"): "Yaru-dark",
             (BACKGROUND_SCHEMA, "picture-uri"): "file:///usr/share/backgrounds/old.jpg",
             (BACKGROUND_SCHEMA, "picture-uri-dark"): "file:///usr/share/backgrounds/old-dark.jpg",
         }
@@ -81,6 +82,20 @@ class AppearanceTests(unittest.TestCase):
 
         self.assertEqual(result.pending, 0)
         self.assertEqual(settings.get(profile_schema, "palette"), "Ubuntu")
+
+    def test_gtk_theme_tracks_aurora_variant_and_restores_previous_theme(self):
+        settings = FakeSettings()
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = Path(directory) / "appearance.json"
+            apply_appearance("purple", store=settings, snapshot=snapshot)
+            self.assertEqual(
+                settings.get(INTERFACE_SCHEMA, "gtk-theme"),
+                "Localzet-Aurora-Purple",
+            )
+
+            restore_appearance(store=settings, snapshot=snapshot)
+
+        self.assertEqual(settings.get(INTERFACE_SCHEMA, "gtk-theme"), "Yaru-dark")
 
     def test_snapshot_rejects_untrusted_ptyxis_profile_path(self):
         with tempfile.TemporaryDirectory() as directory:

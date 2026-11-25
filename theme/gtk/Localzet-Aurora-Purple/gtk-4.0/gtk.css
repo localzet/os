@@ -1,0 +1,29 @@
+@import url("resource:///com/ubuntu/themes/Yaru-dark/4.0/gtk.css");
+
+window {
+    color: #f8f0ff;
+    background-color: rgba(32, 17, 46, 0.84);
+    border: 1px solid rgba(195, 145, 223, 0.38);
+    border-radius: 14px;
+}
+
+window headerbar,
+window .titlebar {
+    background-color: rgba(47, 26, 62, 0.74);
+    border-bottom: 1px solid rgba(195, 145, 223, 0.24);
+    box-shadow: none;
+}
+
+window .view,
+window .navigation-sidebar,
+window .sidebar {
+    background-color: rgba(47, 26, 62, 0.72);
+}
+
+window popover,
+window popover contents,
+window menu {
+    background-color: rgba(47, 26, 62, 0.94);
+    border: 1px solid rgba(195, 145, 223, 0.38);
+    border-radius: 12px;
+}

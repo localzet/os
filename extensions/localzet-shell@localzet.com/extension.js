@@ -77,19 +77,26 @@ function closeVisualTestWindow(app) {
     return true;
 }
 
-function addGlassBlur(actor, name) {
+function addGlassBlur(actor, name, radius = 18) {
     const backgroundMode = Shell.BlurMode?.BACKGROUND;
     if (typeof Shell.BlurEffect !== 'function' || backgroundMode === undefined)
-        return;
+        return false;
     try {
         actor.add_effect_with_name(name, new Shell.BlurEffect({
             mode: backgroundMode,
-            radius: 18,
+            radius,
         }));
+        return true;
     } catch (error) {
         console.warn('Localzet Shell: background blur unavailable: ' + error);
+        return false;
     }
 }
+
+const GLASS_WINDOW_CLASSES = new Set([
+    'nautilus', 'org.gnome.nautilus',
+    'ptyxis', 'org.gnome.ptyxis',
+]);
 
 export default class LocalzetShell extends Extension {
     enable() {
@@ -97,6 +104,15 @@ export default class LocalzetShell extends Extension {
             return;
 
         this._settings = this.getSettings();
+        this._interfaceSettings = new Gio.Settings({
+            schema_id: 'org.gnome.desktop.interface',
+        });
+        this._windowGlassActors = new Map();
+        this._windowGlassSources = new Set();
+        this._windowCreated = global.display.connect(
+            'window-created', (_display, window) => this._scheduleWindowGlass(window));
+        this._gtkThemeChanged = this._interfaceSettings.connect(
+            'changed::gtk-theme', () => this._syncWindowGlass());
         this._visualTestNameOwner = 0;
         this._visualTestObject = null;
         this._appearanceChanged = this._settings.connect(
@@ -105,6 +121,10 @@ export default class LocalzetShell extends Extension {
 
         Main.panel.add_style_class_name('localzet-panel');
         addGlassBlur(Main.panel, 'localzet-panel-blur');
+        this._quickSettingsBox = Main.panel.statusArea.quickSettings?.menu?.box || null;
+        if (this._quickSettingsBox)
+            addGlassBlur(this._quickSettingsBox, 'localzet-quick-settings-blur', 20);
+        this._syncWindowGlass();
 
         this._indicator = new PanelMenu.Button(0.0, 'Localzet OS', false);
         this._indicator.add_style_class_name('localzet-indicator');
@@ -328,6 +348,89 @@ export default class LocalzetShell extends Extension {
             uiGroup.remove_style_class_name(appearance);
         Main.panel.remove_effect_by_name('localzet-panel-blur');
         Main.panel.remove_style_class_name('localzet-panel');
+        this._quickSettingsBox?.remove_effect_by_name('localzet-quick-settings-blur');
+        this._quickSettingsBox = null;
+        if (this._windowCreated) {
+            global.display.disconnect(this._windowCreated);
+            this._windowCreated = 0;
+        }
+        if (this._gtkThemeChanged && this._interfaceSettings) {
+            this._interfaceSettings.disconnect(this._gtkThemeChanged);
+            this._gtkThemeChanged = 0;
+        }
+        for (const source of this._windowGlassSources)
+            GLib.source_remove(source);
+        this._windowGlassSources.clear();
+        for (const [actor, destroyed] of this._windowGlassActors) {
+            actor.disconnect(destroyed);
+            actor.remove_effect_by_name('localzet-window-blur');
+        }
+        this._windowGlassActors.clear();
+        this._interfaceSettings = null;
         this._settings = null;
+    }
+
+    _usesAuroraGtkTheme() {
+        return this._interfaceSettings?.get_string('gtk-theme')
+            .startsWith('Localzet-Aurora-') || false;
+    }
+
+    _isGlassWindow(window) {
+        const wmClass = String(window?.get_wm_class() || '').toLowerCase();
+        return GLASS_WINDOW_CLASSES.has(wmClass);
+    }
+
+    _attachWindowGlass(actor) {
+        if (!this._usesAuroraGtkTheme() || this._windowGlassActors.has(actor))
+            return;
+        if (!addGlassBlur(actor, 'localzet-window-blur', 16))
+            return;
+        const destroyed = actor.connect('destroy', () => {
+            this._windowGlassActors.delete(actor);
+        });
+        this._windowGlassActors.set(actor, destroyed);
+    }
+
+    _syncWindowGlass() {
+        if (!this._usesAuroraGtkTheme()) {
+            for (const [actor, destroyed] of this._windowGlassActors) {
+                actor.disconnect(destroyed);
+                actor.remove_effect_by_name('localzet-window-blur');
+            }
+            this._windowGlassActors.clear();
+            return;
+        }
+        for (const actor of global.get_window_actors()) {
+            if (this._isGlassWindow(actor.meta_window))
+                this._attachWindowGlass(actor);
+        }
+    }
+
+    _scheduleWindowGlass(window) {
+        if (!this._isGlassWindow(window))
+            return;
+        let attempts = 0;
+        let source = 0;
+        source = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            if (!this._usesAuroraGtkTheme()) {
+                this._windowGlassSources.delete(source);
+                return GLib.SOURCE_REMOVE;
+            }
+            const actor = global.get_window_actors().find(
+                candidate => candidate.meta_window === window,
+            );
+            if (actor) {
+                this._attachWindowGlass(actor);
+                this._windowGlassSources.delete(source);
+                return GLib.SOURCE_REMOVE;
+            }
+            attempts++;
+            if (attempts >= 20) {
+                this._windowGlassSources.delete(source);
+                return GLib.SOURCE_REMOVE;
+            }
+            return GLib.SOURCE_CONTINUE;
+        });
+        this._windowGlassSources.add(source);
     }
 }
