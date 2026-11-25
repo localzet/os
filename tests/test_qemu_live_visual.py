@@ -10,8 +10,6 @@ from threading import Event, Thread
 import time
 from unittest.mock import patch
 
-from PIL import Image
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "qemu-live-visual.py"
@@ -158,16 +156,16 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertIsNone(result["profile_palette"])
 
     def test_terminal_framebuffer_must_render_the_selected_palette(self):
-        with tempfile.TemporaryDirectory() as directory:
-            screenshot = Path(directory) / "terminal.png"
-            Image.new("RGB", (1536, 1024), "#20112e").save(screenshot)
-            result = visual_script.verify_terminal_palette(screenshot, "purple")
-            self.assertEqual(result["sampled_background"], "#20112e")
-            self.assertGreaterEqual(result["dominant_ratio"], 0.90)
+        result = visual_script.verify_terminal_palette_sample(
+            "purple", (32, 17, 46), 4096, 4096,
+        )
+        self.assertEqual(result["sampled_background"], "#20112e")
+        self.assertGreaterEqual(result["dominant_ratio"], 0.90)
 
-            Image.new("RGB", (1536, 1024), "#0a1120").save(screenshot)
-            with self.assertRaisesRegex(RuntimeError, "expected #20112e, got #0a1120"):
-                visual_script.verify_terminal_palette(screenshot, "purple")
+        with self.assertRaisesRegex(RuntimeError, "expected #20112e, got #0a1120"):
+            visual_script.verify_terminal_palette_sample(
+                "purple", (10, 17, 32), 4096, 4096,
+            )
 
     @patch("qemu_live_visual.os.access", return_value=True)
     def test_auto_uses_kvm_when_device_is_accessible(self, access):

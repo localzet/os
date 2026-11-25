@@ -271,14 +271,40 @@ def capture(
     return records[-1]
 
 
-def verify_terminal_palette(path: Path, theme: str) -> dict:
-    from PIL import Image
-
+def verify_terminal_palette_sample(
+    theme: str,
+    color: tuple[int, int, int],
+    count: int,
+    total: int,
+    frame: Path | None = None,
+) -> dict:
     expected_hex = TERMINAL_PALETTE_BACKGROUNDS[theme]
     expected = tuple(
         int(expected_hex[index:index + 2], 16)
         for index in (1, 3, 5)
     )
+    ratio = count / total
+    color_error = max(
+        abs(actual - wanted) for actual, wanted in zip(color, expected)
+    )
+    if ratio < 0.90 or color_error > 2:
+        frame_info = f"; frame={frame}" if frame else ""
+        raise RuntimeError(
+            f"Ptyxis framebuffer does not render Aurora {theme.title()}: "
+            f"expected {expected_hex}, got #{color[0]:02x}{color[1]:02x}{color[2]:02x} "
+            f"({ratio:.1%} dominant pixels){frame_info}"
+        )
+    return {
+        "palette": f"Aurora {theme.title()}",
+        "expected_background": expected_hex,
+        "sampled_background": "#%02x%02x%02x" % color,
+        "dominant_ratio": round(ratio, 4),
+    }
+
+
+def verify_terminal_palette(path: Path, theme: str) -> dict:
+    from PIL import Image
+
     with Image.open(path) as image:
         if image.size != (WIDTH, HEIGHT):
             raise RuntimeError(f"Unexpected terminal framebuffer size: {image.size}")
@@ -289,22 +315,8 @@ def verify_terminal_palette(path: Path, theme: str) -> dict:
         pixels = sample.tobytes()
         colors = Counter(zip(pixels[0::3], pixels[1::3], pixels[2::3]))
         color, count = colors.most_common(1)[0]
-    ratio = count / (sample.width * sample.height)
-    color_error = max(
-        abs(actual - wanted) for actual, wanted in zip(color, expected)
-    )
-    if ratio < 0.90 or color_error > 2:
-        raise RuntimeError(
-            f"Ptyxis framebuffer does not render Aurora {theme.title()}: "
-            f"expected {expected_hex}, got #{color[0]:02x}{color[1]:02x}{color[2]:02x} "
-            f"({ratio:.1%} dominant pixels); frame={path}"
-        )
-    return {
-        "palette": f"Aurora {theme.title()}",
-        "expected_background": expected_hex,
-        "sampled_background": "#%02x%02x%02x" % color,
-        "dominant_ratio": round(ratio, 4),
-    }
+        total = sample.width * sample.height
+    return verify_terminal_palette_sample(theme, color, count, total, path)
 
 
 def capture_shell_scenes(
