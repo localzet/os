@@ -1,5 +1,5 @@
-/* Aurora Professional foundation. Opaque, readable fallback until genuine
- * compositor glass is implemented and measured; not an alpha-only fake. */
+/* Aurora Professional surfaces. Live compositor blur is supplied by
+ * Shell.BlurEffect; opaque colors remain the safe fallback. */
 .localzet-dock {
     padding: 3px 8px;
     spacing: 4px;
@@ -8,7 +8,8 @@
     border: 1px solid rgba(155, 114, 242, .22);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
 }
-.localzet-dock.localzet-dock-wallpaper {
+.localzet-dock.localzet-compositor-glass {
+    background-color: rgba(40, 24, 63, .72);
     box-shadow: none;
     border-color: rgba(155, 114, 242, .22);
 }
@@ -40,7 +41,7 @@
 }
 #panel.localzet-panel.localzet-panel-glass {
     /* Only enabled with a real Shell.BlurEffect, never on its own. */
-    background-color: rgba(40, 24, 63, 0.82);
+    background-color: rgba(40, 24, 63, 0.72);
 }
 
 /* Executive command hub: search, navigation, actual apps, real actions. */
@@ -107,7 +108,7 @@
     padding: 7px;
     box-shadow: 0 4px 14px rgba(0,0,0,.28);
 }
-.localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {
+.localzet-system-surface.localzet-compositor-glass .popup-menu-content {
     box-shadow: none;
     border: 1px solid rgba(155,114,242,.22);
 }
@@ -260,9 +261,9 @@
 .localzet-launcher-search:focus { box-shadow: inset 0 0 0 1px #9B72F2; }
 .localzet-launcher-search { border-color: #34234F; }
 
-/* Experimental true backdrop sampling, not an alpha-only imitation. The
- * square footprint matches the actual compositor effect's rectangular clip. */
-.localzet-launcher-glass .popup-menu-content {
+/* Live backdrop sampled by the GNOME compositor. Keep the tint translucent
+ * so the background effect is visible while text and icons stay sharp. */
+.localzet-launcher-popup.localzet-compositor-glass .popup-menu-content {
     background-color: rgba(40, 24, 63, 0.72);
     border-radius: 0;
     border: 1px solid rgba(155, 114, 242, 0.22);
@@ -286,7 +287,7 @@
 /* Preblurred and tinted wallpaper, aligned to the monitor's exact zoom crop.
  * St paints the background inside its native rounded border. Opaque when
  * other windows, another wallpaper, scaling or high contrast are present. */
-.localzet-wallpaper-glass .popup-menu-content {
+.localzet-compositor-glass .popup-menu-content {
     background-color: #28183F;
     border-radius: 12px;
     border: 1px solid rgba(155, 114, 242, .22);
@@ -295,15 +296,15 @@
      * but do not draw that shadow until the renderer is verified. */
     box-shadow: none;
 }
-.localzet-wallpaper-glass.popup-menu-boxpointer {
+.localzet-compositor-glass.popup-menu-boxpointer {
     background-color: transparent;
     box-shadow: none;
     -arrow-background-color: transparent;
     -arrow-border-color: transparent;
     -arrow-border-width: 0px;
 }
-.localzet-wallpaper-glass .localzet-launcher-search { background-color: #28183F; }
-.localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #6436B5; }
+.localzet-compositor-glass .localzet-launcher-search { background-color: #28183F; }
+.localzet-compositor-glass .localzet-launcher-category:checked { background-color: #6436B5; }
 
 /* Localzet management shortcuts are buttons, never fake connection toggles. */
 .localzet-system-surface .localzet-quick-action {
