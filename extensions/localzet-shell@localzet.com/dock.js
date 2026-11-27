@@ -5,23 +5,30 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // Dock buttons always launch existing apps. Optional apps only appear when
 // actually installed; there are no placeholders or inert icons.
-const PINNED = [
-    'com.microsoft.Edge.desktop',
-    'microsoft-edge.desktop',
-    'org.gnome.Nautilus.desktop',
-    'org.gnome.Ptyxis.desktop',
-    'com.localzet.Settings.desktop',
-];
-
 export class LocalzetDock {
-    constructor() {
+    constructor(settings) {
         this._appSystem = Shell.AppSystem.get_default();
+        this._settings = settings;
+        this._pinnedAppsChanged = settings?.connect(
+            'changed::pinned-apps', () => this._rebuild()) || 0;
+        this._appStateSignals = [];
         this._actor = new St.BoxLayout({
             style_class: 'localzet-dock',
             vertical: false,
             reactive: true,
             track_hover: true,
         });
+        const backgroundMode = Shell.BlurMode?.BACKGROUND;
+        if (typeof Shell.BlurEffect === 'function' && backgroundMode !== undefined) {
+            try {
+                this._actor.add_effect_with_name('localzet-dock-blur', new Shell.BlurEffect({
+                    mode: backgroundMode,
+                    radius: 18,
+                }));
+            } catch (error) {
+                console.warn('Localzet Dock: background blur unavailable: ' + error);
+            }
+        }
 
         this._monitorsChanged = Main.layoutManager.connect(
             'monitors-changed', () => this._place());
@@ -41,13 +48,25 @@ export class LocalzetDock {
             this._actor.hide();
     }
 
-    _addButton(icon, callback, title) {
+    _addButton(icon, callback, title, app = null) {
+        const content = new St.BoxLayout({
+            style_class: 'localzet-dock-content',
+            vertical: true,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        content.add_child(icon);
+        const indicator = new St.Widget({
+            style_class: 'localzet-dock-indicator',
+            visible: false,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        content.add_child(indicator);
         const button = new St.Button({
             style_class: 'localzet-dock-button',
             can_focus: true,
             reactive: true,
             track_hover: true,
-            child: icon,
+            child: content,
         });
         button.accessible_name = title;
         button.connect('clicked', () => {
@@ -57,25 +76,36 @@ export class LocalzetDock {
                 console.error('Localzet Dock: ' + title + ': ' + error);
             }
         });
+        if (app) {
+            const updateState = () => {
+                const running = app.state === Shell.AppState.RUNNING;
+                indicator.visible = running;
+                button.accessible_name = running ? `${title}, запущено` : title;
+            };
+            this._appStateSignals.push([app, app.connect('notify::state', updateState)]);
+            updateState();
+        }
         this._actor.add_child(button);
     }
 
     _rebuild() {
         if (!this._actor)
             return;
+        this._clearAppStateSignals();
         this._actor.destroy_all_children();
         this._addButton(new St.Icon({
-            icon_name: 'view-app-grid-symbolic', icon_size: 32,
+            icon_name: 'view-app-grid-symbolic', icon_size: 38,
         }), () => Main.overview.show(), 'Приложения');
 
         const installed = new Set();
-        for (const id of PINNED) {
+        const pinned = this._settings?.get_strv('pinned-apps') || [];
+        for (const id of pinned) {
             const app = this._appSystem.lookup_app(id);
             if (!app || !app.get_app_info().should_show() || installed.has(app.get_id()))
                 continue;
             installed.add(app.get_id());
-            this._addButton(app.create_icon_texture(32),
-                () => app.activate(), app.get_name());
+            this._addButton(app.create_icon_texture(38),
+                () => app.activate(), app.get_name(), app);
         }
         this._place();
     }
@@ -87,8 +117,9 @@ export class LocalzetDock {
         if (!monitor)
             return;
         const count = this._actor.get_n_children();
-        const width = Math.min(monitor.width - 24, Math.max(90, 18 + count * 53));
-        const height = 66;
+        const naturalWidth = 15 + count * 63;
+        const width = Math.min(monitor.width - 24, Math.max(90, naturalWidth));
+        const height = 70;
         this._actor.set_size(width, height);
         this._actor.set_position(
             monitor.x + Math.round((monitor.width - width) / 2),
@@ -97,6 +128,7 @@ export class LocalzetDock {
     }
 
     destroy() {
+        this._clearAppStateSignals();
         if (this._monitorsChanged) {
             Main.layoutManager.disconnect(this._monitorsChanged);
             this._monitorsChanged = 0;
@@ -104,6 +136,10 @@ export class LocalzetDock {
         if (this._appsChanged) {
             this._appSystem.disconnect(this._appsChanged);
             this._appsChanged = 0;
+        }
+        if (this._pinnedAppsChanged) {
+            this._settings.disconnect(this._pinnedAppsChanged);
+            this._pinnedAppsChanged = 0;
         }
         if (this._overviewShowing) {
             Main.overview.disconnect(this._overviewShowing);
@@ -115,5 +151,13 @@ export class LocalzetDock {
         }
         this._actor?.destroy();
         this._actor = null;
+        this._settings = null;
+    }
+
+    _clearAppStateSignals() {
+        for (const [app, signal] of this._appStateSignals) {
+            app.disconnect(signal);
+        }
+        this._appStateSignals = [];
     }
 }

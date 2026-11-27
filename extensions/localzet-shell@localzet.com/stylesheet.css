@@ -1,7 +1,41 @@
 /* Localzet Aurora Dark: GNOME Shell stylesheet (not browser CSS). */
+#panel.localzet-panel {
+    background-color: rgba(9, 22, 42, 0.62);
+    border-bottom: 1px solid rgba(143, 176, 236, 0.42);
+    box-shadow: 0 3px 18px rgba(2, 8, 22, 0.36);
+}
+#panel.localzet-panel .panel-button {
+    min-height: 32px;
+    padding: 0 7px;
+    border-radius: 9px;
+    color: #f1f5ff;
+}
+#panel.localzet-panel .panel-button:hover,
+#panel.localzet-panel .panel-button:focus {
+    background-color: rgba(108, 146, 237, 0.19);
+}
+.localzet-panel .system-status-icon {
+    icon-size: 20px;
+}
+.localzet-panel .panel-status-indicators {
+    spacing: 6px;
+}
+#panel.localzet-panel .workspace-indicator .workspace {
+    width: 18px;
+    height: 8px;
+    border: 1px solid rgba(143, 176, 236, 0.34);
+    border-radius: 999px;
+    background-color: rgba(174, 190, 217, 0.16);
+}
+#panel.localzet-panel .workspace-indicator .workspace.active {
+    width: 26px;
+    border-color: rgba(143, 176, 236, 0.68);
+    background-color: rgba(87, 153, 245, 0.34);
+    box-shadow: 0 0 0 1px rgba(87, 153, 245, 0.12);
+}
 .localzet-indicator {
-    border-radius: 12px;
-    margin: 2px 4px;
+    border-radius: 11px;
+    margin: 3px 6px;
     color: #f1f5ff;
 }
 .localzet-indicator:hover,
@@ -9,11 +43,18 @@
     background-color: rgba(108, 146, 237, 0.20);
 }
 .localzet-brand {
-    spacing: 8px;
-    padding: 0 6px;
+    spacing: 7px;
+    padding: 0 8px;
 }
 .localzet-brand-icon {
-    color: #9bb9ff;
+    icon-size: 22px;
+}
+.localzet-panel .localzet-brand-icon {
+    color: #d1c8ff;
+    icon-size: 24px;
+}
+.system-status-icon {
+    icon-size: 18px;
 }
 .localzet-brand-label {
     font-weight: 700;
@@ -24,8 +65,8 @@
     min-width: 365px;
     spacing: 4px;
     padding: 12px;
-    background-color: #111c32;
-    border: 1px solid rgba(153, 179, 230, 0.22);
+    background-color: rgba(16, 35, 61, 0.88);
+    border: 1px solid rgba(143, 176, 236, 0.36);
     border-radius: 18px;
 }
 .localzet-menu-heading {
@@ -50,10 +91,10 @@
     background-color: #1e3154;
     color: #f1f5ff;
     border: 1px solid rgba(153, 179, 230, 0.24);
-    selection-background-color: #6c92ed;
+    selection-background-color: #5799f5;
 }
 .localzet-search:focus {
-    border: 1px solid #6c92ed;
+    border: 1px solid #5799f5;
 }
 .localzet-search-icon {
     color: #aebed9;
@@ -83,14 +124,14 @@
     padding: 8px 10px;
     spacing: 5px;
     border-radius: 21px;
-    background-color: rgba(12, 24, 46, 0.91);
-    border: 1px solid rgba(147, 177, 236, 0.27);
+    background-color: rgba(9, 22, 42, 0.79);
+    border: 1px solid rgba(143, 176, 236, 0.43);
     box-shadow: 0 10px 28px rgba(2, 8, 22, 0.54);
 }
 
 .localzet-dock-button {
-    min-width: 43px;
-    min-height: 43px;
+    min-width: 50px;
+    min-height: 50px;
     padding: 4px;
     border-radius: 13px;
     background-color: transparent;
@@ -103,4 +144,170 @@
 
 .localzet-dock-button:active {
     background-color: rgba(108, 146, 237, 0.39);
+}
+
+.localzet-dock-indicator {
+    width: 4px;
+    height: 4px;
+    margin-top: 2px;
+    border-radius: 999px;
+    background-color: #5799f5;
+}
+
+.localzet-theme-purple .localzet-indicator:hover,
+.localzet-theme-purple .localzet-indicator:focus,
+.localzet-theme-purple .localzet-dock-button:hover,
+.localzet-theme-purple .localzet-dock-button:focus,
+.localzet-theme-purple .localzet-application:hover,
+.localzet-theme-purple .localzet-application:focus,
+.localzet-theme-purple .localzet-action:hover,
+.localzet-theme-purple .localzet-action:focus {
+    background-color: rgba(195, 145, 223, 0.24);
+}
+
+.localzet-theme-purple #panel.localzet-panel {
+    background-color: rgba(32, 17, 46, 0.58);
+    border-bottom-color: rgba(195, 145, 223, 0.34);
+}
+.localzet-theme-purple #panel.localzet-panel .panel-button:hover,
+.localzet-theme-purple #panel.localzet-panel .panel-button:focus {
+    background-color: rgba(195, 145, 223, 0.20);
+}
+.localzet-theme-purple #panel.localzet-panel .workspace-indicator .workspace {
+    border-color: rgba(195, 145, 223, 0.34);
+}
+.localzet-theme-purple #panel.localzet-panel .workspace-indicator .workspace.active {
+    border-color: rgba(212, 188, 223, 0.76);
+    background-color: rgba(187, 132, 232, 0.36);
+    box-shadow: 0 0 0 1px rgba(187, 132, 232, 0.14);
+}
+
+.localzet-theme-purple .localzet-dock {
+    background-color: rgba(32, 17, 46, 0.80);
+    border-color: rgba(195, 145, 223, 0.44);
+}
+
+.localzet-theme-purple .localzet-launcher {
+    background-color: rgba(47, 26, 62, 0.91);
+    border-color: rgba(195, 145, 223, 0.40);
+}
+
+.localzet-theme-purple .localzet-search {
+    background-color: rgba(51, 27, 65, 0.92);
+}
+
+.localzet-theme-purple .localzet-brand-icon {
+    color: #d4bcdf;
+}
+
+.localzet-theme-purple .localzet-search:focus {
+    border-color: #bb84e8;
+}
+
+.localzet-theme-purple .localzet-dock-indicator {
+    background-color: #bb84e8;
+}
+
+.localzet-theme-black .localzet-indicator:hover,
+.localzet-theme-black .localzet-indicator:focus,
+.localzet-theme-black .localzet-dock-button:hover,
+.localzet-theme-black .localzet-dock-button:focus,
+.localzet-theme-black .localzet-application:hover,
+.localzet-theme-black .localzet-application:focus,
+.localzet-theme-black .localzet-action:hover,
+.localzet-theme-black .localzet-action:focus {
+    background-color: rgba(155, 105, 206, 0.17);
+}
+
+.localzet-theme-black #panel.localzet-panel {
+    background-color: rgba(12, 12, 15, 0.68);
+    border-bottom-color: rgba(139, 135, 151, 0.30);
+}
+.localzet-theme-black #panel.localzet-panel .panel-button:hover,
+.localzet-theme-black #panel.localzet-panel .panel-button:focus {
+    background-color: rgba(155, 105, 206, 0.17);
+}
+.localzet-theme-black #panel.localzet-panel .workspace-indicator .workspace {
+    border-color: rgba(139, 135, 151, 0.36);
+    background-color: rgba(188, 186, 195, 0.10);
+}
+.localzet-theme-black #panel.localzet-panel .workspace-indicator .workspace.active {
+    border-color: rgba(180, 118, 237, 0.72);
+    background-color: rgba(180, 118, 237, 0.30);
+    box-shadow: 0 0 0 1px rgba(180, 118, 237, 0.12);
+}
+
+.localzet-theme-black .localzet-dock {
+    background-color: rgba(12, 12, 15, 0.87);
+    border-color: rgba(139, 135, 151, 0.36);
+}
+
+.localzet-theme-black .localzet-launcher {
+    background-color: rgba(19, 19, 24, 0.94);
+    border-color: rgba(139, 135, 151, 0.36);
+}
+
+.localzet-theme-black .localzet-search {
+    background-color: rgba(24, 23, 28, 0.96);
+}
+
+.localzet-theme-black .localzet-brand-icon {
+    color: #bcbac3;
+}
+
+.localzet-theme-black .localzet-search:focus {
+    border-color: #b476ed;
+}
+
+.localzet-theme-black .localzet-dock-indicator {
+    background-color: #b476ed;
+}
+
+.localzet-theme-blue .popup-menu-content {
+    background-color: rgba(16, 35, 61, 0.88);
+    border-color: rgba(143, 176, 236, 0.43);
+}
+
+.localzet-theme-purple .popup-menu-content {
+    background-color: rgba(47, 26, 62, 0.91);
+    border-color: rgba(195, 145, 223, 0.44);
+}
+
+.localzet-theme-black .popup-menu-content {
+    background-color: rgba(19, 19, 24, 0.94);
+    border-color: rgba(139, 135, 151, 0.36);
+}
+
+.localzet-theme-blue .quick-settings .quick-toggle:checked,
+.localzet-theme-blue .quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(87, 153, 245, 0.34);
+}
+
+.localzet-theme-purple .quick-settings .quick-toggle:checked,
+.localzet-theme-purple .quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(187, 132, 232, 0.34);
+}
+
+.localzet-theme-black .quick-settings .quick-toggle:checked,
+.localzet-theme-black .quick-settings .quick-toggle-has-menu:checked {
+    background-color: rgba(180, 118, 237, 0.30);
+}
+
+.localzet-theme-blue .notification-banner,
+.localzet-theme-blue .notification-banner .notification-row {
+    background-color: rgba(16, 35, 61, 0.93);
+    border: 1px solid rgba(143, 176, 236, 0.43);
+    border-radius: 15px;
+}
+.localzet-theme-purple .notification-banner,
+.localzet-theme-purple .notification-banner .notification-row {
+    background-color: rgba(47, 26, 62, 0.94);
+    border: 1px solid rgba(195, 145, 223, 0.44);
+    border-radius: 15px;
+}
+.localzet-theme-black .notification-banner,
+.localzet-theme-black .notification-banner .notification-row {
+    background-color: rgba(19, 19, 24, 0.96);
+    border: 1px solid rgba(139, 135, 151, 0.36);
+    border-radius: 15px;
 }

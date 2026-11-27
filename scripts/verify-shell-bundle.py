@@ -10,7 +10,8 @@ import stat
 import zipfile
 
 UUID = "localzet-shell@localzet.com"
-REQUIRED = {"metadata.json", "extension.js", "stylesheet.css"}
+REQUIRED = {"metadata.json", "extension.js", "dock.js", "stylesheet.css"}
+SCHEMA_FILES = {"schemas/com.localzet.shell.gschema.xml"}
 MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 
 def validate(path: Path) -> str:
@@ -21,9 +22,14 @@ def validate(path: Path) -> str:
         for member in bundle.infolist():
             name = member.filename
             parts = PurePosixPath(name).parts
+            directory = member.is_dir()
+            safe_root_file = len(parts) == 1 and not directory
+            safe_schema_file = name in SCHEMA_FILES and not directory
+            safe_schema_dir = directory and name == "schemas/"
             if (not parts or name.startswith("/") or "\\" in name
                     or any(part in (".", "..") for part in parts)
-                    or member.is_dir() or len(parts) != 1 or name in names):
+                    or not (safe_root_file or safe_schema_file or safe_schema_dir)
+                    or name in names):
                 raise ValueError(f"unsafe or duplicate archive entry: {name}")
             if stat.S_IFMT(member.external_attr >> 16) == stat.S_IFLNK:
                 raise ValueError(f"symlink in archive: {name}")
@@ -34,6 +40,8 @@ def validate(path: Path) -> str:
             names.add(name)
         if not REQUIRED.issubset(names):
             raise ValueError(f"missing extension files: {sorted(REQUIRED - names)}")
+        if not SCHEMA_FILES.issubset(names):
+            raise ValueError(f"missing extension schema: {sorted(SCHEMA_FILES - names)}")
         metadata = json.loads(bundle.read("metadata.json"))
         if not isinstance(metadata, dict) or metadata.get("uuid") != UUID:
             raise ValueError("extension UUID does not match")

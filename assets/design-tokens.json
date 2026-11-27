@@ -1,15 +1,41 @@
 {
   "name": "Localzet Aurora Dark",
-  "status": "draft",
+  "status": "approved-palette",
   "colors": {
     "background": "#0a1120",
     "surface": "#13203a",
     "surfaceElevated": "#1e3154",
-    "accent": "#6c92ed",
+    "accent": "#5799f5",
     "textPrimary": "#f1f5ff",
     "textSecondary": "#aebed9",
     "success": "#4fc6a8",
     "warning": "#e6b66b"
+  },
+  "themes": {
+    "blue": {
+      "glass": "rgba(9,22,42,0.79)",
+      "surface": "rgba(16,35,61,0.88)",
+      "edge": "rgba(143,176,236,0.43)",
+      "accent": "#5799f5",
+      "text": "#eff6ff",
+      "muted": "#b8c7e4"
+    },
+    "purple": {
+      "glass": "rgba(32,17,46,0.80)",
+      "surface": "rgba(47,26,62,0.91)",
+      "edge": "rgba(195,145,223,0.44)",
+      "accent": "#bb84e8",
+      "text": "#f8f0ff",
+      "muted": "#d4bcdf"
+    },
+    "black": {
+      "glass": "rgba(12,12,15,0.87)",
+      "surface": "rgba(19,19,24,0.94)",
+      "edge": "rgba(139,135,151,0.36)",
+      "accent": "#b476ed",
+      "text": "#f4f4f6",
+      "muted": "#bcbac3"
+    }
   },
   "radii": {"sm": 8, "md": 14, "lg": 22},
   "blur": {"surfacePx": 18},

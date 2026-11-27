@@ -2,6 +2,19 @@
 # Run only on disposable CI Xvfb. Verify the real GTK window opens.
 set -Eeuo pipefail
 mkdir -p out/settings
+SMOKE_ROOT="$(mktemp -d /tmp/localzet-settings-smoke.XXXXXX)"
+export HOME="$SMOKE_ROOT/home"
+export XDG_CONFIG_HOME="$SMOKE_ROOT/config"
+export XDG_DATA_HOME="$SMOKE_ROOT/data"
+export XDG_CACHE_HOME="$SMOKE_ROOT/cache"
+export XDG_STATE_HOME="$SMOKE_ROOT/state"
+export XDG_RUNTIME_DIR="$SMOKE_ROOT/runtime"
+export DCONF_PROFILE="$SMOKE_ROOT/dconf-profile"
+mkdir -p "$HOME" "$XDG_CONFIG_HOME/dconf" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" \
+    "$XDG_STATE_HOME" "$XDG_RUNTIME_DIR"
+chmod 700 "$SMOKE_ROOT" "$XDG_RUNTIME_DIR"
+printf 'user-db:user\n' > "$DCONF_PROFILE"
+trap 'rm -rf -- "$SMOKE_ROOT"' EXIT
 export GDK_BACKEND=x11
 export GSK_RENDERER=cairo
 export PYTHONPATH="$PWD/src"

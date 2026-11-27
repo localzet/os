@@ -1,5 +1,5 @@
 /* Localzet Aurora Dark, scoped to our application. GTK CSS, not web CSS. */
-@define-color accent_bg_color #6c92ed;
+@define-color accent_bg_color #5799f5;
 @define-color accent_fg_color #ffffff;
 @define-color window_bg_color #0a1120;
 @define-color window_fg_color #f1f5ff;
@@ -8,15 +8,102 @@
 
 window.localzet-settings {
     color: #f1f5ff;
-    background-color: #0a1120;
+    background-color: alpha(#0a1120, 0.76);
+    border: 1px solid alpha(#8fb0ec, 0.34);
+    border-radius: 18px;
 }
 window.localzet-settings headerbar {
-    background-color: #101a30;
+    background-color: alpha(#101a30, 0.78);
+    border-bottom: 1px solid alpha(#8fb0ec, 0.22);
+}
+window.localzet-settings .card,
+window.localzet-settings list.boxed-list {
+    border: 1px solid alpha(#8fb0ec, 0.20);
+    border-radius: 16px;
+    background-color: alpha(#13203a, 0.76);
+}
+window.localzet-settings list.boxed-list > row {
+    color: #f1f5ff;
+    background-color: transparent;
+}
+window.localzet-settings row {
+    min-height: 54px;
 }
 window.localzet-settings .localzet-summary {
     border-radius: 14px;
-    background-color: alpha(#6c92ed, 0.08);
+    background-color: alpha(#5799f5, 0.08);
 }
 window.localzet-settings .heading {
     font-weight: 700;
+}
+window.localzet-settings button.suggested-action {
+    background-color: #5799f5;
+    color: #ffffff;
+    border-radius: 10px;
+}
+window.localzet-settings button.flat {
+    color: #c5d5fb;
+}
+window.localzet-settings toast {
+    color: #f1f5ff;
+    background-color: alpha(#13203a, 0.97);
+    border: 1px solid alpha(#8fb0ec, 0.38);
+    border-radius: 14px;
+    box-shadow: 0 10px 26px alpha(#020816, 0.48);
+}
+
+window.localzet-settings.aurora-purple {
+    color: #f8f0ff;
+    background-color: alpha(#20112e, 0.76);
+}
+window.localzet-settings.aurora-purple headerbar {
+    background-color: alpha(#271831, 0.80);
+    border-bottom-color: alpha(#c391df, 0.24);
+}
+window.localzet-settings.aurora-purple .card,
+window.localzet-settings.aurora-purple list.boxed-list {
+    background-color: alpha(#2f1a3e, 0.80);
+    border-color: alpha(#c391df, 0.24);
+}
+window.localzet-settings.aurora-purple list.boxed-list > row {
+    color: #f8f0ff;
+}
+window.localzet-settings.aurora-purple .localzet-summary {
+    background-color: alpha(#bb84e8, 0.10);
+}
+window.localzet-settings.aurora-purple button.suggested-action {
+    background-color: #9b6acb;
+}
+window.localzet-settings.aurora-purple toast {
+    color: #f8f0ff;
+    background-color: alpha(#2f1a3e, 0.97);
+    border-color: alpha(#c391df, 0.40);
+}
+
+window.localzet-settings.aurora-black {
+    color: #f4f4f6;
+    background-color: alpha(#0c0c0f, 0.80);
+}
+window.localzet-settings.aurora-black headerbar {
+    background-color: alpha(#131318, 0.84);
+    border-bottom-color: alpha(#8b8797, 0.22);
+}
+window.localzet-settings.aurora-black .card,
+window.localzet-settings.aurora-black list.boxed-list {
+    background-color: alpha(#131318, 0.84);
+    border-color: alpha(#8b8797, 0.20);
+}
+window.localzet-settings.aurora-black list.boxed-list > row {
+    color: #f4f4f6;
+}
+window.localzet-settings.aurora-black .localzet-summary {
+    background-color: alpha(#b476ed, 0.09);
+}
+window.localzet-settings.aurora-black button.suggested-action {
+    background-color: #8256aa;
+}
+window.localzet-settings.aurora-black toast {
+    color: #f4f4f6;
+    background-color: alpha(#131318, 0.97);
+    border-color: alpha(#8b8797, 0.36);
 }

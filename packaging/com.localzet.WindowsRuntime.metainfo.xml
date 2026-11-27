@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.localzet.WindowsRuntime</id>
+  <name>Localzet Windows Runtime</name>
+  <summary>Launch a selected Windows program with Wine</summary>
+  <summary xml:lang="ru">Запуск выбранной Windows-программы через Wine</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="localzet.com"><name>Localzet OS</name></developer>
+  <launchable type="desktop-id">com.localzet.WindowsRuntime.desktop</launchable>
+  <url type="homepage">https://github.com/localzet/os</url>
+  <description>
+    <p>Opens the Localzet Windows Runtime for user-selected EXE or MSI files. Compatibility and isolation are not guaranteed.</p>
+  </description>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <icon type="stock">localzet-windows</icon>
+</component>

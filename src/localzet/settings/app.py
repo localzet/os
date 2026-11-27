@@ -8,6 +8,13 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 import os
+from localzet.settings.appearance import (
+    AppearanceError,
+    EXTENSION_SCHEMA,
+    apply_appearance,
+    current_appearance,
+    restore_appearance,
+)
 from localzet.settings.core import load_modules, status_label, system_info
 
 
@@ -21,7 +28,7 @@ def main() -> int:
         print(f"Localzet Settings requires GTK4, libadwaita and python3-gi: {exc}", file=sys.stderr)
         return 2
 
-    # Localzet Aurora is dark-first. Expose a theme switch in a later milestone.
+    # Aurora variants are dark; Adwaita follows the user's preferred dark mode.
     Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
 
     class SettingsApp(Adw.Application):
@@ -115,6 +122,131 @@ def main() -> int:
             page.add(group)
             return page
 
+        def _appearance_page(self):
+            page = Adw.PreferencesPage()
+            current = current_appearance()
+            self._appearance_buttons = {}
+            group = Adw.PreferencesGroup(
+                title="Aurora",
+                description="Выберите одну из трёх утверждённых тёмных тем.",
+            )
+            choices = (
+                ("blue", "Aurora Blue", "Сине-графитовые поверхности и голубые акценты"),
+                ("purple", "Aurora Purple", "Сливовые поверхности и мягкие фиолетовые акценты"),
+                ("black", "Aurora Black", "Почти чёрные поверхности и приглушённый фиолетовый акцент"),
+            )
+            for key, title, detail in choices:
+                row = self._row(title, detail)
+                selected = key == current
+                button = Gtk.Button(label="Выбрано" if selected else "Применить")
+                button.add_css_class("suggested-action" if selected else "flat")
+                button.set_valign(Gtk.Align.CENTER)
+                button.set_tooltip_text(
+                    f"Текущая тема {title}" if selected else f"Применить тему {title}"
+                )
+                button.update_property(
+                    [Gtk.AccessibleProperty.LABEL],
+                    [f"Выбрана тема {title}" if selected else f"Применить {title}"],
+                )
+                button.connect("clicked", lambda _button, value=key: self._choose_appearance(value))
+                row.add_suffix(button)
+                group.add(row)
+                self._appearance_buttons[key] = button
+
+            self._appearance_status = self._row(
+                "Область применения",
+                (
+                    f"Активна Aurora {current.title()}. Обои, значки и Localzet Shell; "
+                    "User Themes не требуется."
+                ),
+            )
+            group.add(self._appearance_status)
+            page.add(group)
+
+            recovery = Adw.PreferencesGroup(
+                title="Восстановление",
+                description="Сохраняется снимок значений GNOME до первого изменения.",
+            )
+            restore = Gtk.Button(label="Восстановить исходный вид")
+            restore.update_property(
+                [Gtk.AccessibleProperty.LABEL],
+                ["Восстановить исходные настройки оформления"],
+            )
+            restore.set_valign(Gtk.Align.CENTER)
+            restore.connect("clicked", lambda _button: self._restore_appearance())
+            row = self._row(
+                "Предыдущие параметры GNOME",
+                "Обои, цветовая схема, тема значков и доступные параметры Localzet Shell",
+            )
+            row.add_suffix(restore)
+            recovery.add(row)
+            page.add(recovery)
+            return page
+
+        def _refresh_appearance_selection(self):
+            selected = current_appearance()
+            for theme, button in self._appearance_buttons.items():
+                active = theme == selected
+                button.set_label("Выбрано" if active else "Применить")
+                button.set_tooltip_text(
+                    f"Текущая тема Aurora {theme.title()}"
+                    if active else f"Применить тему Aurora {theme.title()}"
+                )
+                button.update_property(
+                    [Gtk.AccessibleProperty.LABEL],
+                    [
+                        f"Выбрана тема Aurora {theme.title()}"
+                        if active else f"Применить Aurora {theme.title()}"
+                    ],
+                )
+                button.remove_css_class("suggested-action")
+                button.remove_css_class("flat")
+                button.add_css_class("suggested-action" if active else "flat")
+
+        def _refresh_appearance_css(self):
+            if not self.window:
+                return
+            for theme in ("blue", "purple", "black"):
+                self.window.remove_css_class(f"aurora-{theme}")
+            self.window.add_css_class(f"aurora-{current_appearance()}")
+
+        def _choose_appearance(self, theme: str):
+            try:
+                changed = apply_appearance(theme)
+            except AppearanceError as error:
+                self.toasts.add_toast(Adw.Toast.new(str(error)))
+                return
+            self._refresh_appearance_css()
+            self._refresh_appearance_selection()
+            if f"{EXTENSION_SCHEMA} appearance" in changed:
+                detail = "Localzet Shell обновится, если расширение включено; User Themes не требуется."
+            else:
+                detail = "Расширение Localzet Shell недоступно; применены обои, значки и тёмная схема."
+            self._appearance_status.set_subtitle(f"Aurora {theme.title()} активна. {detail}")
+            self.toasts.add_toast(Adw.Toast.new(f"Aurora {theme.title()} применена"))
+
+        def _restore_appearance(self):
+            try:
+                result = restore_appearance()
+            except AppearanceError as error:
+                self.toasts.add_toast(Adw.Toast.new(str(error)))
+                return
+            self._refresh_appearance_css()
+            self._refresh_appearance_selection()
+            if result.pending:
+                self._appearance_status.set_subtitle(
+                    "Основные параметры восстановлены. Настройка Localzet Shell сохранена "
+                    "до появления расширения."
+                )
+                self.toasts.add_toast(Adw.Toast.new(
+                    f"Восстановлено: {result.restored}; ожидает Shell: {result.pending}"
+                ))
+                return
+            self._appearance_status.set_subtitle(
+                "Восстановлены исходные параметры GNOME. User Themes не изменялся."
+            )
+            self.toasts.add_toast(Adw.Toast.new(f"Восстановлено параметров: {result.restored}"))
+
         def do_activate(self):
             if self.window:
                 self.window.present()
@@ -124,9 +256,11 @@ def main() -> int:
             )
             self.window.set_default_size(930, 650)
             self.window.add_css_class("localzet-settings")
+            self.window.add_css_class(f"aurora-{current_appearance()}")
             stack = Adw.ViewStack()
             for page, name, title, icon in (
                 (self._overview_page(), "home", "Главная", "go-home-symbolic"),
+                (self._appearance_page(), "appearance", "Оформление", "preferences-desktop-theme-symbolic"),
                 (self._modules_page(), "modules", "Модули", "application-x-addon-symbolic"),
                 (self._system_page(), "system", "Система", "computer-symbolic"),
             ):

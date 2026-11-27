@@ -1,0 +1,27 @@
+[Unit]
+Description=Localzet isolated visual test control channel
+ConditionKernelCommandLine=boot=casper
+ConditionPathExists=/usr/lib/localzet/gnome-visual-test-agent.py
+Requires=localzet-live-ready.service
+After=localzet-live-ready.service
+
+[Service]
+Type=simple
+User=localzet
+Environment=HOME=/home/localzet
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_SESSION_TYPE=wayland
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+Environment=XDG_CURRENT_DESKTOP=GNOME
+Environment=GDK_BACKEND=wayland
+ExecStart=/usr/bin/python3 -u /usr/lib/localzet/gnome-visual-test-agent.py
+Restart=always
+RestartSec=1
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX
+
+[Install]
+WantedBy=graphical.target

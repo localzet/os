@@ -22,7 +22,9 @@ class ShellBundleTests(unittest.TestCase):
         files = {
             "metadata.json": json.dumps({"uuid": uuid, "shell-version": [version]}),
             "extension.js": "export default class Shell {}",
+            "dock.js": "export class LocalzetDock {}",
             "stylesheet.css": ".localzet-indicator {}",
+            "schemas/com.localzet.shell.gschema.xml": "<schemalist/>",
         }
         if extra:
             files.update(extra)
@@ -34,6 +36,12 @@ class ShellBundleTests(unittest.TestCase):
 
     def test_valid(self):
         self.bundle()
+        self.assertEqual(len(module.validate(self.path)), 64)
+
+    def test_valid_nested_extension_schema(self):
+        self.bundle()
+        with zipfile.ZipFile(self.path, "a") as archive:
+            archive.writestr("schemas/", "")
         self.assertEqual(len(module.validate(self.path)), 64)
 
     def test_uuid_mismatch(self):
@@ -58,6 +66,11 @@ class ShellBundleTests(unittest.TestCase):
 
     def test_reject_nested_path(self):
         self.bundle(extra={"nested/bad": "exploit"})
+        with self.assertRaisesRegex(ValueError, "unsafe"):
+            module.validate(self.path)
+
+    def test_reject_unlisted_schema_path(self):
+        self.bundle(extra={"schemas/other.xml": "<schemalist/>"})
         with self.assertRaisesRegex(ValueError, "unsafe"):
             module.validate(self.path)
 

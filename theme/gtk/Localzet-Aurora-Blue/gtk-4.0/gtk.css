@@ -1,0 +1,58 @@
+@import url("resource:///com/ubuntu/themes/Yaru-dark/4.0/gtk.css");
+
+@define-color accent_bg_color #5799f5;
+@define-color accent_fg_color #ffffff;
+@define-color window_bg_color rgba(9, 22, 42, 0.78);
+@define-color window_fg_color #f1f5ff;
+@define-color view_bg_color rgba(19, 32, 58, 0.72);
+@define-color view_fg_color #f1f5ff;
+@define-color headerbar_bg_color rgba(16, 35, 61, 0.78);
+@define-color headerbar_fg_color #f1f5ff;
+@define-color sidebar_bg_color rgba(16, 35, 61, 0.72);
+@define-color card_bg_color rgba(19, 32, 58, 0.76);
+@define-color popover_bg_color rgba(16, 35, 61, 0.94);
+@define-color popover_fg_color #f1f5ff;
+
+window {
+    color: #f1f5ff;
+    background-color: rgba(9, 22, 42, 0.84);
+    border: 1px solid rgba(143, 176, 236, 0.38);
+    border-radius: 14px;
+}
+
+window.background,
+window.background.csd {
+    color: @window_fg_color;
+    background-color: @window_bg_color;
+}
+
+window headerbar,
+window .titlebar {
+    background-color: rgba(16, 35, 61, 0.72);
+    border-bottom: 1px solid rgba(143, 176, 236, 0.24);
+    box-shadow: none;
+}
+
+window .view,
+window .navigation-sidebar,
+window .sidebar {
+    background-color: rgba(19, 32, 58, 0.68);
+}
+
+window .view {
+    color: @view_fg_color;
+    background-color: @view_bg_color;
+}
+
+window .navigation-sidebar,
+window .sidebar {
+    background-color: @sidebar_bg_color;
+}
+
+window popover,
+window popover contents,
+window menu {
+    background-color: rgba(16, 35, 61, 0.94);
+    border: 1px solid rgba(143, 176, 236, 0.36);
+    border-radius: 12px;
+}

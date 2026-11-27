@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Boot an ISO in an isolated QEMU guest and require a serial readiness marker."""
 import argparse
-import json
-import socket
 import os
 from pathlib import Path
 import shutil
@@ -10,35 +8,7 @@ import subprocess
 import sys
 import tempfile
 import time
-
-
-def capture_screen(monitor: Path, output: Path) -> None:
-    """Best-effort screenshot; never changes the readiness result."""
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-        connection.settimeout(5)
-        connection.connect(str(monitor))
-        with connection.makefile("rwb") as stream:
-            def read_response(request_id):
-                while True:
-                    line = stream.readline()
-                    if not line:
-                        raise OSError("QMP disconnected")
-                    message = json.loads(line)
-                    if message.get("id") == request_id:
-                        if "error" in message:
-                            raise OSError(str(message["error"]))
-                        return message
-            greeting = json.loads(stream.readline())
-            if "QMP" not in greeting:
-                raise OSError("Invalid QMP greeting")
-            for request_id, command, arguments in (
-                (1, "qmp_capabilities", {}),
-                (2, "screendump", {"filename": str(output)}),
-            ):
-                stream.write((json.dumps({"execute": command, "arguments": arguments,
-                                          "id": request_id}) + "\n").encode())
-                stream.flush()
-                read_response(request_id)
+from qemu_serial import has_serial_marker
 
 
 def main():
@@ -67,14 +37,11 @@ def main():
     marker = args.marker.encode()
     with tempfile.TemporaryDirectory(prefix="localzet-qemu-") as tmp:
         serial = Path(tmp) / "serial.log"
-        monitor = Path(tmp) / "qmp.sock"
-        screen = Path(tmp) / "screen.ppm"
         accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
         cpu = "host" if accel == "kvm" else "max"
         cmd = [qemu, "-machine", "q35", "-accel", accel, "-cpu", cpu,
                "-m", "4096", "-smp", "2", "-nic", "none",
                "-vga", "virtio", "-display", "none", "-monitor", "none",
-               "-qmp", f"unix:{monitor},server=on,wait=off",
                "-no-reboot", "-boot", "order=d", "-cdrom",
                str(args.iso.resolve()), "-serial", f"file:{serial}"]
         if args.firmware == "uefi":
@@ -89,7 +56,7 @@ def main():
             try:
                 deadline = time.monotonic() + args.timeout
                 while time.monotonic() < deadline:
-                    if serial.exists() and marker in serial.read_bytes().splitlines():
+                    if serial.exists() and has_serial_marker(serial.read_bytes(), marker):
                         found = True
                         break
                     if proc.poll() is not None:
@@ -97,12 +64,6 @@ def main():
                     time.sleep(0.5)
             finally:
                 if proc.poll() is None:
-                    try:
-                        capture_screen(monitor, screen)
-                        if screen.is_file():
-                            shutil.copyfile(screen, args.log.with_suffix(".ppm"))
-                    except (OSError, ValueError) as exc:
-                        print(f"QMP screenshot unavailable: {exc}", file=sys.stderr)
                     proc.terminate()
                     try:
                         proc.wait(timeout=10)

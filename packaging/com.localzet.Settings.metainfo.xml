@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.localzet.Settings</id>
+  <name>Localzet Settings</name>
+  <summary>Configure the Localzet desktop</summary>
+  <summary xml:lang="ru">Настройка рабочего стола Localzet</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="localzet.com"><name>Localzet OS</name></developer>
+  <launchable type="desktop-id">com.localzet.Settings.desktop</launchable>
+  <url type="homepage">https://github.com/localzet/os</url>
+  <description>
+    <p>Choose an Aurora color theme, restore the previous desktop appearance, and inspect the system module catalogue.</p>
+  </description>
+  <categories>
+    <category>Settings</category>
+    <category>System</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <icon type="stock">localzet-settings</icon>
+</component>

@@ -10,7 +10,25 @@ spec.loader.exec_module(probe)
 
 
 class LiveReadinessTests(unittest.TestCase):
-    def check_session(self, properties, shell=True):
+    def check_session(self, properties, shell=True, active_vt=None):
+        current_vt = [active_vt or f"tty{properties.get('VTNr', '2')}"]
+
+        def read_text(path):
+            if str(path) == "/proc/cmdline":
+                return "boot=casper"
+            if str(path) == "/etc/os-release":
+                return "ID=localzet"
+            if str(path) == "/sys/class/tty/tty0/active":
+                return current_vt[0]
+            raise AssertionError(path)
+
+        class FakePath:
+            def __init__(self, path):
+                self.path = path
+
+            def read_text(self):
+                return read_text(self.path)
+
         def command(*args):
             if args[0] == "findmnt":
                 return "overlay"
@@ -18,24 +36,42 @@ class LiveReadinessTests(unittest.TestCase):
                 return "active"
             if args[0] == "pgrep":
                 return "123" if shell else ""
+            if args[:2] == ("loginctl", "activate"):
+                current_vt[0] = f"tty{properties.get('VTNr', '')}"
+                return ""
             if args[1] == "list-sessions":
                 return "1 1000 localzet seat0"
             if args[1] == "show-session":
                 return "\n".join(f"{k}={v}" for k, v in properties.items())
             raise AssertionError(args)
-        with patch.object(probe.Path, "read_text", side_effect=[
-            "boot=casper", 'ID=localzet'
-        ]), patch.object(probe, "run", side_effect=command):
+        with patch.object(probe, "Path", FakePath), \
+                patch.object(probe, "run", side_effect=command):
             return probe.readiness()
 
     def properties(self, **overrides):
         result = dict(Name="localzet", Active="yes", Type="wayland",
-                      Class="user", Remote="no", Seat="seat0", Desktop="")
+                      Class="user", Remote="no", Seat="seat0", Desktop="",
+                      VTNr="9")
         result.update(overrides)
         return result
 
     def test_real_local_session_without_desktop_metadata(self):
-        self.assertIsNone(self.check_session(self.properties()))
+        self.assertEqual(self.check_session(self.properties()), 9)
+
+    def test_graphical_vt_comes_from_active_logind_session(self):
+        self.assertEqual(self.check_session(self.properties(VTNr="7")), 7)
+
+    def test_inactive_graphical_vt_is_activated_from_logind_session(self):
+        self.assertEqual(
+            self.check_session(self.properties(VTNr="7"), active_vt="tty1"),
+            7,
+        )
+
+    def test_missing_graphical_vt_keeps_readiness_false(self):
+        self.assertEqual(
+            self.check_session(self.properties(VTNr="")),
+            "active-gnome-wayland-session-vtnr-unavailable",
+        )
 
     def test_missing_compositor(self):
         self.assertIn('"gnome_shell":false', self.check_session(self.properties(), shell=False))
