@@ -24,9 +24,11 @@ class AuroraInstalledVisualTests(unittest.TestCase):
         # A deterministic detailed wallpaper field, not a reference image.
         for y in range(48, 720, 16):
             for x in range(0, 1280, 16):
-                value = (x * 7 + y * 11) % 80
-                draw.rectangle((x, y, x + 15, y + 15),
-                               fill=(35 + value, 20 + value // 2, 70 + value))
+                for dy in range(16):
+                    for dx in range(16):
+                        value = (x * 7 + y * 11 + dx * 5 + dy * 3) % 80
+                        draw.point((x + dx, y + dy),
+                                   fill=(35 + value, 20 + value // 2, 70 + value))
         return image
 
     def test_installed_desktop_palette_and_density_gate(self):
