@@ -59,7 +59,7 @@ def spec(manifest, kind):
             or manifest.get("status") != "engineering-review"):
         raise ValueError("Invalid official artifact manifest")
     version = manifest["version"]
-    if not isinstance(version, str) or not re.fullmatch(r"[0-9]+\\.[0-9]+\\.[0-9]+", version) or manifest["tag"] != "v" + version:
+    if not isinstance(version, str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or manifest["tag"] != "v" + version:
         raise ValueError("Invalid release version")
     validate_source_and_distribution_gate(manifest)
     asset = manifest["artifacts"][kind]
