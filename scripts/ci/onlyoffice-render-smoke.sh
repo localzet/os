@@ -58,6 +58,7 @@ xdotool windowactivate --sync "$window"
 xdotool windowsize "$window" 1100 760
 xdotool windowmove "$window" 80 60
 xdotool getwindowname "$window" > "$out/window-title.txt"
+rendered=0
 for attempt in $(seq 1 25); do
     sleep 3
     import -window "$window" "$out/document.png"
@@ -80,8 +81,70 @@ raise SystemExit(0 if module.meaningful(metrics) and ink >= 250 else 1)
 PY
     then
         echo "PASS: $mode native offline document window rendered nonblank content"
-        exit 0
+        rendered=1
+        break
     fi
 done
-echo "FAIL: $mode editor never produced meaningful document pixels" >&2
-exit 1
+if [[ "$rendered" != 1 ]]; then
+    echo "FAIL: $mode editor never produced meaningful document pixels" >&2
+    exit 1
+fi
+
+# Exercise an actual edit/save/reopen cycle, not just window creation.
+marker="LOCALZET OFFICE ROUNDTRIP"
+xdotool mousemove --window "$window" 520 520 click 1
+xdotool key --clearmodifiers ctrl+End
+xdotool key --clearmodifiers Return
+xdotool type --clearmodifiers --delay 35 "$marker"
+xdotool key --clearmodifiers ctrl+s
+python3 - "$work/Localzet-offline-review.docx" "$marker" <<'PY'
+from pathlib import Path
+from zipfile import BadZipFile, ZipFile
+import sys
+import time
+
+path = Path(sys.argv[1])
+marker = sys.argv[2]
+for _ in range(30):
+    try:
+        with ZipFile(path) as archive:
+            document = archive.read("word/document.xml").decode("utf-8")
+        if marker in document:
+            print("PASS: ONLYOFFICE saved the edited DOCX payload")
+            break
+    except (BadZipFile, KeyError, OSError):
+        pass
+    time.sleep(1)
+else:
+    raise SystemExit("FAIL: edited DOCX marker was not persisted")
+PY
+
+# Close the first editor process completely so the second launch cannot
+# forward to an already-running instance with a stale document state.
+xdotool key --clearmodifiers ctrl+q || true
+sleep 3
+if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+    kill -TERM -- "-$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+fi
+pid=""
+setsid /usr/bin/onlyoffice-desktopeditors "${flags[@]}" "$work/Localzet-offline-review.docx" > "$out/reopen-editor.log" 2>&1 &
+pid=$!
+window=""
+for attempt in $(seq 1 60); do
+    window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
+    [[ -n "$window" ]] && break
+    if ! kill -0 "$pid" 2>/dev/null; then
+        cat "$out/reopen-editor.log"
+        exit 1
+    fi
+    sleep 1
+done
+test -n "$window" || { xwininfo -root -tree > "$out/reopen-window-tree.txt"; cat "$out/reopen-editor.log"; exit 1; }
+xdotool windowactivate --sync "$window"
+xdotool key --clearmodifiers ctrl+End
+sleep 3
+import -window "$window" "$out/reopened-document.png"
+tesseract "$out/reopened-document.png" stdout --psm 6 2>/dev/null > "$out/reopened-document.txt"
+grep -Fq "$marker" "$out/reopened-document.txt"
+echo "PASS: saved DOCX reopened and the edited text is visible"
