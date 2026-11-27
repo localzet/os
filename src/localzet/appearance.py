@@ -1,31 +1,59 @@
-"""Shared, process-local Aurora Professional appearance for native Localzet applications."""
+"""Shared Aurora Professional appearance for native Localzet applications."""
 from __future__ import annotations
 
-MIDNIGHT_CSS = b"""
-@define-color window_bg_color #10091E;
-@define-color window_fg_color #F4EEFF;
-@define-color headerbar_bg_color #1A1028;
-@define-color headerbar_fg_color #F4EEFF;
-@define-color view_bg_color #10091E;
-@define-color view_fg_color #F4EEFF;
-@define-color card_bg_color #34234F;
-@define-color card_fg_color #F4EEFF;
-@define-color accent_bg_color #FF7E00;
-@define-color accent_fg_color #10091E;
-@define-color accent_color #9B72F2;
+# One palette for every first-party GTK workspace. tests/test_assets.py checks
+# these values against assets/design-tokens.json so the runtime cannot drift.
+PALETTE = {
+    "background": "#10091E",
+    "surface": "#28183F",
+    "surface_elevated": "#34234F",
+    "header": "#1A1028",
+    "primary": "#9B72F2",
+    "accent": "#FF7E00",
+    "selection": "#6436B5",
+    "text": "#F4EEFF",
+    "text_secondary": "#B9A5D5",
+    "hover": "#3F2B5B",
+    "accent_hover": "#E86F00",
+    "on_accent": "#10091E",
+}
+
+
+def palette_css(template: bytes) -> bytes:
+    """Resolve only named, fixed palette placeholders in first-party CSS."""
+    for name, value in PALETTE.items():
+        template = template.replace(
+            f"__{name.upper()}__".encode("ascii"), value.encode("ascii"))
+    if b"__" in template:
+        raise ValueError("Unresolved Aurora Professional CSS palette token")
+    return template
+
+
+PROFESSIONAL_CSS = palette_css(b"""
+@define-color window_bg_color __BACKGROUND__;
+@define-color window_fg_color __TEXT__;
+@define-color headerbar_bg_color __HEADER__;
+@define-color headerbar_fg_color __TEXT__;
+@define-color view_bg_color __BACKGROUND__;
+@define-color view_fg_color __TEXT__;
+@define-color card_bg_color __SURFACE_ELEVATED__;
+@define-color card_fg_color __TEXT__;
+@define-color accent_bg_color __ACCENT__;
+@define-color accent_fg_color __ON_ACCENT__;
+@define-color accent_color __PRIMARY__;
 window.localzet-midnight {
-    background-color: #10091E;
-    color: #F4EEFF;
+    background-color: __BACKGROUND__;
+    color: __TEXT__;
 }
 .localzet-midnight headerbar {
-    background-color: #1A1028;
-    color: #F4EEFF;
+    background-color: __HEADER__;
+    color: __TEXT__;
     border-bottom: none;
     box-shadow: none;
 }
 .localzet-midnight .boxed-list {
-    background-color: #34234F;
-    color: #F4EEFF;
+    background-color: __SURFACE_ELEVATED__;
+    color: __TEXT__;
     border-radius: 8px;
     border: none;
 }
@@ -33,49 +61,50 @@ window.localzet-midnight {
     border-radius: 6px;
 }
 .localzet-midnight .boxed-list > row:hover {
-    background-color: #3F2B5B;
+    background-color: __HOVER__;
 }
 .localzet-midnight .boxed-list > row .subtitle,
 .localzet-midnight .dim-label {
-    color: #B9A5D5;
+    color: __TEXT_SECONDARY__;
     opacity: 1;
 }
 .localzet-midnight .boxed-list > row + row {
     border-top: 1px solid rgba(155, 114, 242, .18);
 }
 .localzet-midnight .boxed-list > row:focus-visible {
-    outline: 2px solid #FF7E00;
+    outline: 2px solid __ACCENT__;
     outline-offset: -2px;
 }
 .localzet-midnight .boxed-list > row image {
-    color: #B9A5D5;
+    color: __TEXT_SECONDARY__;
 }
 .localzet-midnight entry {
-    background-color: #10091E;
-    color: #F4EEFF;
+    background-color: __BACKGROUND__;
+    color: __TEXT__;
     border-radius: 8px;
 }
 .localzet-midnight button.suggested-action {
-    background-color: #FF7E00;
-    color: #10091E;
+    background-color: __ACCENT__;
+    color: __ON_ACCENT__;
 }
 .localzet-midnight button.suggested-action:hover {
-    background-color: #E86F00;
-    color: #10091E;
+    background-color: __ACCENT_HOVER__;
+    color: __ON_ACCENT__;
 }
-"""
+""")
+
+# Compatibility for modules and tests from the earlier internal name.
+MIDNIGHT_CSS = PROFESSIONAL_CSS
 
 
-def apply_midnight(window):
-    """Keep the provider alive and react to system appearance changes."""
+def apply_professional(window):
+    """Apply the shared dark palette, retaining native light/high-contrast fallback."""
     from gi.repository import Adw, Gtk
 
     style = Adw.StyleManager.get_default()
-    # Dark-first when the system has no preference, never force against
-    # explicit light preference. Preserve native high-contrast styling.
     style.set_color_scheme(Adw.ColorScheme.PREFER_DARK)
     provider = Gtk.CssProvider()
-    provider.load_from_data(MIDNIGHT_CSS)
+    provider.load_from_data(PROFESSIONAL_CSS)
     display = window.get_display()
     active = False
 
@@ -107,3 +136,8 @@ def apply_midnight(window):
     window.connect("destroy", cleanup)
     refresh()
     return provider
+
+
+def apply_midnight(window):
+    """Backward-compatible alias for apply_professional."""
+    return apply_professional(window)
