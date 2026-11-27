@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'scripts/install-onlyoffice-rootfs.sh'
+      - 'apps/localzet-office/localzet-office'
+      - 'tests/test_office_desktop_overlay.py'
       - 'scripts/build-live-rootfs.sh'
       - 'scripts/qemu-interactive-install-smoke.py'
       - 'scripts/visual-evidence.py'
