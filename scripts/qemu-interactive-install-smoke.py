@@ -26,6 +26,33 @@ READY = b"LOCALZET_CANDIDATE_DESKTOP"
 WINE_READY = b"LOCALZET_CANDIDATE_WINE_READY"
 LOCK_READY = b"LOCALZET_CANDIDATE_LOCKED"
 FAIL = b"LOCALZET_CANDIDATE_FAILED"
+
+
+def ensure_ci_kvm_access(device: Path = Path("/dev/kvm")) -> bool:
+    """Refresh only this disposable GitHub runner's KVM ACL between guest boots."""
+    if not device.exists():
+        return False
+    if os.access(device, os.R_OK | os.W_OK):
+        return True
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return False
+    try:
+        subprocess.run(
+            ["sudo", "setfacl", "-m", f"u:{os.getuid()}:rw", str(device)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        print(f"KVM ACL refresh failed: {exc}", flush=True)
+        return False
+    if os.access(device, os.R_OK | os.W_OK):
+        print("PASS: refreshed CI /dev/kvm ACL before next guest", flush=True)
+        return True
+    print("KVM remains unavailable after ACL refresh; this guest will use TCG", flush=True)
+    return False
 LOCK_RECHECK = b"LOCALZET_CANDIDATE_STILL_LOCKED"
 
 
@@ -51,6 +78,7 @@ class Guest:
         self.socket = directory / f"{label}.sock"
         variables = directory / f"{label}.fd"
         shutil.copyfile(args.ovmf_vars, variables)
+        ensure_ci_kvm_access()
         self.accel = "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg"
         # The runner can lose /dev/kvm between boots; retain evidence.
         try:
@@ -353,7 +381,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False, telegram=False, network_preload=False):
-    if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
+    if office_render_mode not in ("default", "software-disable-gpu", "fresh-profile", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -822,7 +850,10 @@ for entry in "${office_entries[@]}"; do
     test -s "/usr/local/share/applications/${entry##*/}"
     grep -Eq '^Exec=/usr/bin/localzet-office([[:space:]]|$)' "/usr/local/share/applications/${entry##*/}"
 done
-launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
+# Do not prelaunch ONLYOFFICE without the fixture: it is single-instance, so a later
+# wrapper invocation could only forward the document to a renderer started with
+# a different GPU policy.
+# The real wrapper launch happens below with the DOCX.
 cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash
 set -Eeuo pipefail
@@ -933,10 +964,10 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
     /usr/bin/localzet-office RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
-        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
+        marker = "# The real wrapper launch happens below with the DOCX."
         assert script.count(marker) == 1
-        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
-        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        render_env = ""
+        render_flags = "--disable-gpu" if office_render_mode == "software-disable-gpu" else ""
         if office_render_mode == "fresh-profile":
             # Same actual Mutter/Xwayland session, fresh editor settings.
             render_env = ('--setenv=HOME="$office_dir/profile/home" '
@@ -987,6 +1018,8 @@ chmod 0755 /run/localzet-candidate-check/office-isolated.sh
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
         script = script[:first] + r"""window=""
+mode=""
+if (( $# > 0 )); then mode="$1"; fi
 for attempt in $(seq 1 90); do
     window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
     [[ -n "$window" ]] && break
@@ -1017,6 +1050,28 @@ assert ink >= 250
 PY
     then
         test "$(stat -c %s "$work/document.png")" -lt 1572864
+        if [[ "$mode" == "--check-virtio-policy" ]]; then
+            virtio_gpu=0
+            for pci_device in /sys/bus/pci/devices/*; do
+                [[ -r "$pci_device/vendor" && -r "$pci_device/class" ]] || continue
+                vendor="$(cat "$pci_device/vendor")"
+                pci_class="$(cat "$pci_device/class")"
+                if [[ "$vendor" == 0x1af4 && "$pci_class" == 0x03* ]]; then
+                    virtio_gpu=1
+                    break
+                fi
+            done
+            office_pid="$(pgrep -u "$(id -u)" -x DesktopEditors | head -n 1)"
+            test -n "$office_pid"
+            office_cmdline="$(ps -p "$office_pid" -o args=)"
+            if [[ "$virtio_gpu" == 1 ]]; then
+                grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
+                echo "PASS: virtio GPU fallback is scoped to the ONLYOFFICE process"
+            else
+                ! grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
+                echo "PASS: non-virtio GPU retains the upstream acceleration path"
+            fi
+        fi
         printf 'LOCALZET_CANDIDATE_OFFICE_PNG '
         base64 -w0 "$work/document.png"
         printf '\nPASS: actual ONLYOFFICE document drawable captured\n'
@@ -1039,6 +1094,9 @@ if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 157286
 fi
 exit 1""" + script[last:]
         check_marker = "systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh"
+        if office_render_mode != "isolated-x11":
+            script = script.replace(check_marker, check_marker + " --check-virtio-policy")
+            check_marker += " --check-virtio-policy"
         assert script.count(check_marker) == 1
         if office_render_mode == "isolated-x11":
             script = script.replace(check_marker, 'systemd-run --user --wait --pipe --collect /usr/bin/xvfb-run -a -s "-screen 0 1440x900x24" /usr/bin/dbus-run-session -- /bin/bash /run/localzet-candidate-check/office-isolated.sh "$office_dir/Localzet-offline-review.docx"')
@@ -1157,7 +1215,7 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "isolated-x11"), default="default",
+    parser.add_argument("--office-render-mode", choices=("default", "software-disable-gpu", "fresh-profile", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
