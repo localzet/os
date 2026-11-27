@@ -60,6 +60,8 @@ export class AuroraPanel {
     }
 
     _refresh() {
+        this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1'
+            && this._interface.get_boolean('enable-animations');
         this._clear();
         const quickSettings = this._panel.statusArea.quickSettings;
         if (quickSettings && Main.sessionMode.allowSettings && !Main.sessionMode.isLocked)
