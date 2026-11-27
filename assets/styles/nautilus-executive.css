@@ -1,66 +1,88 @@
-/* Localzet Executive: only the native Files window, never a global GTK theme.
- * Soft graphite, inspired by the owner's Ubuntu screenshot. Preserve native
- * light/high-contrast modes, accent and normal GTK accessibility states.
- */
+/* Localzet Aurora Professional Files: token-derived, dark-only and normal-contrast only. */
 @media (prefers-color-scheme: dark) and (prefers-contrast: no-preference) {
-  window.nautilus-window {
-    --window-bg-color: #202124;
-    --window-fg-color: #f0f0f2;
-    --view-bg-color: #202124;
-    --view-fg-color: #f0f0f2;
-    --headerbar-bg-color: #202124;
-    --headerbar-fg-color: #f0f0f2;
-    --headerbar-backdrop-color: #202124;
-    --sidebar-bg-color: #343539;
-    --sidebar-fg-color: #e6e6e9;
-    --sidebar-backdrop-color: #343539;
-    --sidebar-border-color: #414247;
-    --card-bg-color: #2f3034;
-    --card-fg-color: #f0f0f2;
-    --border-color: #424349;
-    background-color: var(--view-bg-color);
-    color: var(--view-fg-color);
-  }
-  window.nautilus-window headerbar {
-    background-color: var(--headerbar-bg-color);
-    color: var(--headerbar-fg-color);
-    border-bottom: none;
-    box-shadow: none;
-  }
-  window.nautilus-window placessidebar {
-    background-color: var(--sidebar-bg-color);
-    color: var(--sidebar-fg-color);
-  }
-  window.nautilus-window placessidebar .navigation-sidebar {
-    background-color: transparent;
-    padding: 6px;
-  }
-  window.nautilus-window placessidebar .navigation-sidebar > row {
-    border-radius: 8px;
-    margin: 1px 0;
-  }
-  window.nautilus-window placessidebar .navigation-sidebar > row:selected {
-    background-color: color-mix(in srgb, var(--accent-bg-color) 12%, #45464b);
-    color: #ffffff;
-  }
-  window.nautilus-window .nautilus-pathbar {
-    background-color: #303136;
-    border: none;
-    border-radius: 9px;
-  }
-  window.nautilus-window .nautilus-path-button { border-radius: 7px; }
-  window.nautilus-window .nautilus-grid-view gridview {
-    padding: 18px;
-    border-spacing: 6px;
-  }
-  window.nautilus-window .nautilus-grid-view gridview > child,
-  window.nautilus-window .nautilus-grid-view .nautilus-view-cell,
-  window.nautilus-window .nautilus-list-view columnview > listview > row {
-    border-radius: 9px;
-  }
-  window.nautilus-window .nautilus-grid-view gridview > child:selected,
-  window.nautilus-window .nautilus-list-view columnview > listview > row:selected {
-    background-color: color-mix(in srgb, var(--accent-bg-color) 9%, #3b3c40);
-  }
-  window.nautilus-window .floating-bar { border-radius: 9px; }
+    window.nautilus-window {
+        --window-bg-color: #10091E;
+        --window-fg-color: #F4EEFF;
+        --view-bg-color: #10091E;
+        --view-fg-color: #F4EEFF;
+        --headerbar-bg-color: #1A1028;
+        --headerbar-fg-color: #F4EEFF;
+        --headerbar-backdrop-color: #1A1028;
+        --sidebar-bg-color: #28183F;
+        --sidebar-fg-color: #F4EEFF;
+        --sidebar-backdrop-color: #28183F;
+        --sidebar-border-color: rgba(155, 114, 242, 0.18);
+        --card-bg-color: #34234F;
+        --card-fg-color: #F4EEFF;
+        --border-color: rgba(155, 114, 242, 0.18);
+        background-color: #10091E;
+        color: #F4EEFF;
+    }
+
+    window.nautilus-window headerbar {
+        background-color: #1A1028;
+        color: #F4EEFF;
+        border-bottom: none;
+        box-shadow: none;
+    }
+
+    window.nautilus-window placessidebar {
+        background-color: #28183F;
+        color: #F4EEFF;
+        border-right: 1px solid rgba(155, 114, 242, 0.18);
+    }
+
+    window.nautilus-window placessidebar .navigation-sidebar > row {
+        border-radius: 6px;
+    }
+
+    window.nautilus-window placessidebar .navigation-sidebar > row:selected {
+        background-color: #6436B5;
+        color: #F4EEFF;
+        border: 1px solid rgba(155, 114, 242, 0.14);
+    }
+
+    window.nautilus-window .nautilus-pathbar {
+        background-color: #34234F;
+        border: 1px solid rgba(155, 114, 242, 0.18);
+        border-radius: 8px;
+        min-height: 32px;
+    }
+
+    window.nautilus-window .nautilus-pathbar button {
+        border-radius: 6px;
+        color: #F4EEFF;
+    }
+
+    window.nautilus-window .nautilus-pathbar button:focus-visible,
+    window.nautilus-window :focus-visible {
+        outline: 2px solid #FF7E00;
+        outline-offset: -2px;
+    }
+
+    window.nautilus-window gridview,
+    window.nautilus-window listview {
+        background-color: #10091E;
+        color: #F4EEFF;
+    }
+
+    window.nautilus-window gridview child:selected,
+    window.nautilus-window listview row:selected {
+        background-color: #6436B5;
+        color: #F4EEFF;
+        border: 1px solid rgba(155, 114, 242, 0.14);
+        border-radius: 6px;
+    }
+
+    window.nautilus-window .dim-label {
+        color: #B9A5D5;
+        opacity: 1;
+    }
+
+    window.nautilus-window .floating-bar {
+        background-color: #34234F;
+        color: #F4EEFF;
+        border: 1px solid rgba(155, 114, 242, 0.18);
+        border-radius: 8px;
+    }
 }
