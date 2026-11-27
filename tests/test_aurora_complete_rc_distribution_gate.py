@@ -9,7 +9,7 @@ WORKFLOW = (ROOT / ".github/workflows/aurora-complete-rc.yml").read_text(encodin
 class AuroraCompleteRcDistributionGateTests(unittest.TestCase):
     def test_iso_artifact_requires_verified_distribution_gate(self):
         blocks = re.findall(
-            r"(?ms)^      - name: Upload distributable Complete RC image\n(.*?)(?=^      - |\\Z)",
+            r"(?ms)^      - name: Upload distributable Complete RC image\n(.*?)(?=^      - |\Z)",
             WORKFLOW,
         )
         self.assertEqual(len(blocks), 1)
@@ -21,7 +21,7 @@ class AuroraCompleteRcDistributionGateTests(unittest.TestCase):
         self.assertIn('licensing.get("redistribution_status") == "verified"', WORKFLOW)
         self.assertIn('updates.get("status") == "verified"', WORKFLOW)
         blocks = re.findall(
-            r"(?ms)^      - name: Upload non-distributable Complete RC evidence \(without ISO\)\n(.*?)(?=^      - |\\Z)",
+            r"(?ms)^      - name: Upload non-distributable Complete RC evidence \(without ISO\)\n(.*?)(?=^      - |\Z)",
             WORKFLOW,
         )
         self.assertEqual(len(blocks), 1)
