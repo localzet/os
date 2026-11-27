@@ -215,7 +215,7 @@ jobs:
           telegram_refs = []
           if refs_path.is_file():
               telegram_refs = [
-                  row.split("\\t") for row in refs_path.read_text(encoding="utf-8").splitlines()
+                  row.split("\t") for row in refs_path.read_text(encoding="utf-8").splitlines()
                   if row.startswith("app/org.telegram.desktop/")
               ]
           telegram_allowed = (
@@ -251,10 +251,10 @@ jobs:
               )
           allowed = not blockers
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"allowed={'true' if allowed else 'false'}\\n")
-              output.write(f"office_installed={'true' if office_installed else 'false'}\\n")
-              output.write(f"usernet_installed={'true' if usernet_installed else 'false'}\\n")
-              output.write(f"telegram_verified={'true' if telegram_allowed else 'false'}\\n")
+              output.write(f"allowed={'true' if allowed else 'false'}\n")
+              output.write(f"office_installed={'true' if office_installed else 'false'}\n")
+              output.write(f"usernet_installed={'true' if usernet_installed else 'false'}\n")
+              output.write(f"telegram_verified={'true' if telegram_allowed else 'false'}\n")
           if blockers:
               body = [
                   "This Complete RC was installed and tested in disposable CI, but its ISO is not published.",
@@ -264,7 +264,7 @@ jobs:
                   "",
                   "The checksum is evidence only; it is not a download.",
               ]
-              Path("dist/REDISTRIBUTION-BLOCKED.txt").write_text("\\n".join(body) + "\\n", encoding="utf-8")
+              Path("dist/REDISTRIBUTION-BLOCKED.txt").write_text("\n".join(body) + "\n", encoding="utf-8")
               print("::notice::Complete RC redistribution gate is closed; the ISO will not be uploaded.")
           PY
       - name: Upload distributable Complete RC image
