@@ -935,7 +935,7 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
     /usr/bin/localzet-office RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
-        marker = "launch_app localzet-office 'DesktopEditors|onlyoffice-desktopeditors'"
+        marker = "# The real wrapper launch happens below with the DOCX."
         assert script.count(marker) == 1
         render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
         render_flags = "--disable-gpu" if office_render_mode == "software" else ""
