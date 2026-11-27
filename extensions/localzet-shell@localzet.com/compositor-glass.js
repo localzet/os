@@ -66,15 +66,15 @@ export class CompositorGlass {
         if (this.destroyed || !this.actor)
             return;
         this._removeEffect();
-        if (!this.actor.mapped)
-            return;
         const fallback = this._fallbackReason();
         if (fallback) {
-            if (fallback !== 'high-contrast')
+            if (this.actor.mapped && fallback !== 'high-contrast')
                 this.actor.add_style_class_name('localzet-glass-opaque');
             console.log('Localzet Glass: opaque fallback ' + this.name + ' (' + fallback + ')');
             return;
         }
+        if (!this.actor.mapped)
+            return;
 
         try {
             const parent = this.actor.get_parent();
