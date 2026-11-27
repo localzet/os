@@ -4,9 +4,20 @@ mode="$1"
 export GDK_BACKEND=x11 GSK_RENDERER=cairo
 export ADW_DEBUG_COLOR_SCHEME=prefer-dark ADW_DEBUG_HIGH_CONTRAST=0
 case "$mode" in
-    dark) ;;
-    light) export ADW_DEBUG_COLOR_SCHEME=prefer-light ;;
-    contrast) export ADW_DEBUG_HIGH_CONTRAST=1 ;;
+    dark)
+        gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+        gsettings set org.gnome.desktop.a11y.interface high-contrast false
+        ;;
+    light)
+        export ADW_DEBUG_COLOR_SCHEME=prefer-light
+        gsettings set org.gnome.desktop.interface color-scheme prefer-light
+        gsettings set org.gnome.desktop.a11y.interface high-contrast false
+        ;;
+    contrast)
+        export ADW_DEBUG_HIGH_CONTRAST=1
+        gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+        gsettings set org.gnome.desktop.a11y.interface high-contrast true
+        ;;
     *) exit 2 ;;
 esac
 work="$(mktemp -d)"
@@ -90,8 +101,8 @@ with Image.open(sys.argv[1]) as im:
     im = im.convert("RGB")
     pixels = Counter(im.getdata())
     assert im.width >= 800 and im.height >= 500, im.size
-    counts = [pixels[tuple(bytes.fromhex(c))] for c in ("202124", "343539", "303136")]
-    print(sys.argv[2], "Executive palette pixels:", counts)
+    counts = [pixels[tuple(bytes.fromhex(c))] for c in ("10091E", "28183F", "34234F")]
+    print(sys.argv[2], "Aurora palette pixels:", counts)
     if sys.argv[2] == "dark":
         assert all(n > 1000 for n in counts), counts
     else:
@@ -121,13 +132,13 @@ print("Grid/list content mean absolute RGB difference:", diff)
 assert max(diff) > 3, "List screenshot is still the grid"
 if sys.argv[3] == "dark":
     pixels = Counter(view.getdata())
-    assert pixels[(32,33,36)] > 1000 and pixels[(52,53,57)] > 1000
+    assert pixels[(16,9,30)] > 1000 and pixels[(40,24,63)] > 1000
     # The actual grid has folder glyphs centered around x=280,407,...
     # List icons must occupy multiple vertical rows near the sidebar.
     # Search a broad strip, then cluster contiguous nonempty scan lines.
     rows = []
     for y in range(int(h*.10), int(h*.85)):
-        n = sum(b > r+30 and b > g+12 and g > r+10
+        n = sum(b > r+25 and r > g+15
                 for r,g,b in (view.getpixel((x,y)) for x in range(int(w*.205),int(w*.31))))
         if n >= 4:
             rows.append(y)
@@ -138,7 +149,7 @@ if sys.argv[3] == "dark":
         else:
             bands[-1].append(y)
     bands = [band for band in bands if len(band) >= 3]
-    print("Native list blue folder bands:", [(b[0],b[-1]) for b in bands])
+    print("Native list violet folder bands:", [(b[0],b[-1]) for b in bands])
     assert len(bands) >= 4, "No four separate folder rows"
 PY
 echo "PASS: $mode independently launched native list view"
