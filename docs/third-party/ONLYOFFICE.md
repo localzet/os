@@ -65,3 +65,8 @@ The candidate uses a pinned GitHub release asset; no ONLYOFFICE APT source is co
 ## Release gate
 
 Before public ISO distribution, obtain upstream confirmation of the exact source/build commit for this DEB (including all submodules), or switch to an authenticated package channel with a verified full key fingerprint and source correspondence. Then verify license notices and a supported update path. Until then this package remains an engineering-only, pinned dependency.
+
+
+## CI artifact enforcement
+
+The repository is public, so a GitHub Actions artifact is accessible to readers of the repository. While the corresponding source/build mapping is unverified, the Complete RC workflow may assemble, boot and install this image only inside disposable CI. It must not upload the ISO. It may upload test logs, screenshots, package inventory, licensing evidence and the exact ISO checksum without the binary. The workflow enables the ISO artifact only when the manifest records verified corresponding source, redistribution status and a supported update channel.
