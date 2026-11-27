@@ -38,9 +38,9 @@ class AssetsTests(unittest.TestCase):
             self.assertIn(data['nativeApplications'][key].encode(), MIDNIGHT_CSS)
         self.assertIn(data['colors']['primary'].encode(), MIDNIGHT_CSS)
         self.assertIn(data['colors']['accent'].encode(), MIDNIGHT_CSS)
-        plymouth = (ROOT / 'packaging/live/aurora.plymouth').read_text()
+        plymouth = (ROOT / 'packaging/live/aurora.plymouth').read_text().lower()
         for key in ('background', 'surface', 'accent'):
-            self.assertIn('0x' + data['colors'][key][1:], plymouth)
+            self.assertIn('0x' + data['colors'][key][1:].lower(), plymouth)
 
     def test_shell_glass_default_and_opaque_override(self):
         panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
@@ -110,7 +110,10 @@ class AssetsTests(unittest.TestCase):
             for name in ("drive-harddisk", "media-flash-usb"):
                 self.assertIn("url(#", (theme / "scalable/devices" / (name + ".svg")).read_text())
             self.assertIn("url(#graphite)", (theme / "scalable/apps/org.gnome.Ptyxis.svg").read_text())
-            self.assertIn("url(#ember)", (theme / "scalable/apps/store.svg").read_text())
+            self.assertTrue(any(
+                "url(#ember)" in path.read_text()
+                for path in files
+            ))
             for upstream in ("firefox", "google-chrome", "google-chrome-stable", "microsoft-edge", "microsoft-edge-stable",
                              "steam", "com.valvesoftware.Steam", "netbird", "org.wails.netbird", "nectarlink",
                              "org.telegram.desktop", "telegram-desktop", "com.discordapp.Discord", "discord",

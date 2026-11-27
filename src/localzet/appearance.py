@@ -4,7 +4,7 @@ from __future__ import annotations
 MIDNIGHT_CSS = b"""
 @define-color window_bg_color #10091E;
 @define-color window_fg_color #F4EEFF;
-@define-color headerbar_bg_color #28183F;
+@define-color headerbar_bg_color #1A1028;
 @define-color headerbar_fg_color #F4EEFF;
 @define-color view_bg_color #10091E;
 @define-color view_fg_color #F4EEFF;
@@ -18,7 +18,7 @@ window.localzet-midnight {
     color: #F4EEFF;
 }
 .localzet-midnight headerbar {
-    background-color: #28183F;
+    background-color: #1A1028;
     color: #F4EEFF;
     border-bottom: none;
     box-shadow: none;
