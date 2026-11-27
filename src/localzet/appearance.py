@@ -35,6 +35,10 @@ window.localzet-midnight {
 .localzet-midnight .boxed-list > row:hover {
     background-color: #3F2B5B;
 }
+.localzet-midnight selection {
+    background-color: #6436B5;
+    color: #F4EEFF;
+}
 .localzet-midnight .boxed-list > row .subtitle,
 .localzet-midnight .dim-label {
     color: #B9A5D5;
