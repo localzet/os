@@ -92,7 +92,7 @@ class QemuLiveVisualTests(unittest.TestCase):
             "gtk_theme": "Localzet-Aurora-Purple",
             "picture_uri": wallpaper,
             "picture_uri_dark": wallpaper,
-            "ptyxis_profile_uuid": "a3d6b7e2-186b-4b5b-9225-6abcde123456",
+            "ptyxis_profile_uuid": "a3d6b7e2186b4b5b92256abcde123456",
             "ptyxis_palette": "Aurora Purple",
         }
         window = {"app": "settings", "title": "Localzet Settings", "ready": True}
@@ -115,7 +115,7 @@ class QemuLiveVisualTests(unittest.TestCase):
             "gtk_theme": "Localzet-Aurora-Purple",
             "picture_uri": wallpaper,
             "picture_uri_dark": wallpaper,
-            "ptyxis_profile_uuid": "a3d6b7e2-186b-4b5b-9225-6abcde123456",
+            "ptyxis_profile_uuid": "a3d6b7e2186b4b5b92256abcde123456",
             "ptyxis_palette": "Aurora Purple",
         }
         pending = {**expected, "ptyxis_palette": "Aurora Blue"}
@@ -177,7 +177,7 @@ class QemuLiveVisualTests(unittest.TestCase):
 
     def test_terminal_capture_uses_the_selected_ptyxis_profile(self):
         window = {"app": "terminal", "title": "Ptyxis", "ready": True}
-        profile_uuid = "a3d6b7e2-186b-4b5b-9225-6abcde123456"
+        profile_uuid = "a3d6b7e2186b4b5b92256abcde123456"
         profile = type("Profile", (), {
             "get_string": lambda _self, _key: "Aurora Purple",
         })()
@@ -204,6 +204,32 @@ class QemuLiveVisualTests(unittest.TestCase):
         self.assertEqual(result["profile_palette"], "Aurora Purple")
         self.assertEqual(result["palette"]["background"], "#20112e")
         self.assertTrue(result["ready"])
+
+    def test_default_profile_uuid_preserves_compact_value(self):
+        profile_uuid = "a3d6b7e2186b4b5b92256abcde123456"
+        root = type("RootSettings", (), {
+            "get_string": lambda _self, _key: profile_uuid,
+        })()
+        with patch.object(visual_agent, "_settings", return_value=root):
+            self.assertEqual(visual_agent._default_profile_uuid(), profile_uuid)
+
+    def test_profile_settings_preserves_uuid_path_representation(self):
+        for profile_uuid in (
+            "a3d6b7e2186b4b5b92256abcde123456",
+            "a3d6b7e2-186b-4b5b-9225-6abcde123456",
+        ):
+            with self.subTest(profile_uuid=profile_uuid):
+                profile = object()
+                with patch.object(
+                    visual_agent, "_default_profile_uuid", return_value=profile_uuid,
+                ), patch.object(
+                    visual_agent, "_settings", return_value=profile,
+                ) as settings:
+                    self.assertIs(visual_agent._profile_settings(), profile)
+                settings.assert_called_once_with(
+                    "org.gnome.Ptyxis.Profile",
+                    f"/org/gnome/Ptyxis/Profiles/{profile_uuid}/",
+                )
 
     def test_terminal_first_launch_uses_the_default_profile(self):
         window = {"app": "terminal", "title": "Ptyxis", "ready": True}

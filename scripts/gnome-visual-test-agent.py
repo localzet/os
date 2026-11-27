@@ -121,9 +121,10 @@ def _default_profile_uuid() -> str | None:
         return None
     import uuid
     try:
-        return str(uuid.UUID(raw_uuid))
+        parsed_uuid = uuid.UUID(raw_uuid)
     except ValueError:
         return None
+    return raw_uuid if raw_uuid in {str(parsed_uuid), parsed_uuid.hex} else None
 
 
 def _profile_palette_details(profile_uuid: str | None) -> dict | None:

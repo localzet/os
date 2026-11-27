@@ -264,12 +264,14 @@ def _ptyxis_profile_schema(settings: SettingsStore) -> str | None:
         return None
     raw_uuid = settings.get(PTYXIS_SCHEMA, "default-profile-uuid")
     try:
-        profile_uuid = str(uuid.UUID(raw_uuid))
+        parsed_uuid = uuid.UUID(raw_uuid)
     except (ValueError, AttributeError):
+        return None
+    if raw_uuid not in {str(parsed_uuid), parsed_uuid.hex}:
         return None
     return (
         f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/"
-        f"{profile_uuid}/"
+        f"{raw_uuid}/"
     )
 
 
@@ -329,9 +331,10 @@ def _is_safe_setting(schema: str, key: str) -> bool:
         return False
     raw_uuid = schema[len(prefix):-1]
     try:
-        return str(uuid.UUID(raw_uuid)) == raw_uuid.lower()
+        parsed_uuid = uuid.UUID(raw_uuid)
     except ValueError:
         return False
+    return raw_uuid in {str(parsed_uuid), parsed_uuid.hex}
 
 
 def _ptyxis_palette_setting(

@@ -60,28 +60,34 @@ class AppearanceTests(unittest.TestCase):
         self.addCleanup(environment.stop)
 
     def test_ptyxis_palette_tracks_theme_and_is_restored(self):
-        profile_uuid = "a3d6b7e2-186b-4b5b-9225-6abcde123456"
-        profile_schema = (
-            f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/"
-            f"{profile_uuid}/"
-        )
-        settings = FakeSettings()
-        settings.values[(PTYXIS_SCHEMA, "default-profile-uuid")] = profile_uuid
-        settings.values[(profile_schema, "palette")] = "Ubuntu"
-        with tempfile.TemporaryDirectory() as directory:
-            with patch.dict("os.environ", {"XDG_DATA_HOME": directory}):
-                snapshot = Path(directory) / "appearance.json"
-                apply_appearance("purple", store=settings, snapshot=snapshot)
-                self.assertEqual(settings.get(profile_schema, "palette"), "Aurora Purple")
-                palette_dir = Path(directory) / "org.gnome.Ptyxis" / "palettes"
-                self.assertTrue((palette_dir / "Aurora Blue.palette").is_file())
-                self.assertTrue((palette_dir / "Aurora Purple.palette").is_file())
-                self.assertTrue((palette_dir / "Aurora Black.palette").is_file())
+        for profile_uuid in (
+            "a3d6b7e2186b4b5b92256abcde123456",
+            "a3d6b7e2-186b-4b5b-9225-6abcde123456",
+        ):
+            with self.subTest(profile_uuid=profile_uuid):
+                profile_schema = (
+                    f"{PTYXIS_PROFILE_SCHEMA}:/org/gnome/Ptyxis/Profiles/"
+                    f"{profile_uuid}/"
+                )
+                settings = FakeSettings()
+                settings.values[(PTYXIS_SCHEMA, "default-profile-uuid")] = profile_uuid
+                settings.values[(profile_schema, "palette")] = "Ubuntu"
+                with tempfile.TemporaryDirectory() as directory:
+                    with patch.dict("os.environ", {"XDG_DATA_HOME": directory}):
+                        snapshot = Path(directory) / "appearance.json"
+                        apply_appearance("purple", store=settings, snapshot=snapshot)
+                        self.assertEqual(
+                            settings.get(profile_schema, "palette"), "Aurora Purple",
+                        )
+                        palette_dir = Path(directory) / "org.gnome.Ptyxis" / "palettes"
+                        self.assertTrue((palette_dir / "Aurora Blue.palette").is_file())
+                        self.assertTrue((palette_dir / "Aurora Purple.palette").is_file())
+                        self.assertTrue((palette_dir / "Aurora Black.palette").is_file())
 
-                result = restore_appearance(store=settings, snapshot=snapshot)
+                        result = restore_appearance(store=settings, snapshot=snapshot)
 
-        self.assertEqual(result.pending, 0)
-        self.assertEqual(settings.get(profile_schema, "palette"), "Ubuntu")
+                self.assertEqual(result.pending, 0)
+                self.assertEqual(settings.get(profile_schema, "palette"), "Ubuntu")
 
     def test_gtk_theme_tracks_aurora_variant_and_restores_previous_theme(self):
         settings = FakeSettings()
