@@ -12,6 +12,7 @@ as product readiness. See [physical-test rework](../PHYSICAL-TEST-REWORK.md).
 | Glass | Compare detailed, bright and dark backgrounds; demonstrate real blur and fallback, verify GPU and CPU rendering, no severe animation/frame regressions. |
 | Settings | One Control Center entry, all upstream panels intact, working Localzet integrations and About branding. |
 | Office/apps | Installed profiles and verified official sources, all selected desktop IDs, launch/open/save tests, Telegram mandatory in Standard/Complete, proxy failure tests. ONLYOFFICE must pass corresponding-source, license, and update-channel review before an ISO containing it can be published. |
+| Third-party redistribution | Every bundled third-party binary or Flatpak must have a pinned identity, license, source/build evidence and redistribution review. Missing package copyright notices or unverified UserNet/Telegram provenance block ISO upload. |
 | Containers | Actual rootless and rootful authorization tests; live Compose lifecycle, image/volume/network management, logs, metrics, terminal, remote contexts and rollback; no fake stats or insecure API. |
 | Windows | EXE/MSI, 32/64-bit, graphics, profile isolation of configuration, menu integration, backup/uninstall, Windows Runtime test evidence. |
 | Gaming | Legally acquired Witcher 3: installation, launch, in-game operation, save/load, GPU performance, relaunch; Steam/Proton/GOG sources and constraints. |
@@ -19,7 +20,7 @@ as product readiness. See [physical-test rework](../PHYSICAL-TEST-REWORK.md).
 | NectarLink | Actual upstream tray menu, Android pairing, revoke/reconnect, real status and permission-aware actions. |
 | Release | Signed update/build provenance, redistribution review, boot/recovery/physical QA, owner review of fresh screenshots and feature matrix. |
 
-ONLYOFFICE 10.0.0 is currently engineering-only: disposable CI may install and test it, but a public ISO artifact containing that binary is forbidden while source mapping or redistribution remains unverified. The CI must publish only logs, screenshots, package inventory and the ISO checksum until the gate is explicitly verified.\n\nMilestones: hardware and safe installer foundations; desktop design system
+ONLYOFFICE 10.0.0 and the UserNet Linux DEB are currently engineering-only. Disposable CI may install and test them, but a public ISO artifact containing either package is forbidden until the exact source/build mapping, license/copyright notices, redistribution status and update channel are verified. The release gate also validates the installed Telegram Flatpak's exact Flathub app commit and GPL-3.0 metadata. Missing package copyright notices block publication. The CI must publish only logs, screenshots, package inventory and the ISO checksum until every gate is explicitly verified.\n\nMilestones: hardware and safe installer foundations; desktop design system
 and real compositor glass; profile provisioning; container/network backends;
 Windows/gaming; integrated QA. Keep each milestone truthful and separately
 testable; don't ship an alpha with placeholder features enabled by default.

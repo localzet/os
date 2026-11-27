@@ -161,40 +161,111 @@ jobs:
             sudo install -m 0644 "$RUNNER_TEMP/candidate-root/usr/share/localzet/network-preload/"*.json dist/
             sudo install -m 0644 "$RUNNER_TEMP/candidate-root/usr/share/localzet/network-preload/"*-apt-plan.txt dist/
           fi
-      - name: Evaluate ONLYOFFICE redistribution eligibility
+      - name: Evaluate Complete RC redistribution eligibility
         id: distribution
         run: |
           python3 - <<'PY'
           import json
           import os
+          import re
           from pathlib import Path
 
-          manifest = json.loads(Path("config/upstream/onlyoffice.json").read_text(encoding="utf-8"))
           root = Path(os.environ["RUNNER_TEMP"]) / "candidate-root"
+          office = json.loads(Path("config/upstream/onlyoffice.json").read_text(encoding="utf-8"))
+          usernet = json.loads(Path("config/upstream/usernet.json").read_text(encoding="utf-8"))
+          inventory = json.loads(Path("dist/package-inventory.json").read_text(encoding="utf-8"))
+          packages = inventory.get("packages")
+          missing_copyright = inventory.get("copyright_review_required")
+          if not isinstance(packages, list) or not isinstance(missing_copyright, list):
+              raise SystemExit("Package inventory is incomplete; refusing ISO publication.")
+
           office_installed = (
               (root / "var/lib/dpkg/info/onlyoffice-desktopeditors.list").is_file()
               or (root / "opt/onlyoffice/desktopeditors").is_dir()
           )
-          source = manifest.get("source", {})
-          licensing = manifest.get("licensing", {})
-          updates = manifest.get("updates", {})
-          allowed = not office_installed or (
-              source.get("mapping_status") == "verified"
-              and licensing.get("redistribution_status") == "verified"
-              and updates.get("status") == "verified"
+          usernet_installed = any(
+              isinstance(row, dict) and row.get("binary") == "usernet" for row in packages
           )
+          office_source = office.get("source", {})
+          office_licensing = office.get("licensing", {})
+          office_updates = office.get("updates", {})
+          office_allowed = not office_installed or (
+              office_source.get("mapping_status") == "verified"
+              and office_licensing.get("redistribution_status") == "verified"
+              and office_updates.get("status") == "verified"
+          )
+
+          usernet_source = usernet.get("source", {})
+          usernet_licensing = usernet.get("licensing", {})
+          usernet_allowed = not usernet_installed or (
+              usernet_source.get("build_mapping_status") == "verified"
+              and usernet_licensing.get("license_review_status") == "verified"
+              and usernet_licensing.get("redistribution_status") == "verified"
+          )
+
+          info_path = Path("dist/telegram-review/app-info.txt")
+          refs_path = Path("dist/telegram-review/refs.tsv")
+          telegram_fields = {}
+          if info_path.is_file():
+              for line in info_path.read_text(encoding="utf-8").splitlines():
+                  if ":" in line:
+                      key, value = line.split(":", 1)
+                      telegram_fields[key.strip()] = value.strip()
+          telegram_commit = telegram_fields.get("Commit", "")
+          telegram_refs = []
+          if refs_path.is_file():
+              telegram_refs = [
+                  row.split("\t") for row in refs_path.read_text(encoding="utf-8").splitlines()
+                  if row.startswith("app/org.telegram.desktop/")
+              ]
+          telegram_allowed = (
+              telegram_fields.get("ID") == "org.telegram.desktop"
+              and telegram_fields.get("Ref") == "app/org.telegram.desktop/x86_64/stable"
+              and telegram_fields.get("License") == "GPL-3.0"
+              and telegram_fields.get("Origin") == "flathub"
+              and re.fullmatch(r"[a-f0-9]{64}", telegram_commit) is not None
+              and len(telegram_refs) == 1
+              and len(telegram_refs[0]) == 3
+              and telegram_refs[0][1] == telegram_commit
+              and telegram_refs[0][2] == "flathub"
+          )
+
+          blockers = []
+          if office_installed and not office_allowed:
+              blockers.append(
+                  "ONLYOFFICE exact corresponding source/build mapping, redistribution status, "
+                  "and supported update channel are not verified."
+              )
+          if usernet_installed and not usernet_allowed:
+              blockers.append(
+                  "UserNet Linux DEB has a pinned GPL-3.0 source tag, but its binary build-to-source "
+                  "mapping, complete dependency notices, and redistribution review are not verified."
+              )
+          if missing_copyright:
+              blockers.append(
+                  "Installed packages missing a Debian copyright notice: " + ", ".join(sorted(missing_copyright))
+              )
+          if not telegram_allowed:
+              blockers.append(
+                  "Telegram Flatpak identity, GPL-3.0 license, Flathub origin, or exact app commit evidence is missing."
+              )
+          allowed = not blockers
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"allowed={'true' if allowed else 'false'}\n")
               output.write(f"office_installed={'true' if office_installed else 'false'}\n")
-          if not allowed:
-              Path("dist/REDISTRIBUTION-BLOCKED.txt").write_text(
-                  "This Complete RC was installed and tested in disposable CI, but its ISO is not published. "
-                  "The image contains ONLYOFFICE Desktop Editors whose exact corresponding source/build "
-                  "mapping, redistribution status, and supported update channel are not yet verified. "
-                  "See docs/third-party/ONLYOFFICE.md. This checksum is evidence only; it is not a download.\n",
-                  encoding="utf-8",
-              )
-              print("::notice::ONLYOFFICE redistribution gate is closed; the ISO will not be uploaded.")
+              output.write(f"usernet_installed={'true' if usernet_installed else 'false'}\n")
+              output.write(f"telegram_verified={'true' if telegram_allowed else 'false'}\n")
+          if blockers:
+              body = [
+                  "This Complete RC was installed and tested in disposable CI, but its ISO is not published.",
+                  "",
+                  "Unresolved redistribution gates:",
+                  *[f"- {reason}" for reason in blockers],
+                  "",
+                  "The checksum is evidence only; it is not a download.",
+              ]
+              Path("dist/REDISTRIBUTION-BLOCKED.txt").write_text("\n".join(body) + "\n", encoding="utf-8")
+              print("::notice::Complete RC redistribution gate is closed; the ISO will not be uploaded.")
           PY
       - name: Upload distributable Complete RC image
         if: success() && steps.distribution.outputs.allowed == 'true'

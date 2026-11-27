@@ -8,5 +8,19 @@
     "size": 47156972,
     "sha256": "8d011407b418065d25520bdd2f4275effdb754e4217ce30474709d0d04e6e105"
   },
-  "deb_version": "0.5.12.2026110805"
+  "deb_version": "0.5.12.2026110805",
+  "source": {
+    "repository": "https://github.com/localzet/UserNet",
+    "tag": "v0.5.12",
+    "tag_commit": "7f3e199846bffdfac58434640d009493fcc4c566",
+    "pubspec_version": "0.5.12+2026110805",
+    "license": "GPL-3.0",
+    "license_file": "LICENSE",
+    "build_mapping_status": "unverified"
+  },
+  "licensing": {
+    "license_review_status": "unverified",
+    "redistribution_status": "unverified",
+    "reason": "The release workflow downloads the Linux DEB from the update endpoint instead of building it in the tagged source workflow; bundled dependency notices and the exact binary-to-source build mapping still require review."
+  }
 }
