@@ -353,7 +353,7 @@ printf '\\nLOCALZET_CANDIDATE_FOREIGN_REFUSED\\n'
 
 
 def installed_script(archive_profile=None, containers=False, office=False, executive_review=False, native_files=False, office_render_mode="default", branded_control_center=False, windows_matrix=False, telegram=False, network_preload=False):
-    if office_render_mode not in ("default", "software", "fresh-profile", "isolated-x11"):
+    if office_render_mode not in ("default", "software-disable-gpu", "fresh-profile", "isolated-x11"):
         raise ValueError("Invalid Office render mode")
     if office_render_mode != "default" and not (office and executive_review):
         raise ValueError("Office rendering diagnostics require executive office review")
@@ -938,8 +938,8 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
 """
         marker = "# The real wrapper launch happens below with the DOCX."
         assert script.count(marker) == 1
-        render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
-        render_flags = "--disable-gpu" if office_render_mode == "software" else ""
+        render_env = ""
+        render_flags = "--disable-gpu" if office_render_mode == "software-disable-gpu" else ""
         if office_render_mode == "fresh-profile":
             # Same actual Mutter/Xwayland session, fresh editor settings.
             render_env = ('--setenv=HOME="$office_dir/profile/home" '
@@ -1187,7 +1187,7 @@ def main():
     parser.add_argument("--expect-native-files", action="store_true")
     parser.add_argument("--expect-branded-control-center", action="store_true")
     parser.add_argument("--expect-foreign-disk", action="store_true", help="Verify privileged refusal with a second GPT disk, then install with that disk disconnected")
-    parser.add_argument("--office-render-mode", choices=("default", "software", "fresh-profile", "isolated-x11"), default="default",
+    parser.add_argument("--office-render-mode", choices=("default", "software-disable-gpu", "fresh-profile", "isolated-x11"), default="default",
                         help="Non-default modes are explicit diagnostics, not release acceptance.")
     args = parser.parse_args()
     if args.expect_office and not args.expect_archive_profile:
