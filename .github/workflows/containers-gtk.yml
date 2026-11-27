@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - 'src/localzet/containers*.py'
+      - 'src/localzet/appearance.py'
+      - 'tests/test_appearance.py'
+      - 'scripts/ci/appearance-runtime-smoke.py'
       - 'apps/localzet-containers/**'
       - 'packaging/com.localzet.Containers.desktop'
       - '.github/workflows/containers-gtk.yml'
@@ -19,7 +22,7 @@ jobs:
       - name: Install native test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-adw-1 gir1.2-gtk-4.0 gir1.2-vte-3.91 gsettings-desktop-schemas dconf-gsettings-backend xvfb xauth dbus-x11 xdotool imagemagick
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-adw-1 gir1.2-gtk-4.0 gir1.2-vte-3.91 gsettings-desktop-schemas dconf-gsettings-backend xvfb xauth dbus-x11 xdotool imagemagick python3-pil
       - name: Open actual app without engine provisioning
         run: bash scripts/ci/containers-gtk-smoke.sh
       - uses: actions/upload-artifact@v4
