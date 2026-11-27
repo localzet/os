@@ -37,3 +37,5 @@ Status: engineering candidate, not a stable release. Individual CI passes do not
 | Updates/recovery | Read-only recovery diagnostic and kernel menu entries verified; real recovery boot, updates and rollback pending. |
 
 Next milestone: verified Complete engineering ISO and reference-driven desktop acceptance in parallel. No final release until required product and safety gates pass.
+
+Application center workspace: compact native navigation, installed-only view based on detected executables/Flatpak IDs, search and explicit action/source state. GTK navigation and screenshot tests cover dark/light, games and search. This does not constitute final visual acceptance.
