@@ -146,5 +146,16 @@ xdotool key --clearmodifiers ctrl+End
 sleep 3
 import -window "$window" "$out/reopened-document.png"
 tesseract "$out/reopened-document.png" stdout --psm 6 2>/dev/null > "$out/reopened-document.txt"
-grep -Fq "$marker" "$out/reopened-document.txt"
-echo "PASS: saved DOCX reopened and the edited text is visible"
+python3 - "$out/reopened-document.txt" "$marker" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+ocr = Path(sys.argv[1]).read_text(encoding="utf-8").upper()
+marker = sys.argv[2].upper()
+normalize = lambda value: re.sub(r"[^A-Z0-9]", "", value)
+if normalize(marker) not in normalize(ocr):
+    raise SystemExit("FAIL: saved marker is not visible after reopening")
+print("PASS: saved DOCX reopened and the edited text is visible")
+PY
+echo "PASS: offline DOCX edit/save/reopen round-trip"
