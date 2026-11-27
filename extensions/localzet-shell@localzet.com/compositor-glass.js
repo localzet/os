@@ -27,10 +27,14 @@ export class CompositorGlass {
         this.refresh();
     }
 
-    _allowed() {
-        return GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1'
-            && !this.highContrast.get_boolean('high-contrast')
-            && this.interface.get_boolean('enable-animations');
+    _fallbackReason() {
+        if (GLib.getenv('LOCALZET_DISABLE_GLASS') === '1')
+            return 'disabled';
+        if (this.highContrast.get_boolean('high-contrast'))
+            return 'high-contrast';
+        if (!this.interface.get_boolean('enable-animations'))
+            return 'reduced-motion';
+        return null;
     }
 
     _restoreParent() {
@@ -51,8 +55,10 @@ export class CompositorGlass {
             }
             this.effect = null;
         }
-        if (this.actor)
+        if (this.actor) {
             this.actor.remove_style_class_name('localzet-compositor-glass');
+            this.actor.remove_style_class_name('localzet-glass-opaque');
+        }
         this._restoreParent();
     }
 
@@ -60,8 +66,15 @@ export class CompositorGlass {
         if (this.destroyed || !this.actor)
             return;
         this._removeEffect();
-        if (!this._allowed() || !this.actor.mapped)
+        if (!this.actor.mapped)
             return;
+        const fallback = this._fallbackReason();
+        if (fallback) {
+            if (fallback !== 'high-contrast')
+                this.actor.add_style_class_name('localzet-glass-opaque');
+            console.log('Localzet Glass: opaque fallback ' + this.name + ' (' + fallback + ')');
+            return;
+        }
 
         try {
             const parent = this.actor.get_parent();
@@ -85,6 +98,7 @@ export class CompositorGlass {
             console.log('Localzet Glass: compositor blur active ' + this.name);
         } catch (error) {
             this._removeEffect();
+            this.actor.add_style_class_name('localzet-glass-opaque');
             console.warn('Localzet Glass: opaque fallback ' + this.name + ': ' + error);
         }
     }
