@@ -10,6 +10,28 @@ concurrency:
   group: aurora-unified-candidate-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 jobs:
+  cleanup-legacy-public-office-artifact:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/integration/aurora-professional-candidate' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    steps:
+      - name: Remove the one pre-gate public ISO artifact after its run finishes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          artifact_ids="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/46046427962/artifacts" --jq '.artifacts[] | select(.name == "aurora-complete-rc-engineering-image") | .id')"
+          if [[ -z "$artifact_ids" ]]; then
+            echo "No legacy pre-gate ISO artifact remains."
+            exit 0
+          fi
+          while IFS= read -r artifact_id; do
+            [[ "$artifact_id" =~ ^[0-9]+$ ]] || { echo "Invalid artifact id" >&2; exit 1; }
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
+            echo "Deleted legacy non-compliant artifact $artifact_id"
+          done <<< "$artifact_ids"
   files:
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/integration/aurora-professional-candidate') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && ((github.head_ref == 'integration/aurora-release-candidate' && github.base_ref == 'integration/aurora-complete-candidate') || (github.head_ref == 'integration/aurora-product-next' && github.base_ref == 'integration/aurora-release-candidate') || (github.head_ref == 'integration/aurora-product-acceptance' && github.base_ref == 'integration/aurora-product-next') || (github.head_ref == 'feat/ai-verified-clients-workspace' && github.base_ref == 'integration/aurora-product-acceptance') || (github.head_ref == 'fix/complete-installed-runtime' && github.base_ref == 'feat/ai-verified-clients-workspace') || (github.head_ref == 'integration/aurora-complete-preloaded' && github.base_ref == 'design/executive-panel-dock-refinement') || (github.head_ref == 'ci/aurora-professional-complete-rc' && github.base_ref == 'integration/aurora-professional-candidate'))) }}
     runs-on: ubuntu-26.04
@@ -139,9 +161,46 @@ jobs:
             sudo install -m 0644 "$RUNNER_TEMP/candidate-root/usr/share/localzet/network-preload/"*.json dist/
             sudo install -m 0644 "$RUNNER_TEMP/candidate-root/usr/share/localzet/network-preload/"*-apt-plan.txt dist/
           fi
-      - uses: actions/upload-artifact@v4
+      - name: Evaluate ONLYOFFICE redistribution eligibility
+        id: distribution
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = json.loads(Path("config/upstream/onlyoffice.json").read_text(encoding="utf-8"))
+          root = Path(os.environ["RUNNER_TEMP"]) / "candidate-root"
+          office_installed = (
+              (root / "var/lib/dpkg/info/onlyoffice-desktopeditors.list").is_file()
+              or (root / "opt/onlyoffice/desktopeditors").is_dir()
+          )
+          source = manifest.get("source", {})
+          licensing = manifest.get("licensing", {})
+          updates = manifest.get("updates", {})
+          allowed = not office_installed or (
+              source.get("mapping_status") == "verified"
+              and licensing.get("redistribution_status") == "verified"
+              and updates.get("status") == "verified"
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"allowed={'true' if allowed else 'false'}\n")
+              output.write(f"office_installed={'true' if office_installed else 'false'}\n")
+          if not allowed:
+              Path("dist/REDISTRIBUTION-BLOCKED.txt").write_text(
+                  "This Complete RC was installed and tested in disposable CI, but its ISO is not published. "
+                  "The image contains ONLYOFFICE Desktop Editors whose exact corresponding source/build "
+                  "mapping, redistribution status, and supported update channel are not yet verified. "
+                  "See docs/third-party/ONLYOFFICE.md. This checksum is evidence only; it is not a download.\n",
+                  encoding="utf-8",
+              )
+              print("::notice::ONLYOFFICE redistribution gate is closed; the ISO will not be uploaded.")
+          PY
+      - name: Upload distributable Complete RC image
+        if: success() && steps.distribution.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
         with:
-          name: aurora-complete-rc-engineering-image
+          name: aurora-complete-rc-distributable-image
           path: |
             dist/localzet-aurora-complete-rc.iso
             dist/localzet-aurora-complete-rc.iso.sha256
@@ -156,3 +215,22 @@ jobs:
           compression-level: 0
           retention-days: 7
           if-no-files-found: error
+      - name: Upload non-distributable Complete RC evidence (without ISO)
+        if: success() && steps.distribution.outputs.allowed != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurora-complete-rc-non-distributable-evidence
+          path: |
+            dist/REDISTRIBUTION-BLOCKED.txt
+            dist/localzet-aurora-complete-rc.iso.sha256
+            dist/BUILD-COMMIT
+            dist/archive-profile-plan.json
+            dist/telegram-review/
+            dist/netbird.json
+            dist/usernet.json
+            dist/*-apt-plan.txt
+            dist/filesystem.manifest
+            dist/package-inventory.json
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: warn
