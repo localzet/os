@@ -76,3 +76,13 @@ class CandidateScriptTests(unittest.TestCase):
             self.assertIn(marker, script)
         self.assertNotIn("LOCALZET_CANDIDATE_INSTALLED", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_rootless_and_windows_shortcut_gates(self):
+        script = module.installed_script("complete", True)
+        self.assertIn("installed managed rootless Docker responded", script)
+        self.assertIn('change("stop")', script)
+        self.assertIn("Rootless test changed system Docker", script)
+        self.assertIn("installed Windows menu shortcut roundtrip", script)
+        self.assertIn("store.remove(key)", script)
+        self.assertNotIn("installed managed rootless Docker responded", module.installed_script())
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)

@@ -20,7 +20,7 @@ Status: engineering candidate, not a stable release. Individual CI passes do not
 ## P2 — Complete functionality
 | Requirement | Current evidence / remaining work |
 | --- | --- |
-| Windows applications | Wine x86/x64 and original MSI fixture passed separately; real app matrix, installer UX, file associations, shortcuts, per-app lifecycle still pending. Wine prefixes are not sandboxes. |
+| Windows applications | Wine x86/x64 and original MSI fixture passed separately; user-owned menu shortcuts with saved profile and explicit trust prompt passed source/GTK/Wine fixture CI; real app matrix, installer UX, default file associations and lifecycle still pending. Wine prefixes are not sandboxes. |
 | Windows gaming / Witcher 3 | Lutris, GameMode, MangoHud, Vulkan Tools and Mesa Vulkan declared as actual signed archive dependencies for Complete. App center supports user-initiated Steam/Heroic installation. No verified game launch; Proton, DXVK/VKD3D, GPU/controller tests required. |
 | ONLYOFFICE | Native pinned package and offline rendering verified; exact Complete and redistribution review still open. |
 | Microsoft Office | Microsoft 365 web entry and optional licensed Windows-guest path only; no native desktop installation or verified Office compatibility. No license bypass or unauthorized activation. |
@@ -37,3 +37,7 @@ Status: engineering candidate, not a stable release. Individual CI passes do not
 | Updates/recovery | Read-only recovery diagnostic and kernel menu entries verified; real recovery boot, updates and rollback pending. |
 
 Next milestone: verified Complete engineering ISO and reference-driven desktop acceptance in parallel. No final release until required product and safety gates pass.
+
+Application center workspace: compact native navigation, installed-only view based on detected executables/Flatpak IDs, search and explicit action/source state. GTK navigation and screenshot tests cover dark/light, games and search. This does not constitute final visual acceptance.
+
+Managed rootless Docker: explicit user service start/stop passed real Ubuntu package CI, including BusyBox container and image persistence across service restart (44344220408). Exact installed-image engine test remains required. Windows shortcuts, rootless engine and app workspace are integrated in the next candidate; no design or release acceptance claim.

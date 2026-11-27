@@ -445,6 +445,22 @@ printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'
 install -m 0644 /sys/firmware/qemu_fw_cfg/by_name/opt/localzet/fixture/raw \
     /run/localzet-candidate-check/smoke.exe
 test -s /run/localzet-candidate-check/smoke.exe
+runuser -u localzet-test -- env PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 - <<'SHORTCUTTEST'
+from pathlib import Path
+from localzet.windows_shortcuts import ShortcutStore
+store = ShortcutStore()
+fixture = Path("/run/localzet-candidate-check/smoke.exe")
+key = store.save(fixture, "ci-smoke", "Localzet original test application")
+try:
+    assert store.load(key)["profile"] == "ci-smoke"
+    assert store.load(key)["file"] == str(fixture)
+    desktop = store.apps / ("com.localzet.WindowsApp." + key + ".desktop")
+    assert "Exec=/usr/bin/localzet-windows --shortcut " + key in desktop.read_text()
+finally:
+    store.remove(key)
+assert fixture.is_file()
+print("PASS: installed Windows menu shortcut roundtrip; EXE preserved")
+SHORTCUTTEST
 sha256sum /run/localzet-candidate-check/smoke.exe
 printf '\nLOCALZET_CANDIDATE_FIXTURE_READY\n'
 cat > /run/localzet-candidate-check/run-wine.sh <<'USERTEST'
@@ -620,6 +636,24 @@ done
 if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
     echo "Unexpected docker group access"; exit 2
 fi
+test -f /usr/lib/systemd/user/localzet-rootless-docker.service
+test -s /usr/share/localzet/docker-rootless.json
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 -c '
+from localzet.rootless_docker import change
+from localzet.containers import Engine
+try:
+    assert change("start") == "rootless подтверждён"
+    assert Engine().inventory() == ()
+    print("PASS: installed managed rootless Docker responded to real inventory")
+finally:
+    change("stop")
+'
+for unit in docker.service docker.socket containerd.service; do
+    if systemctl is-enabled --quiet "$unit" || systemctl is-active --quiet "$unit"; then
+        echo "Rootless test changed system Docker: $unit"; exit 2
+    fi
+done
 printf 'PASS: installed Containers launched unprivileged; system daemon disabled\n'
 printf '\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n'
 # Give the host time to capture this stage before launching Office.

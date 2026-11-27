@@ -49,7 +49,7 @@ if [[ "${LOCALZET_EXPERIMENTAL_ONLYOFFICE:-0}" == 1 ]]; then
     packages+=",xdotool,imagemagick,x11-utils,xvfb,xauth,openbox,dbus-x11"
 fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
-    packages+=",docker.io,docker-compose-v2,gir1.2-vte-3.91,openssh-client,uidmap,slirp4netns,fuse-overlayfs"
+    packages+=",docker.io,docker-compose-v2,gir1.2-vte-3.91,openssh-client,uidmap,slirp4netns,fuse-overlayfs,rootlesskit"
 fi
 # Only signed Ubuntu archive packages are included by this experimental
 # profile path. Never execute an upstream URL or silently mark it complete.
