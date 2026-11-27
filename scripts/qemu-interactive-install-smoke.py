@@ -872,7 +872,8 @@ x="$(sed -n 's/^X=//p' <<< "$geometry")"
 y="$(sed -n 's/^Y=//p' <<< "$geometry")"
 [[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ ]]
 test "$(xdotool getactivewindow)" = "$window"
-mode="\${1:-}"
+mode=""
+if (( $# > 0 )); then mode="$1"; fi
 if [[ "$mode" == "--check-virtio-policy" ]]; then
     virtio_gpu=0
     for pci_device in /sys/bus/pci/devices/*; do
@@ -886,7 +887,7 @@ if [[ "$mode" == "--check-virtio-policy" ]]; then
     done
     office_pid="$(pgrep -u "$(id -u)" -x DesktopEditors | head -n 1)"
     test -n "$office_pid"
-    office_cmdline="$(tr '\0' ' ' < "/proc/$office_pid/cmdline")"
+    office_cmdline="$(ps -p "$office_pid" -o args=)"
     if [[ "$virtio_gpu" == 1 ]]; then
         grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
         echo "PASS: virtio GPU fallback is scoped to the ONLYOFFICE process"
