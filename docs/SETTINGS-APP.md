@@ -1,6 +1,6 @@
-# Localzet Settings — first native application
+# Localzet Components — first native application
 
-A minimal but functional GTK4/libadwaita **unprivileged** application.
+A minimal but functional GTK4/libadwaita **unprivileged** component catalog. It is not the system settings center; GNOME Control Center remains the single system-settings entry point.
 It opens real GNOME control-center panels, Nautilus and Ptyxis via fixed
 argv. It shows read-only system metrics and existing module manifests.
 It does not promise Docker, NetBird, UserNet or Gaming are installed.
@@ -19,7 +19,7 @@ Engineering gates:
 3. Test keyboard, Cyrillic, actions, screenshots and 125%/150% scaling.
 4. Only then add files to the Live ISO build scripts.
 
-This is not the full Localzet Settings suite. An authorized backend must
+This is not the full Localzet Control Center suite. An authorized backend must
 be implemented and reviewed before showing installation toggles or writing
 system state. No telemetry, network queries or privileged actions.
 

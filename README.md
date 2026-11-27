@@ -16,7 +16,7 @@ Ubuntu 26.04 LTS, GNOME 50 и Wayland. Русский язык — первый 
 ## Реализовано и проверено
 
 - Aurora Shell: экспериментальный компактный dock, штатный GNOME overview. Финальный стеклянный интерфейс ещё не реализован.
-- Localzet Settings: нативное GTK4/libadwaita приложение.
+- Localzet Components: нативный каталог компонентов и краткая сводка системы на GTK4/libadwaita; системные настройки открываются в GNOME Control Center.
 - [NectarLink](https://github.com/thtbee/nectarlink) от thtbee: интеграция оригинального клиента и проверка закреплённого DEB
   (сопряжение с Android и включение клиента в образ ещё не проверены).
 - Windows Runtime: запуск доверенных EXE/MSI через отдельные Wine-профили;

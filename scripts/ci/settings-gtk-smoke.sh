@@ -16,7 +16,7 @@ dbus-run-session -- bash -eu -c '
       cat out/settings/application.log >&2
       exit 1
     fi
-    if xdotool search --name "Localzet Settings" > out/settings/windows.txt 2>/dev/null; then
+    if xdotool search --name "Компоненты Localzet" > out/settings/windows.txt 2>/dev/null; then
       found=1
       break
     fi
@@ -32,15 +32,15 @@ dbus-run-session -- bash -eu -c '
   window=$(head -n 1 out/settings/windows.txt)
   xdotool windowfocus --sync "$window" key ctrl+2
   sleep 2
-  grep -F "Localzet Settings: page=modules" out/settings/application.log
+  grep -F "Localzet Components: page=modules" out/settings/application.log
   import -window root out/settings/modules.png
   xdotool key ctrl+3
   sleep 2
-  grep -F "Localzet Settings: page=system" out/settings/application.log
+  grep -F "Localzet Components: page=system" out/settings/application.log
   import -window root out/settings/system.png
   xdotool key ctrl+1
   sleep 1
-  test "$(grep -F "Localzet Settings: page=" out/settings/application.log | tail -n 1)" = "Localzet Settings: page=home"
+  test "$(grep -F "Localzet Components: page=" out/settings/application.log | tail -n 1)" = "Localzet Components: page=home"
   ! grep -E "Traceback|Gtk-CRITICAL|Theme parser error" out/settings/application.log
   python3 - <<'"'"'PY'"'"'
 from pathlib import Path
