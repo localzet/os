@@ -40,7 +40,7 @@ Real glass means compositor-backed background sampling/blur, restrained tint,
 directional highlights and depth, optionally measured performant refraction.
 Opaque fallback is preferable to cheap alpha-only imitation. Keep long-form
 content and tables readable. Do not use web backdrop-filter syntax in Shell.
-Verify on real GPU and software rendering, varied backgrounds and scaling.
+Verify on real GPU and software rendering, varied backgrounds and scaling. The top panel uses GNOME Shell compositor blur by default when supported; high contrast and `LOCALZET_DISABLE_GLASS=1` force an opaque fallback. Wallpaper-only material is applied only on an empty desktop and never captures windows.
 
 ### Desktop and system UX
 

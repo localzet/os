@@ -1,67 +1,67 @@
-"""Shared, process-local Executive Soft Graphite appearance for native Localzet applications."""
+"""Shared, process-local Aurora Professional appearance for native Localzet applications."""
 from __future__ import annotations
 
 MIDNIGHT_CSS = b"""
-@define-color window_bg_color #202124;
-@define-color window_fg_color #f0f0f2;
-@define-color headerbar_bg_color #292a2e;
-@define-color headerbar_fg_color #f0f0f2;
-@define-color view_bg_color #202124;
-@define-color view_fg_color #f0f0f2;
-@define-color card_bg_color #2f3034;
-@define-color card_fg_color #f0f0f2;
-@define-color accent_bg_color #2874c8;
-@define-color accent_fg_color #ffffff;
-@define-color accent_color #78b8ff;
+@define-color window_bg_color #10091E;
+@define-color window_fg_color #F4EEFF;
+@define-color headerbar_bg_color #28183F;
+@define-color headerbar_fg_color #F4EEFF;
+@define-color view_bg_color #10091E;
+@define-color view_fg_color #F4EEFF;
+@define-color card_bg_color #34234F;
+@define-color card_fg_color #F4EEFF;
+@define-color accent_bg_color #FF7E00;
+@define-color accent_fg_color #10091E;
+@define-color accent_color #9B72F2;
 window.localzet-midnight {
-    background-color: #202124;
-    color: #f0f0f2;
+    background-color: #10091E;
+    color: #F4EEFF;
 }
 .localzet-midnight headerbar {
-    background-color: #292a2e;
-    color: #f0f0f2;
+    background-color: #28183F;
+    color: #F4EEFF;
     border-bottom: none;
     box-shadow: none;
 }
 .localzet-midnight .boxed-list {
-    background-color: #2f3034;
-    color: #f0f0f2;
-    border-radius: 10px;
+    background-color: #34234F;
+    color: #F4EEFF;
+    border-radius: 8px;
     border: none;
 }
 .localzet-midnight .boxed-list > row {
-    border-radius: 8px;
+    border-radius: 6px;
 }
 .localzet-midnight .boxed-list > row:hover {
-    background-color: #3c3d42;
+    background-color: #3F2B5B;
 }
 .localzet-midnight .boxed-list > row .subtitle,
 .localzet-midnight .dim-label {
-    color: #c4c5ca;
+    color: #B9A5D5;
     opacity: 1;
 }
 .localzet-midnight .boxed-list > row + row {
-    border-top: 1px solid #3b3c40;
+    border-top: 1px solid rgba(155, 114, 242, .18);
 }
 .localzet-midnight .boxed-list > row:focus-visible {
-    outline: 2px solid #78b8ff;
+    outline: 2px solid #FF7E00;
     outline-offset: -2px;
 }
 .localzet-midnight .boxed-list > row image {
-    color: #d2d3d8;
+    color: #B9A5D5;
 }
 .localzet-midnight entry {
-    background-color: #202124;
-    color: #f0f0f2;
+    background-color: #10091E;
+    color: #F4EEFF;
     border-radius: 8px;
 }
 .localzet-midnight button.suggested-action {
-    background-color: #2874c8;
-    color: #ffffff;
+    background-color: #FF7E00;
+    color: #10091E;
 }
 .localzet-midnight button.suggested-action:hover {
-    background-color: #205ea8;
-    color: #ffffff;
+    background-color: #E86F00;
+    color: #10091E;
 }
 """
 

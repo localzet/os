@@ -13,10 +13,9 @@ const GLASS = 'localzet-panel-glass';
 const EFFECT = 'localzet-panel-background-blur';
 const SURFACE = 'localzet-system-surface';
 
-// First compositor-backed glass experiment. The native top panel has a
-// rectangular footprint, unlike the dock and popovers. Do not extend this
-// effect to rounded surfaces without an antialiased clipping solution.
-// The experiment is opt-in at session startup until pixel/performance QA.
+// Real compositor blur is enabled by default on supported GNOME sessions.
+// High contrast and LOCALZET_DISABLE_GLASS=1 use the opaque accessible fallback.
+// Rounded surfaces use wallpaper-only material only on an empty desktop.
 export class AuroraPanel {
     constructor(dock, path) {
         this._dock = dock;
@@ -28,7 +27,7 @@ export class AuroraPanel {
         this._quickActions = null;
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
         this._contrastId = this._settings.connect('changed::high-contrast', () => this._refresh());
-        this._experimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
+        this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1';
         try {
             this._refresh();
         } catch (error) {
@@ -72,17 +71,17 @@ export class AuroraPanel {
             const menu = this._panel.statusArea[name]?.menu;
             if (menu?.actor) {
                 menu.actor.add_style_class_name(SURFACE);
-                const signal = this._experimental ? menu.connect('open-state-changed', (_menu, open) => {
+                const signal = this._glassEnabled ? menu.connect('open-state-changed', (_menu, open) => {
                     if (open)
                         console.log('Localzet Surfaces: opened ' + name);
                 }) : 0;
-                const glass = menu.box ? new WallpaperGlass(menu, name) : null;
+                const glass = this._glassEnabled && menu.box ? new WallpaperGlass(menu, name) : null;
                 this._surfaces.push({actor: menu.actor, menu, signal, glass});
             }
         }
-        if (this._experimental)
+        if (this._glassEnabled)
             console.log('Localzet Surfaces: native menus=' + this._surfaces.length);
-        if (!this._experimental)
+        if (!this._glassEnabled)
             return;
         try {
             const effect = new Shell.BlurEffect({
@@ -139,7 +138,7 @@ export class AuroraPanel {
         });
         this._navigation = item;
         this._panel.addToStatusArea('localzetExecutive', item, 1, 'left');
-        if (this._experimental)
+        if (this._glassEnabled)
             console.log('Localzet Panel: executive navigation ready');
     }
 

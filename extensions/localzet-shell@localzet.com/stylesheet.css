@@ -4,60 +4,60 @@
     padding: 3px 8px;
     spacing: 4px;
     border-radius: 10px;
-    background-color: #292b30;
-    border: 1px solid rgba(196, 202, 214, .24);
+    background-color: #28183F;
+    border: 1px solid rgba(155, 114, 242, .22);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
 }
 .localzet-dock.localzet-dock-wallpaper {
     box-shadow: none;
-    border-color: rgba(205, 216, 231, .30);
+    border-color: rgba(155, 114, 242, .22);
 }
 .localzet-dock-button {
-    min-width: 38px;
-    min-height: 38px;
+    min-width: 32px;
+    min-height: 32px;
     padding: 2px;
     border-radius: 5px;
-    color: #f0f0f2;
+    color: #F4EEFF;
     background-color: transparent;
 }
 .localzet-dock-button:hover {
-    background-color: rgba(255, 255, 255, 0.09);
+    background-color: rgba(155, 114, 242, .12);
 }
 .localzet-dock-button:focus {
-    background-color: rgba(255, 255, 255, 0.11);
-    box-shadow: inset 0 0 0 2px #4c9aff;
+    background-color: rgba(155, 114, 242, .18);
+    box-shadow: inset 0 0 0 2px #9B72F2;
 }
 .localzet-dock-button:active {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 126, 0, .18);
 }
 
 /* Native panel controls retain the upstream input and popup behavior. */
 #panel.localzet-panel {
-    height: 30px;
-    background-color: #24262a;
-    border-bottom: 1px solid #414349;
-    color: #f0f0f2;
+    height: 32px;
+    background-color: #10091E;
+    border-bottom: 1px solid rgba(155, 114, 242, .18);
+    color: #F4EEFF;
 }
 #panel.localzet-panel.localzet-panel-glass {
     /* Only enabled with a real Shell.BlurEffect, never on its own. */
-    background-color: rgba(32, 33, 36, 0.82);
+    background-color: rgba(40, 24, 63, 0.82);
 }
 
 /* Executive command hub: search, navigation, actual apps, real actions. */
 .localzet-launcher-popup .popup-menu-content {
-    background-color: #292a2e;
-    border: 1px solid rgba(200, 201, 208, .15);
+    background-color: #28183F;
+    border: 1px solid rgba(155, 114, 242, .16);
     border-radius: 12px;
     padding: 0;
     box-shadow: 0 6px 16px rgba(0,0,0,.36);
 }
-.localzet-launcher { spacing: 9px; padding: 10px; color: #f0f0f2; }
+.localzet-launcher { spacing: 9px; padding: 10px; color: #F4EEFF; }
 .localzet-launcher-heading { spacing: 8px; padding: 2px 4px 4px; }
 .localzet-launcher-title { font-size: 14px; font-weight: 600; }
-.localzet-launcher-caption { color: #c4c5ca; font-size: 11px; }
+.localzet-launcher-caption { color: #B9A5D5; font-size: 11px; }
 .localzet-launcher-search {
     border-radius: 9px; border: 1px solid transparent;
-    background-color: #202124; padding: 9px 12px; color: #f1f6ff;
+    background-color: #10091E; padding: 9px 12px; color: #F4EEFF;
 }
 .localzet-launcher-content { spacing: 12px; }
 .localzet-launcher-categories {
@@ -65,70 +65,70 @@
     spacing: 3px;
     padding: 6px;
     border-radius: 8px;
-    background-color: rgba(20, 22, 27, .34);
+    background-color: rgba(16, 9, 30, .34);
 }
 .localzet-category-content { spacing: 9px; }
-.localzet-category-content StIcon { color: #d5d6da; -st-icon-style: symbolic; }
+.localzet-category-content StIcon { color: #B9A5D5; -st-icon-style: symbolic; }
 .localzet-launcher-category, .localzet-launcher-overview, .localzet-launcher-footer-action {
-    border-radius: 6px; padding: 8px 9px; color: #e3e3e7; font-size: 12px;
+    border-radius: 6px; padding: 8px 9px; color: #F4EEFF; font-size: 12px;
 }
-.localzet-launcher-category:checked { background-color: #39495e; color: #e5f1ff; }
+.localzet-launcher-category:checked { background-color: #6436B5; color: #F4EEFF; }
 .localzet-launcher-main { spacing: 6px; }
 .localzet-launcher-scroll { height: 306px; }
 .localzet-launcher-list { spacing: 3px; }
 .localzet-launcher-row { spacing: 3px; }
 .localzet-launcher-tile { spacing: 3px; }
 .localzet-launcher-app { width: 90px; height: 76px; padding: 2px; border-radius: 7px; }
-.localzet-launcher-label { font-size: 12px; color: #f0f0f2; text-align: center; }
+.localzet-launcher-label { font-size: 12px; color: #F4EEFF; text-align: center; }
 .localzet-launcher-app:hover, .localzet-launcher-category:hover,
-.localzet-launcher-overview:hover, .localzet-launcher-footer-action:hover { background-color: #3c3d42; }
+.localzet-launcher-overview:hover, .localzet-launcher-footer-action:hover { background-color: #34234F; }
 .localzet-launcher-app:focus, .localzet-launcher-category:focus,
 .localzet-launcher-overview:focus, .localzet-launcher-footer-action:focus,
-.localzet-launcher-search:focus { box-shadow: inset 0 0 0 1px #4c9aff; }
-.localzet-launcher-empty { padding: 14px 8px; color: #c4c5ca; }
-.localzet-launcher-footer { border-top: 1px solid #414247; padding-top: 6px; }
+.localzet-launcher-search:focus { box-shadow: inset 0 0 0 1px #9B72F2; }
+.localzet-launcher-empty { padding: 14px 8px; color: #B9A5D5; }
+.localzet-launcher-footer { border-top: 1px solid rgba(155, 114, 242, .18); padding-top: 6px; }
 
 /* Task dock: real window state, compact focus mark, no decorative glow. */
 .localzet-dock-apps { spacing: 4px; }
 .localzet-dock-item-content { spacing: 3px; }
 .localzet-dock-scroll { padding: 0; }
 .localzet-dock-indicator { width: 4px; height: 3px; border-radius: 1px; background-color: transparent; }
-.localzet-dock-indicator.running { background-color: #83a2bf; }
-.localzet-dock-indicator.focused { width: 16px; background-color: #59a8ff; }
-.localzet-dock-button.localzet-dock-focused { background-color: #45464b; }
+.localzet-dock-indicator.running { background-color: #B9A5D5; }
+.localzet-dock-indicator.focused { width: 16px; background-color: #FF7E00; }
+.localzet-dock-button.localzet-dock-focused { background-color: #34234F; }
 
 /* Executive system surfaces. Scope to native menus, preserving upstream
  * event handling, RTL, accessibility and unavailable hardware states. */
 .localzet-system-surface .popup-menu-content {
-    background-color: #292a2e;
-    color: #f0f0f2;
-    border: 1px solid rgba(200, 201, 208, .22);
+    background-color: #28183F;
+    color: #F4EEFF;
+    border: 1px solid rgba(155, 114, 242, .22);
     border-radius: 12px;
     padding: 7px;
     box-shadow: 0 4px 14px rgba(0,0,0,.28);
 }
 .localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {
     box-shadow: none;
-    border: 1px solid rgba(205,216,231,.30);
+    border: 1px solid rgba(155,114,242,.22);
 }
 .localzet-system-surface.localzet-wallpaper-glass .quick-settings {
     background-color: transparent;
 }
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle,
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button {
-    background-color: #363940;
+    background-color: #34234F;
 }
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle:checked,
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button:checked {
-    background-color: #285f99;
+    background-color: #6436B5;
 }
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle:hover,
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button:hover {
-    background-color: #45464b;
+    background-color: #34234F;
 }
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle:checked:hover,
 .localzet-system-surface.localzet-wallpaper-glass .quick-toggle-menu-button:checked:hover {
-    background-color: #2874c8;
+    background-color: #9B72F2;
 }
 .localzet-system-surface .quick-settings {
     padding: 7px;
@@ -146,8 +146,8 @@
 }
 .localzet-system-surface .quick-toggle,
 .localzet-system-surface .quick-toggle-menu-button {
-    background-color: #343539;
-    color: #f0f0f2;
+    background-color: #28183F;
+    color: #F4EEFF;
 }
 .localzet-system-surface .quick-toggle > StBoxLayout {
     spacing: 8px;
@@ -161,52 +161,52 @@
 .localzet-system-surface .quick-toggle-has-menu .quick-toggle:last-child { border-radius: 7px; }
 .localzet-system-surface .quick-toggle-has-menu .quick-toggle-menu-button:ltr { border-radius: 0 7px 7px 0; }
 .localzet-system-surface .quick-toggle-has-menu .quick-toggle-menu-button:rtl { border-radius: 7px 0 0 7px; }
-.localzet-system-surface .quick-toggle-has-menu .quick-toggle-separator { width: 1px; background-color: #45464b; }
-.localzet-system-surface .quick-toggle-has-menu:checked .quick-toggle-separator { background-color: #4385c7; }
+.localzet-system-surface .quick-toggle-has-menu .quick-toggle-separator { width: 1px; background-color: #34234F; }
+.localzet-system-surface .quick-toggle-has-menu:checked .quick-toggle-separator { background-color: #9B72F2; }
 .localzet-system-surface .quick-toggle:checked,
-.localzet-system-surface .quick-toggle-menu-button:checked { background-color: #205ea8; color: #f1f7ff; }
+.localzet-system-surface .quick-toggle-menu-button:checked { background-color: #6436B5; color: #F4EEFF; }
 .localzet-system-surface .quick-toggle:hover,
-.localzet-system-surface .quick-toggle-menu-button:hover { background-color: #45464b; }
+.localzet-system-surface .quick-toggle-menu-button:hover { background-color: #34234F; }
 .localzet-system-surface .quick-toggle:checked:hover,
-.localzet-system-surface .quick-toggle-menu-button:checked:hover { background-color: #2874c8; }
+.localzet-system-surface .quick-toggle-menu-button:checked:hover { background-color: #9B72F2; }
 .localzet-system-surface .quick-toggle:insensitive,
-.localzet-system-surface .quick-toggle-menu-button:insensitive { color: #a6a7ad; background-color: #2f3034; }
+.localzet-system-surface .quick-toggle-menu-button:insensitive { color: #B9A5D5; background-color: #34234F; }
 .localzet-system-surface .quick-toggle:focus,
 .localzet-system-surface .quick-toggle-menu-button:focus,
-.localzet-system-surface .quick-slider .slider-bin:focus { box-shadow: inset 0 0 0 2px #59a8ff; }
-.localzet-system-surface .quick-slider { border-radius: 7px; background-color: #303136; padding: 2px 6px; }
+.localzet-system-surface .quick-slider .slider-bin:focus { box-shadow: inset 0 0 0 2px #FF7E00; }
+.localzet-system-surface .quick-slider { border-radius: 7px; background-color: #28183F; padding: 2px 6px; }
 .localzet-system-surface .quick-slider .slider-bin { border-radius: 6px; }
 .localzet-system-surface .quick-slider .slider {
     -barlevel-height: 5px;
-    -barlevel-background-color: #45464b;
-    -barlevel-active-background-color: #65aaf4;
+    -barlevel-background-color: #34234F;
+    -barlevel-active-background-color: #9B72F2;
     -slider-handle-radius: 6px;
 }
 .localzet-system-surface .quick-settings-system-item .icon-button { border-radius: 7px; padding: 9px; }
-.localzet-system-surface .quick-toggle-menu { background-color: #303136; border-radius: 7px; margin-top: 6px; }
+.localzet-system-surface .quick-toggle-menu { background-color: #28183F; border-radius: 7px; margin-top: 6px; }
 .localzet-system-surface .quick-toggle-menu .header .icon { border-radius: 7px; }
-.localzet-system-surface .message-list { border-color: #414247; }
+.localzet-system-surface .message-list { border-color: rgba(155, 114, 242, .18); }
 .localzet-system-surface .message-list-placeholder > StIcon { icon-size: 32px; }
 .localzet-system-surface .message-list-controls { padding: 8px; spacing: 8px; }
 .localzet-system-surface .message-list-clear-button { border-radius: 6px; }
-.localzet-system-surface .calendar { border-radius: 8px; padding: 8px; background-color: #303136; border: 1px solid rgba(200,201,208,.08); }
+.localzet-system-surface .calendar { border-radius: 8px; padding: 8px; background-color: #28183F; border: 1px solid rgba(155,114,242,.08); }
 .localzet-system-surface .calendar-day { border-radius: 5px; }
-.localzet-system-surface .calendar-today { background-color: #205ea8; color: #f1f7ff; }
-.localzet-system-surface .calendar-day:selected { background-color: #2874c8; color: #ffffff; }
-.localzet-system-surface .message { background-color: #343539; border-radius: 7px; color: #f0f0f2; }
-.localzet-system-surface .message:hover { background-color: #45464b; }
-.localzet-system-surface .message-title { color: #f1f6ff; font-weight: 600; }
-.localzet-system-surface .message-content { color: #c4c5ca; }
-.localzet-system-surface .message-header { color: #c4c5ca; }
+.localzet-system-surface .calendar-today { background-color: #6436B5; color: #F4EEFF; }
+.localzet-system-surface .calendar-day:selected { background-color: #9B72F2; color: #10091E; }
+.localzet-system-surface .message { background-color: #28183F; border-radius: 7px; color: #F4EEFF; }
+.localzet-system-surface .message:hover { background-color: #34234F; }
+.localzet-system-surface .message-title { color: #F4EEFF; font-weight: 600; }
+.localzet-system-surface .message-content { color: #B9A5D5; }
+.localzet-system-surface .message-header { color: #B9A5D5; }
 .localzet-system-surface .message-header .message-close-button,
 .localzet-system-surface .message-header .message-expand-button { border-radius: 6px; }
 .localzet-system-surface .events-button,
 .localzet-system-surface .world-clocks-button,
-.localzet-system-surface .weather-button { border-radius: 7px; background-color: #343539; color: #f0f0f2; }
-.localzet-system-surface .popup-menu-item:focus { box-shadow: inset 0 0 0 1px #59a8ff; }
+.localzet-system-surface .weather-button { border-radius: 7px; background-color: #28183F; color: #F4EEFF; }
+.localzet-system-surface .popup-menu-item:focus { box-shadow: inset 0 0 0 1px #FF7E00; }
 
 #panel.localzet-panel .panel-button { padding: 0 8px; font-weight: 500; }
-#panel.localzet-panel .panel-button:hover { background-color: #3c3d42; }
+#panel.localzet-panel .panel-button:hover { background-color: #34234F; }
 
 /* Executive navigation, native panel button. */
 #panel.localzet-panel .localzet-panel-navigation {
@@ -216,25 +216,25 @@
     border-right: 1px solid rgba(196,202,214,.15);
     border-radius: 0;
 }
-#panel.localzet-panel .localzet-panel-navigation:hover { background-color: #3c3e44; }
-#panel.localzet-panel .localzet-panel-navigation:focus { box-shadow: inset 0 -2px #78b8ff; }
+#panel.localzet-panel .localzet-panel-navigation:hover { background-color: #34234F; }
+#panel.localzet-panel .localzet-panel-navigation:focus { box-shadow: inset 0 -2px #FF7E00; }
 .localzet-panel-brand { spacing: 7px; font-size: 12px; font-weight: 600; }
-.localzet-panel-brand StIcon { color: #a9c7e9; }
+.localzet-panel-brand StIcon { color: #B9A5D5; }
 #panel.localzet-panel .clock-display { font-weight: 500; }
 #panel.localzet-panel .panel-button { border-radius: 3px; }
 #panel.localzet-panel .panel-button:active,
-#panel.localzet-panel .panel-button:checked { background-color: #414349; }
+#panel.localzet-panel .panel-button:checked { background-color: rgba(155, 114, 242, .18); }
 .localzet-dock-launcher {
-    background-color: #34363b;
-    border: 1px solid #484a50;
+    background-color: #28183F;
+    border: 1px solid rgba(155, 114, 242, .22);
 }
-.localzet-dock-launcher:hover { background-color: #414349; }
+.localzet-dock-launcher:hover { background-color: rgba(155, 114, 242, .18); }
 .localzet-dock-high-contrast .localzet-dock-launcher {
     background-color: #000000;
     border: 1px solid #ffffff;
 }
 .localzet-dock-button.localzet-dock-focused {
-    background-color: #363b43;
+    background-color: #34234F;
 }
 .localzet-dock-high-contrast .localzet-dock-button.localzet-dock-focused {
     background-color: #222222;
@@ -242,33 +242,33 @@
 
 
 /* Separate the command hub from the task strip without inventing apps. */
-.localzet-dock-divider { width: 1px; height: 24px; margin: 0 4px; background-color: #45464b; }
+.localzet-dock-divider { width: 1px; height: 24px; margin: 0 4px; background-color: #34234F; }
 .localzet-dock-high-contrast .localzet-dock-divider { background-color: #ffffff; }
 .localzet-dock.localzet-dock-high-contrast { background-color: #000000; border: 2px solid #ffffff; }
 .localzet-dock-high-contrast .localzet-dock-button:focus { box-shadow: inset 0 0 0 2px #ffffff; }
 
 /* Consistent header actions; native lock/power semantics are unchanged. */
 .localzet-system-surface .quick-settings-system-item .icon-button {
-    background-color: #343539;
-    color: #f0f0f2;
+    background-color: #28183F;
+    color: #F4EEFF;
 }
-.localzet-system-surface .quick-settings-system-item .icon-button:hover { background-color: #45464b; }
-.localzet-system-surface .quick-settings-system-item .icon-button:focus { box-shadow: inset 0 0 0 2px #59a8ff; }
-.localzet-system-surface .quick-settings-system-item .icon-button:insensitive { color: #a6a7ad; }
+.localzet-system-surface .quick-settings-system-item .icon-button:hover { background-color: #34234F; }
+.localzet-system-surface .quick-settings-system-item .icon-button:focus { box-shadow: inset 0 0 0 2px #FF7E00; }
+.localzet-system-surface .quick-settings-system-item .icon-button:insensitive { color: #B9A5D5; }
 
 /* Quieter search focus and compact catalogue. */
-.localzet-launcher-search:focus { box-shadow: inset 0 0 0 1px #567da9; }
-.localzet-launcher-search { border-color: #45464b; }
+.localzet-launcher-search:focus { box-shadow: inset 0 0 0 1px #9B72F2; }
+.localzet-launcher-search { border-color: #34234F; }
 
 /* Experimental true backdrop sampling, not an alpha-only imitation. The
  * square footprint matches the actual compositor effect's rectangular clip. */
 .localzet-launcher-glass .popup-menu-content {
-    background-color: rgba(11, 21, 36, 0.72);
+    background-color: rgba(40, 24, 63, 0.72);
     border-radius: 0;
-    border: 1px solid rgba(174, 198, 230, 0.36);
+    border: 1px solid rgba(155, 114, 242, 0.22);
     box-shadow: none;
 }
-.localzet-launcher-glass .localzet-launcher-search { background-color: rgba(32, 33, 36, .88); }
+.localzet-launcher-glass .localzet-launcher-search { background-color: rgba(40, 24, 63, .88); }
 .localzet-launcher-contrast .popup-menu-content { background-color: #000000; border: 2px solid #ffffff; }
 .localzet-launcher-contrast .localzet-launcher,
 .localzet-launcher-contrast .localzet-launcher-label,
@@ -280,16 +280,16 @@
 
 /* Reference task strip: fixed trash shortcut, never a destructive action. */
 .localzet-dock-trash { margin-left: 3px; }
-.localzet-dock-trash StIcon { color: #c4c5ca; }
+.localzet-dock-trash StIcon { color: #B9A5D5; }
 .localzet-dock-high-contrast .localzet-dock-trash StIcon { color: #ffffff; }
 
 /* Preblurred and tinted wallpaper, aligned to the monitor's exact zoom crop.
  * St paints the background inside its native rounded border. Opaque when
  * other windows, another wallpaper, scaling or high contrast are present. */
 .localzet-wallpaper-glass .popup-menu-content {
-    background-color: #292a2e;
+    background-color: #28183F;
     border-radius: 12px;
-    border: 1px solid rgba(200, 201, 208, .22);
+    border: 1px solid rgba(155, 114, 242, .22);
     /* St's offscreen shadow around an image-backed menu produced a dark
      * rectangular halo in the real devkit capture. Keep the rounded border,
      * but do not draw that shadow until the renderer is verified. */
@@ -302,14 +302,14 @@
     -arrow-border-color: transparent;
     -arrow-border-width: 0px;
 }
-.localzet-wallpaper-glass .localzet-launcher-search { background-color: #303136; }
-.localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #39495e; }
+.localzet-wallpaper-glass .localzet-launcher-search { background-color: #28183F; }
+.localzet-wallpaper-glass .localzet-launcher-category:checked { background-color: #6436B5; }
 
 /* Localzet management shortcuts are buttons, never fake connection toggles. */
 .localzet-system-surface .localzet-quick-action {
-    background-color: #343539;
+    background-color: #28183F;
     border: 1px solid transparent;
 }
-.localzet-system-surface .localzet-quick-action:hover { background-color: #45464b; }
-.localzet-system-surface .localzet-quick-action .quick-toggle-icon { color: #9ec7f3; }
-.localzet-system-surface .localzet-quick-action .quick-toggle-subtitle { color: #d5d6da; }
+.localzet-system-surface .localzet-quick-action:hover { background-color: #34234F; }
+.localzet-system-surface .localzet-quick-action .quick-toggle-icon { color: #9B72F2; }
+.localzet-system-surface .localzet-quick-action .quick-toggle-subtitle { color: #B9A5D5; }

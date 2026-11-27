@@ -36,13 +36,13 @@ def render(source, output):
                     for y in range(height) for x in range(width)])
     image = Image.composite(Image.new("RGB", image.size, "#ce8e76"), image,
                             light.resize(image.size, Image.Resampling.BICUBIC))
-    image = Image.composite(Image.new("RGB", image.size, "#080f20"), image,
+    image = Image.composite(Image.new("RGB", image.size, "#10091E"), image,
                             shadow.resize(image.size, Image.Resampling.BICUBIC))
     # Preblur in image space, with sufficient radius at 4K. The derivative
     # is tinted here, not by translucent CSS over an unblurred desktop.
     glass = image.resize((960, 540), Image.Resampling.LANCZOS).filter(
         ImageFilter.GaussianBlur(14)).resize(image.size, Image.Resampling.BICUBIC)
-    glass = Image.blend(glass, Image.new("RGB", image.size, "#292a2e"), .72)
+    glass = Image.blend(glass, Image.new("RGB", image.size, "#28183F"), .62)
     output = Path(output)
     save_jpeg(image, output)
     save_jpeg(glass, output.with_name(output.stem + "-glass.jpg"))

@@ -1,4 +1,23 @@
-/* Executive layout: colors only in process-local dark appearance. */
+/* Aurora Professional: scoped to Localzet Settings; upstream panels remain intact. */
+@define-color accent_bg_color #FF7E00;
+@define-color accent_fg_color #10091E;
+@define-color accent_color #9B72F2;
+@define-color window_bg_color #10091E;
+@define-color window_fg_color #F4EEFF;
+@define-color card_bg_color #28183F;
+@define-color card_fg_color #F4EEFF;
+
+window.localzet-settings {
+    color: #F4EEFF;
+    background-color: #10091E;
+}
+window.localzet-settings headerbar {
+    background-color: #28183F;
+}
+window.localzet-settings .localzet-summary {
+    border-radius: 8px;
+    background-color: alpha(#9B72F2, 0.08);
+}
 window.localzet-settings .executive-sidebar {
     padding: 0 8px;
 }
@@ -18,16 +37,16 @@ window.localzet-settings .executive-page-heading .title-1 {
 }
 window.localzet-settings .heading { font-weight: 600; }
 window.localzet-settings.localzet-midnight .executive-sidebar {
-    background-color: #343539;
-    color: #f0f0f2;
+    background-color: #28183F;
+    color: #F4EEFF;
 }
 window.localzet-settings.localzet-midnight .executive-nav row:hover {
-    background-color: #414247;
+    background-color: #34234F;
 }
 window.localzet-settings.localzet-midnight .executive-nav row:selected {
-    background-color: #45464b;
-    color: #ffffff;
+    background-color: #6436B5;
+    color: #F4EEFF;
 }
 window.localzet-settings.localzet-midnight separator {
-    background-color: #414247;
+    background-color: alpha(#9B72F2, 0.18);
 }

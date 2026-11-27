@@ -221,7 +221,7 @@ export class LocalzetDock {
         const width = Math.min(monitor.width - 24, natural);
         this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
             St.PolicyType.NEVER);
-        const height = 58;
+        const height = 48;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
         const y = monitor.y + monitor.height - height - 10;

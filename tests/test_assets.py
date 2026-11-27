@@ -18,10 +18,12 @@ class AssetsTests(unittest.TestCase):
 
     def test_design_tokens(self):
         data = json.loads((ROOT / 'assets/design-tokens.json').read_text())
-        self.assertEqual(data['colors']['accent'], '#4c9aff')
-        self.assertEqual(data['colors']['primary'], '#2874c8')
-        self.assertEqual(data['density']['panelHeight'], 30)
-        self.assertEqual(data['colors']['surface'], '#101b2d')
+        self.assertEqual(data['colors']['accent'], '#FF7E00')
+        self.assertEqual(data['colors']['primary'], '#9B72F2')
+        self.assertEqual(data['density']['panelHeight'], 32)
+        self.assertEqual(data['density']['dockIcon'], 28)
+        self.assertEqual(data['density']['dockHeight'], 48)
+        self.assertEqual(data['colors']['surface'], '#28183F')
         css = (ROOT / 'extensions/localzet-shell@localzet.com/stylesheet.css').read_text()
         self.assertIn(data['colors']['accent'], css)
         for name in ('panel', 'surface', 'card', 'text', 'textSecondary'):
@@ -29,15 +31,23 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(data['shellSurfaces']['surface'], data['glass']['opaqueFallback'])
         self.assertLessEqual(data['radii']['lg'], 14)
 
-    def test_native_soft_graphite_palette(self):
+    def test_native_aurora_professional_palette(self):
         from localzet.appearance import MIDNIGHT_CSS
         data = json.loads((ROOT / 'assets/design-tokens.json').read_text())
-        for key in ('background', 'header', 'card', 'text', 'textSecondary', 'focus'):
+        for key in ('background', 'header', 'card', 'text', 'textSecondary', 'focus', 'primaryAction'):
             self.assertIn(data['nativeApplications'][key].encode(), MIDNIGHT_CSS)
         self.assertIn(data['colors']['primary'].encode(), MIDNIGHT_CSS)
+        self.assertIn(data['colors']['accent'].encode(), MIDNIGHT_CSS)
         plymouth = (ROOT / 'packaging/live/aurora.plymouth').read_text()
         for key in ('background', 'surface', 'accent'):
             self.assertIn('0x' + data['colors'][key][1:], plymouth)
+
+    def test_shell_glass_default_and_opaque_override(self):
+        panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
+        self.assertIn("LOCALZET_DISABLE_GLASS", panel)
+        self.assertIn("Shell.BlurEffect", panel)
+        self.assertIn("this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1';", panel)
+        self.assertIn("high-contrast", panel)
 
     def test_landscape_default_and_alternate(self):
         registry = ET.parse(ROOT / "assets/wallpapers/localzet-wallpapers.xml").getroot()
@@ -93,13 +103,14 @@ class AssetsTests(unittest.TestCase):
             for name in ("Settings", "Hardware", "WindowsRuntime", "Containers", "Connect", "Installer", "Network"):
                 icon = "com.localzet." + name
                 self.assertTrue((theme / "scalable/apps" / (icon + ".svg")).is_file())
-            self.assertIn("url(#blue)", (theme / "scalable/places/folder.svg").read_text())
+            self.assertIn("url(#violet)", (theme / "scalable/places/folder.svg").read_text())
             for name in module.SYMBOLIC:
                 icon = ET.parse(theme / "scalable/categories" / (name + ".svg")).getroot()
                 self.assertEqual(icon.attrib["width"], "16")
             for name in ("drive-harddisk", "media-flash-usb"):
                 self.assertIn("url(#", (theme / "scalable/devices" / (name + ".svg")).read_text())
             self.assertIn("url(#graphite)", (theme / "scalable/apps/org.gnome.Ptyxis.svg").read_text())
+            self.assertIn("url(#ember)", (theme / "scalable/apps/store.svg").read_text())
             for upstream in ("firefox", "google-chrome", "google-chrome-stable", "microsoft-edge", "microsoft-edge-stable",
                              "steam", "com.valvesoftware.Steam", "netbird", "org.wails.netbird", "nectarlink",
                              "org.telegram.desktop", "telegram-desktop", "com.discordapp.Discord", "discord",
@@ -120,7 +131,7 @@ class AssetsTests(unittest.TestCase):
         theme = (ROOT / "packaging/grub/theme.txt").read_text()
         self.assertIn('desktop-image: "background.png"', theme)
         self.assertIn('file = "logo.png"', theme)
-        self.assertIn('selected_item_color = "#78b8ff"', theme)
+        self.assertIn('selected_item_color = "#FF7E00"', theme)
         cfg = (ROOT / "packaging/live/grub.cfg").read_text()
         self.assertIn("if terminal_output gfxterm; then", cfg)
         self.assertEqual(cfg.count("menuentry "), 3)
