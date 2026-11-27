@@ -822,7 +822,9 @@ for entry in "${office_entries[@]}"; do
     test -s "/usr/local/share/applications/${entry##*/}"
     grep -Eq '^Exec=/usr/bin/localzet-office([[:space:]]|$)' "/usr/local/share/applications/${entry##*/}"
 done
-launch_app localzet-office 'DesktopEditors|onlyoffice-desktopeditors'
+# Do not prelaunch ONLYOFFICE without the fixture: it is single-instance, so a later
+# wrapper invocation could only forward the document to a renderer started with
+# a different GPU policy. The real wrapper launch happens below with the DOCX.
 cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash
 set -Eeuo pipefail
