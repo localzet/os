@@ -67,13 +67,16 @@ window.localzet-midnight {
 
 
 def apply_midnight(window):
-    """Keep the provider alive and react to system appearance changes."""
-    from gi.repository import Adw, Gtk
+    """Apply the dark Aurora surface only for dark/default preference.
+
+    Explicit light mode and high contrast remain owned by the desktop toolkit.
+    The Adw override is process-local; this never writes a system preference.
+    """
+    from gi.repository import Adw, Gio, Gtk
 
     style = Adw.StyleManager.get_default()
-    # Dark-first when the system has no preference, never force against
-    # explicit light preference. Preserve native high-contrast styling.
-    style.set_color_scheme(Adw.ColorScheme.PREFER_DARK)
+    interface = Gio.Settings.new("org.gnome.desktop.interface")
+    accessibility = Gio.Settings.new("org.gnome.desktop.a11y.interface")
     provider = Gtk.CssProvider()
     provider.load_from_data(MIDNIGHT_CSS)
     display = window.get_display()
@@ -81,7 +84,8 @@ def apply_midnight(window):
 
     def refresh(*_):
         nonlocal active
-        wanted = style.get_dark() and not style.get_high_contrast()
+        high_contrast = style.get_high_contrast() or accessibility.get_boolean("high-contrast")
+        wanted = style.get_dark() and not high_contrast
         if wanted == active:
             return
         if wanted:
@@ -93,17 +97,31 @@ def apply_midnight(window):
             window.remove_css_class("localzet-midnight")
         active = wanted
 
-    handlers = [style.connect("notify::dark", refresh),
-                style.connect("notify::high-contrast", refresh)]
+    def update_color_scheme(*_):
+        # Aurora is dark by default, but an explicit system light choice wins.
+        preference = interface.get_string("color-scheme")
+        scheme = (Adw.ColorScheme.PREFER_LIGHT if preference == "prefer-light"
+                  else Adw.ColorScheme.PREFER_DARK)
+        style.set_color_scheme(scheme)
+        refresh()
+
+    handlers = [
+        (style, style.connect("notify::dark", refresh)),
+        (style, style.connect("notify::high-contrast", refresh)),
+        (interface, interface.connect("changed::color-scheme", update_color_scheme)),
+        (accessibility, accessibility.connect("changed::high-contrast", refresh)),
+    ]
 
     def cleanup(*_):
         nonlocal active
-        for handler in handlers:
-            style.disconnect(handler)
+        for source, handler in handlers:
+            source.disconnect(handler)
         if active:
             Gtk.StyleContext.remove_provider_for_display(display, provider)
             active = False
+        window.remove_css_class("localzet-midnight")
 
     window.connect("destroy", cleanup)
+    update_color_scheme()
     refresh()
     return provider
