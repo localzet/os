@@ -6,7 +6,7 @@ import Clutter from 'gi://Clutter';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ExecutiveQuickActions} from './quick-actions.js';
-import {WallpaperGlass} from './wallpaper-glass.js';
+import {CompositorGlass} from './compositor-glass.js';
 
 const BASE = 'localzet-panel';
 const GLASS = 'localzet-panel-glass';
@@ -26,8 +26,11 @@ export class AuroraPanel {
         this._surfaces = [];
         this._quickActions = null;
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
+        this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._contrastId = this._settings.connect('changed::high-contrast', () => this._refresh());
-        this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1';
+        this._animationsId = this._interface.connect('changed::enable-animations', () => this._refresh());
+        this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1'
+            && this._interface.get_boolean('enable-animations');
         try {
             this._refresh();
         } catch (error) {
@@ -75,7 +78,7 @@ export class AuroraPanel {
                     if (open)
                         console.log('Localzet Surfaces: opened ' + name);
                 }) : 0;
-                const glass = this._glassEnabled && menu.box ? new WallpaperGlass(menu, name) : null;
+                const glass = this._glassEnabled ? new CompositorGlass(menu.actor, name) : null;
                 this._surfaces.push({actor: menu.actor, menu, signal, glass});
             }
         }
@@ -144,8 +147,10 @@ export class AuroraPanel {
 
     destroy() {
         this._settings.disconnect(this._contrastId);
+        this._interface.disconnect(this._animationsId);
         this._clear();
         this._panel = null;
         this._settings = null;
+        this._interface = null;
     }
 }
