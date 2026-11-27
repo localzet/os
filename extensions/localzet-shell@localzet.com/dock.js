@@ -5,17 +5,13 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {AuroraLauncher} from './launcher.js';
-import {wallpaperMaterial, wallpaperPath} from './wallpaper-glass.js';
+import {CompositorGlass} from './compositor-glass.js';
 
 export class LocalzetDock {
     constructor(path) {
         this._path = path;
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
         this._favorites = new Gio.Settings({schema_id: 'org.gnome.shell'});
-        this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
-        this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
-        this._materialPath = wallpaperPath();
-        this._materialActive = false;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -23,6 +19,7 @@ export class LocalzetDock {
         this._actor = new St.BoxLayout({
             style_class: 'localzet-dock', reactive: true, track_hover: true,
         });
+        this._glass = new CompositorGlass(this._actor, 'dock');
         this._anchor = new St.Button({
             style_class: 'localzet-dock-button localzet-dock-launcher', can_focus: true, reactive: true,
             track_hover: true, accessible_name: 'Приложения',
@@ -61,10 +58,7 @@ export class LocalzetDock {
         this._actor.add_child(this._trash);
 
         this._connections = [
-            [this._background, this._background.connect('changed', () => this._refreshMaterial())],
-            [this._interface, this._interface.connect('changed::color-scheme', () => this._refreshMaterial())],
             [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => this._schedule())],
-            [this._actor, this._actor.connect('notify::allocation', () => this._refreshMaterial())],
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
                 this._trash.set_child(new St.Icon({
@@ -228,24 +222,10 @@ export class LocalzetDock {
         this._actor.set_position(x, y);
         this._strut.set_position(monitor.x, y - 6);
         this._strut.set_size(monitor.width, height + 16);
-        this._refreshMaterial();
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
             console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
 
-    _refreshMaterial() {
-        if (!this._actor)
-            return;
-        const style = wallpaperMaterial(this._actor, this._background, this._interface, this._settings, this._materialPath);
-        const active = !!style;
-        if (this._actor.get_style() !== style)
-            this._actor.set_style(style);
-        if (active !== this._materialActive) {
-            this._actor[active ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-wallpaper');
-            this._materialActive = active;
-            console.log('Localzet Dock: material=' + (active ? 'wallpaper' : 'opaque'));
-        }
-    }
 
     toggleLauncher() {
         if (this._actor.visible)
@@ -259,6 +239,8 @@ export class LocalzetDock {
             object.disconnect(id);
         this._connections = [];
         this._launcher.destroy();
+        this._glass?.destroy();
+        this._glass = null;
         for (const id of this._rows.keys())
             this._removeRow(id);
         this._strut.destroy();
