@@ -14,8 +14,8 @@ const EFFECT = 'localzet-panel-background-blur';
 const SURFACE = 'localzet-system-surface';
 
 // Real compositor blur is enabled by default on supported GNOME sessions.
-// High contrast and LOCALZET_DISABLE_GLASS=1 use the opaque accessible fallback.
-// Rounded surfaces use wallpaper-only material only on an empty desktop.
+// High contrast uses the native accessible theme; reduced motion and
+// LOCALZET_DISABLE_GLASS=1 use opaque surfaces.
 export class AuroraPanel {
     constructor(dock, path) {
         this._dock = dock;
@@ -66,8 +66,12 @@ export class AuroraPanel {
         const quickSettings = this._panel.statusArea.quickSettings;
         if (quickSettings && Main.sessionMode.allowSettings && !Main.sessionMode.isLocked)
             this._quickActions = new ExecutiveQuickActions(quickSettings);
-        if (this._settings.get_boolean('high-contrast'))
+        if (this._settings.get_boolean('high-contrast')) {
+            console.log('Localzet Glass: panel opaque fallback (high-contrast)');
             return; // Respect native GNOME high-contrast styling.
+        }
+        if (!this._glassEnabled)
+            console.log('Localzet Glass: panel opaque fallback (reduced-motion or disabled)');
         this._panel.add_style_class_name(BASE);
         this._installNavigation();
         // Style only real upstream menus, leaving their input, authentication,
