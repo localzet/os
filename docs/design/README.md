@@ -573,3 +573,18 @@ Replace remaining outlined system app glyphs with original, optically distinct m
 ### Dusk and native system surface composition
 
 The e36c169 icon revision passed all actual GTK icon lookups and GNOME visual smoke. Deepen the existing licensed Alpine Dusk photograph with cooler shadows, lower highlight ceilings and a restrained warm horizon instead of an opaque overlay or synthetic scenery. Apply the same rounded wallpaper-only material to the real native Quick Settings and date menu when the existing empty-desktop guard permits it. Preserve and restore original inline styles rather than overwriting native menu ownership; opaque fallback and high contrast remain mandatory. No dynamic window blur, no change to actual power/network/notification behavior. The GNOME visual gate requires real menu activation and material markers while retaining the existing optical menu check. This is a source-level visual correction, not a pixel-match claim. Separately, d9ffd14 installed Telegram, rootless Docker and network preload passed; native ONLYOFFICE 44412584257 regressed (no document ink) while isolated X11 passed. Do not treat that matrix as release acceptance.
+
+
+### Aurora Professional palette restoration — 2026-11-27
+
+The owner-approved Violet × Ember palette is the current candidate baseline and
+supersedes the intermediate Midnight Blue, Soft Graphite and neutral Executive
+palette experiments recorded above. Those entries remain historical change
+notes, not active color specifications. The active values are the canonical
+`assets/design-tokens.json` tokens: violet `#9B72F2`, orange `#FF7E00`,
+deep background `#10091E`, surface `#28183F`, elevated surface
+`#34234F`, deep selection `#6436B5`, primary text `#F4EEFF` and
+secondary text `#B9A5D5`. Native GTK, Shell, lock, GRUB and Plymouth
+must derive their active appearance from these tokens. This restoration does
+not change functional acceptance gates or claim final visual approval; fresh
+installed-image captures and owner review remain required.
