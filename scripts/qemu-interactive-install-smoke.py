@@ -824,7 +824,8 @@ for entry in "${office_entries[@]}"; do
 done
 # Do not prelaunch ONLYOFFICE without the fixture: it is single-instance, so a later
 # wrapper invocation could only forward the document to a renderer started with
-# a different GPU policy. The real wrapper launch happens below with the DOCX.
+# a different GPU policy.
+# The real wrapper launch happens below with the DOCX.
 cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash
 set -Eeuo pipefail
