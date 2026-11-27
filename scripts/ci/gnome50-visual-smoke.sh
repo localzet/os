@@ -48,12 +48,37 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   wireplumber_pid=$!
   trap "kill $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
   sleep 3
-  # Configure before startup; do not race the extension manager's initial
-  # enable pass with another gnome-extensions enable request.
+  # Configure the session before GNOME creates the overview dash. Changing
+  # favorites or icon theme after startup can schedule Dash._adjustIconSize
+  # while a newly created app icon is unresolved (firstIcon.icon is null).
   gsettings set org.gnome.shell disable-user-extensions false || exit 1
   gsettings set org.gnome.shell enabled-extensions "['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']" || exit 1
-  # Devkit lacks the installed session's Settings portal. Use libadwaita's
-  # documented debug preference ONLY in this isolated test, never in ISO.
+  # Use the actual shipped wallpaper and approved Aurora appearance from the
+  # first frame; the devkit's default blue test background is not Aurora.
+  test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
+  test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
+  python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
+  wallpaper="file://$OUT/executive-dusk.jpg"
+  gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
+  gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
+  gsettings set org.gnome.desktop.background picture-options zoom || exit 1
+  gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
+  gsettings set org.gnome.desktop.interface accent-color purple || exit 1
+  gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
+  gsettings set org.gnome.nautilus.icon-view default-zoom-level small-plus || exit 1
+  gsettings set org.gnome.shell favorite-apps "['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']" || exit 1
+  install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
+  profile=4e6f25d9af1244aa896f5b028bf7a020
+  gsettings set org.gnome.Ptyxis profile-uuids "['$profile']" || exit 1
+  gsettings set org.gnome.Ptyxis default-profile-uuid "$profile" || exit 1
+  # The nested devkit lacks the full desktop settings portal. Test the dark
+  # palette explicitly here; the installed system follows the system preference.
+  gsettings set org.gnome.Ptyxis interface-style dark || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
+  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
+  test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
+  # Devkit lacks the installed session's Settings portal. This documented
+  # libadwaita preference is test-only and never enters the ISO.
   LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell --devkit --wayland > "$OUT/gnome-shell.log" 2>&1 &
   shell_pid=$!
   trap "kill $shell_pid $pipewire_pid $wireplumber_pid 2>/dev/null || true" EXIT
@@ -68,30 +93,6 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
     sleep 2
   done
   grep -Fxq localzet-shell@localzet.com "$OUT/extensions.txt" || { echo "Extension undiscoverable" >&2; exit 1; }
-  # Use the actual shipped wallpaper and leave the startup overview before
-  # capturing. The devkit's default blue test background is not Aurora.
-  test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
-  test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
-  python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
-  wallpaper="file://$OUT/executive-dusk.jpg"
-  gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
-  gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
-  gsettings set org.gnome.desktop.background picture-options zoom || exit 1
-  gsettings set org.gnome.desktop.interface color-scheme prefer-dark || exit 1
-  gsettings set org.gnome.desktop.interface accent-color blue || exit 1
-  gsettings set org.gnome.nautilus.icon-view default-zoom-level small-plus || exit 1
-  gsettings set org.gnome.desktop.interface icon-theme Aurora || exit 1
-  install -D -m 0644 "$PWD/assets/terminal/aurora.palette" "$HOME/.local/share/org.gnome.Ptyxis/palettes/aurora.palette" || exit 1
-  profile=4e6f25d9af1244aa896f5b028bf7a020
-  gsettings set org.gnome.Ptyxis profile-uuids "['$profile']" || exit 1
-  gsettings set org.gnome.Ptyxis default-profile-uuid "$profile" || exit 1
-  # The nested devkit lacks the full desktop settings portal. Test the dark
-  # palette explicitly here; the installed system follows the system preference.
-  gsettings set org.gnome.Ptyxis interface-style dark || exit 1
-  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" palette xterm || exit 1
-  gsettings set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/$profile/" label Aurora || exit 1
-  gsettings set org.gnome.shell favorite-apps "['org.gnome.Ptyxis.desktop', 'org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Settings.desktop']" || exit 1
-  test "$(gsettings get org.gnome.desktop.interface icon-theme)" = "'Aurora'" || exit 1
   sleep 16
   # Xvfb has no outer window manager; use direct focus rather than EWMH.
   xwininfo -root -tree > "$OUT/xwindows.txt"
@@ -295,6 +296,10 @@ PY
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
   if grep -F "Extension point conflict" "$OUT/gnome-shell.log"; then exit 1; fi
+  if grep -F "firstIcon.icon is null" "$OUT/gnome-shell.log"; then
+    echo "GNOME overview Dash attempted to size an unresolved application icon" >&2
+    exit 1
+  fi
   gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com || exit 1
   gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
   # The official Qt client registers its own tray menu. Do not create a second

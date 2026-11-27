@@ -1,4 +1,5 @@
 import json
+import re
 import importlib.util
 import tempfile
 from pathlib import Path
@@ -129,6 +130,24 @@ class AssetsTests(unittest.TestCase):
                                 module.render("code", "apps", "gvim"))
             with self.assertRaises(FileExistsError):
                 module.build(directory)
+
+    def test_visual_smoke_preloads_favorites_and_icon_theme(self):
+        script = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        shell_start = script.index("LOCALZET_EXPERIMENTAL_GLASS=1 gnome-shell")
+        self.assertLess(script.index("gsettings set org.gnome.desktop.interface icon-theme Aurora"), shell_start)
+        self.assertLess(script.index("gsettings set org.gnome.shell favorite-apps"), shell_start)
+        self.assertIn("gsettings set org.gnome.desktop.interface accent-color purple", script)
+        favorite_line = next(line for line in script.splitlines()
+                             if "gsettings set org.gnome.shell favorite-apps" in line)
+        favorites = re.findall(r"'([^']+\.desktop)'", favorite_line)
+        self.assertEqual(len(favorites), 5)
+        spec = importlib.util.spec_from_file_location("aurora_icons", ROOT / "scripts/build-aurora-icons.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        aliases = {name for names in module.GROUPS["apps"].values() for name in names.split()}
+        for app_id in favorites:
+            self.assertIn(app_id.removesuffix(".desktop"), aliases)
+        self.assertIn('grep -F "firstIcon.icon is null"', script)
 
     def test_grub_branding(self):
         theme = (ROOT / "packaging/grub/theme.txt").read_text()
