@@ -16,7 +16,10 @@ export function wallpaperPath() {
 }
 
 export function wallpaperMaterial(actor, background, settings, contrast, path) {
-        if (contrast.get_boolean('high-contrast') ||
+        // One switch must disable every glass surface, including wallpaper-only
+        // material on the dock and launcher, not just Shell.BlurEffect.
+        if (GLib.getenv('LOCALZET_DISABLE_GLASS') === '1' ||
+            contrast.get_boolean('high-contrast') ||
             Main.overview.visible || Main.layoutManager.monitors.length !== 1 ||
             St.ThemeContext.get_for_stage(global.stage).scale_factor !== 1)
             return null;
