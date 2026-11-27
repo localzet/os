@@ -20,6 +20,11 @@ done
 test -n "$window"
 sleep 3
 import -window "$window" "$OUT/window.png"
+dark_level="$(convert "$OUT/window.png" -format '%[fx:p{500,300}.r+p{500,300}.g+p{500,300}.b]' info:)"
+awk -v value="$dark_level" 'BEGIN { exit !(value < 0.6) }' || {
+    echo "Expected the GNOME prefer-dark surface, got RGB sum $dark_level" >&2
+    exit 1
+}
 # Exercise actual persistent navigation, even with no Docker daemon.
 for page in 2 3 4 5 1; do
     xdotool windowfocus "$window" key "ctrl+$page"
@@ -38,6 +43,11 @@ done
 gsettings set org.gnome.desktop.interface color-scheme prefer-light
 sleep 2
 import -window "$window" "$OUT/window-light.png"
+light_level="$(convert "$OUT/window-light.png" -format '%[fx:p{500,300}.r+p{500,300}.g+p{500,300}.b]' info:)"
+awk -v value="$light_level" 'BEGIN { exit !(value > 2.0) }' || {
+    echo "Explicit GNOME light preference was not applied; RGB sum $light_level" >&2
+    exit 1
+}
 kill -0 "$pid"
 ! grep -q 'Traceback (most recent call last)' "$OUT/app.log"
 GTK_TEST
