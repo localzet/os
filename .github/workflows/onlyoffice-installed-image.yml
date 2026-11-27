@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [native, software, fresh-profile, isolated-x11]
+        mode: [native, software-disable-gpu, fresh-profile, isolated-x11]
     steps:
       - uses: actions/checkout@v4
       - name: Validate source
