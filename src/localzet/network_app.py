@@ -27,7 +27,7 @@ def main():
             self.installing = False
 
         def do_activate(self):
-            from localzet.appearance import apply_midnight
+            from localzet.appearance import apply_midnight, palette_css
             if self.window:
                 self.window.present()
                 return
@@ -37,17 +37,17 @@ def main():
             self.window.set_size_request(680, 420)
             self.window.add_css_class("network-workspace")
             self.css = Gtk.CssProvider()
-            self.css.load_from_data(b"""
+            self.css.load_from_data(palette_css(b"""
                 .network-workspace .network-sidebar { padding: 12px 8px; border-right: 1px solid alpha(currentColor,.12); }
-                .localzet-midnight .network-sidebar { background-color: #343539; }
+                .localzet-midnight .network-sidebar { background-color: __SURFACE__; }
                 .network-workspace .network-sidebar button { padding: 8px 10px; border-radius: 6px; }
-                .network-workspace .network-sidebar button.selected { background-color: alpha(currentColor,.12); font-weight: 600; }
+                .network-workspace .network-sidebar button.selected { background-color: __SELECTION__; color: __TEXT__; font-weight: 600; }
                 .network-workspace .network-content { padding: 16px 20px; }
                 .network-workspace .network-heading { font-size: 21px; font-weight: 600; }
                 .network-workspace .network-actions { margin-top: 7px; }
                 .network-workspace .network-actions button { border-radius: 6px; min-height: 28px; }
                 .network-workspace .boxed-list > row { min-height: 44px; border-radius: 6px; }
-            """)
+            """))
             Gtk.StyleContext.add_provider_for_display(self.window.get_display(), self.css,
                                                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
             self.window.connect("close-request", lambda *_: self.installing)

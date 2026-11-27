@@ -13,7 +13,7 @@ def main() -> int:
     gi.require_version("Adw", "1")
     gi.require_version("Gtk", "4.0")
     from gi.repository import Adw, Gio, GLib, Gtk
-    from localzet.appearance import apply_midnight
+    from localzet.appearance import apply_professional
 
     class AppCenter(Adw.Application):
         def __init__(self):
@@ -33,13 +33,13 @@ def main() -> int:
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet — Приложения")
             self.window.add_css_class("localzet-app-workspace")
-            self.appearance = apply_midnight(self.window)
+            self.appearance = apply_professional(self.window)
             self.window.set_default_size(930, 620)
             self.window.set_size_request(720, 450)
             self.css = Gtk.CssProvider()
             self.css.load_from_data(b"""
                 .localzet-app-workspace .app-sidebar { padding: 10px 8px; border-right: 1px solid alpha(currentColor,.12); }
-                .localzet-midnight .app-sidebar { background-color: #292a2e; }
+                .localzet-midnight .app-sidebar { background-color: #28183F; }
                 .localzet-app-workspace .app-sidebar button { min-height: 24px; }
                 .localzet-app-workspace .app-list .boxed-list { border-radius: 6px; }
                 .localzet-app-workspace .app-list .boxed-list > row { border-radius: 4px; min-height: 46px; }
