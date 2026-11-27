@@ -21,6 +21,32 @@ class OnlyOfficeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.spec(data, "deb")
 
+
+    def test_source_mapping_and_redistribution_remain_blocked(self):
+        data = json.loads((ROOT / "config/upstream/onlyoffice.json").read_text())
+        source = data["source"]
+        self.assertEqual(source["mapping_status"], "unverified")
+        self.assertFalse(source["tag_signature_verified"])
+        self.assertGreater(source["tag_commit_date"], source["release_published_at"])
+        self.assertEqual(
+            {item["path"] for item in source["submodules"]},
+            {"core", "desktop-apps", "desktop-sdk", "dictionaries", "sdkjs", "web-apps"},
+        )
+        self.assertEqual(data["licensing"]["application"], "AGPL-3.0-only")
+        self.assertEqual(data["licensing"]["artwork"], "CC-BY-SA-4.0")
+        self.assertIn("blocked", data["licensing"]["redistribution_status"])
+        self.assertFalse(data["updates"]["automatic"])
+        self.assertFalse(data["updates"]["full_key_fingerprint_verified"])
+
+        tampered = json.loads(json.dumps(data))
+        tampered["source"]["submodules"][0]["commit"] = "not-a-commit"
+        with self.assertRaisesRegex(ValueError, "submodule"):
+            module.spec(tampered, "deb")
+        tampered = json.loads(json.dumps(data))
+        tampered["source"]["mapping_status"] = "verified"
+        with self.assertRaisesRegex(ValueError, "engineering state"):
+            module.spec(tampered, "deb")
+
     def test_exact_bytes(self):
         with tempfile.TemporaryDirectory() as temp:
             file = Path(temp) / "fixture"

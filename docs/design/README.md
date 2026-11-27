@@ -40,7 +40,7 @@ Real glass means compositor-backed background sampling/blur, restrained tint,
 directional highlights and depth, optionally measured performant refraction.
 Opaque fallback is preferable to cheap alpha-only imitation. Keep long-form
 content and tables readable. Do not use web backdrop-filter syntax in Shell.
-Verify on real GPU and software rendering, varied backgrounds and scaling.
+Verify on real GPU and software rendering, varied backgrounds and scaling. The top panel uses GNOME Shell compositor blur by default when supported; high contrast and `LOCALZET_DISABLE_GLASS=1` force an opaque fallback. Wallpaper-only material is applied only on an empty desktop and never captures windows.
 
 ### Desktop and system UX
 
@@ -116,17 +116,30 @@ Track changes to exact design and scope in pull requests. Any change of
 brand colors or major navigation requires owner review. Engineering
 screenshots and automated tests are necessary but not sufficient for release.
 
-### Current glass experiment (not release acceptance)
+### Current glass implementation (visual acceptance pending)
 
-`panel.js` introduces the rectangular native top bar background effect using
-`Shell.BlurEffect` in BACKGROUND mode. Default remains opaque until real
-pixels, damage/repaint, performance and contrast are verified; only the
-GNOME devkit CI session enables `LOCALZET_EXPERIMENTAL_GLASS=1`. High-contrast
-mode reverts to native GNOME styling. CI captures before the phone test and
-exercises disable/enable. The effect-creation marker is not a visual proof.
-Rounded dock/popovers require a proper mask, not a rectangular blur leaking
-outside rounded corners. No global redraw hacks, no forced transparency on
-third-party windows. See upstream API:
+`panel.js` creates GNOME Shell's native `Shell.BlurEffect` in BACKGROUND
+mode by default when the compositor supports it. A failed effect creation
+falls back to the opaque Violet surface; native high-contrast mode and
+`LOCALZET_DISABLE_GLASS=1` also disable the compositor effect.
+
+Rounded dock, launcher and native menus use a separate **wallpaper-only**
+material: a pre-blurred derivative of the exact bundled wallpaper, aligned
+to the monitor crop. It is applied only with the matching wallpaper and zoom
+mode, one monitor at scale 1, and no visible windows on the active workspace.
+It never captures or samples windows, passwords, screens or other content.
+The same `LOCALZET_DISABLE_GLASS=1` switch disables this material too; any
+unsupported wallpaper, scale, monitor layout, high-contrast setting or
+visible window uses the opaque fallback. No alpha-only imitation is used.
+
+The GNOME devkit sets `LOCALZET_EXPERIMENTAL_GLASS=1` only for deterministic
+test-wallpaper selection and diagnostic markers; that variable does not
+enable production blur. CI checks the native effect marker, wallpaper detail
+reduction, state transitions and high-contrast fallback. These are not proof
+of physical-GPU performance, multi-monitor/HiDPI behavior or final visual
+acceptance. The exact installed ISO still needs real screenshots and GPU
+testing. Rounded clipping and repaint behavior remain subject to inspection.
+No global redraw hacks or forced transparency on third-party windows. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
 ### Boot branding implementation
@@ -549,3 +562,42 @@ navigation and tab switching. Light and high contrast still require
 distinct grid/list captures and native navigation. No user preference is
 changed by the shipped image; this is a disposable runner test only.
 The current installed office diagnostic remains in progress on PR100.
+
+### Reference correction — unified desktop material and command hub
+
+The owner explicitly rejected the latest graphite panel/dock review. The stored written reference specifies a compact central dock and a four-column catalogue, identifiable color icons, softened layered material and a mountain/lake dusk composition. The original PNG is not available in the current repository, so this is a design iteration from the recorded specification, not a pixel match. Reuse the optically verified wallpaper-only material for both launcher and dock at their actual allocation; switch to opaque with a visible window, unsupported wallpaper, scale, monitor layout or high contrast. Larger 36px dock icons and 40px launcher icons remain compact; four rows fit normal desktop heights, with distinct sidebar, two-line labels and real software center entry. Preserve native panel, authentic application actions and lock behavior. The visual test must observe the dock material transition and retain the actual optical menu test. No dynamic compositor glass or final owner approval claimed.
+
+### Network workspace — actual application composition
+
+The c2f436f visual gate passed (44414495397, optical ratio .031), but the actual Network capture shows a long single settings form with stacked buttons and excessive scrolling. Recompose into a fixed navigation sidebar and three real views (NetBird VPN, UserNet proxy, system/install status), compact horizontal actions, common visible provisioning feedback and Ctrl+1/2/3 navigation. No fabricated status, enrollment or privileged policy changes; preserve actual asynchronous status and install behavior. Improve launcher two-line label height. Native GTK screenshot/navigation acceptance is required before integration; no final design claim.
+
+### Containers Soft Graphite correction
+
+The native Containers window still overrode the common appearance with the old navy palette. Align actual table/header/sidebar/detail surfaces to Files and Network; use restrained selection, a fixed 176px sidebar, compact table rows and smaller default workspace. Existing Docker commands, authorization and data retrieval are unchanged. Network 44415387599 navigated all three pages and produced real screenshots, but its Xvfb session lacked the accessibility bus and the log filter misidentified a GDBus warning as an exception. Use the existing CI-only GTK_A11Y=none convention and reject actual Python exceptions/critical messages; never disable accessibility in shipped apps. Require all three captures explicitly. Visual acceptance remains pending.
+
+### Windows Runtime workspace
+
+Move the real EXE/MSI launch form ahead of optional Office links, and separate saved shortcuts and licensed Office information into their own native pages. Match the 176px graphite navigation/sidebar and shared status footer of Network. Selection from the saved library returns to the launch page with the trust confirmation reset; no autorun, no installation or compatibility claim, no activation changes. All existing Wine planning and shortcut safety rules remain in place. Test genuine GTK navigation and screenshots; backend Wine fixture acceptance is independent.
+
+### Icon family — distinct material subjects
+
+Replace remaining outlined system app glyphs with original, optically distinct material silhouettes for camera, calendar, clock, mail, VMs, scanner, printer, installer, help, optical media, desktop, office documents, graphics, torrent, chat and game controller. AI Workspace no longer shares the generic code glyph. Do not override the installed upstream VLC/GIMP/qBittorrent/UserNet brand icon names; original neutral catalog aliases are available instead. Keep the 64-unit grid, blue folders, silver devices and authentic upstream branding. Native GTK icon review now displays 36 samples at 48px and source tests check both new material coverage and brand exclusions. Use localized concise first-party launcher names while retaining original accessible and searchable application identity. Visual review remains pending.
+
+### Dusk and native system surface composition
+
+The e36c169 icon revision passed all actual GTK icon lookups and GNOME visual smoke. Deepen the existing licensed Alpine Dusk photograph with cooler shadows, lower highlight ceilings and a restrained warm horizon instead of an opaque overlay or synthetic scenery. Apply the same rounded wallpaper-only material to the real native Quick Settings and date menu when the existing empty-desktop guard permits it. Preserve and restore original inline styles rather than overwriting native menu ownership; opaque fallback and high contrast remain mandatory. No dynamic window blur, no change to actual power/network/notification behavior. The GNOME visual gate requires real menu activation and material markers while retaining the existing optical menu check. This is a source-level visual correction, not a pixel-match claim. Separately, d9ffd14 installed Telegram, rootless Docker and network preload passed; native ONLYOFFICE 44412584257 regressed (no document ink) while isolated X11 passed. Do not treat that matrix as release acceptance.
+
+
+### Aurora Professional palette restoration — 2026-11-27
+
+The owner-approved Violet × Ember palette is the current candidate baseline and
+supersedes the intermediate Midnight Blue, Soft Graphite and neutral Executive
+palette experiments recorded above. Those entries remain historical change
+notes, not active color specifications. The active values are the canonical
+`assets/design-tokens.json` tokens: violet `#9B72F2`, orange `#FF7E00`,
+deep background `#10091E`, surface `#28183F`, elevated surface
+`#34234F`, deep selection `#6436B5`, primary text `#F4EEFF` and
+secondary text `#B9A5D5`. Native GTK, Shell, lock, GRUB and Plymouth
+must derive their active appearance from these tokens. This restoration does
+not change functional acceptance gates or claim final visual approval; fresh
+installed-image captures and owner review remain required.

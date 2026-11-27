@@ -9,8 +9,19 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {WallpaperGlass} from './wallpaper-glass.js';
 
 const MAX_COLUMNS = 4;
-const TILE_WIDTH = 84;
-const TILE_HEIGHT = 72;
+const TILE_WIDTH = 96;
+const TILE_HEIGHT = 82;
+const SHORT_NAMES = {
+    'com.localzet.Apps.desktop': 'Приложения',
+    'com.localzet.Settings.desktop': 'Компоненты',
+    'com.localzet.Hardware.desktop': 'Оборудование',
+    'com.localzet.Containers.desktop': 'Контейнеры',
+    'com.localzet.Network.desktop': 'Сеть',
+    'com.localzet.WindowsRuntime.desktop': 'Windows Runtime',
+    'com.localzet.Connect.desktop': 'Телефон',
+    'com.localzet.AIWorkspace.desktop': 'AI Workspace',
+};
+const displayName = app => SHORT_NAMES[app.get_id()] ?? app.get_name();
 const FILTERS = [
     ['all', 'Все', []],
     ['system', 'Система', ['System', 'Settings']],
@@ -85,6 +96,13 @@ export class AuroraLauncher {
         content.add_child(main);
         this._body.add_child(content);
         const footer = new St.BoxLayout({style_class: 'localzet-launcher-footer'});
+        const catalog = this._appSystem.lookup_app('com.localzet.Apps.desktop');
+        if (catalog) {
+            const appsButton = new St.Button({label: 'Центр приложений', can_focus: true,
+                style_class: 'localzet-launcher-overview'});
+            appsButton.connect('clicked', () => this._activate(catalog));
+            footer.add_child(appsButton);
+        }
         const overview = new St.Button({label: 'Рабочие пространства', can_focus: true,
             style_class: 'localzet-launcher-overview'});
         overview.connect('clicked', () => { this.close(); Main.overview.show(); });
@@ -117,7 +135,7 @@ export class AuroraLauncher {
                 this._category = 'all';
                 const monitor = Main.layoutManager.primaryMonitor;
                 this._columns = Math.max(2, Math.min(MAX_COLUMNS, Math.floor(((monitor?.width ?? 800) - 248) / TILE_WIDTH)));
-                this._body.set_width(188 + this._columns * TILE_WIDTH);
+                this._body.set_width(190 + this._columns * TILE_WIDTH);
                 this._entry.set_text('');
                 this._refresh();
                 global.stage.set_key_focus(this._entry.clutter_text);
@@ -191,7 +209,7 @@ export class AuroraLauncher {
             const tags = (info.get_categories() ?? '').split(';');
             if (!query && categories.length && !categories.some(tag => tags.includes(tag)))
                 return false;
-            const text = [app.get_name(), info.get_generic_name(), info.get_description(), app.get_id(), ...(info.get_keywords?.() ?? [])]
+            const text = [app.get_name(), displayName(app), info.get_generic_name(), info.get_description(), app.get_id(), ...(info.get_keywords?.() ?? [])]
                 .filter(Boolean).join(' ').toLocaleLowerCase();
             return query.split(/\s+/).every(word => text.includes(word));
         }).sort((a, b) => favoriteRank(a) - favoriteRank(b) || a.get_name().localeCompare(b.get_name()));
@@ -203,7 +221,7 @@ export class AuroraLauncher {
         this._firstResult = null;
         this._list.destroy_all_children();
         const monitor = Main.layoutManager.primaryMonitor;
-        const rows = Math.max(2, Math.min(3, Math.floor(((monitor?.height ?? 720) - 250) / TILE_HEIGHT)));
+        const rows = Math.max(2, Math.min(4, Math.floor(((monitor?.height ?? 720) - 290) / TILE_HEIGHT)));
         this._scroll.set_height(rows * TILE_HEIGHT);
         let row;
         for (const [index, app] of this._results.entries()) {
@@ -213,16 +231,17 @@ export class AuroraLauncher {
             }
             const tile = new St.BoxLayout({vertical: true, style_class: 'localzet-launcher-tile',
                 x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
-            const icon = app.create_icon_texture(34);
+            const icon = app.create_icon_texture(40);
             icon.set_x_align(Clutter.ActorAlign.CENTER);
             tile.add_child(icon);
-            const label = new St.Label({text: app.get_name(), style_class: 'localzet-launcher-label',
+            const label = new St.Label({text: displayName(app), style_class: 'localzet-launcher-label',
                 x_align: Clutter.ActorAlign.CENTER});
-            label.set_width(74);
-            label.set_height(26);
+            label.set_width(88);
+            label.set_height(34);
             label.clutter_text.set_line_alignment(Pango.Alignment.CENTER);
             label.clutter_text.set_line_wrap(true);
             label.clutter_text.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR);
+            label.clutter_text.set_single_line_mode(false);
             label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
             tile.add_child(label);
             const button = new St.Button({child: tile, can_focus: true, reactive: true,

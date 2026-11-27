@@ -51,3 +51,8 @@ The combined 239fcc5 image failed at managed rootless Docker before Office (4434
 ## Normal menu and document launch
 
 The native installed diagnostic on product-next b8a23a8 (44384520726) rendered the DOCX heading (1399 matching pixels), passed Wine and lock checks; repeated software/fresh-profile variants did not render, so the success is not yet a stability guarantee. The target now installs /usr/bin/localzet-office only when the actual vendor editor is installed, using the exact successful process-local X11 and C.UTF-8 environment, keeping the vendor sandbox and acceleration. This scopes locale to the editor process (the system locale is unchanged; editor language preference remains a separate review). A /usr/local/share/applications override retains the original vendor desktop ID, MIME associations and known desktop action arguments, leaves vendor files intact and rejects unknown Exec commands. Installed tests invoke the real product launcher; the catalog falls back to vendor executable for manually installed editions. Redistribution remains pending.
+
+
+## Public ISO artifact gate
+
+The current pinned 10.0.0-169 DEB has an unverified corresponding-source mapping and no verified update channel. The unified Complete RC may install it only in disposable CI and run the real installed-image tests. The public workflow must not upload an ISO containing this package: it uploads test evidence, inventory and the exact ISO checksum only. The ISO artifact is enabled only when the upstream source mapping, redistribution status and supported update channel are explicitly marked verified in the manifest. This is an artifact-distribution gate, not a waiver of the owner-approved ONLYOFFICE requirement.

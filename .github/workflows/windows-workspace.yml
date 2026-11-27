@@ -1,0 +1,59 @@
+name: Windows Executive workspace
+on:
+  pull_request:
+    paths:
+      - 'src/localzet/windows_app.py'
+      - 'src/localzet/appearance.py'
+      - '.github/workflows/windows-workspace.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native workspace prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 xvfb xauth dbus-x11 xdotool imagemagick openbox python3-pil
+          mkdir -p out/windows-workspace
+      - name: Verify native launch, library and Office navigation
+        run: |
+          xvfb-run -a -s '-screen 0 1280x900x24' dbus-run-session -- bash -euo pipefail -c '
+            openbox >out/windows-workspace/wm.log 2>&1 &
+            wm=$!
+            export XDG_DATA_HOME="$(mktemp -d)"
+            PYTHONPATH=src GDK_BACKEND=x11 GTK_A11Y=none ADW_DEBUG_COLOR_SCHEME=prefer-dark /usr/bin/python3 -m localzet.windows_app >out/windows-workspace/gui.log 2>&1 &
+            pid=$!
+            trap "kill $pid $wm 2>/dev/null || true" EXIT
+            window=$(timeout 35 xdotool search --sync --onlyvisible --name "Localzet Windows Runtime" | head -n1)
+            sleep 3
+            for entry in "1:Запуск:launch" "2:Библиотека:library" "3:Office:office"; do
+              IFS=: read -r key title file <<< "$entry"
+              xdotool windowactivate --sync "$window" key "ctrl+$key"
+              sleep 1
+              xdotool getwindowname "$window" | grep -F "$title"
+              import -window "$window" "out/windows-workspace/$file.png"
+            done
+            kill -0 "$pid"
+            if grep -E "Traceback|CRITICAL|(^|[[:space:]])(TypeError|RuntimeError|ValueError|NameError|AttributeError):" out/windows-workspace/gui.log; then exit 1; fi
+            test -z "$(find "$XDG_DATA_HOME" -name system.reg -print)"
+          '
+          python3 - <<'PY'
+          from PIL import Image, ImageStat
+          from pathlib import Path
+          paths = list(Path("out/windows-workspace").glob("*.png"))
+          assert {p.stem for p in paths} == {"launch", "library", "office"}
+          for path in paths:
+              with Image.open(path) as image:
+                  assert image.width >= 700 and image.height >= 460
+                  assert max(ImageStat.Stat(image.convert("RGB")).stddev) > 10, path
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: executive-windows-workspace
+          path: out/windows-workspace/
+          retention-days: 7

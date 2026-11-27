@@ -1,12 +1,54 @@
-#!/bin/sh
-# Scoped compatibility for the reviewed native ONLYOFFICE package.
-# Do not modify the desktop session, GPU policy or vendor sandbox.
-set -eu
-if [ "$(id -u)" = 0 ]; then
-    echo "ONLYOFFICE requires an ordinary desktop user" >&2
-    exit 2
-fi
-export QT_QPA_PLATFORM=xcb GDK_BACKEND=x11
-export LANG=C.UTF-8 LC_ALL=C.UTF-8
-unset WAYLAND_DISPLAY
-exec /usr/bin/onlyoffice-desktopeditors "$@"
+#!/usr/bin/env python3
+"""Scoped ONLYOFFICE launcher with a narrow virtio-GPU compatibility fallback.
+
+The upstream renderer remains untouched on physical GPUs.  QEMU's virtio
+GPU path is known to leave the editor on a loading skeleton; ONLY on that
+PCI device class, disable Chromium GPU acceleration for this process.
+This does not disable the Chromium sandbox or change other applications.
+"""
+from pathlib import Path
+import os
+import sys
+
+EDITOR = "/usr/bin/onlyoffice-desktopeditors"
+PCI_SYSFS = Path("/sys/bus/pci/devices")
+
+
+def has_virtio_gpu(sysfs_root: Path = PCI_SYSFS) -> bool:
+    try:
+        devices = tuple(sysfs_root.iterdir())
+    except OSError:
+        return False
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii").strip().lower()
+            pci_class = (device / "class").read_text(encoding="ascii").strip().lower()
+        except OSError:
+            continue
+        if vendor == "0x1af4" and pci_class.startswith("0x03"):
+            return True
+    return False
+
+
+def command_for(arguments: list[str], sysfs_root: Path = PCI_SYSFS) -> list[str]:
+    command = [EDITOR]
+    if has_virtio_gpu(sysfs_root) and "--disable-gpu" not in arguments:
+        command.append("--disable-gpu")
+    return command + list(arguments)
+
+
+def main() -> None:
+    if os.getuid() == 0:
+        print("ONLYOFFICE requires an ordinary desktop user", file=sys.stderr)
+        raise SystemExit(2)
+    os.environ["QT_QPA_PLATFORM"] = "xcb"
+    os.environ["GDK_BACKEND"] = "x11"
+    os.environ["LANG"] = "C.UTF-8"
+    os.environ["LC_ALL"] = "C.UTF-8"
+    os.environ.pop("WAYLAND_DISPLAY", None)
+    command = command_for(sys.argv[1:])
+    os.execv(EDITOR, command)
+
+
+if __name__ == "__main__":
+    main()

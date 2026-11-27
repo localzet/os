@@ -16,7 +16,7 @@ dbus-run-session -- bash -eu -c '
       cat out/settings/application.log >&2
       exit 1
     fi
-    if xdotool search --name "Localzet Settings" > out/settings/windows.txt 2>/dev/null; then
+    if xdotool search --name "Компоненты Localzet" > out/settings/windows.txt 2>/dev/null; then
       found=1
       break
     fi
@@ -32,15 +32,15 @@ dbus-run-session -- bash -eu -c '
   window=$(head -n 1 out/settings/windows.txt)
   xdotool windowfocus --sync "$window" key ctrl+2
   sleep 2
-  grep -F "Localzet Settings: page=modules" out/settings/application.log
+  grep -F "Localzet Components: page=modules" out/settings/application.log
   import -window root out/settings/modules.png
   xdotool key ctrl+3
   sleep 2
-  grep -F "Localzet Settings: page=system" out/settings/application.log
+  grep -F "Localzet Components: page=system" out/settings/application.log
   import -window root out/settings/system.png
   xdotool key ctrl+1
   sleep 1
-  test "$(grep -F "Localzet Settings: page=" out/settings/application.log | tail -n 1)" = "Localzet Settings: page=home"
+  test "$(grep -F "Localzet Components: page=" out/settings/application.log | tail -n 1)" = "Localzet Components: page=home"
   ! grep -E "Traceback|Gtk-CRITICAL|Theme parser error" out/settings/application.log
   python3 - <<'"'"'PY'"'"'
 from pathlib import Path
@@ -52,16 +52,21 @@ if len(set(im.resize((80, 50)).getdata())) < 20:
     raise SystemExit("Blank/undrawn GTK window")
 from collections import Counter
 pixels = Counter(im.getdata())
-for color in ("202124", "292a2e", "343539"):
+# Match the current owner-approved Aurora Professional Violet × Ember
+# surfaces, not the superseded Soft Graphite palette.
+required = {
+    "10091E": 10000,  # deep window background
+    "28183F": 1000,   # sidebar/card surface
+    "34234F": 1000,   # elevated rows and controls
+    "6436B5": 100,    # selected navigation
+    "F4EEFF": 100,    # primary foreground
+    "B9A5D5": 20,     # secondary foreground
+}
+for color, minimum in required.items():
     count = pixels[tuple(bytes.fromhex(color))]
-    print("Soft Graphite", color, "pixels:", count)
-    if count < 1000:
-        raise SystemExit("Missing actual Soft Graphite surface: " + color)
-# Secondary text must not fade into the card background.
-secondary = pixels[tuple(bytes.fromhex("c4c5ca"))]
-print("Executive secondary text pixels:", secondary)
-if secondary < 20:
-    raise SystemExit("Secondary text did not render with the intended contrast")
+    print("Aurora Professional", "#" + color, "pixels:", count)
+    if count < minimum:
+        raise SystemExit("Missing actual Aurora Professional surface/text: #" + color)
 print("GTK window captured", im.size)
 PY
 '

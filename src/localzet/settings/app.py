@@ -1,4 +1,4 @@
-"""Localzet Settings: native GTK4/libadwaita app, not an installer.
+"""Localzet Components: native GTK4/libadwaita app, not an installer.
 
 The only actions here launch predefined unprivileged system applications.
 Not-yet-implemented modules have informational rows, never fake switches.
@@ -123,7 +123,7 @@ def main() -> int:
                 return
             name = row.get_name()
             self.stack.set_visible_child_name(name)
-            print("Localzet Settings: page=" + name, flush=True)
+            print("Localzet Components: page=" + name, flush=True)
 
         def do_activate(self):
             from localzet.appearance import apply_midnight
@@ -131,7 +131,7 @@ def main() -> int:
                 self.window.present()
                 return
             self.window = Adw.ApplicationWindow(
-                application=self, title="Localzet Settings",
+                application=self, title="Компоненты Localzet",
             )
             self.appearance = apply_midnight(self.window)
             self.window.set_default_size(1000, 700)
@@ -144,13 +144,13 @@ def main() -> int:
                 (self._system_page(), "system", "О системе", "computer-symbolic", "Сведения о текущей системе"),
             )
             self.nav = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
-            self.nav.add_css_class("executive-nav")
+            self.nav.add_css_class("localzet-settings-nav")
             self.nav_rows = {}
             for page, name, title, icon, detail in pages:
                 content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
                 heading = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4,
                                   margin_top=20, margin_bottom=4, margin_start=28, margin_end=28)
-                heading.add_css_class("executive-page-heading")
+                heading.add_css_class("localzet-settings-page-heading")
                 title_label = Gtk.Label(label=title, xalign=0)
                 title_label.add_css_class("title-1")
                 heading.append(title_label)
@@ -172,14 +172,14 @@ def main() -> int:
                 self.nav_rows[name] = row
             self.nav.connect("row-selected", self._navigate)
             sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-            sidebar.add_css_class("executive-sidebar")
+            sidebar.add_css_class("localzet-settings-sidebar")
             sidebar.set_size_request(212, -1)
             brand = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3,
                             margin_top=18, margin_start=16, margin_end=16)
             label = Gtk.Label(label="Localzet OS", xalign=0)
             label.add_css_class("title-2")
             brand.append(label)
-            caption = Gtk.Label(label="Aurora · Executive", xalign=0)
+            caption = Gtk.Label(label="Aurora Professional", xalign=0)
             caption.add_css_class("dim-label")
             brand.append(caption)
             sidebar.append(brand)
@@ -195,7 +195,7 @@ def main() -> int:
             self.stack.set_hexpand(True)
             layout.append(self.stack)
             header = Adw.HeaderBar()
-            header.set_title_widget(Adw.WindowTitle(title="Настройки Localzet", subtitle=""))
+            header.set_title_widget(Adw.WindowTitle(title="Компоненты Localzet", subtitle=""))
             toolbar = Adw.ToolbarView()
             toolbar.add_top_bar(header)
             toolbar.set_content(layout)

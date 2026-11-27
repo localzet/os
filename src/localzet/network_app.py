@@ -16,7 +16,7 @@ def main():
     import gi
     gi.require_version("Gtk", "4.0")
     gi.require_version("Adw", "1")
-    from gi.repository import Adw, Gio, GLib, Gtk
+    from gi.repository import Adw, Gio, GLib, GObject, Gtk
 
     class Network(Adw.Application):
         def __init__(self):
@@ -33,7 +33,23 @@ def main():
                 return
             self.window = Adw.ApplicationWindow(application=self, title="Localzet Network")
             self.appearance = apply_midnight(self.window)
-            self.window.set_default_size(740, 720)
+            self.window.set_default_size(940, 580)
+            self.window.set_size_request(680, 420)
+            self.window.add_css_class("network-workspace")
+            self.css = Gtk.CssProvider()
+            self.css.load_from_data(b"""
+                .network-workspace .network-sidebar { padding: 12px 8px; border-right: 1px solid alpha(currentColor,.12); }
+                .localzet-midnight .network-sidebar { background-color: #343539; }
+                .network-workspace .network-sidebar button { padding: 8px 10px; border-radius: 6px; }
+                .network-workspace .network-sidebar button.selected { background-color: alpha(currentColor,.12); font-weight: 600; }
+                .network-workspace .network-content { padding: 16px 20px; }
+                .network-workspace .network-heading { font-size: 21px; font-weight: 600; }
+                .network-workspace .network-actions { margin-top: 7px; }
+                .network-workspace .network-actions button { border-radius: 6px; min-height: 28px; }
+                .network-workspace .boxed-list > row { min-height: 44px; border-radius: 6px; }
+            """)
+            Gtk.StyleContext.add_provider_for_display(self.window.get_display(), self.css,
+                                                       Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
             self.window.connect("close-request", lambda *_: self.installing)
             toolbar = Adw.ToolbarView()
             header = Adw.HeaderBar()
@@ -41,7 +57,58 @@ def main():
             self.refresh_button.connect("clicked", lambda *_: self.refresh())
             header.pack_end(self.refresh_button)
             toolbar.add_top_bar(header)
-            page = Adw.PreferencesPage()
+            header.set_title_widget(Adw.WindowTitle(title="Сеть", subtitle="Localzet Network"))
+            workspace = Gtk.Box()
+            sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, width_request=176)
+            sidebar.set_hexpand(False)
+            sidebar.add_css_class("network-sidebar")
+            label = Gtk.Label(label="ПОДКЛЮЧЕНИЯ", xalign=0, margin_start=9, margin_bottom=8)
+            label.add_css_class("dim-label")
+            sidebar.append(label)
+            workspace.append(sidebar)
+            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, hexpand=True)
+            content.add_css_class("network-content")
+            workspace.append(content)
+            self.heading = Gtk.Label(xalign=0)
+            self.heading.add_css_class("network-heading")
+            content.append(self.heading)
+            self.description = Gtk.Label(xalign=0, wrap=True)
+            self.description.add_css_class("dim-label")
+            content.append(self.description)
+            self.stack = Gtk.Stack(vexpand=True, hexpand=True)
+            content.append(self.stack)
+            self.nav = {}
+            sections = (
+                ("vpn", "Частная сеть", "NetBird · VPN и узлы", "network-vpn-symbolic"),
+                ("proxy", "Прокси", "UserNet · системные параметры", "network-workgroup-symbolic"),
+                ("system", "Система", "Установка клиентов и настройки адаптеров", "preferences-system-network-symbolic"),
+            )
+            pages = {}
+            for index, (key, title, description, icon) in enumerate(sections, 1):
+                button = Gtk.Button()
+                button.add_css_class("flat")
+                box = Gtk.Box(spacing=9)
+                box.append(Gtk.Image.new_from_icon_name(icon))
+                box.append(Gtk.Label(label=title, xalign=0, hexpand=True))
+                button.set_child(box)
+                button.connect("clicked", lambda _button, selected=key: self.navigate(selected))
+                sidebar.append(button)
+                self.nav[key] = (button, title, description)
+                action = Gio.SimpleAction.new("section-" + str(index), None)
+                action.connect("activate", lambda *_args, selected=key: self.navigate(selected))
+                self.add_action(action)
+                self.set_accels_for_action("app.section-" + str(index), ["<Control>" + str(index)])
+                scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
+                page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16,
+                               margin_bottom=8, margin_end=6)
+                scroll.set_child(page)
+                self.stack.add_named(scroll, key)
+                pages[key] = page
+            sidebar.append(Gtk.Box(vexpand=True))
+            note = Gtk.Label(label="NetBird · UserNet\nLocalzet OS", xalign=0, margin_start=9)
+            note.add_css_class("dim-label")
+            sidebar.append(note)
+            page = pages["vpn"]
             group = Adw.PreferencesGroup(title="Частная сеть · NetBird",
                 description="Подключение, профили, DNS и маршруты настраиваются в оригинальном клиенте.")
             self.row = Adw.ActionRow(title="Статус", subtitle="Проверка…")
@@ -51,14 +118,19 @@ def main():
             group.add(self.peer_row)
             self.open_button = Gtk.Button(label="Открыть NetBird", halign=Gtk.Align.START)
             self.open_button.connect("clicked", self.open_client)
-            group.add(self.open_button)
             self.install_netbird = Gtk.Button(label="Установить NetBird", halign=Gtk.Align.START)
             self.install_netbird.connect("clicked", lambda *_: self.provision("netbird"))
-            group.add(self.install_netbird)
             link = Gtk.LinkButton(uri="https://docs.netbird.io/get-started/install/linux",
-                                  label="Официальная установка NetBird", halign=Gtk.Align.START)
-            group.add(link)
-            page.add(group)
+                                  label="Документация", halign=Gtk.Align.START)
+            page.append(group)
+            vpn_actions = Gtk.Box(spacing=8, halign=Gtk.Align.START)
+            vpn_actions.add_css_class("network-actions")
+            self.install_netbird.add_css_class("suggested-action")
+            vpn_actions.append(self.open_button)
+            vpn_actions.append(self.install_netbird)
+            vpn_actions.append(link)
+            page.append(vpn_actions)
+            page = pages["proxy"]
             proxy = Adw.PreferencesGroup(title="UserNet · системный прокси",
                 description="Оригинальный клиент UserNet управляет Mihomo. Состояние прокси не подтверждает активный туннель.")
             self.proxy_row = Adw.ActionRow(title="Режим GNOME", subtitle="Проверка…")
@@ -67,32 +139,56 @@ def main():
             proxy.add(self.endpoint_row)
             self.usernet_button = Gtk.Button(label="Открыть UserNet", halign=Gtk.Align.START)
             self.usernet_button.connect("clicked", self.open_usernet)
-            proxy.add(self.usernet_button)
             self.install_usernet = Gtk.Button(label="Установить UserNet", halign=Gtk.Align.START)
             self.install_usernet.connect("clicked", lambda *_: self.provision("usernet"))
-            proxy.add(self.install_usernet)
-            proxy.add(Gtk.LinkButton(uri="https://github.com/localzet/UserNet/releases",
-                                     label="Официальные релизы UserNet", halign=Gtk.Align.START))
+
             self.warning = Adw.ActionRow(title="Совместная работа VPN и прокси",
                 subtitle="Proxy Only не применяется. Маршруты и DNS не изменяются автоматически.")
             proxy.add(self.warning)
-            page.add(proxy)
+            page.append(proxy)
+            proxy_actions = Gtk.Box(spacing=8, halign=Gtk.Align.START)
+            proxy_actions.add_css_class("network-actions")
+            self.install_usernet.add_css_class("suggested-action")
+            proxy_actions.append(self.usernet_button)
+            proxy_actions.append(self.install_usernet)
+            proxy_actions.append(Gtk.LinkButton(uri="https://github.com/localzet/UserNet/releases",
+                                                label="Релизы UserNet", halign=Gtk.Align.START))
+            page.append(proxy_actions)
+            page = pages["system"]
             provision_group = Adw.PreferencesGroup(title="Установка клиентов", description="Закреплённые DEB с GitHub, проверка SHA-256 и подтверждение администратора. NetBird запускает незарегистрированную службу; UserNet не включает TUN автоматически.")
             self.provision_status = Adw.ActionRow(title="Состояние", subtitle="Готово к проверке")
             self.provision_status.set_use_markup(False)
             provision_group.add(self.provision_status)
-            page.add(provision_group)
+            page.append(provision_group)
             settings = Adw.PreferencesGroup(title="Системная сеть",
                 description="Настройки GNOME остаются основным интерфейсом сетевых адаптеров.")
             button = Gtk.Button(label="Настройки сети", halign=Gtk.Align.START)
             button.connect("clicked", lambda *_: self.launch(["/usr/bin/gnome-control-center", "network"]))
             settings.add(button)
-            page.add(settings)
-            toolbar.set_content(page)
+            page.append(settings)
+            # Provisioning feedback must remain visible on every page.
+            self.provision_feedback = Gtk.Label(xalign=0, wrap=True, selectable=True,
+                                                max_width_chars=75)
+            self.provision_feedback.add_css_class("dim-label")
+            self.provision_status.bind_property("subtitle", self.provision_feedback, "label", GObject.BindingFlags.SYNC_CREATE)
+            content.append(self.provision_feedback)
+            toolbar.set_content(workspace)
+            self.navigate("vpn")
             self.window.set_content(toolbar)
             self.window.present()
             self.refresh()
             self.timer = GLib.timeout_add_seconds(15, self.refresh)
+
+        def navigate(self, key):
+            self.stack.set_visible_child_name(key)
+            for name, (button, title, description) in self.nav.items():
+                if name == key:
+                    button.add_css_class("selected")
+                    self.heading.set_label(title)
+                    self.description.set_label(description)
+                    self.window.set_title("Localzet Network — " + title)
+                else:
+                    button.remove_css_class("selected")
 
         def launch(self, argv):
             try:

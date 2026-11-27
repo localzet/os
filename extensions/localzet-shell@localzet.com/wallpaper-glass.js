@@ -5,19 +5,64 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const WALLPAPER = '/usr/share/backgrounds/localzet/executive-dusk.jpg';
+
+export function wallpaperPath() {
+    if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1') {
+        const test = GLib.getenv('LOCALZET_TEST_WALLPAPER');
+        if (test && /^\/[A-Za-z0-9_./-]+\/executive-dusk\.jpg$/.test(test))
+            return test;
+    }
+    return WALLPAPER;
+}
+
+export function wallpaperMaterial(actor, background, settings, contrast, path) {
+        // One switch must disable every glass surface, including wallpaper-only
+        // material on the dock and launcher, not just Shell.BlurEffect.
+        if (GLib.getenv('LOCALZET_DISABLE_GLASS') === '1' ||
+            contrast.get_boolean('high-contrast') ||
+            Main.overview.visible || Main.layoutManager.monitors.length !== 1 ||
+            St.ThemeContext.get_for_stage(global.stage).scale_factor !== 1)
+            return null;
+        const blur = path.replace(/\.jpg$/, '-glass.jpg');
+        const dark = settings.get_string('color-scheme') === 'prefer-dark';
+        const uri = background.get_string(dark ? 'picture-uri-dark' : 'picture-uri');
+        if (uri !== Gio.File.new_for_path(path).get_uri() ||
+            background.get_string('picture-options') !== 'zoom' ||
+            !GLib.file_test(blur, GLib.FileTest.IS_REGULAR))
+            return null;
+        // Static material is only correct on an empty desktop. Do not pass
+        // it off as sampling live windows when any window is visible.
+        if (global.workspace_manager.get_active_workspace().list_windows().some(w =>
+            !w.minimized && w.showing_on_its_workspace()))
+            return null;
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor)
+            return null;
+        const [x, y] = actor.get_transformed_position();
+        const [w, h] = actor.get_transformed_size();
+        if (w < 10 || h < 10)
+            return null;
+        // Wallpaper is 3840×2160; reproduce GNOME's centered zoom crop.
+        const scale = Math.max(monitor.width / 3840, monitor.height / 2160);
+        const bw = Math.round(3840 * scale), bh = Math.round(2160 * scale);
+        const dx = Math.round(monitor.x + (monitor.width - bw) / 2 - x);
+        const dy = Math.round(monitor.y + (monitor.height - bh) / 2 - y);
+        const style = 'background-image: url("' + blur + '"); ' +
+            'background-size: ' + bw + 'px ' + bh + 'px; ' +
+            'background-position: ' + dx + 'px ' + dy + 'px; background-repeat: no-repeat;';
+        return style;
+}
+
 export class WallpaperGlass {
-    constructor(menu) {
+    constructor(menu, surface = "launcher") {
         this._menu = menu;
+        this._surface = surface;
+        this._applied = null;
+        this._original = null;
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
-        this._path = WALLPAPER;
-        if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1') {
-            const test = GLib.getenv('LOCALZET_TEST_WALLPAPER');
-            if (test && /^\/[A-Za-z0-9_./-]+\/executive-dusk\.jpg$/.test(test))
-                this._path = test;
-        }
-        this._blur = this._path.replace(/\.jpg$/, '-glass.jpg');
+        this._path = wallpaperPath();
         this._signals = [];
         const watch = (object, name) => {
             this._signals.push([object, object.connect(name, () => this._schedule())]);
@@ -56,40 +101,27 @@ export class WallpaperGlass {
     }
 
     _refresh() {
-        if (!this._menu.isOpen || this._contrast.get_boolean('high-contrast') ||
-            Main.overview.visible || Main.layoutManager.monitors.length !== 1 ||
-            St.ThemeContext.get_for_stage(global.stage).scale_factor !== 1)
+        if (!this._menu.isOpen)
             return;
-        const dark = this._interface.get_string('color-scheme') === 'prefer-dark';
-        const uri = this._background.get_string(dark ? 'picture-uri-dark' : 'picture-uri');
-        if (uri !== Gio.File.new_for_path(this._path).get_uri() ||
-            this._background.get_string('picture-options') !== 'zoom' ||
-            !GLib.file_test(this._blur, GLib.FileTest.IS_REGULAR))
+        const style = wallpaperMaterial(this._menu.box, this._background, this._interface, this._contrast, this._path);
+        if (!style) {
+            this._restore();
             return;
-        // Static material is only correct on an empty desktop. Do not pass
-        // it off as sampling live windows when any window is visible.
-        if (global.workspace_manager.get_active_workspace().list_windows().some(w =>
-            !w.minimized && w.showing_on_its_workspace()))
+        }
+        const current = this._menu.box.get_style();
+        // Do not replace styles owned by native GNOME or another extension.
+        if (this._applied !== null && current !== this._applied) {
+            this._restore();
             return;
-        const monitor = Main.layoutManager.primaryMonitor;
-        if (!monitor)
-            return;
-        const [x, y] = this._menu.box.get_transformed_position();
-        const [w, h] = this._menu.box.get_transformed_size();
-        if (w < 10 || h < 10)
-            return;
-        // Wallpaper is 3840×2160; reproduce GNOME's centered zoom crop.
-        const scale = Math.max(monitor.width / 3840, monitor.height / 2160);
-        const bw = Math.round(3840 * scale), bh = Math.round(2160 * scale);
-        const dx = Math.round(monitor.x + (monitor.width - bw) / 2 - x);
-        const dy = Math.round(monitor.y + (monitor.height - bh) / 2 - y);
-        const style = 'background-image: url("' + this._blur + '"); ' +
-            'background-size: ' + bw + 'px ' + bh + 'px; ' +
-            'background-position: ' + dx + 'px ' + dy + 'px; background-repeat: no-repeat;';
-        if (this._menu.box.get_style() !== style)
-            this._menu.box.set_style(style);
+        }
+        if (this._applied === null)
+            this._original = current;
+        const combined = (this._original ? this._original + '; ' : '') + style;
+        if (current !== combined)
+            this._menu.box.set_style(combined);
+        this._applied = combined;
         this._menu.actor.add_style_class_name('localzet-wallpaper-glass');
-        console.log('Localzet Glass: wallpaper material active');
+        console.log('Localzet Glass: wallpaper material active ' + this._surface);
     }
 
     clear() {
@@ -97,7 +129,14 @@ export class WallpaperGlass {
             GLib.source_remove(this._idle);
             this._idle = 0;
         }
-        this._menu.box.set_style(null);
+        this._restore();
+    }
+
+    _restore() {
+        if (this._applied !== null && this._menu.box.get_style() === this._applied)
+            this._menu.box.set_style(this._original);
+        this._applied = null;
+        this._original = null;
         this._menu.actor.remove_style_class_name('localzet-wallpaper-glass');
     }
 
