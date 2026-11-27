@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Exercise the production GTK workspace against real isolated Docker fixtures."""
 import os
+from collections import Counter
 import subprocess
 import sys
 import time
 import traceback
 from pathlib import Path
+from PIL import Image
 
 import gi
 gi.require_version("Gtk", "4.0")
@@ -24,10 +26,19 @@ pending = None
 previous = None
 
 def capture(page):
+    path = out / ("populated-" + page + ".png")
     windows = subprocess.check_output(["xdotool", "search", "--onlyvisible", "--name",
                                       "Localzet Containers"], text=True).splitlines()
-    subprocess.run(["import", "-window", windows[0], str(out / ("populated-" + page + ".png"))],
-                   check=True, timeout=10)
+    subprocess.run(["import", "-window", windows[0], str(path)], check=True, timeout=10)
+    pixels = Counter(Image.open(path).convert("RGB").getdata())
+    required = {"#10091E": 10000, "#28183F": 3000, "#F4EEFF": 100}
+    if page == "containers":
+        required.update({"#34234F": 1000, "#6436B5": 100})
+    for color, minimum in required.items():
+        actual = pixels[tuple(bytes.fromhex(color[1:]))]
+        assert actual >= minimum, f"{page}: Aurora token {color}: {actual} < {minimum}"
+    print("Aurora GTK palette", page, {color: pixels[tuple(bytes.fromhex(color[1:]))]
+                                      for color in required}, flush=True)
 
 def advance():
     global pending, previous
