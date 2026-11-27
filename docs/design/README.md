@@ -116,17 +116,30 @@ Track changes to exact design and scope in pull requests. Any change of
 brand colors or major navigation requires owner review. Engineering
 screenshots and automated tests are necessary but not sufficient for release.
 
-### Current glass experiment (not release acceptance)
+### Current glass implementation (visual acceptance pending)
 
-`panel.js` introduces the rectangular native top bar background effect using
-`Shell.BlurEffect` in BACKGROUND mode. Default remains opaque until real
-pixels, damage/repaint, performance and contrast are verified; only the
-GNOME devkit CI session enables `LOCALZET_EXPERIMENTAL_GLASS=1`. High-contrast
-mode reverts to native GNOME styling. CI captures before the phone test and
-exercises disable/enable. The effect-creation marker is not a visual proof.
-Rounded dock/popovers require a proper mask, not a rectangular blur leaking
-outside rounded corners. No global redraw hacks, no forced transparency on
-third-party windows. See upstream API:
+`panel.js` creates GNOME Shell's native `Shell.BlurEffect` in BACKGROUND
+mode by default when the compositor supports it. A failed effect creation
+falls back to the opaque Violet surface; native high-contrast mode and
+`LOCALZET_DISABLE_GLASS=1` also disable the compositor effect.
+
+Rounded dock, launcher and native menus use a separate **wallpaper-only**
+material: a pre-blurred derivative of the exact bundled wallpaper, aligned
+to the monitor crop. It is applied only with the matching wallpaper and zoom
+mode, one monitor at scale 1, and no visible windows on the active workspace.
+It never captures or samples windows, passwords, screens or other content.
+The same `LOCALZET_DISABLE_GLASS=1` switch disables this material too; any
+unsupported wallpaper, scale, monitor layout, high-contrast setting or
+visible window uses the opaque fallback. No alpha-only imitation is used.
+
+The GNOME devkit sets `LOCALZET_EXPERIMENTAL_GLASS=1` only for deterministic
+test-wallpaper selection and diagnostic markers; that variable does not
+enable production blur. CI checks the native effect marker, wallpaper detail
+reduction, state transitions and high-contrast fallback. These are not proof
+of physical-GPU performance, multi-monitor/HiDPI behavior or final visual
+acceptance. The exact installed ISO still needs real screenshots and GPU
+testing. Rounded clipping and repaint behavior remain subject to inspection.
+No global redraw hacks or forced transparency on third-party windows. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
 ### Boot branding implementation

@@ -24,6 +24,9 @@ class AssetsTests(unittest.TestCase):
         self.assertEqual(data['density']['panelHeight'], 32)
         self.assertEqual(data['density']['dockIcon'], 28)
         self.assertEqual(data['density']['dockHeight'], 48)
+        dock = (ROOT / 'extensions/localzet-shell@localzet.com/dock.js').read_text()
+        self.assertIn(f"app.create_icon_texture({data['density']['dockIcon']})", dock)
+        self.assertIn(f"const height = {data['density']['dockHeight']};", dock)
         self.assertEqual(data['colors']['surface'], '#28183F')
         css = (ROOT / 'extensions/localzet-shell@localzet.com/stylesheet.css').read_text()
         self.assertIn(data['colors']['accent'], css)
@@ -49,6 +52,8 @@ class AssetsTests(unittest.TestCase):
         self.assertIn("Shell.BlurEffect", panel)
         self.assertIn("this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1';", panel)
         self.assertIn("high-contrast", panel)
+        wallpaper_glass = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("GLib.getenv('LOCALZET_DISABLE_GLASS') === '1'", wallpaper_glass)
 
     def test_landscape_default_and_alternate(self):
         registry = ET.parse(ROOT / "assets/wallpapers/localzet-wallpapers.xml").getroot()

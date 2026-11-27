@@ -129,7 +129,7 @@ export class LocalzetDock {
     }
 
     _newRow(app) {
-        const icon = app.create_icon_texture(36);
+        const icon = app.create_icon_texture(28);
         const dot = new St.Widget({style_class: 'localzet-dock-indicator',
             x_align: Clutter.ActorAlign.CENTER});
         const content = new St.BoxLayout({vertical: true, style_class: 'localzet-dock-item-content',
