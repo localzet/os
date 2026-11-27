@@ -84,8 +84,8 @@ class AssetsTests(unittest.TestCase):
         self.assertIn('style.connect("notify::high-contrast", refresh)', appearance)
         self.assertIn("style.get_dark() and not style.get_high_contrast()", appearance)
         smoke = (ROOT / "scripts/ci/containers-gtk-smoke.sh").read_text()
-        self.assertIn("color-scheme prefer-dark", smoke)
-        self.assertIn("color-scheme prefer-light", smoke)
+        self.assertIn("ADW_DEBUG_COLOR_SCHEME=prefer-dark", smoke)
+        self.assertIn("ADW_DEBUG_COLOR_SCHEME=prefer-light", smoke)
         self.assertIn("window-light.png", smoke)
         self.assertIn("p{500,300}", smoke)
 
