@@ -13,6 +13,11 @@
     box-shadow: none;
     border-color: rgba(155, 114, 242, .22);
 }
+.localzet-dock.localzet-glass-opaque {
+    background-color: #28183F;
+    box-shadow: none;
+}
+
 .localzet-dock-button {
     min-width: 32px;
     min-height: 32px;
@@ -263,6 +268,14 @@
 
 /* Live backdrop sampled by the GNOME compositor. Keep the tint translucent
  * so the background effect is visible while text and icons stay sharp. */
+.localzet-launcher-popup.localzet-glass-opaque .popup-menu-content {
+    background-color: #28183F;
+}
+
+.localzet-system-surface.localzet-glass-opaque .popup-menu-content {
+    background-color: #28183F;
+}
+
 .localzet-launcher-popup.localzet-compositor-glass .popup-menu-content {
     background-color: rgba(40, 24, 63, 0.72);
     border-radius: 0;
