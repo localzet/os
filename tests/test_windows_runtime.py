@@ -60,3 +60,36 @@ class RuntimeTests(unittest.TestCase):
     def test_rejects_relative_data_home(self):
         with self.assertRaises(ValueError):
             launch_plan(self.exe, "test", Path("relative"))
+
+    def test_shortcut_roundtrip_and_desktop_entry(self):
+        from localzet.windows_shortcuts import ShortcutStore
+        store = ShortcutStore(self.root)
+        key = store.save(self.exe, "game", "My game 100%")
+        self.assertEqual(store.load(key)["file"], str(self.exe))
+        self.assertEqual(store.load(key)["profile"], "game")
+        desktop = self.root / "applications" / ("com.localzet.WindowsApp." + key + ".desktop")
+        text = desktop.read_text()
+        self.assertIn("Exec=/usr/bin/localzet-windows --shortcut " + key, text)
+        self.assertNotIn(str(self.exe), text)
+        self.assertEqual(len(store.list()), 1)
+        store.remove(key)
+        self.assertFalse(desktop.exists())
+        self.assertTrue(self.exe.is_file())
+        self.assertEqual(store.list(), ())
+
+    def test_shortcut_rejects_msi_newlines_and_missing_target(self):
+        from localzet.windows_shortcuts import ShortcutStore
+        store = ShortcutStore(self.root)
+        for title in ("", "name\nExec=evil", "name\r"):
+            with self.assertRaises(ValueError):
+                store.save(self.exe, "test", title)
+        msi = self.root / "setup.msi"
+        msi.write_bytes(OLE_HEADER)
+        with self.assertRaises(ValueError):
+            store.save(msi, "test", "Setup")
+        key = store.save(self.exe, "test", "Example")
+        self.exe.unlink()
+        self.assertEqual(len(store.list()), 1)
+        with self.assertRaises(OSError):
+            store.load(key)
+        store.remove(key)
