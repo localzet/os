@@ -11,7 +11,7 @@ as product readiness. See [physical-test rework](../PHYSICAL-TEST-REWORK.md).
 | Desktop | Actual fresh ISO screenshots matching Professional design, multiple DPI/screens, keyboard, mouse, no clipped icons/labels, no duplicated UI, normal/fullscreen dock behavior, contrast and performance. |
 | Glass | Compare detailed, bright and dark backgrounds; demonstrate real blur and fallback, verify GPU and CPU rendering, no severe animation/frame regressions. |
 | Settings | One Control Center entry, all upstream panels intact, working Localzet integrations and About branding. |
-| Office/apps | Installed profiles and verified official sources, all selected desktop IDs, launch/open/save tests, Telegram mandatory in Standard/Complete, proxy failure tests. |
+| Office/apps | Installed profiles and verified official sources, all selected desktop IDs, launch/open/save tests, Telegram mandatory in Standard/Complete, proxy failure tests. ONLYOFFICE must pass corresponding-source, license, and update-channel review before an ISO containing it can be published. |
 | Containers | Actual rootless and rootful authorization tests; live Compose lifecycle, image/volume/network management, logs, metrics, terminal, remote contexts and rollback; no fake stats or insecure API. |
 | Windows | EXE/MSI, 32/64-bit, graphics, profile isolation of configuration, menu integration, backup/uninstall, Windows Runtime test evidence. |
 | Gaming | Legally acquired Witcher 3: installation, launch, in-game operation, save/load, GPU performance, relaunch; Steam/Proton/GOG sources and constraints. |
@@ -19,7 +19,7 @@ as product readiness. See [physical-test rework](../PHYSICAL-TEST-REWORK.md).
 | NectarLink | Actual upstream tray menu, Android pairing, revoke/reconnect, real status and permission-aware actions. |
 | Release | Signed update/build provenance, redistribution review, boot/recovery/physical QA, owner review of fresh screenshots and feature matrix. |
 
-Milestones: hardware and safe installer foundations; desktop design system
+ONLYOFFICE 10.0.0 is currently engineering-only: disposable CI may install and test it, but a public ISO artifact containing that binary is forbidden while source mapping or redistribution remains unverified. The CI must publish only logs, screenshots, package inventory and the ISO checksum until the gate is explicitly verified.\n\nMilestones: hardware and safe installer foundations; desktop design system
 and real compositor glass; profile provisioning; container/network backends;
 Windows/gaming; integrated QA. Keep each milestone truthful and separately
 testable; don't ship an alpha with placeholder features enabled by default.
