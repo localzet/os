@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - 'src/localzet/containers*.py'
+      - 'src/localzet/appearance.py'
       - 'scripts/ci/containers-populated-gtk.py'
       - 'tests/test_containers.py'
+      - 'tests/test_appearance.py'
       - 'scripts/ci/containers-engine-smoke.sh'
       - 'scripts/ci/containers-rootless-smoke.sh'
       - 'scripts/ci/containers-rootless-gtk.py'
@@ -19,11 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Unit tests
-        run: PYTHONPATH=src python3 -m unittest discover -s tests -p test_containers.py -v
+        run: |
+          PYTHONPATH=src python3 -m unittest discover -s tests -p test_containers.py -v
+          PYTHONPATH=src python3 -m unittest discover -s tests -p test_appearance.py -v
       - name: Install static fixture binary
         run: |
           sudo apt-get update
-          sudo apt-get install -y busybox-static python3-gi gir1.2-gtk-4.0 gir1.2-vte-3.91 xvfb xauth openssh-server gir1.2-adw-1 dbus-x11 xdotool imagemagick gsettings-desktop-schemas dconf-gsettings-backend
+          sudo apt-get install -y busybox-static python3-gi gir1.2-gtk-4.0 gir1.2-vte-3.91 xvfb xauth openssh-server gir1.2-adw-1 dbus-x11 xdotool imagemagick gsettings-desktop-schemas dconf-gsettings-backend python3-pil
           test -x /usr/bin/docker
       - name: Test actual engine without remote downloads
         run: LOCALZET_DISPOSABLE_VM=1 bash scripts/ci/containers-engine-smoke.sh
