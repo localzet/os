@@ -89,6 +89,13 @@ class AssetsTests(unittest.TestCase):
         self.assertIn("window-light.png", smoke)
         self.assertIn("p{500,300}", smoke)
 
+    def test_app_center_uses_professional_appearance(self):
+        source = (ROOT / "src/localzet/app_center.py").read_text()
+        self.assertIn("from localzet.appearance import apply_professional", source)
+        self.assertIn("self.appearance = apply_professional(self.window)", source)
+        self.assertIn(".localzet-midnight .app-sidebar { background-color: #28183F; }", source)
+        self.assertNotIn("#292a2e", source)
+
     def test_shell_glass_default_and_opaque_override(self):
         panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
         self.assertIn("LOCALZET_DISABLE_GLASS", panel)
