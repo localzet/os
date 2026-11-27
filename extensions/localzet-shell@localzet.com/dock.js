@@ -197,7 +197,7 @@ export class LocalzetDock {
             row.button[active ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-focused');
             row.button.accessible_name = row.app.get_name() + (count ? ' · ' + count + ' окон' : '');
         }
-        if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
+        if (GLib.getenv('LOCALZET_GLASS_DEBUG') === '1')
             console.log('Localzet Dock: running=' + running + ' items=' + this._rows.size + ' focused=' + focused);
     }
 
@@ -222,7 +222,7 @@ export class LocalzetDock {
         this._actor.set_position(x, y);
         this._strut.set_position(monitor.x, y - 6);
         this._strut.set_size(monitor.width, height + 16);
-        if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
+        if (GLib.getenv('LOCALZET_GLASS_DEBUG') === '1')
             console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
 
