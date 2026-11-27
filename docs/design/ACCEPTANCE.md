@@ -23,3 +23,10 @@ ONLYOFFICE 10.0.0 is currently engineering-only: disposable CI may install and t
 and real compositor glass; profile provisioning; container/network backends;
 Windows/gaming; integrated QA. Keep each milestone truthful and separately
 testable; don't ship an alpha with placeholder features enabled by default.
+
+
+The pinned ONLYOFFICE 10.0.0-169 package is currently engineering-only. Disposable
+CI may install and test it, but a public ISO containing it must not be uploaded
+until the exact corresponding source/build mapping, redistribution status and
+supported update channel are verified. Until then, publish only test evidence,
+inventory and the ISO checksum without the ISO binary.
