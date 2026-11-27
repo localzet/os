@@ -48,7 +48,11 @@ jobs:
           xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
             ADW_DEBUG_COLOR_SCHEME=prefer-dark python3 -c "from localzet.app_center import main; raise SystemExit(main())" > out/app-center/gui-dark.log 2>&1 &
             pid=$!
-            trap 'kill "$pid" "${light_pid:-}" 2>/dev/null || true' EXIT
+            cleanup() {
+              kill "$pid" 2>/dev/null || true
+              if [[ -n "${light_pid:-}" ]]; then kill "$light_pid" 2>/dev/null || true; fi
+            }
+            trap cleanup EXIT
             window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet" | head -n 1)"
             test -n "$window"
             sleep 4
