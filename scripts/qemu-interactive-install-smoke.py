@@ -872,30 +872,6 @@ x="$(sed -n 's/^X=//p' <<< "$geometry")"
 y="$(sed -n 's/^Y=//p' <<< "$geometry")"
 [[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ ]]
 test "$(xdotool getactivewindow)" = "$window"
-mode=""
-if (( $# > 0 )); then mode="$1"; fi
-if [[ "$mode" == "--check-virtio-policy" ]]; then
-    virtio_gpu=0
-    for pci_device in /sys/bus/pci/devices/*; do
-        [[ -r "$pci_device/vendor" && -r "$pci_device/class" ]] || continue
-        vendor="$(cat "$pci_device/vendor")"
-        pci_class="$(cat "$pci_device/class")"
-        if [[ "$vendor" == 0x1af4 && "$pci_class" == 0x03* ]]; then
-            virtio_gpu=1
-            break
-        fi
-    done
-    office_pid="$(pgrep -u "$(id -u)" -x DesktopEditors | head -n 1)"
-    test -n "$office_pid"
-    office_cmdline="$(ps -p "$office_pid" -o args=)"
-    if [[ "$virtio_gpu" == 1 ]]; then
-        grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
-        echo "PASS: virtio GPU fallback is scoped to the ONLYOFFICE process"
-    else
-        ! grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
-        echo "PASS: non-virtio GPU retains the upstream acceleration path"
-    fi
-fi
 printf 'LOCALZET_CANDIDATE_OFFICE_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
 printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
 OFFICETEST
@@ -1011,6 +987,8 @@ chmod 0755 /run/localzet-candidate-check/office-isolated.sh
         first = script.index("window=\"\"\n", script.index("<<'OFFICETEST'"))
         last = script.index("\nOFFICETEST", first)
         script = script[:first] + r"""window=""
+mode=""
+if (( $# > 0 )); then mode="$1"; fi
 for attempt in $(seq 1 90); do
     window="$(xdotool search --onlyvisible --name 'Localzet-offline-review' 2>/dev/null | tail -n1 || true)"
     [[ -n "$window" ]] && break
@@ -1041,6 +1019,28 @@ assert ink >= 250
 PY
     then
         test "$(stat -c %s "$work/document.png")" -lt 1572864
+        if [[ "$mode" == "--check-virtio-policy" ]]; then
+            virtio_gpu=0
+            for pci_device in /sys/bus/pci/devices/*; do
+                [[ -r "$pci_device/vendor" && -r "$pci_device/class" ]] || continue
+                vendor="$(cat "$pci_device/vendor")"
+                pci_class="$(cat "$pci_device/class")"
+                if [[ "$vendor" == 0x1af4 && "$pci_class" == 0x03* ]]; then
+                    virtio_gpu=1
+                    break
+                fi
+            done
+            office_pid="$(pgrep -u "$(id -u)" -x DesktopEditors | head -n 1)"
+            test -n "$office_pid"
+            office_cmdline="$(ps -p "$office_pid" -o args=)"
+            if [[ "$virtio_gpu" == 1 ]]; then
+                grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
+                echo "PASS: virtio GPU fallback is scoped to the ONLYOFFICE process"
+            else
+                ! grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
+                echo "PASS: non-virtio GPU retains the upstream acceleration path"
+            fi
+        fi
         printf 'LOCALZET_CANDIDATE_OFFICE_PNG '
         base64 -w0 "$work/document.png"
         printf '\nPASS: actual ONLYOFFICE document drawable captured\n'
