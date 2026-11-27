@@ -11,10 +11,10 @@
         --sidebar-bg-color: #28183F;
         --sidebar-fg-color: #F4EEFF;
         --sidebar-backdrop-color: #28183F;
-        --sidebar-border-color: rgba(155, 114, 242, 0.18);
+        --sidebar-border-color: alpha(#9B72F2, 0.18);
         --card-bg-color: #34234F;
         --card-fg-color: #F4EEFF;
-        --border-color: rgba(155, 114, 242, 0.18);
+        --border-color: alpha(#9B72F2, 0.18);
         background-color: #10091E;
         color: #F4EEFF;
     }
@@ -29,7 +29,7 @@
     window.nautilus-window placessidebar {
         background-color: #28183F;
         color: #F4EEFF;
-        border-right: 1px solid rgba(155, 114, 242, 0.18);
+        border-right: 1px solid alpha(#9B72F2, 0.18);
     }
 
     window.nautilus-window placessidebar .navigation-sidebar > row {
@@ -39,12 +39,12 @@
     window.nautilus-window placessidebar .navigation-sidebar > row:selected {
         background-color: #6436B5;
         color: #F4EEFF;
-        border: 1px solid rgba(155, 114, 242, 0.14);
+        border: 1px solid alpha(#9B72F2, 0.14);
     }
 
     window.nautilus-window .nautilus-pathbar {
         background-color: #34234F;
-        border: 1px solid rgba(155, 114, 242, 0.18);
+        border: 1px solid alpha(#9B72F2, 0.18);
         border-radius: 8px;
         min-height: 32px;
     }
@@ -70,7 +70,7 @@
     window.nautilus-window listview row:selected {
         background-color: #6436B5;
         color: #F4EEFF;
-        border: 1px solid rgba(155, 114, 242, 0.14);
+        border: 1px solid alpha(#9B72F2, 0.14);
         border-radius: 6px;
     }
 
@@ -82,7 +82,7 @@
     window.nautilus-window .floating-bar {
         background-color: #34234F;
         color: #F4EEFF;
-        border: 1px solid rgba(155, 114, 242, 0.18);
+        border: 1px solid alpha(#9B72F2, 0.18);
         border-radius: 8px;
     }
 }
