@@ -162,14 +162,14 @@ jobs:
               and updates.get("status") == "verified"
           )
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"allowed={'true' if allowed else 'false'}\\n")
-              output.write(f"office_installed={'true' if office_installed else 'false'}\\n")
+              output.write(f"allowed={'true' if allowed else 'false'}\n")
+              output.write(f"office_installed={'true' if office_installed else 'false'}\n")
           if not allowed:
               Path("dist/REDISTRIBUTION-BLOCKED.txt").write_text(
                   "This Complete RC was installed and tested in disposable CI, but its ISO is not published. "
                   "The image contains ONLYOFFICE Desktop Editors whose exact corresponding source/build "
                   "mapping, redistribution status, and supported update channel are not yet verified. "
-                  "See docs/third-party/ONLYOFFICE.md. This checksum is evidence only; it is not a download.\\n",
+                  "See docs/third-party/ONLYOFFICE.md. This checksum is evidence only; it is not a download.\n",
                   encoding="utf-8",
               )
               print("::notice::ONLYOFFICE redistribution gate is closed; the ISO will not be uploaded.")
