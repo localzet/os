@@ -5,6 +5,7 @@ mkdir -p out/settings
 export GDK_BACKEND=x11
 export GSK_RENDERER=cairo
 export PYTHONPATH="$PWD/src"
+export ADW_DEBUG_COLOR_SCHEME=prefer-dark
 dbus-run-session -- bash -eu -c '
   gsettings set org.gnome.desktop.interface color-scheme prefer-dark
   python3 -m localzet.settings.app > out/settings/application.log 2>&1 &
