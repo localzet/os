@@ -97,13 +97,33 @@ class AssetsTests(unittest.TestCase):
         self.assertNotIn("#292a2e", source)
 
     def test_shell_glass_default_and_opaque_override(self):
-        panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
-        self.assertIn("LOCALZET_DISABLE_GLASS", panel)
+        extension = ROOT / "extensions/localzet-shell@localzet.com"
+        panel = (extension / "panel.js").read_text()
+        dock = (extension / "dock.js").read_text()
+        launcher = (extension / "launcher.js").read_text()
+        glass = (extension / "compositor-glass.js").read_text()
+        css = (extension / "stylesheet.css").read_text()
+
         self.assertIn("Shell.BlurEffect", panel)
-        self.assertIn("this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1';", panel)
+        self.assertIn("Shell.BlurMode.BACKGROUND", panel)
+        self.assertIn("LOCALZET_DISABLE_GLASS", panel)
         self.assertIn("high-contrast", panel)
-        wallpaper_glass = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
-        self.assertIn("GLib.getenv('LOCALZET_DISABLE_GLASS') === '1'", wallpaper_glass)
+        self.assertIn("enable-animations", panel)
+        self.assertIn("new CompositorGlass(menu.actor, name)", panel)
+
+        self.assertIn("new CompositorGlass(this._actor, 'dock')", dock)
+        self.assertIn("new CompositorGlass(this._menu.actor, 'launcher')", launcher)
+        self.assertNotIn("wallpaperMaterial", dock)
+        self.assertNotIn("WallpaperGlass", dock + launcher + panel)
+
+        for value in ("Shell.BlurEffect", "Shell.BlurMode.BACKGROUND",
+                      "AUTOMATIC_FOR_OPACITY", "high-contrast",
+                      "enable-animations", "LOCALZET_DISABLE_GLASS",
+                      "localzet-compositor-glass", "localzet-glass-opaque"):
+            self.assertIn(value, glass)
+        self.assertIn(".localzet-dock.localzet-compositor-glass", css)
+        self.assertIn(".localzet-dock.localzet-glass-opaque", css)
+        self.assertIn(".localzet-launcher-popup.localzet-compositor-glass", css)
 
     def test_landscape_default_and_alternate(self):
         registry = ET.parse(ROOT / "assets/wallpapers/localzet-wallpapers.xml").getroot()
