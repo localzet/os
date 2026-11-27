@@ -34,6 +34,10 @@ class AssetsTests(unittest.TestCase):
             self.assertIn(data['shellSurfaces'][name], css)
         self.assertEqual(data['shellSurfaces']['surface'], data['glass']['opaqueFallback'])
         self.assertLessEqual(data['radii']['lg'], 14)
+        rootfs = (ROOT / "packaging/live/customize-rootfs.sh").read_text()
+        self.assertIn("color-scheme='prefer-dark'", rootfs)
+        self.assertIn("accent-color='purple'", rootfs)
+        self.assertNotIn("accent-color='blue'", rootfs)
 
     def test_native_aurora_professional_palette(self):
         from localzet.appearance import MIDNIGHT_CSS
@@ -72,6 +76,18 @@ class AssetsTests(unittest.TestCase):
             for legacy in ("#202124", "#292a2e", "#343539", "#2f3034",
                            "#39495e", "#45464b", "#2874c8"):
                 self.assertNotIn(legacy, source, (path, legacy))
+
+    def test_native_apps_follow_system_light_and_high_contrast(self):
+        appearance = (ROOT / "src/localzet/appearance.py").read_text()
+        self.assertNotIn("style.set_color_scheme", appearance)
+        self.assertIn('style.connect("notify::dark", refresh)', appearance)
+        self.assertIn('style.connect("notify::high-contrast", refresh)', appearance)
+        self.assertIn("style.get_dark() and not style.get_high_contrast()", appearance)
+        smoke = (ROOT / "scripts/ci/containers-gtk-smoke.sh").read_text()
+        self.assertIn("ADW_DEBUG_COLOR_SCHEME=prefer-dark", smoke)
+        self.assertIn("ADW_DEBUG_COLOR_SCHEME=prefer-light", smoke)
+        self.assertIn("window-light.png", smoke)
+        self.assertIn("p{500,300}", smoke)
 
     def test_shell_glass_default_and_opaque_override(self):
         panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()

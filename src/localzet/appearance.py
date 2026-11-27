@@ -98,11 +98,12 @@ MIDNIGHT_CSS = PROFESSIONAL_CSS
 
 
 def apply_professional(window):
-    """Apply the shared dark palette, retaining native light/high-contrast fallback."""
+    """Use Violet × Ember only for system dark mode; respect light and high contrast."""
     from gi.repository import Adw, Gtk
 
+    # libadwaita follows the desktop's color-scheme portal. Never pin a
+    # per-process scheme: doing so would override the user's live choice.
     style = Adw.StyleManager.get_default()
-    style.set_color_scheme(Adw.ColorScheme.PREFER_DARK)
     provider = Gtk.CssProvider()
     provider.load_from_data(PROFESSIONAL_CSS)
     display = window.get_display()
@@ -124,6 +125,7 @@ def apply_professional(window):
 
     handlers = [style.connect("notify::dark", refresh),
                 style.connect("notify::high-contrast", refresh)]
+    refresh()
 
     def cleanup(*_):
         nonlocal active
@@ -134,7 +136,6 @@ def apply_professional(window):
             active = False
 
     window.connect("destroy", cleanup)
-    refresh()
     return provider
 
 
