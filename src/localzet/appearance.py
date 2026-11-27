@@ -99,26 +99,15 @@ MIDNIGHT_CSS = PROFESSIONAL_CSS
 
 def apply_professional(window):
     """Use Violet × Ember only for system dark mode; respect light and high contrast."""
-    from gi.repository import Adw, Gio, Gtk
+    from gi.repository import Adw, Gtk
 
+    # libadwaita follows the desktop's color-scheme portal. Never pin a
+    # per-process scheme: doing so would override the user's live choice.
     style = Adw.StyleManager.get_default()
-    settings = Gio.Settings.new("org.gnome.desktop.interface")
     provider = Gtk.CssProvider()
     provider.load_from_data(PROFESSIONAL_CSS)
     display = window.get_display()
     active = False
-
-    def sync_color_scheme(*_):
-        # Mirror the user's GNOME preference instead of pinning every app to
-        # dark. High contrast stays under the native GTK/libadwaita theme.
-        if style.get_high_contrast():
-            scheme = Adw.ColorScheme.DEFAULT
-        else:
-            scheme = {
-                "prefer-dark": Adw.ColorScheme.PREFER_DARK,
-                "prefer-light": Adw.ColorScheme.PREFER_LIGHT,
-            }.get(settings.get_string("color-scheme"), Adw.ColorScheme.DEFAULT)
-        style.set_color_scheme(scheme)
 
     def refresh(*_):
         nonlocal active
@@ -134,20 +123,14 @@ def apply_professional(window):
             window.remove_css_class("localzet-midnight")
         active = wanted
 
-    style_handlers = [
-        style.connect("notify::dark", refresh),
-        style.connect("notify::high-contrast", refresh),
-        style.connect("notify::high-contrast", sync_color_scheme),
-    ]
-    settings_handler = settings.connect("changed::color-scheme", sync_color_scheme)
-    sync_color_scheme()
+    handlers = [style.connect("notify::dark", refresh),
+                style.connect("notify::high-contrast", refresh)]
     refresh()
 
     def cleanup(*_):
         nonlocal active
-        for handler in style_handlers:
+        for handler in handlers:
             style.disconnect(handler)
-        settings.disconnect(settings_handler)
         if active:
             Gtk.StyleContext.remove_provider_for_display(display, provider)
             active = False
