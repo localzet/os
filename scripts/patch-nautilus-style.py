@@ -10,7 +10,7 @@ REQUIRED = (".nautilus-pathbar", ".nautilus-grid-view gridview",
 
 def patch(source: str, overlay: str) -> str:
     if MARKER in source:
-        raise ValueError("Executive overlay already present")
+        raise ValueError("Aurora Professional overlay already present")
     if not all(selector in source for selector in REQUIRED):
         raise ValueError("Nautilus stylesheet changed; review current source")
     if not overlay.startswith(MARKER) or "@media (prefers-color-scheme: dark) and (prefers-contrast: no-preference)" not in overlay:
