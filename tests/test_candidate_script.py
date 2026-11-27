@@ -28,7 +28,13 @@ class CandidateScriptTests(unittest.TestCase):
         software = module.installed_script("complete", True, True, True, True, "software")
         self.assertIn("Office diagnostic mode: default", normal)
         self.assertIn("Office diagnostic mode: software", software)
-        self.assertNotIn("--disable-gpu", normal)
+        # The default command stays unmodified; only the wrapper adds
+        # --disable-gpu after detecting a virtio display adapter at runtime.
+        self.assertIn('/usr/bin/localzet-office  "$office_dir/Localzet-offline-review.docx"', normal)
+        self.assertNotIn('/usr/bin/localzet-office --disable-gpu', normal)
+        self.assertIn('if [[ "$virtio_gpu" == 1 ]]; then', normal)
+        self.assertIn("grep -Fq -- '--disable-gpu'", normal)
+        self.assertNotIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", normal)
         self.assertIn("--disable-gpu", software)
         self.assertIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", software)
         for script in (normal, software):
