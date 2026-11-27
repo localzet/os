@@ -3,18 +3,18 @@
  * entirely upstream. This sheet is unloaded in high contrast. */
 .unlock-dialog .unlock-dialog-clock {
     spacing: 16px;
-    color: #f0f5fb;
+    color: #F4EEFF;
 }
 .unlock-dialog .unlock-dialog-clock-time {
     font-size: 82pt;
     font-weight: 300;
-    color: #f0f5fb;
+    color: #F4EEFF;
     text-shadow: 0 2px 8px rgba(0,0,0,.65);
 }
 .unlock-dialog .unlock-dialog-clock-date {
     font-size: 19pt;
     font-weight: 400;
-    color: #e3edf8;
+    color: #F4EEFF;
     text-shadow: 0 1px 4px rgba(0,0,0,.65);
 }
 .unlock-dialog .unlock-dialog-clock-hint {
@@ -23,10 +23,10 @@
 }
 .unlock-dialog .unlock-dialog-notifications-container .message,
 .unlock-dialog .unlock-dialog-notifications-container .unlock-dialog-notification-source {
-    background-color: rgba(16,27,45,.86);
-    border: 1px solid rgba(171,194,221,.36);
+    background-color: rgba(40,24,63,.86);
+    border: 1px solid rgba(155,114,242,.24);
     border-radius: 9px;
-    color: #f0f5fb;
+    color: #F4EEFF;
 }
 .unlock-dialog .unlock-dialog-notifications-container .message.critical,
 .unlock-dialog .unlock-dialog-notifications-container .unlock-dialog-notification-source.critical {

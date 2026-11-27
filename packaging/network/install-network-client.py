@@ -57,6 +57,50 @@ def cached_packages(kind, manifest, filenames, directory):
     return True
 
 
+def offline_plan(plan, versions):
+    """Refuse any removal, extra install or unexpected version/configure."""
+    seen = set()
+    for line in plan.splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        action = fields[0]
+        if action in ("Remv", "Purg"):
+            raise ValueError("Offline network plan would remove a package")
+        if action not in ("Inst", "Conf"):
+            continue
+        match = re.fullmatch(r"(?:Inst|Conf) ([a-z0-9+.-]+)(?::(?:amd64|amd64v1|all))?(?: \[[^\]]+\])? \(([^ )]+).*\)(?: .*)?", line)
+        if not match or versions.get(match[1]) != match[2]:
+            raise ValueError("Offline network plan changed an unreviewed package: " + line)
+        if action == "Inst":
+            seen.add(match[1])
+    if not seen:
+        raise ValueError("Offline network plan contains no installation")
+    return seen
+
+
+def install_offline(packages, versions, runtime):
+    # APT on Resolute fails on verified local DEBs with --no-download:
+    # Internal Error, Pathname to install is not absolute. Resolve the
+    # transaction using APT simulation, then use dpkg for only those exact
+    # local files. dpkg cannot fetch missing dependencies.
+    if any(not installed_version(package) for package in runtime):
+        raise ValueError("Offline runtime dependencies missing")
+    plan = run("/usr/bin/apt-get", "-o", "APT::Get::AllowUnauthenticated=false",
+               "--simulate", "--no-remove", "--no-install-recommends", "install",
+               *packages, text=True, capture_output=True).stdout
+    offline_plan(plan, versions)
+    for package, (name, version) in zip(packages, versions.items(), strict=True):
+        for field, expected in (("Package", name), ("Version", version), ("Architecture", "amd64")):
+            actual = run("/usr/bin/dpkg-deb", "-f", package, field,
+                         text=True, capture_output=True).stdout.strip()
+            if actual != expected:
+                raise ValueError("Cached package metadata mismatch: " + field)
+    run("/usr/bin/dpkg", "--no-act", "--install", *packages)
+    run("/usr/bin/dpkg", "--install", *packages)
+    run("/usr/bin/apt-get", "check")
+
+
 def main():
     if (len(sys.argv) != 2 or sys.argv[1] not in ("netbird", "usernet")
             or os.geteuid() != 0 or not re.fullmatch(r"[1-9][0-9]*", os.environ.get("PKEXEC_UID", ""))):
@@ -95,9 +139,11 @@ def main():
         # test exposed the missing library. Install archive-provided GL
         # dependencies without changing the NVIDIA driver selection.
         runtime = ["libegl1", "libegl-mesa0", "libgl1", "libgl1-mesa-dri", "libgles2"] if kind == "usernet" else []
-        run("/usr/bin/apt-get", "-o", "APT::Get::AllowUnauthenticated=false",
-            *(["--no-download"] if offline else []),
-            "-y", "--no-remove", "--no-install-recommends", "install", *packages, *runtime)
+        if offline:
+            install_offline(packages, versions, runtime)
+        else:
+            run("/usr/bin/apt-get", "-o", "APT::Get::AllowUnauthenticated=false",
+                "-y", "--no-remove", "--no-install-recommends", "install", *packages, *runtime)
         if any(installed_version(name) != version for name, version in versions.items()):
             raise ValueError("Installed package version mismatch")
     print("Pinned client installed. Configure connection in its original UI.")

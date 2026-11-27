@@ -5,12 +5,17 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {AuroraLauncher} from './launcher.js';
+import {wallpaperMaterial, wallpaperPath} from './wallpaper-glass.js';
 
 export class LocalzetDock {
     constructor(path) {
         this._path = path;
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
         this._favorites = new Gio.Settings({schema_id: 'org.gnome.shell'});
+        this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
+        this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        this._materialPath = wallpaperPath();
+        this._materialActive = false;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -56,6 +61,10 @@ export class LocalzetDock {
         this._actor.add_child(this._trash);
 
         this._connections = [
+            [this._background, this._background.connect('changed', () => this._refreshMaterial())],
+            [this._interface, this._interface.connect('changed::color-scheme', () => this._refreshMaterial())],
+            [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => this._schedule())],
+            [this._actor, this._actor.connect('notify::allocation', () => this._refreshMaterial())],
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
                 this._trash.set_child(new St.Icon({
@@ -74,7 +83,7 @@ export class LocalzetDock {
             [Main.overview, Main.overview.connect('showing', () => {
                 this._launcher.close(); this._actor.hide();
             })],
-            [Main.overview, Main.overview.connect('hidden', () => this._actor.show())],
+            [Main.overview, Main.overview.connect('hidden', () => { this._actor.show(); this._schedule(); })],
         ];
         // Reserve a full-width bottom strip through Mutter's native workarea.
         // The floating visual actor remains independent and fullscreen-aware.
@@ -120,7 +129,7 @@ export class LocalzetDock {
     }
 
     _newRow(app) {
-        const icon = app.create_icon_texture(32);
+        const icon = app.create_icon_texture(28);
         const dot = new St.Widget({style_class: 'localzet-dock-indicator',
             x_align: Clutter.ActorAlign.CENTER});
         const content = new St.BoxLayout({vertical: true, style_class: 'localzet-dock-item-content',
@@ -212,15 +221,30 @@ export class LocalzetDock {
         const width = Math.min(monitor.width - 24, natural);
         this._scroll.set_policy(natural > width ? St.PolicyType.AUTOMATIC : St.PolicyType.NEVER,
             St.PolicyType.NEVER);
-        const height = 54;
+        const height = 48;
         this._actor.set_size(width, height);
         const x = monitor.x + Math.round((monitor.width - width) / 2);
         const y = monitor.y + monitor.height - height - 10;
         this._actor.set_position(x, y);
         this._strut.set_position(monitor.x, y - 6);
         this._strut.set_size(monitor.width, height + 16);
+        this._refreshMaterial();
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
             console.log('Localzet Launcher: dock=' + x + ',' + y);
+    }
+
+    _refreshMaterial() {
+        if (!this._actor)
+            return;
+        const style = wallpaperMaterial(this._actor, this._background, this._interface, this._settings, this._materialPath);
+        const active = !!style;
+        if (this._actor.get_style() !== style)
+            this._actor.set_style(style);
+        if (active !== this._materialActive) {
+            this._actor[active ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-wallpaper');
+            this._materialActive = active;
+            console.log('Localzet Dock: material=' + (active ? 'wallpaper' : 'opaque'));
+        }
     }
 
     toggleLauncher() {

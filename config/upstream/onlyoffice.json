@@ -15,5 +15,74 @@
       "size": 425810424,
       "sha256": "3e4668d44f6881d1d8873b38ea9c9fd81b9c77132facdb735bfebfe960edb745"
     }
-  }
+  },
+  "source": {
+    "repository": "https://github.com/ONLYOFFICE/DesktopEditors.git",
+    "tag": "v10.0.0",
+    "commit": "daf8c6948148827201b2907ac1134d222fbfa7b4",
+    "tree": "1fa56830c7fc158f3772c5507c3124fb401d080a",
+    "parent": "05674e97e6bdbeec71888bd05ee0ce147759680e",
+    "tag_commit_date": "2026-10-22T17:54:33Z",
+    "release_published_at": "2026-10-13T10:18:58Z",
+    "tag_signature_verified": false,
+    "submodule_signatures_verified": false,
+    "mapping_status": "unverified",
+    "submodules": [
+      {
+        "path": "core",
+        "repository": "https://github.com/ONLYOFFICE/core.git",
+        "commit": "ed63e94de814ff1d4ea28cddfaba6939bc9df9ed",
+        "signature_verified": false
+      },
+      {
+        "path": "desktop-apps",
+        "repository": "https://github.com/ONLYOFFICE/desktop-apps.git",
+        "commit": "332c1905a5361dd4139481827b7ad4f4a9facd85",
+        "signature_verified": false
+      },
+      {
+        "path": "desktop-sdk",
+        "repository": "https://github.com/ONLYOFFICE/desktop-sdk.git",
+        "commit": "ae6cf2a039355183c512fc314f7a9bd1a05a6a11",
+        "signature_verified": false
+      },
+      {
+        "path": "dictionaries",
+        "repository": "https://github.com/ONLYOFFICE/dictionaries.git",
+        "commit": "d3223bbb777883db66ac3cd249f71c6ebdc992c7",
+        "signature_verified": false
+      },
+      {
+        "path": "sdkjs",
+        "repository": "https://github.com/ONLYOFFICE/sdkjs.git",
+        "commit": "9d2138866d929be32f1d107e8b5bfae36156e097",
+        "signature_verified": false
+      },
+      {
+        "path": "web-apps",
+        "repository": "https://github.com/ONLYOFFICE/web-apps-pro.git",
+        "commit": "f79972a400c3a696490094961772d1f86fac1b82",
+        "signature_verified": false
+      }
+    ]
+  },
+  "licensing": {
+    "application": "AGPL-3.0-only",
+    "artwork": "CC-BY-SA-4.0",
+    "copyright": "Ascensio System SIA, 2009-2026",
+    "redistribution_status": "blocked-until-corresponding-source-is-verified",
+    "license_file": "/opt/onlyoffice/desktopeditors/LICENSE.txt",
+    "copyright_file": "/usr/share/doc/onlyoffice-desktopeditors/copyright"
+  },
+  "updates": {
+    "automatic": false,
+    "channel": "pinned-release-asset",
+    "repository_configured": false,
+    "official_repository": "https://download.onlyoffice.com/repo/debian squeeze main",
+    "official_installation_documentation": "https://helpcenter.onlyoffice.com/desktop/installation/linux-version/desktop-install-ubuntu",
+    "documented_key_id": "CB2DE8E5",
+    "full_key_fingerprint_verified": false,
+    "status": "manual-update-review-required"
+  },
+  "artifact_digest_source": "GitHub Releases API digest field (SHA-256); not an independent publisher signature"
 }
