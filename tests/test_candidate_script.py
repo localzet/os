@@ -126,6 +126,11 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn('/usr/bin/localzet-office RENDER_FLAGS'.replace(" RENDER_FLAGS", " "), script)
         self.assertIn("test -x /usr/bin/localzet-office", script)
         self.assertIn("/usr/local/share/applications/", script)
+        # ONLYOFFICE is single-instance: opening a blank window first would
+        # make the later fixture invocation forward to a renderer started
+        # without the candidate's per-process GPU policy.
+        self.assertNotIn("launch_app localzet-office", script)
+        self.assertEqual(script.count('/usr/bin/localzet-office  "$office_dir/Localzet-offline-review.docx"'), 1)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
     def test_preloaded_telegram_requires_system_commit_and_real_sandbox(self):
