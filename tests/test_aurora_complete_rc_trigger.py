@@ -17,7 +17,7 @@ class AuroraCompleteRcTriggerTests(unittest.TestCase):
             "github.ref == 'refs/heads/integration/aurora-professional-candidate'",
             WORKFLOW,
         )
-        self.assertEqual(WORKFLOW.count("github.event_name == 'push'"), 3)
+        self.assertEqual(WORKFLOW.count("github.event_name == 'push'"), 4)
         self.assertEqual(WORKFLOW.count("LOCALZET_EXPERIMENTAL_TELEGRAM=1 LOCALZET_EXPERIMENTAL_NETWORK=1"), 1)
         self.assertIn("--expect-preloaded-telegram --expect-network-preload", WORKFLOW)
         self.assertIn("--expect-archive-profile complete", WORKFLOW)
