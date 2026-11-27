@@ -29,6 +29,22 @@ class AuroraCompleteRcDistributionGateTests(unittest.TestCase):
         self.assertNotIn("dist/localzet-aurora-complete-rc.iso\n", blocks[0])
 
 
+    def test_unreviewed_usernet_and_missing_copyright_block_iso(self):
+        self.assertIn('usernet_source.get("build_mapping_status") == "verified"', WORKFLOW)
+        self.assertIn('usernet_licensing.get("license_review_status") == "verified"', WORKFLOW)
+        self.assertIn('usernet_licensing.get("redistribution_status") == "verified"', WORKFLOW)
+        self.assertIn("copyright_review_required", WORKFLOW)
+        self.assertIn("Installed packages missing a Debian copyright notice", WORKFLOW)
+        self.assertIn("UserNet Linux DEB has a pinned GPL-3.0 source tag", WORKFLOW)
+
+    def test_telegram_flatpak_identity_license_origin_and_commit_are_checked(self):
+        self.assertIn("dist/telegram-review/app-info.txt", WORKFLOW)
+        self.assertIn('telegram_fields.get("License") == "GPL-3.0"', WORKFLOW)
+        self.assertIn('telegram_fields.get("Origin") == "flathub"', WORKFLOW)
+        self.assertIn('telegram_fields.get("ID") == "org.telegram.desktop"', WORKFLOW)
+        self.assertIn('telegram_fields.get("Ref") == "app/org.telegram.desktop/x86_64/stable"', WORKFLOW)
+        self.assertIn('re.fullmatch(r"[a-f0-9]{64}", telegram_commit)', WORKFLOW)
+
     def test_legacy_cleanup_is_scoped_to_one_known_artifact(self):
         self.assertIn("actions: write", WORKFLOW)
         self.assertIn("actions/runs/46046427962/artifacts", WORKFLOW)
