@@ -6,7 +6,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
-import {WallpaperGlass} from './wallpaper-glass.js';
+import {CompositorGlass} from './compositor-glass.js';
 
 const MAX_COLUMNS = 4;
 const TILE_WIDTH = 96;
@@ -45,12 +45,7 @@ export class AuroraLauncher {
         this._menu.actor.add_style_class_name('localzet-launcher-popup');
         Main.uiGroup.add_child(this._menu.actor);
         this._menu.actor.hide();
-        this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
-        this._glass = null;
-        this._glassExperimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
-        this._contrastId = this._contrast.connect('changed::high-contrast', () => this._refreshMaterial());
-        this._refreshMaterial();
-        this._wallpaperGlass = new WallpaperGlass(this._menu);
+        this._glass = new CompositorGlass(this._menu.actor, 'launcher');
         this._manager = new PopupMenu.PopupMenuManager(anchor);
         this._manager.addMenu(this._menu);
         const section = new PopupMenu.PopupBaseMenuItem({reactive: false, can_focus: false});
@@ -165,23 +160,6 @@ export class AuroraLauncher {
         });
     }
 
-    _refreshMaterial() {
-        if (this._glass) {
-            this._menu.actor.remove_effect(this._glass);
-            this._glass = null;
-        }
-        this._menu.actor.remove_style_class_name('localzet-launcher-glass');
-        const highContrast = this._contrast.get_boolean('high-contrast');
-        this._menu.actor[highContrast ? 'add_style_class_name' : 'remove_style_class_name']('localzet-launcher-contrast');
-        if (highContrast || !this._glassExperimental) {
-            if (this._glassExperimental)
-                console.log('Localzet Glass: launcher opaque fallback');
-            return;
-        }
-        // Do not enable the failed dynamic effect. WallpaperGlass provides
-        // a separately identified, clipped static material on empty desktops.
-        console.log('Localzet Glass: launcher wallpaper candidate');
-    }
 
     _activate(app) {
         this.close();
@@ -288,15 +266,11 @@ export class AuroraLauncher {
     }
 
     destroy() {
-        this._wallpaperGlass.destroy();
+        this._glass?.destroy();
+        this._glass = null;
         if (this._geometrySource)
             GLib.source_remove(this._geometrySource);
         this._geometrySource = 0;
-        this._contrast.disconnect(this._contrastId);
-        if (this._glass) {
-            this._menu.actor.remove_effect(this._glass);
-            this._glass = null;
-        }
         this._appSystem.disconnect(this._appsId);
         this._favorites.disconnect(this._favoritesId);
         this._menu.disconnect(this._openId);
