@@ -48,6 +48,7 @@ done
 
 kill "$pid"
 wait "$pid" || true
+pids=()
 ADW_DEBUG_COLOR_SCHEME=prefer-light python3 -m localzet.containers_app > "$OUT/app-light.log" 2>&1 &
 light_pid=$!
 pids+=("$light_pid")
