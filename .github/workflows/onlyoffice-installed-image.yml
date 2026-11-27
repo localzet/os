@@ -1,6 +1,17 @@
 name: ONLYOFFICE installed image review
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Installed renderer diagnostic mode
+        type: choice
+        options:
+          - native
+          - fresh-profile
+          - software-disable-gpu
+          - isolated-x11
+        default: native
+        required: true
   pull_request:
     paths:
       - 'scripts/install-onlyoffice-rootfs.sh'
@@ -17,32 +28,30 @@ permissions:
   contents: read
 concurrency:
   group: office-installed-image-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Do not cancel a long USB/QEMU installation when a small follow-up commit
+  # fixes the diagnostic workflow. The newest run will queue behind it.
+  cancel-in-progress: false
 jobs:
   candidate:
     runs-on: ubuntu-26.04
     timeout-minutes: 90
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [native, software-disable-gpu, fresh-profile, isolated-x11]
+    env:
+      OFFICE_MODE: ${{ github.event.inputs.mode || 'native' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Validate source
+      - name: Validate source once
         run: |
           make test
           for script in scripts/build-live-rootfs.sh scripts/assemble-live-iso.sh packaging/live/customize-rootfs.sh packaging/installer/*.sh; do
             bash -n "$script"
           done
           python3 -m py_compile scripts/qemu-interactive-install-smoke.py
-      - name: Install build tools
+      - name: Install build and QEMU tools
         run: |
           sudo apt-get update
           sudo apt-get install -y curl mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64 python3-pil
           if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
-      - name: Build office-specific diagnostic image without optional Containers
-        env:
-          OFFICE_MODE: ${{ matrix.mode }}
+      - name: Build one office-specific diagnostic image
         run: |
           mkdir -p dist
           diagnostic=0
@@ -50,28 +59,37 @@ jobs:
           sudo env LOCALZET_OFFICE_X11_DIAGNOSTIC="$diagnostic" LOCALZET_DISPOSABLE_VM=1 LOCALZET_INSTALLER=1 LOCALZET_WINDOWS=1 LOCALZET_ARCHIVE_PROFILE=complete LOCALZET_EXPERIMENTAL_HARDWARE_AUTO=1 LOCALZET_EXPERIMENTAL_ONLYOFFICE=1 bash scripts/build-live-rootfs.sh "$RUNNER_TEMP/candidate-root"
           sudo env LOCALZET_INSTALLER=1 bash scripts/assemble-live-iso.sh "$RUNNER_TEMP/candidate-root" "$PWD/dist/localzet-uefi-candidate.iso"
           (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
+          printf '%s\n' "$(git rev-parse HEAD)" > dist/BUILD-COMMIT
+          sudo cat "$RUNNER_TEMP/candidate-root/usr/share/localzet/archive-profile-plan.json" > dist/archive-profile-plan.json
+          sudo mkdir -p dist/office-review
+          if test -d "$RUNNER_TEMP/candidate-root/usr/share/localzet/office-review"; then
+            sudo cp -a "$RUNNER_TEMP/candidate-root/usr/share/localzet/office-review/." dist/office-review/
+          fi
+          for file in \
+            "$RUNNER_TEMP/candidate-root/opt/onlyoffice/desktopeditors/LICENSE.txt" \
+            "$RUNNER_TEMP/candidate-root/usr/share/doc/onlyoffice-desktopeditors/copyright"; do
+            if test -s "$file"; then sudo cp "$file" dist/office-review/; fi
+          done
+          (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
       - name: Compile original Windows fixture
         run: |
           printf 'int main(void) { return 42; }\n' > "$RUNNER_TEMP/smoke.c"
           x86_64-w64-mingw32-gcc "$RUNNER_TEMP/smoke.c" -o "$RUNNER_TEMP/smoke.exe"
-      - name: Install candidate from USB and authenticate installed GNOME desktop
-        env:
-          REVIEW_BRANCH: ${{ github.head_ref }}
-          OFFICE_MODE: ${{ matrix.mode }}
+      - name: Install candidate from USB and verify actual ONLYOFFICE rendering
         run: |
           review=(--expect-executive-review)
-          if [[ "$REVIEW_BRANCH" == integration/executive-complete-preview || "$REVIEW_BRANCH" == design/executive-system-actions || "$REVIEW_BRANCH" == integration/executive-visual-gate || "$REVIEW_BRANCH" == fix/executive-office-rendering || "$REVIEW_BRANCH" == integration/executive-document-gate || "$REVIEW_BRANCH" == fix/executive-installed-office ]]; then
-            review=(--expect-executive-review)
-          fi
-          # The separate Native Files workflow still tests default rendering.
-          # This branch's office-only workflow tests the software path for comparison.
-          if [[ "$REVIEW_BRANCH" == fix/executive-installed-office ]]; then
-            review+=(--office-render-mode software)
-          fi
           case "$OFFICE_MODE" in
-            native) review=(--expect-executive-review) ;;
-            software|fresh-profile|isolated-x11) review=(--expect-executive-review --office-render-mode "$OFFICE_MODE") ;;
-            *) exit 2 ;;
+            native)
+              # The wrapper must detect QEMU virtio-vga and scope --disable-gpu
+              # to ONLYOFFICE; a physical GPU must keep the native renderer.
+              ;;
+            fresh-profile|software-disable-gpu|isolated-x11)
+              review+=(--office-render-mode "$OFFICE_MODE")
+              ;;
+            *)
+              echo "Unsupported OFFICE_MODE=$OFFICE_MODE" >&2
+              exit 2
+              ;;
           esac
           python3 scripts/qemu-interactive-install-smoke.py dist/localzet-uefi-candidate.iso \
             --ovmf-code /usr/share/OVMF/OVMF_CODE_4M.secboot.fd \
@@ -79,30 +97,16 @@ jobs:
             --boot-media usb \
             --fixture "$RUNNER_TEMP/smoke.exe" \
             --logs dist/candidate-logs --expect-archive-profile complete --expect-office "${review[@]}"
-      - name: Upload diagnostics
+      - name: Upload diagnostics and licensing evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: onlyoffice-installed-image-evidence-${{ matrix.mode }}
-          path: dist/candidate-logs/
-          if-no-files-found: warn
-          retention-days: 7
-      - name: Record reviewed candidate provenance
-        if: success() && matrix.mode == 'native' && github.event_name == 'pull_request' && github.head_ref == 'integration/executive-complete-preview' && github.event.pull_request.head.repo.full_name == github.repository
-        run: |
-          git rev-parse HEAD > dist/BUILD-COMMIT
-          sudo cat "$RUNNER_TEMP/candidate-root/usr/share/localzet/archive-profile-plan.json" > dist/archive-profile-plan.json
-          (cd dist && sha256sum -c localzet-uefi-candidate.iso.sha256)
-      - name: Publish verified engineering candidate (not a release)
-        if: success() && matrix.mode == 'native' && github.event_name == 'pull_request' && github.head_ref == 'integration/executive-complete-preview' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/upload-artifact@v4
-        with:
-          name: executive-complete-engineering-preview
+          name: onlyoffice-installed-image-evidence-${{ github.event.inputs.mode || 'native' }}
           path: |
-            dist/localzet-uefi-candidate.iso
-            dist/localzet-uefi-candidate.iso.sha256
+            dist/candidate-logs/
+            dist/office-review/
             dist/BUILD-COMMIT
             dist/archive-profile-plan.json
-          compression-level: 0
-          if-no-files-found: error
+            dist/localzet-uefi-candidate.iso.sha256
+          if-no-files-found: warn
           retention-days: 7
