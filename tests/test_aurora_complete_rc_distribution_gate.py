@@ -28,6 +28,14 @@ class AuroraCompleteRcDistributionGateTests(unittest.TestCase):
         self.assertIn("dist/REDISTRIBUTION-BLOCKED.txt", blocks[0])
         self.assertNotIn("dist/localzet-aurora-complete-rc.iso\n", blocks[0])
 
+
+    def test_legacy_cleanup_is_scoped_to_one_known_artifact(self):
+        self.assertIn("actions: write", WORKFLOW)
+        self.assertIn("actions/runs/46046427962/artifacts", WORKFLOW)
+        self.assertIn('select(.name == "aurora-complete-rc-engineering-image")', WORKFLOW)
+        self.assertIn("actions/\u0061rtifacts/${artifact_id}", WORKFLOW)
+        self.assertIn("github.ref == 'refs/heads/integration/aurora-professional-candidate'", WORKFLOW)
+
     def test_evidence_artifact_is_not_the_iso(self):
         self.assertIn("aurora-complete-rc-non-distributable-evidence", WORKFLOW)
         self.assertIn("dist/localzet-aurora-complete-rc.iso.sha256", WORKFLOW)
