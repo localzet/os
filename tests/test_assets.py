@@ -139,7 +139,7 @@ class AssetsTests(unittest.TestCase):
         self.assertIn("gsettings set org.gnome.desktop.interface accent-color purple", script)
         favorite_line = next(line for line in script.splitlines()
                              if "gsettings set org.gnome.shell favorite-apps" in line)
-        favorites = re.findall(r"'([^']+\\.desktop)'", favorite_line)
+        favorites = re.findall(r"'([^']+\.desktop)'", favorite_line)
         self.assertEqual(len(favorites), 5)
         spec = importlib.util.spec_from_file_location("aurora_icons", ROOT / "scripts/build-aurora-icons.py")
         module = importlib.util.module_from_spec(spec)
