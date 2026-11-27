@@ -598,6 +598,9 @@ notes, not active color specifications. The active values are the canonical
 deep background `#10091E`, surface `#28183F`, elevated surface
 `#34234F`, deep selection `#6436B5`, primary text `#F4EEFF` and
 secondary text `#B9A5D5`. Native GTK, Shell, lock, GRUB and Plymouth
-must derive their active appearance from these tokens. This restoration does
-not change functional acceptance gates or claim final visual approval; fresh
-installed-image captures and owner review remain required.
+must derive their active appearance from these tokens. GNOME's supported
+system accent preset is set to `purple`, the closest native preset to the
+approved violet; Localzet GTK and Shell components use the exact token values.
+Orange remains reserved for primary actions and meaningful focus. This
+restoration does not change functional acceptance gates or claim final visual
+approval; fresh installed-image captures and owner review remain required.
