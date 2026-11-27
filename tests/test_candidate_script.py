@@ -1,7 +1,9 @@
 import importlib.util
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("candidate", ROOT / "scripts/qemu-interactive-install-smoke.py")
@@ -25,12 +27,19 @@ class CandidateScriptTests(unittest.TestCase):
 
     def test_office_diagnostics_are_explicit(self):
         normal = module.installed_script("complete", True, True, True, True)
-        software = module.installed_script("complete", True, True, True, True, "software")
+        software = module.installed_script("complete", True, True, True, True, "software-disable-gpu")
         self.assertIn("Office diagnostic mode: default", normal)
-        self.assertIn("Office diagnostic mode: software", software)
-        self.assertNotIn("--disable-gpu", normal)
+        self.assertIn("Office diagnostic mode: software-disable-gpu", software)
+        # The default command stays unmodified; only the wrapper adds
+        # --disable-gpu after detecting a virtio display adapter at runtime.
+        self.assertIn('/usr/bin/localzet-office  "$office_dir/Localzet-offline-review.docx"', normal)
+        self.assertNotIn('/usr/bin/localzet-office --disable-gpu', normal)
+        self.assertIn('if [[ "$virtio_gpu" == 1 ]]; then', normal)
+        self.assertIn("grep -Fq -- '--disable-gpu'", normal)
+        self.assertNotIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", normal)
         self.assertIn("--disable-gpu", software)
-        self.assertIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", software)
+        self.assertNotIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", software)
+        self.assertNotIn("--setenv=QT_OPENGL=software", software)
         for script in (normal, software):
             self.assertIn("test -w", script)
             self.assertIn("LOCALZET_CANDIDATE_OFFICE_FAILED_PNG", script)
@@ -120,6 +129,11 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn('/usr/bin/localzet-office RENDER_FLAGS'.replace(" RENDER_FLAGS", " "), script)
         self.assertIn("test -x /usr/bin/localzet-office", script)
         self.assertIn("/usr/local/share/applications/", script)
+        # ONLYOFFICE is single-instance: opening a blank window first would
+        # make the later fixture invocation forward to a renderer started
+        # without the candidate's per-process GPU policy.
+        self.assertNotIn("launch_app localzet-office", script)
+        self.assertEqual(script.count('/usr/bin/localzet-office  "$office_dir/Localzet-offline-review.docx"'), 1)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
     def test_preloaded_telegram_requires_system_commit_and_real_sandbox(self):
@@ -159,3 +173,31 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("installed rootless image persisted across restart", script)
         self.assertNotIn("pkill", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+
+    def test_ci_kvm_acl_is_refreshed_after_live_guest_without_host_side_effects(self):
+        with tempfile.TemporaryDirectory() as directory:
+            device = Path(directory) / "kvm"
+            device.touch()
+            with mock.patch.dict(module.os.environ, {"GITHUB_ACTIONS": "true"}):
+                with mock.patch.object(module.os, "access", side_effect=[False, True]):
+                    with mock.patch.object(module.subprocess, "run") as run:
+                        self.assertTrue(module.ensure_ci_kvm_access(device))
+            run.assert_called_once_with(
+                ["sudo", "setfacl", "-m", f"u:{module.os.getuid()}:rw", str(device)],
+                check=True,
+                stdout=module.subprocess.PIPE,
+                stderr=module.subprocess.PIPE,
+                text=True,
+                timeout=10,
+            )
+
+    def test_ci_kvm_acl_refresh_never_escalates_outside_github_actions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            device = Path(directory) / "kvm"
+            device.touch()
+            with mock.patch.dict(module.os.environ, {"GITHUB_ACTIONS": "false"}):
+                with mock.patch.object(module.os, "access", return_value=False):
+                    with mock.patch.object(module.subprocess, "run") as run:
+                        self.assertFalse(module.ensure_ci_kvm_access(device))
+            run.assert_not_called()
