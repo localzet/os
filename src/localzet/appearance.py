@@ -98,11 +98,13 @@ MIDNIGHT_CSS = PROFESSIONAL_CSS
 
 
 def apply_professional(window):
-    """Apply the shared dark palette, retaining native light/high-contrast fallback."""
+    """Use Violet × Ember only for system dark mode; respect light and high contrast."""
     from gi.repository import Adw, Gtk
 
+    # The image sets GNOME's default to prefer-dark. Do not override the
+    # user's live preference here: PREFER_DARK pins libadwaita to dark and
+    # prevents an explicit system light selection from reaching this window.
     style = Adw.StyleManager.get_default()
-    style.set_color_scheme(Adw.ColorScheme.PREFER_DARK)
     provider = Gtk.CssProvider()
     provider.load_from_data(PROFESSIONAL_CSS)
     display = window.get_display()
