@@ -88,7 +88,7 @@ jobs:
           from PIL import Image
           from pathlib import Path
           # Validate the actual allocation, not merely width_request. The
-          # dark sidebar is intentionally a distinct continuous graphite area.
+          # Violet sidebar is a distinct continuous native surface.
           with Image.open("out/app-center/system.png") as image:
               rgb = image.convert("RGB")
               y = int(rgb.height * .8)
