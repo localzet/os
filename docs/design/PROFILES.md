@@ -44,3 +44,15 @@ https://github.com/ONLYOFFICE/DesktopEditors
 Do not add unverified APT keys or a global trusted repository. Package id:
 `onlyoffice-desktopeditors`. Integration remains planned until actual package
 installation and desktop/file-open tests pass.
+
+
+## Current ONLYOFFICE distribution status
+
+ONLYOFFICE remains the approved Standard/Complete office target; do not silently
+replace it with LibreOffice. The pinned 10.0.0-169 DEB is currently
+engineering-only because its exact corresponding source/build mapping and
+supported update channel are unverified. It may be installed and tested in
+disposable CI, but must not be included in a public ISO artifact until the
+release gate in [the third-party review](../third-party/ONLYOFFICE.md) is
+satisfied. The CI may publish checksums and test evidence without publishing
+the ISO binary.
