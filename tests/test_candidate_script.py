@@ -25,9 +25,9 @@ class CandidateScriptTests(unittest.TestCase):
 
     def test_office_diagnostics_are_explicit(self):
         normal = module.installed_script("complete", True, True, True, True)
-        software = module.installed_script("complete", True, True, True, True, "software")
+        software = module.installed_script("complete", True, True, True, True, "software-disable-gpu")
         self.assertIn("Office diagnostic mode: default", normal)
-        self.assertIn("Office diagnostic mode: software", software)
+        self.assertIn("Office diagnostic mode: software-disable-gpu", software)
         # The default command stays unmodified; only the wrapper adds
         # --disable-gpu after detecting a virtio display adapter at runtime.
         self.assertIn('/usr/bin/localzet-office  "$office_dir/Localzet-offline-review.docx"', normal)
@@ -36,7 +36,8 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("grep -Fq -- '--disable-gpu'", normal)
         self.assertNotIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", normal)
         self.assertIn("--disable-gpu", software)
-        self.assertIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", software)
+        self.assertNotIn("--setenv=LIBGL_ALWAYS_SOFTWARE=1", software)
+        self.assertNotIn("--setenv=QT_OPENGL=software", software)
         for script in (normal, software):
             self.assertIn("test -w", script)
             self.assertIn("LOCALZET_CANDIDATE_OFFICE_FAILED_PNG", script)
