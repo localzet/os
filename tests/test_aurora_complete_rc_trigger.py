@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,3 +28,12 @@ class AuroraCompleteRcTriggerTests(unittest.TestCase):
         self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", WORKFLOW)
         self.assertEqual(WORKFLOW.count("GITHUB_BASE_REF"), 3)
         self.assertIn("integration/aurora-professional-candidate]", WORKFLOW)
+
+    def test_workflow_yaml_parses(self):
+        result = subprocess.run(
+            ["ruby", "-e", "require 'yaml'; YAML.parse_file(ARGV.fetch(0))", str(ROOT / ".github/workflows/aurora-complete-rc.yml")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
