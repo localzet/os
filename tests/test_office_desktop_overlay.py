@@ -1,4 +1,5 @@
 import importlib.util
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 import unittest
 
@@ -25,7 +26,7 @@ class OfficeOverlayTests(unittest.TestCase):
 
 launcher_spec = importlib.util.spec_from_loader(
     "office_launcher",
-    importlib.machinery.SourceFileLoader(
+    SourceFileLoader(
         "office_launcher",
         str(Path(__file__).resolve().parents[1] / "apps/localzet-office/localzet-office"),
     ),
@@ -38,8 +39,8 @@ class OfficeLauncherTests(unittest.TestCase):
     def make_device(self, root, name, vendor, pci_class):
         device = root / name
         device.mkdir()
-        (device / "vendor").write_text(vendor + "\\n", encoding="ascii")
-        (device / "class").write_text(pci_class + "\\n", encoding="ascii")
+        (device / "vendor").write_text(vendor + "\n", encoding="ascii")
+        (device / "class").write_text(pci_class + "\n", encoding="ascii")
         return device
 
     def test_virtio_display_gets_process_scoped_gpu_fallback(self):
