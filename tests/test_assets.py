@@ -79,11 +79,9 @@ class AssetsTests(unittest.TestCase):
 
     def test_native_apps_follow_system_light_and_high_contrast(self):
         appearance = (ROOT / "src/localzet/appearance.py").read_text()
-        self.assertIn('Gio.Settings.new("org.gnome.desktop.interface")', appearance)
-        self.assertIn('"prefer-dark": Adw.ColorScheme.PREFER_DARK', appearance)
-        self.assertIn('"prefer-light": Adw.ColorScheme.PREFER_LIGHT', appearance)
-        self.assertIn('settings.connect("changed::color-scheme", sync_color_scheme)', appearance)
-        self.assertIn("if style.get_high_contrast():", appearance)
+        self.assertNotIn("style.set_color_scheme", appearance)
+        self.assertIn('style.connect("notify::dark", refresh)', appearance)
+        self.assertIn('style.connect("notify::high-contrast", refresh)', appearance)
         self.assertIn("style.get_dark() and not style.get_high_contrast()", appearance)
         smoke = (ROOT / "scripts/ci/containers-gtk-smoke.sh").read_text()
         self.assertIn("color-scheme prefer-dark", smoke)
