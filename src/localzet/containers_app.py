@@ -48,39 +48,85 @@ def create_application():
             self.window.set_default_size(1120, 680)
             self.window.set_size_request(900, 540)
             self.window.add_css_class("aurora-containers")
-            style = Adw.StyleManager.get_default()
-            def update_style(*_):
-                if style.get_dark() and not style.get_high_contrast():
-                    self.window.add_css_class("aurora-dark")
-                else:
-                    self.window.remove_css_class("aurora-dark")
-            self.style = style
-            self.style_handlers = [style.connect("notify::dark", update_style),
-                                   style.connect("notify::high-contrast", update_style)]
-            update_style()
             provider = Gtk.CssProvider()
             provider.load_from_data(b"""
-                 .aurora-containers .workspace-sidebar { padding: 12px 8px; border-right: 1px solid alpha(currentColor, .12); }
-                .aurora-containers .workspace-sidebar button { border-radius: 5px; padding: 7px 9px; }
-                .aurora-containers .workspace-sidebar button.active { background-color: alpha(currentColor, .12); font-weight: 600; }
-                .aurora-containers .workspace-heading { font-size: 19px; font-weight: 600; }
-                .aurora-containers .container-detail { border: 1px solid alpha(currentColor, .12); border-radius: 6px; padding: 10px; }
-                .aurora-containers columnview { border: 1px solid alpha(currentColor, .12); }
-                window.aurora-containers.aurora-dark { background-color: #202124; color: #f0f0f2; }
-                .aurora-dark headerbar { background-color: #292a2e; color: #f0f0f2; }
-                .aurora-dark .workspace-sidebar { background-color: #343539; color: #f0f0f2; }
-                .aurora-dark columnview, .aurora-dark .container-detail { background-color: #2f3034; }
-                .aurora-dark columnview header button { background-color: #343539; color: #d2d3d8; }
-                .aurora-dark columnview row:selected { background-color: #39495e; color: #f0f0f2; }
-                .aurora-dark .workspace-sidebar button.active { background-color: #45464b; color: #f0f0f2; }
-                .aurora-dark textview, .aurora-dark textview text { background-color: #202124; color: #f0f0f2; }
-                .aurora-dark button.suggested-action { background-color: #2874c8; color: #ffffff; }
+                .aurora-containers .workspace-sidebar {
+                    padding: 12px 8px;
+                    border-right: 1px solid rgba(155, 114, 242, .18);
+                }
+                .aurora-containers .workspace-sidebar button {
+                    border-radius: 6px;
+                    padding: 7px 9px;
+                }
+                .aurora-containers .workspace-sidebar button.active {
+                    font-weight: 600;
+                }
+                .aurora-containers .workspace-heading {
+                    font-size: 19px;
+                    font-weight: 600;
+                }
+                .aurora-containers .container-detail {
+                    border: 1px solid rgba(155, 114, 242, .18);
+                    border-radius: 8px;
+                    padding: 10px;
+                }
+                .aurora-containers columnview {
+                    border: 1px solid rgba(155, 114, 242, .18);
+                }
                 .aurora-containers columnview row { min-height: 32px; }
                 .aurora-containers columnview header button { min-height: 28px; }
-                .aurora-containers .container-detail button { min-height: 28px; border-radius: 6px; }
+                .aurora-containers .container-detail button {
+                    min-height: 28px;
+                    border-radius: 6px;
+                }
+                window.aurora-containers.localzet-midnight {
+                    background-color: #10091E;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight .workspace-sidebar {
+                    background-color: #28183F;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight .workspace-sidebar button.active {
+                    background-color: #6436B5;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight .workspace-sidebar button:focus-visible,
+                .aurora-containers.localzet-midnight columnview:focus-visible,
+                .aurora-containers.localzet-midnight .container-detail button:focus-visible {
+                    outline: 2px solid #FF7E00;
+                    outline-offset: -2px;
+                }
+                .aurora-containers.localzet-midnight columnview,
+                .aurora-containers.localzet-midnight .container-detail {
+                    background-color: #34234F;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight columnview header button {
+                    background-color: #28183F;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight columnview row:selected {
+                    background-color: #6436B5;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight textview,
+                .aurora-containers.localzet-midnight textview text {
+                    background-color: #10091E;
+                    color: #F4EEFF;
+                }
+                .aurora-containers.localzet-midnight button.suggested-action {
+                    background-color: #FF7E00;
+                    color: #10091E;
+                }
+                .aurora-containers.localzet-midnight .dim-label {
+                    color: #B9A5D5;
+                    opacity: 1;
+                }
             """)
             Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider,
                                                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            self.layout_provider = provider
             toolbar = Adw.ToolbarView()
             header = Adw.HeaderBar()
             title = Adw.WindowTitle(title="Containers", subtitle="Localzet OS")
@@ -1764,8 +1810,6 @@ def create_application():
 
         def do_shutdown(self):
             self.generation += 1
-            for handler in self.style_handlers:
-                self.style.disconnect(handler)
             self.window = None
             self.pool.shutdown(wait=False, cancel_futures=True)
             Adw.Application.do_shutdown(self)
