@@ -822,7 +822,7 @@ for entry in "${office_entries[@]}"; do
     test -s "/usr/local/share/applications/${entry##*/}"
     grep -Eq '^Exec=/usr/bin/localzet-office([[:space:]]|$)' "/usr/local/share/applications/${entry##*/}"
 done
-launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'
+launch_app localzet-office 'DesktopEditors|onlyoffice-desktopeditors'
 cat > /run/localzet-candidate-check/office-window.sh <<'OFFICETEST'
 #!/bin/bash
 set -Eeuo pipefail
@@ -872,6 +872,29 @@ x="$(sed -n 's/^X=//p' <<< "$geometry")"
 y="$(sed -n 's/^Y=//p' <<< "$geometry")"
 [[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ ]]
 test "$(xdotool getactivewindow)" = "$window"
+mode="\${1:-}"
+if [[ "$mode" == "--check-virtio-policy" ]]; then
+    virtio_gpu=0
+    for pci_device in /sys/bus/pci/devices/*; do
+        [[ -r "$pci_device/vendor" && -r "$pci_device/class" ]] || continue
+        vendor="$(cat "$pci_device/vendor")"
+        pci_class="$(cat "$pci_device/class")"
+        if [[ "$vendor" == 0x1af4 && "$pci_class" == 0x03* ]]; then
+            virtio_gpu=1
+            break
+        fi
+    done
+    office_pid="$(pgrep -u "$(id -u)" -x DesktopEditors | head -n 1)"
+    test -n "$office_pid"
+    office_cmdline="$(tr '\0' ' ' < "/proc/$office_pid/cmdline")"
+    if [[ "$virtio_gpu" == 1 ]]; then
+        grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
+        echo "PASS: virtio GPU fallback is scoped to the ONLYOFFICE process"
+    else
+        ! grep -Fq -- '--disable-gpu' <<< "$office_cmdline"
+        echo "PASS: non-virtio GPU retains the upstream acceleration path"
+    fi
+fi
 printf 'LOCALZET_CANDIDATE_OFFICE_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
 printf 'PASS: visible ONLYOFFICE window %s x %s\n' "$width" "$height"
 OFFICETEST
@@ -933,7 +956,7 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     --setenv=QT_QPA_PLATFORM=xcb --setenv=GDK_BACKEND=x11 RENDER_ENV \
     /usr/bin/localzet-office RENDER_FLAGS "$office_dir/Localzet-offline-review.docx"
 """
-        marker = "launch_app onlyoffice-desktopeditors 'DesktopEditors|onlyoffice-desktopeditors'"
+        marker = "launch_app localzet-office 'DesktopEditors|onlyoffice-desktopeditors'"
         assert script.count(marker) == 1
         render_env = "--setenv=LIBGL_ALWAYS_SOFTWARE=1 --setenv=QT_OPENGL=software" if office_render_mode == "software" else ""
         render_flags = "--disable-gpu" if office_render_mode == "software" else ""
@@ -1039,6 +1062,9 @@ if [[ -s "$work/document.png" && "$(stat -c %s "$work/document.png")" -lt 157286
 fi
 exit 1""" + script[last:]
         check_marker = "systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/office-window.sh"
+        if office_render_mode != "isolated-x11":
+            script = script.replace(check_marker, check_marker + " --check-virtio-policy")
+            check_marker += " --check-virtio-policy"
         assert script.count(check_marker) == 1
         if office_render_mode == "isolated-x11":
             script = script.replace(check_marker, 'systemd-run --user --wait --pipe --collect /usr/bin/xvfb-run -a -s "-screen 0 1440x900x24" /usr/bin/dbus-run-session -- /bin/bash /run/localzet-candidate-check/office-isolated.sh "$office_dir/Localzet-offline-review.docx"')
