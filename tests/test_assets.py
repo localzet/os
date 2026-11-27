@@ -46,6 +46,33 @@ class AssetsTests(unittest.TestCase):
         for key in ('background', 'surface', 'accent'):
             self.assertIn('0x' + data['colors'][key][1:].lower(), plymouth)
 
+        from localzet.appearance import PALETTE, palette_css
+        expected = {
+            "background": data["nativeApplications"]["background"],
+            "surface": data["nativeFiles"]["sidebar"],
+            "surface_elevated": data["nativeApplications"]["card"],
+            "header": data["nativeApplications"]["header"],
+            "primary": data["colors"]["primary"],
+            "accent": data["colors"]["accent"],
+            "selection": data["nativeApplications"]["selection"],
+            "text": data["nativeApplications"]["text"],
+            "text_secondary": data["nativeApplications"]["textSecondary"],
+            "on_accent": data["colors"]["onAccent"],
+        }
+        for key, value in expected.items():
+            self.assertEqual(PALETTE[key], value, key)
+        self.assertEqual(
+            palette_css(b".sample { background: __SURFACE__; }"),
+            b".sample { background: #28183F; }",
+        )
+        for path in ("src/localzet/network_app.py", "src/localzet/windows_app.py",
+                     "src/localzet/containers_app.py"):
+            source = (ROOT / path).read_text()
+            self.assertIn("palette_css", source, path)
+            for legacy in ("#202124", "#292a2e", "#343539", "#2f3034",
+                           "#39495e", "#45464b", "#2874c8"):
+                self.assertNotIn(legacy, source, (path, legacy))
+
     def test_shell_glass_default_and_opaque_override(self):
         panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
         self.assertIn("LOCALZET_DISABLE_GLASS", panel)
