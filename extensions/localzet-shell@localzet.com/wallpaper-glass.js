@@ -157,6 +157,10 @@ export class WallpaperGlass {
             this._effectActor = effectActor;
             this._effect = effect;
             effectActor.add_style_class_name('localzet-wallpaper-glass');
+            // CSS opacity belongs to the popup wrapper/content relationship;
+            // attach the state to the wrapper too so the translucent surface
+            // rule actually matches the visible PopupMenu.box child.
+            this._menu.actor.add_style_class_name('localzet-wallpaper-glass');
             console.log('Localzet Glass: wallpaper compositor effect active ' + this._surface +
                 ' mode=' + effect.get_mode() + ' radius=' + effect.get_radius() +
                 ' allocated=' + Math.round(effectActor.get_width()) + 'x' +
@@ -226,7 +230,10 @@ export class WallpaperGlass {
             this._effect = null;
             this._effectActor = null;
         }
+        // Both actors carry the state: the wrapper scopes CSS and the content
+        // actor owns the compositor effect. Remove both on every fallback.
         this._menu.actor.remove_style_class_name('localzet-wallpaper-glass');
+        this._menu.box.remove_style_class_name('localzet-wallpaper-glass');
     }
 
     destroy() {
