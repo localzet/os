@@ -899,27 +899,19 @@ for unit in docker.service docker.socket containerd.service; do
         echo "Rootless test changed system Docker: $unit"; exit 2
     fi
 done
-runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-    systemd-run --user --collect --unit=localzet-candidate-localzet-containers.service \
-    --setenv=GDK_BACKEND=x11 --setenv=PYTHONPATH=/opt/localzet-os/src /usr/bin/localzet-containers
-for attempt in $(seq 1 45); do
-    pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null && break
-    sleep 1
-done
-pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
+launch_app_x11 localzet-candidate-localzet-containers /usr/bin/localzet-containers \
+    /usr/bin/localzet-containers
 cat > /run/localzet-candidate-check/containers-window.sh <<'CONTAINERSWINDOW'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
 window=""
 for attempt in $(seq 1 45); do
-    clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)"
-    for hex in $(grep -Eo '0x[0-9a-fA-F]+' <<< "$clients" || true); do
-        candidate="$((hex))"
-        identity="$(xprop -id "$hex" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null)" || continue
-        grep -Eiq 'com\.localzet\.Containers|Localzet Containers' <<< "$identity" || continue
-        title="$(xdotool getwindowname "$candidate" 2>/dev/null)" || continue
-        grep -Fq 'Localzet Containers' <<< "$title" || continue
+    for candidate in $(xdotool search --onlyvisible --name 'Containers' 2>/dev/null || true); do
+        identity="$(xdotool getwindowclassname "$candidate" 2>/dev/null || true)"
+        title="$(xdotool getwindowname "$candidate" 2>/dev/null || true)"
+        grep -Eiq 'localzet.*containers|com\\.localzet\\.Containers' <<< "$identity" || continue
+        grep -Fq 'Containers' <<< "$title" || continue
         geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
         width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
         height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
@@ -940,12 +932,23 @@ for attempt in $(seq 1 45); do
 done
 if [[ -z "$window" ]]; then
     echo "No visible, activatable Localzet Containers window" >&2
-    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
-    xwininfo -root -tree >&2 || true
+    echo "Graphical environment exported by the authenticated user manager:" >&2
+    systemctl --user show-environment | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP)=' >&2 || true
+    echo "Containers unit status and journal:" >&2
+    systemctl --user status localzet-candidate-localzet-containers.service --no-pager >&2 || true
+    journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 100 >&2 || true
+    echo "Visible X11 windows:" >&2
+    for candidate in $(xdotool search --onlyvisible --name '.*' 2>/dev/null || true); do
+        printf 'window=%s class=%s title=%s\\n' "$candidate" \
+            "$(xdotool getwindowclassname "$candidate" 2>/dev/null || true)" \
+            "$(xdotool getwindowname "$candidate" 2>/dev/null || true)" >&2
+    done
     exit 2
 fi
 title="$(xdotool getwindowname "$window")"
-grep -Fq 'Localzet Containers' <<< "$title"
+grep -Fq 'Containers' <<< "$title"
+identity="$(xdotool getwindowclassname "$window")"
+grep -Eiq 'localzet.*containers|com\\.localzet\\.Containers' <<< "$identity"
 geometry="$(xdotool getwindowgeometry --shell "$window")"
 x="$(sed -n 's/^X=//p' <<< "$geometry")"
 y="$(sed -n 's/^Y=//p' <<< "$geometry")"
@@ -954,7 +957,7 @@ height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
 [[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ && "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
 (( width >= 900 && height >= 540 ))
 test "$(xdotool getactivewindow)" = "$window"
-printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY %s %s %s %s\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n' "$x" "$y" "$width" "$height"
+printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY %s %s %s %s\\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\\n' "$x" "$y" "$width" "$height"
 sleep 10
 CONTAINERSWINDOW
 chmod 0755 /run/localzet-candidate-check/containers-window.sh
