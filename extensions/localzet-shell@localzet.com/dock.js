@@ -99,6 +99,8 @@ export class LocalzetDock {
         this._reconcile();
         if (Main.overview.visible)
             this._actor.hide();
+        else
+            console.log('Localzet Dock: overview hidden');
     }
 
     _launcherIcon() {
