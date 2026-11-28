@@ -652,16 +652,16 @@ visual approval is claimed.
 
 
 
-### Compositor blur optical correction — 2026-11-28
 
-The natural-wallpaper metric in Actions 46097123389, 46097516557 and
-46098017327 returned 0.998 even though the captured crop visibly softened.
-Its covariance normalization was not a reliable discriminator between blur
-and tint. The replacement probe is a deterministic 4 px checkerboard and
-measures contrast in the same blank menu region; a translucent overlay alone
-retains roughly 45% of the pattern, while a radius-18 blur must reduce it
-below 15%. The probe is a CI fixture, not a design/reference image. Cogl is
-forced through GL3 with Mesa llvmpipe and EGL diagnostics are retained. Do
-not lower the threshold. If the probe still fails, the CI must remain
-non-passing until the compositor path is corrected or a GPU-capable test
-proves it. The opaque fallback and physical hardware review remain mandatory.
+
+### Compositor probe path correction — 2026-11-28
+
+The first checkerboard run (Actions 46098560511) did not actually exercise
+the launcher blur: `wallpaperPath()` deliberately accepted only
+`executive-dusk.jpg`, so the new `blur-probe.png` fixture was rejected and
+the wallpaper-only guard correctly stayed opaque. The log therefore had no
+launcher compositor-effect marker; it was not evidence of a Mutter/GPU
+failure. The EGL diagnostic did confirm Mesa llvmpipe OpenGL 4.5. The test
+allowlist now accepts exactly the approved design wallpaper and this
+CI-only probe filename, still only when `LOCALZET_EXPERIMENTAL_GLASS=1`.
+Rerun the optical test unchanged; do not lower its 15% threshold.

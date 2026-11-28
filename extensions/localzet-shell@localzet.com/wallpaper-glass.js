@@ -13,7 +13,7 @@ const EFFECT_BRIGHTNESS = 0.85;
 export function wallpaperPath() {
     if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1') {
         const test = GLib.getenv('LOCALZET_TEST_WALLPAPER');
-        if (test && /^\/[A-Za-z0-9_./-]+\/executive-dusk\.jpg$/.test(test))
+        if (test && /^\/[A-Za-z0-9_./-]+\/(?:executive-dusk\.jpg|blur-probe\.png)$/.test(test))
             return test;
     }
     return WALLPAPER;

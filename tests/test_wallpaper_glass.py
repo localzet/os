@@ -30,6 +30,12 @@ class WallpaperGlassTests(unittest.TestCase):
                 self.assertEqual(original.size, (3840, 2160))
             self.assertFalse(root.joinpath("executive-dusk-glass.jpg").exists())
 
+    def test_experimental_wallpaper_allowlist_accepts_only_design_and_probe_assets(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("executive-dusk\\.jpg|blur-probe\\.png", source)
+        self.assertIn("LOCALZET_EXPERIMENTAL_GLASS", source)
+        self.assertIn("LOCALZET_TEST_WALLPAPER", source)
+
     def test_runtime_uses_real_mutter_background_blur(self):
         wallpaper = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
         dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
