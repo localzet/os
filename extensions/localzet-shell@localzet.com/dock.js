@@ -17,6 +17,8 @@ export class LocalzetDock {
         this._materialPath = wallpaperPath();
         this._materialActive = false;
         this._glassEffect = null;
+        this._materialIdle = 0;
+        this._materialRefreshPending = false;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -64,7 +66,8 @@ export class LocalzetDock {
         this._connections = [
             [this._background, this._background.connect('changed', () => this._refreshMaterial())],
             [this._interface, this._interface.connect('changed::color-scheme', () => this._refreshMaterial())],
-            [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => this._schedule())],
+            [Main.sessionMode, Main.sessionMode.connect('updated', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
             [this._actor, this._actor.connect('notify::allocation', () => this._refreshMaterial())],
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
@@ -78,13 +81,13 @@ export class LocalzetDock {
             [this._appSystem, this._appSystem.connect('installed-changed', () => this._schedule())],
             [this._appSystem, this._appSystem.connect('app-state-changed', () => this._schedule())],
             [this._tracker, this._tracker.connect('notify::focus-app', () => this._schedule())],
-            [global.display, global.display.connect('notify::focus-window', () => this._schedule())],
-            [global.display, global.display.connect('window-created', () => this._schedule())],
-            [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._place())],
+            [global.display, global.display.connect('notify::focus-window', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [global.display, global.display.connect('window-created', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => { this._scheduleMaterialRefresh(); this._place(); })],
             [Main.overview, Main.overview.connect('showing', () => {
-                this._launcher.close(); this._actor.hide();
+                this._launcher.close(); this._clearMaterial(); this._actor.hide();
             })],
-            [Main.overview, Main.overview.connect('hidden', () => { this._actor.show(); this._schedule(); })],
+            [Main.overview, Main.overview.connect('hidden', () => { this._actor.show(); this._scheduleMaterialRefresh(); this._schedule(); })],
         ];
         // Reserve a full-width bottom strip through Mutter's native workarea.
         // The floating visual actor remains independent and fullscreen-aware.
@@ -110,6 +113,20 @@ export class LocalzetDock {
         this._idle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._idle = 0;
             this._reconcile();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _scheduleMaterialRefresh(delay = 180) {
+        // Never leave a wallpaper effect over a newly created application window.
+        this._clearMaterial();
+        this._materialRefreshPending = true;
+        if (this._materialIdle)
+            GLib.source_remove(this._materialIdle);
+        this._materialIdle = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            this._materialIdle = 0;
+            this._materialRefreshPending = false;
+            this._refreshMaterial();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -234,8 +251,16 @@ export class LocalzetDock {
             console.log('Localzet Launcher: dock=' + x + ',' + y);
     }
 
+    _clearMaterial() {
+        if (this._glassEffect && this._actor)
+            this._actor.remove_effect(this._glassEffect);
+        this._glassEffect = null;
+        this._materialActive = false;
+        this._actor?.remove_style_class_name('localzet-dock-wallpaper');
+    }
+
     _refreshMaterial() {
-        if (!this._actor)
+        if (!this._actor || this._materialRefreshPending)
             return;
         const active = wallpaperGlassAvailable(
             this._background, this._interface, this._settings, this._materialPath);
@@ -248,21 +273,18 @@ export class LocalzetDock {
                     mode: Shell.BlurMode.BACKGROUND,
                 });
                 this._actor.add_effect_with_name('localzet-dock-background-blur', effect);
+                effect.queue_repaint();
                 this._glassEffect = effect;
                 this._actor.add_style_class_name('localzet-dock-wallpaper');
                 this._materialActive = true;
-                console.log('Localzet Dock: material=compositor');
+                console.log('Localzet Dock: material=compositor mode=' + effect.get_mode() +
+                    ' radius=' + effect.get_radius());
             } catch (error) {
-                this._actor.remove_style_class_name('localzet-dock-wallpaper');
-                this._materialActive = false;
+                this._clearMaterial();
                 console.warn('Localzet Dock: opaque fallback: ' + error);
             }
         } else if (!active && (this._glassEffect || this._materialActive)) {
-            if (this._glassEffect)
-                this._actor.remove_effect(this._glassEffect);
-            this._glassEffect = null;
-            this._actor.remove_style_class_name('localzet-dock-wallpaper');
-            this._materialActive = false;
+            this._clearMaterial();
             console.log('Localzet Dock: material=opaque');
         }
     }
@@ -275,14 +297,16 @@ export class LocalzetDock {
     destroy() {
         if (this._idle)
             GLib.source_remove(this._idle);
+        if (this._materialIdle)
+            GLib.source_remove(this._materialIdle);
+        this._materialIdle = 0;
+        this._materialRefreshPending = false;
+        this._clearMaterial();
         for (const [object, id] of this._connections)
             object.disconnect(id);
         this._connections = [];
         this._launcher.destroy();
-        if (this._glassEffect) {
-            this._actor.remove_effect(this._glassEffect);
-            this._glassEffect = null;
-        }
+        this._clearMaterial();
         for (const id of this._rows.keys())
             this._removeRow(id);
         this._strut.destroy();
