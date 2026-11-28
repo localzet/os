@@ -505,7 +505,8 @@ launch_app_x11() {
     shift 2
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-        systemd-run --user --collect --unit="$unit" --setenv=GDK_BACKEND=x11 "$@"
+        systemd-run --user --collect --unit="$unit" \
+            --setenv=GDK_BACKEND=x11 --setenv=GSK_RENDERER=cairo --setenv=GTK_A11Y=none "$@"
     for attempt in $(seq 1 45); do
         if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
         sleep 1
