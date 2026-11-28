@@ -87,6 +87,15 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("(this._effectActor ?? this._backdrop)?.remove_effect", source)
         self.assertIn("this._backdrop?.destroy()", source)
 
+    def test_visual_smoke_proves_blur_and_preserves_low_frequency_wallpaper(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertIn("ImageFilter.GaussianBlur(radius=6)", smoke)
+        self.assertIn("ImageChops.difference(base, base_low)", smoke)
+        self.assertIn("ImageChops.difference(glass, glass_low)", smoke)
+        self.assertIn("high_ratio >= .15", smoke)
+        self.assertIn("low_ratio <= .05", smoke)
+        self.assertIn("low-frequency blue/violet/orange field survives glass blur", smoke)
+
     def test_panel_and_dock_blur_wait_for_mapped_allocation(self):
         dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
         panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
