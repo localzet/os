@@ -906,6 +906,10 @@ cat > /run/localzet-candidate-check/containers-window.sh <<'CONTAINERSWINDOW'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
+# Explicitly activate the registered GTK application on the authenticated session bus.
+busctl --user status com.localzet.Containers >/dev/null
+gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers \
+    --method org.freedesktop.Application.Activate '{}' >/dev/null
 window=""
 for attempt in $(seq 1 45); do
     for candidate in $(xdotool search --onlyvisible --name 'Containers' 2>/dev/null || true); do
@@ -976,7 +980,7 @@ CONTAINERSWINDOW
 chmod 0755 /run/localzet-candidate-check/containers-window.sh
 sleep 5
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/containers-window.sh
+    systemd-run --user --wait --pipe --collect --setenv=DISPLAY=:0 --setenv=GDK_BACKEND=x11 --setenv=WAYLAND_DISPLAY= /bin/bash /run/localzet-candidate-check/containers-window.sh
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemctl --user stop localzet-candidate-localzet-containers.service || true
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
