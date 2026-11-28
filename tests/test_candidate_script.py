@@ -235,27 +235,34 @@ class CandidateScriptTests(unittest.TestCase):
 
     def test_installed_containers_has_a_distinct_live_window_capture(self):
         script = module.installed_script("complete", True)
-        for marker in ("localzet-candidate-visual-fixture", "LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY",
-                       "LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY", "Localzet Containers",
-                       "getactivewindow", "xdotool search --onlyvisible --name 'Containers'",
-                       "getwindowclassname", "installed rootless fixture is visible"):
+        for marker in (
+            "localzet-candidate-visual-fixture",
+            "LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY",
+            "LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY",
+            "busctl --user call org.freedesktop.DBus",
+            "GetConnectionUnixProcessID",
+            "org.freedesktop.Application.Activate",
+            "installed native Wayland Containers window OCR-verified",
+            "installed rootless fixture is visible",
+        ):
             self.assertIn(marker, script)
-        self.assertNotIn("xprop -root _NET_CLIENT_LIST", script)
-        self.assertNotIn("xwininfo -root -tree", script)
+        self.assertNotIn("xdotool search --onlyvisible --name 'Containers'", script)
+        self.assertNotIn("launch_app_x11 localzet-candidate-localzet-containers", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn('self.capture("containers-installed")', source)
-        self.assertIn("Installed Containers window evidence", source)
+        self.assertIn("Installed Containers full-screen evidence", source)
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', source)
+        self.assertIn('"localzet-installed-rootless-fixture:ci"', source)
         self.assertIn("containers_screen.read_bytes() == office_screen.read_bytes()", source)
         self.assertNotIn('installed.capture("containers-installed")', source)
         # Stop any earlier test instance, then require a fresh window only
         # after the rootless engine and populated fixture are ready.
         self.assertIn("localzet-network localzet-containers; do", script)
         stale_check = script.index("Unexpected stale Localzet Containers process before rootless fixture")
-        rootless_test = script.index("Installed rootless fixture is visible", script.index("def installed_script")) if "Installed rootless fixture is visible" in script else script.index("installed rootless fixture is visible")
-        app_start = script.index("launch_app_x11 localzet-candidate-localzet-containers")
+        rootless_test = script.index("installed rootless fixture is visible")
+        app_start = script.index("launch_app localzet-containers /usr/bin/localzet-containers")
         self.assertLess(stale_check, rootless_test)
         self.assertLess(rootless_test, app_start)
         self.assertIn('if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi', script[:app_start])
-        self.assertIn("launch_app_x11 localzet-candidate-localzet-containers", script[app_start:])
-        self.assertIn("com\\.localzet\\.Containers", script[app_start:])
+        self.assertIn("org.freedesktop.Application.Activate", script[app_start:])

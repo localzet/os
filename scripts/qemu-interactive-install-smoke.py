@@ -951,7 +951,7 @@ change("stop")
 printf 'PASS: installed native Wayland Containers window OCR-verified with a live rootless fixture; system daemon disabled\\n'
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
-        assert "installed Containers window captured" in script
+        assert "installed native Wayland Containers window OCR-verified" in script
     if office:
         check = r"""
 test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
