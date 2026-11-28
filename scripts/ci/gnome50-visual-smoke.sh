@@ -41,7 +41,6 @@ sleep 3
 export OUT
 # Record the software EGL implementation used by the nested compositor.
 eglinfo -p surfaceless -B > "$OUT/eglinfo-surfaceless.txt" 2>&1 || true
-export LOCALZET_TEST_WALLPAPER="$OUT/executive-dusk.jpg"
 set +e
 dbus-run-session -- bash -s <<'GNOME_TEST'
   set -u
@@ -57,6 +56,11 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   # while a newly created app icon is unresolved (firstIcon.icon is null).
   gsettings set org.gnome.shell disable-user-extensions false || exit 1
   gsettings set org.gnome.shell enabled-extensions "['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']" || exit 1
+  # Keep the canonical landscape artwork in the evidence bundle as a design
+  # asset; the checkerboard below is used only for the optical test.
+  test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
+  test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
+  python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
   # A high-frequency checkerboard is a test fixture, not a design/reference
   # image. It distinguishes real BACKGROUND blur from a translucent tint.
   python3 - "$OUT/blur-probe.png" <<'PY' || exit 1
@@ -73,6 +77,7 @@ for y in range(size[1]):
 image.save(sys.argv[1])
 PY
   wallpaper="file://$OUT/blur-probe.png"
+  export LOCALZET_TEST_WALLPAPER="$OUT/blur-probe.png"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-options zoom || exit 1
