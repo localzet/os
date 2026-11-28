@@ -86,6 +86,9 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3", source)
         self.assertIn("(this._effectActor ?? this._backdrop)?.remove_effect", source)
         self.assertIn("this._backdrop?.destroy()", source)
+        self.assertIn("this._backdrop.connect('destroy'", source)
+        self.assertIn("this._backdrop = null", source)
+        self.assertIn("never touches a disposed", source)
 
     def test_visual_smoke_proves_blur_and_preserves_low_frequency_wallpaper(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
