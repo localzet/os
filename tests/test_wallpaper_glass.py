@@ -99,6 +99,13 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("low_ratio <= .05", smoke)
         self.assertIn("Two broad violet/orange fields survive blur", smoke)
 
+    def test_tray_bus_probe_precedes_devkit_extension_teardown(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertLess(smoke.index("gdbus call --session"), smoke.index("gnome-extensions disable"))
+        self.assertLess(smoke.index("check-nectarlink-tray.py"), smoke.index("gnome-extensions disable"))
+        self.assertLess(smoke.index("gnome-extensions list --active | grep -Fx localzet-shell@localzet.com"),
+                        smoke.index("gnome-extensions disable"))
+
     def test_installed_iso_uses_same_nonopaque_glass_optical_gate(self):
         qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn("ImageChops.difference(base, base_low)", qemu)
