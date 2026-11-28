@@ -54,6 +54,7 @@ export class WallpaperGlass {
         this._effect = null;
         this._effectActor = null;
         this._idle = 0;
+        this._disposed = false;
         this._allocationSignals = [];
         this._allocationTimeout = 0;
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
@@ -80,9 +81,35 @@ export class WallpaperGlass {
             else
                 this.clear();
         });
+        // PopupMenu actors may be destroyed independently during Shell
+        // teardown. Their destroy signals own disposal; never call methods on
+        // a Clutter actor after it has started destruction.
+        this._actorDestroyId = menu.actor.connect('destroy', () => this._dispose());
+        this._boxDestroyId = menu.box.connect('destroy', () => this._dispose());
+    }
+
+    _dispose() {
+        if (this._disposed)
+            return;
+        this._disposed = true;
+        if (this._idle) {
+            GLib.source_remove(this._idle);
+            this._idle = 0;
+        }
+        if (this._allocationTimeout) {
+            GLib.source_remove(this._allocationTimeout);
+            this._allocationTimeout = 0;
+        }
+        // The actors are being destroyed, so their effects and signal
+        // connections die with them. Do not remove effects or style classes.
+        this._allocationSignals = [];
+        this._effect = null;
+        this._effectActor = null;
     }
 
     _schedule() {
+        if (this._disposed)
+            return;
         // Remove the effect while the new display state is evaluated.
         this.clear();
         if (!this._menu.isOpen)
@@ -95,7 +122,7 @@ export class WallpaperGlass {
     }
 
     _refresh() {
-        if (!this._menu.isOpen ||
+        if (this._disposed || !this._menu.isOpen ||
             !wallpaperGlassAvailable(this._background, this._interface, this._contrast, this._path)) {
             this._clearAllocationWait();
             this._restore();
@@ -141,11 +168,11 @@ export class WallpaperGlass {
     }
 
     _waitForAllocation() {
-        if (this._allocationSignals.length)
+        if (this._disposed || this._allocationSignals.length)
             return;
 
         const retry = () => {
-            if (!this._menu.isOpen) {
+            if (this._disposed || !this._menu.isOpen) {
                 this._clearAllocationWait();
                 return;
             }
@@ -181,6 +208,8 @@ export class WallpaperGlass {
     }
 
     clear() {
+        if (this._disposed)
+            return;
         if (this._idle) {
             GLib.source_remove(this._idle);
             this._idle = 0;
@@ -190,6 +219,8 @@ export class WallpaperGlass {
     }
 
     _restore() {
+        if (this._disposed)
+            return;
         if (this._effect) {
             (this._effectActor ?? this._menu.box).remove_effect(this._effect);
             this._effect = null;
@@ -199,10 +230,21 @@ export class WallpaperGlass {
     }
 
     destroy() {
-        this.clear();
-        this._menu.disconnect(this._open);
-        for (const [object, id] of this._signals)
-            object.disconnect(id);
+        if (!this._disposed)
+            this.clear();
+        try {
+            this._menu.disconnect(this._open);
+        } catch (_) {
+            // The PopupMenu may already have been disposed by GNOME Shell.
+        }
+        if (!this._disposed) {
+            this._menu.actor.disconnect(this._actorDestroyId);
+            this._menu.box.disconnect(this._boxDestroyId);
+        }
+        for (const [object, id] of this._signals) {
+            try { object.disconnect(id); } catch (_) {}
+        }
         this._signals = [];
+        this._disposed = true;
     }
 }
