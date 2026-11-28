@@ -134,14 +134,25 @@ effect errors and accessibility/performance fallback restore opaque Violet
 surfaces. Effects are removed on state changes and actor disposal. No window
 contents, passwords or screen pixels are captured by Localzet code.
 
-The GNOME 50 devkit uses a 4 px checkerboard probe and requires its measured
-contrast ratio to fall below 0.15; effect attachment and `enabled=true` are
-not sufficient. The previous radius-18 run measured 0.219 and failed. This
-candidate tests radius 28; until the unchanged optical gate passes and the
-actual captures are inspected, glass remains experimental and must not be
-described as visually accepted. The devkit uses Mesa llvmpipe and cannot prove
-physical-GPU performance, multi-monitor/HiDPI behavior, rounded clipping or
-repaint quality. The exact installed ISO and real hardware still need testing.
+The GNOME 50 devkit and installed-image QEMU smoke use a 4 px checkerboard
+plus two broad violet/orange fields. The optical ROI crosses the field boundary
+inside the blank launcher main pane. It requires high-frequency detail ratio
+below 0.15 **and** low-frequency color retention above 0.15. Effect attachment
+and `enabled=true` are not sufficient.
+
+The first radius-28 artifact reported 0.015 / 0.052, but review showed a false
+positive: a more-specific popup CSS rule left a second semi-opaque violet layer,
+and the ROI sat too far to the right. The backdrop and popup were both tinted,
+so the test mostly measured a solid surface. The current correction makes the
+popup content transparent (the stage-level backdrop owns the sole tint), samples
+across the broad color split, and raises the minimum low-frequency retention.
+That earlier result is **not** accepted evidence. Until both the devkit and
+installed-session optical gates pass and the new screenshots are inspected,
+glass remains experimental and must not be described as visually accepted.
+
+The devkit uses Mesa llvmpipe and cannot prove physical-GPU performance,
+multi-monitor/HiDPI behavior, rounded clipping or repaint quality. The exact
+installed ISO and real hardware still need testing.
 No global redraw hacks or forced transparency on third-party windows. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
