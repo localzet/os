@@ -118,28 +118,32 @@ screenshots and automated tests are necessary but not sufficient for release.
 
 ### Current glass implementation (visual acceptance pending)
 
-`panel.js` creates GNOME Shell's native `Shell.BlurEffect` in BACKGROUND
-mode by default when the compositor supports it. A failed effect creation
-falls back to the opaque Violet surface; native high-contrast mode and
-`LOCALZET_DISABLE_GLASS=1` also disable the compositor effect.
+The panel uses GNOME Shell's native `Shell.BlurEffect` in BACKGROUND mode.
+The dock and native Quick Settings/date menus use the same Mutter compositor
+effect. The launcher and native menus attach the effect to the visible
+`PopupMenu.box` content actor, not the transparent outer BoxPointer wrapper.
+The wrapper is retained only for arrow geometry and event handling. The old pre-blurred `-glass.jpg` derivative has been removed.
+Effects are removed again when their owner closes or the display/session
+state changes.
 
-Rounded dock, launcher and native menus use a separate **wallpaper-only**
-material: a pre-blurred derivative of the exact bundled wallpaper, aligned
-to the monitor crop. It is applied only with the matching wallpaper and zoom
-mode, one monitor at scale 1, and no visible windows on the active workspace.
-It never captures or samples windows, passwords, screens or other content.
-The same `LOCALZET_DISABLE_GLASS=1` switch disables this material too; any
-unsupported wallpaper, scale, monitor layout, high-contrast setting or
-visible window uses the opaque fallback. No alpha-only imitation is used.
+Wallpaper-only glass is deliberately conservative. It is eligible only when
+the exact bundled wallpaper is selected with zoom, there is one monitor at
+scale factor 1, the active workspace has no visible application windows, the
+overview is closed, the session is neither locked nor a greeter, high contrast
+is off, and `LOCALZET_DISABLE_GLASS=1` is not set. A visible window, alternate
+wallpaper, unsupported geometry, accessibility mode or effect error uses an
+opaque Violet surface. No screenshot capture, screen sampling, window-content
+capture or static blur image is used. The compositor therefore samples only
+the wallpaper in the eligible state, never another application's content.
 
-The GNOME devkit sets `LOCALZET_EXPERIMENTAL_GLASS=1` only for deterministic
-test-wallpaper selection and diagnostic markers; that variable does not
-enable production blur. CI checks the native effect marker, wallpaper detail
-reduction, state transitions and high-contrast fallback. These are not proof
-of physical-GPU performance, multi-monitor/HiDPI behavior or final visual
-acceptance. The exact installed ISO still needs real screenshots and GPU
-testing. Rounded clipping and repaint behavior remain subject to inspection.
-No global redraw hacks or forced transparency on third-party windows. See:
+`LOCALZET_EXPERIMENTAL_GLASS=1` is a CI-only switch for a deterministic
+test wallpaper and extra geometry diagnostics; it does not enable the effect.
+Production eligibility is determined by the runtime checks above. The
+software-rendered GNOME 50 devkit verifies effect attachment, optical detail
+reduction, window-created fallback and high-contrast recovery, but cannot
+establish physical-GPU performance, multi-monitor/HiDPI behavior, rounded
+clipping quality or final visual acceptance. The exact installed ISO still
+needs real screenshots and hardware testing. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
 ### Boot branding implementation
@@ -604,3 +608,71 @@ approved violet; Localzet GTK and Shell components use the exact token values.
 Orange remains reserved for primary actions and meaningful focus. This
 restoration does not change functional acceptance gates or claim final visual
 approval; fresh installed-image captures and owner review remain required.
+
+
+### True compositor glass — Mutter background blur (2026-11-28)
+
+The current Aurora implementation uses GNOME/Mutter's actual
+`Shell.BlurEffect` with `Shell.BlurMode.BACKGROUND` (radius 18, brightness
+0.85) on the panel, dock, launcher and native Quick Settings/date menus. This
+is a compositor effect, not a pre-blurred wallpaper JPEG, CSS alpha alone or
+a screenshot/window-capture pipeline. The static `executive-dusk-glass.jpg`
+derivative has been removed; only the 4K licensed wallpaper is generated.
+
+Dock, launcher and native menus enable wallpaper-only blur only when the
+approved Localzet wallpaper is active, the desktop is empty, the session is
+unlocked, the overview is hidden, one monitor is present and the scale factor
+is 1. Any visible window, alternate wallpaper, unsupported scale/layout,
+high contrast or `LOCALZET_DISABLE_GLASS=1` removes the effect and restores the
+opaque surface. The real GNOME panel retains its native background blur.
+No window contents, passwords or screen pixels are captured by Localzet code.
+
+The GNOME 50 devkit gate now requires the real compositor effect markers,
+measures spatial detail reduction in the actual launcher screenshot, verifies
+the dock's opaque transition when a real application window opens, and checks
+the high-contrast fallback. This is still a disposable devkit test; the
+installed ISO screenshots and GPU/performance behavior remain separate
+acceptance gates.
+
+
+### Compositor glass correction — 2026-11-28
+
+The first GNOME 50 compositor-glass run (Actions 46096243581) reached a real
+desktop and confirmed the compositor effect on the dock. Its visual workflow
+then failed because the devkit recorded the launcher anchor before the dock
+finished expanding after favorite applications resolved. The later click
+used that stale position and opened a neighboring application instead of the
+launcher. The screenshot is retained as diagnostic evidence, not visual
+acceptance. The follow-up refreshes anchor geometry after each allocation,
+checks that the measured anchor is inside the current dock before clicking,
+and targets the actual Quick Settings/date-menu panel region. The next run
+must pass and its real captures must be inspected; no final glass or Aurora
+visual approval is claimed.
+
+
+
+
+
+
+### Compositor probe path correction — 2026-11-28
+
+The first checkerboard run (Actions 46098560511) did not actually exercise
+the launcher blur: `wallpaperPath()` deliberately accepted only
+`executive-dusk.jpg`, so the new `blur-probe.png` fixture was rejected and
+the wallpaper-only guard correctly stayed opaque. The log therefore had no
+launcher compositor-effect marker; it was not evidence of a Mutter/GPU
+failure. The EGL diagnostic did confirm Mesa llvmpipe OpenGL 4.5. The test
+allowlist now accepts exactly the approved design wallpaper and this
+CI-only probe filename, still only when `LOCALZET_EXPERIMENTAL_GLASS=1`.
+Rerun the optical test unchanged; do not lower its 15% threshold.
+
+
+### Popup content blur attachment correction — 2026-11-28
+
+The first optical run confirmed that attaching `Shell.BlurEffect BACKGROUND`
+to the outer PopupMenu BoxPointer did not blur the visible child surface. The
+effect now attaches to `menu.box` (`.popup-menu-content`) after both the
+wrapper and content have mapped allocations. The wrapper retains the
+wallpaper-only state class and arrow geometry; the content actor owns the
+actual translucent surface. The unchanged 15% checkerboard threshold must
+pass before the effect is considered verified.
