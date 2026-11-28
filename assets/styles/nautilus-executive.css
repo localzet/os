@@ -1,4 +1,4 @@
-/* Localzet Aurora Professional: application-local Files overlay.
+/* Localzet Executive: Aurora Professional application-local Files overlay.
  * Violet surfaces and selection, Ember only for primary action/focus.
  * Preserve upstream light mode, high contrast, keyboard and accessibility.
  * Never install this as a global GTK theme.
@@ -22,6 +22,7 @@
     --accent-bg-color: #6436B5;
     --accent-fg-color: #F4EEFF;
     --accent-color: #9B72F2;
+    --text-secondary-color: #B9A5D5;
     background-color: var(--view-bg-color);
     color: var(--view-fg-color);
   }
@@ -34,6 +35,10 @@
   window.nautilus-window placessidebar {
     background-color: #28183F;
     color: #F4EEFF;
+  }
+  window.nautilus-window .dim-label,
+  window.nautilus-window placessidebar .dim-label {
+    color: #B9A5D5;
   }
   window.nautilus-window placessidebar .navigation-sidebar {
     background-color: transparent;
