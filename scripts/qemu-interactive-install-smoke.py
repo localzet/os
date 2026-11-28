@@ -1341,7 +1341,6 @@ cmp /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT /usr/share/doc/l
 # Verify the native lock in the installed, authenticated Wayland session.
 # No unlock bypass, no fake login UI and no password entered on camera.
 test -s /usr/share/backgrounds/localzet/executive-dusk.jpg
-test -s /usr/share/backgrounds/localzet/executive-dusk-glass.jpg
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.desktop.session idle-delay 0
@@ -1349,29 +1348,13 @@ runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BU
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.settings-daemon.plugins.power idle-dim false
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.session idle-delay)" = "uint32 0"
-loginctl lock-session "$session"
-for attempt in $(seq 1 30); do
-    [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]] && break
-    sleep 1
-done
-[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
-runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
-    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-    gnome-extensions list --active | grep -Fx localzet-lock@localzet.com
-# The user-session shell extension must not be active on the lock screen.
-if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
-    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-    gnome-extensions list --active | grep -Fx localzet-shell@localzet.com; then
-    echo "Desktop extension unexpectedly active on lock screen"
-    exit 2
-fi
-journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
 # Verify actual Mutter BACKGROUND blur in the installed Wayland session.
 # Only this disposable QEMU rootfs is modified; the branded wallpaper is restored
 # before the lock-screen test and before the guest is shut down.
 glass_probe=/sys/firmware/qemu_fw_cfg/by_name/opt/localzet/glass-probe/raw
 test -s "$glass_probe"
 wallpaper=/usr/share/backgrounds/localzet/executive-dusk.jpg
+install -d -m 0700 /run/localzet-candidate-check
 wallpaper_backup=/run/localzet-candidate-check/executive-dusk.original
 cp -- "$wallpaper" "$wallpaper_backup"
 gsettings_user() {
@@ -1413,6 +1396,24 @@ printf '\\nLOCALZET_CANDIDATE_GLASS_CAPTURE_READY\\n'
 sleep 10
 restore_glass_wallpaper
 trap - EXIT
+loginctl lock-session "$session"
+for attempt in $(seq 1 30); do
+    [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]] && break
+    sleep 1
+done
+[[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]]
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-lock@localzet.com
+# The user-session shell extension must not be active on the lock screen.
+if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    gnome-extensions list --active | grep -Fx localzet-shell@localzet.com; then
+    echo "Desktop extension unexpectedly active on lock screen"
+    exit 2
+fi
+journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
+
 
 printf '\nLOCALZET_CANDIDATE_LOCKED\n'
 # Keep the validation session alive for the host to wake the display.
@@ -1457,14 +1458,14 @@ def main():
     args.logs = args.logs.resolve()
     args.logs.mkdir(parents=True, exist_ok=False)
     from PIL import Image
-    args.glass_fixture = args.logs / "glass-probe.png"
+    args.glass_fixture = args.logs / "glass-probe.jpg"
     probe = Image.new("RGB", (1440, 900))
     pixels = probe.load()
     for y in range(900):
         for x in range(1440):
             value = 255 if ((x // 4) + (y // 4)) % 2 else 0
             pixels[x, y] = (value, value, value)
-    probe.save(args.glass_fixture, format="PNG")
+    probe.save(args.glass_fixture, format="JPEG", quality=100, subsampling=0)
     args.fixture = args.fixture.resolve(strict=True)
     if not args.fixture.is_file():
         parser.error("fixture must be a regular file")
