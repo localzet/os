@@ -23,6 +23,8 @@ class CandidateScriptTests(unittest.TestCase):
     def test_installed_files_has_a_separate_real_screen_capture(self):
         script = module.installed_script("complete", native_files=True)
         self.assertIn("launch_app nautilus /usr/bin/nautilus", script)
+        self.assertIn('busctl --user list --no-pager', script)
+        self.assertIn("org.gnome.Nautilus", script)
         self.assertIn("LOCALZET_CANDIDATE_FILES_CAPTURE_READY", script)
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn('self.capture("files")', source)
