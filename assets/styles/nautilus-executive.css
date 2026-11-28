@@ -80,6 +80,13 @@
     background-color: #6436B5;
     color: #F4EEFF;
   }
+  /* GTK dims ColumnView headings by default; keep metadata readable. */
+  window.nautilus-window .nautilus-list-view columnview > header,
+  window.nautilus-window .nautilus-list-view columnview > header *,
+  window.nautilus-window .nautilus-list-view columnview > listview > row .dim-label {
+    color: #B9A5D5;
+    opacity: 1;
+  }
   window.nautilus-window .nautilus-grid-view gridview > child:focus-visible,
   window.nautilus-window .nautilus-list-view columnview > listview > row:focus-visible {
     outline: 2px solid #FF7E00;
