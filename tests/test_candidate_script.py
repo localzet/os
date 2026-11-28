@@ -88,12 +88,13 @@ class CandidateScriptTests(unittest.TestCase):
 
     def test_installed_rootless_and_windows_shortcut_gates(self):
         script = module.installed_script("complete", True)
-        self.assertIn("installed managed rootless Docker responded", script)
+        self.assertIn("PASS: installed managed rootless Docker returned a real empty inventory", script)
         self.assertIn('change("stop")', script)
-        self.assertIn("Rootless test changed system Docker", script)
+        self.assertIn("Unexpected enabled or active Docker unit", script)
+        self.assertIn("Unexpected docker group access", script)
         self.assertIn("installed Windows menu shortcut roundtrip", script)
         self.assertIn("store.remove(key)", script)
-        self.assertNotIn("installed managed rootless Docker responded", module.installed_script())
+        self.assertNotIn("PASS: installed managed rootless Docker returned a real empty inventory", module.installed_script())
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
     def test_office_fresh_profile_preserves_real_session(self):
@@ -110,14 +111,14 @@ class CandidateScriptTests(unittest.TestCase):
         script = module.installed_script("complete", True)
         self.assertIn("Installed rootless Docker failure diagnostics", script)
         self.assertIn("journalctl --user -u localzet-rootless-docker.service", script)
-        self.assertIn("kernel.apparmor_restrict_unprivileged_userns", script)
+        self.assertIn("grep -Ei 'apparmor|audit|denied|rootless|overlay|netfilter|namespace'", script)
         self.assertNotIn("sysctl -w", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
     def test_installed_rootless_container_and_persistence_required(self):
         script = module.installed_script("complete", True)
-        for marker in ("installed unprivileged container executed offline",
-                       "installed rootless image persisted across restart",
+        for marker in ("PASS: installed unprivileged container executed offline",
+                       "PERSISTENCE_OK", "LOCALZET_LOG_FIXTURE", "bounded logs and live metrics snapshots",
                        "localzet-installed-rootless-fixture:ci", "/usr/bin/busybox",
                        "ROOTLESS_OK", "PERSISTENCE_OK"):
             self.assertIn(marker, script)
@@ -164,13 +165,32 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertNotIn("! systemctl is-enabled --quiet usernet-helper.service", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
+    def test_containers_window_tools_are_disposable_only(self):
+        build = (ROOT / "scripts/build-live-rootfs.sh").read_text()
+        workflow = (ROOT / ".github/workflows/containers-installed.yml").read_text()
+        self.assertIn('LOCALZET_CONTAINERS_WINDOW_TEST', build)
+        self.assertIn('packages+=",xdotool,x11-utils"', build)
+        self.assertIn('LOCALZET_DISPOSABLE_VM', build)
+        self.assertIn('LOCALZET_CONTAINERS_WINDOW_TEST=1', workflow)
+        script = module.installed_script("complete", True)
+        self.assertIn("for tool in xdotool xprop xwininfo; do", script)
+        self.assertIn('command -v "$tool"', script)
+        self.assertIn("journalctl --user -u localzet-candidate-localzet-containers.service", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
     def test_rootless_engine_releases_only_prior_test_units(self):
         script = module.installed_script("complete", True)
-        self.assertIn('unit="localzet-candidate-$app.service"', script)
-        self.assertIn('systemctl --user stop "$unit"', script)
-        self.assertIn('pgrep -u localzet-test -f /usr/bin/localzet-containers', script)
+        self.assertIn('--unit="localzet-candidate-$app"', script)
+        self.assertIn("systemctl --user stop localzet-candidate-localzet-containers.service", script)
+        self.assertIn("container rm -f localzet-ui-fixture", script)
+        self.assertIn("systemctl --user is-active --quiet localzet-rootless-docker.service", script)
+        self.assertIn("launch_app_x11 localzet-containers /usr/bin/localzet-containers", script)
+        self.assertIn("xdotool getactivewindow", script)
+        self.assertIn("LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY", script)
         self.assertIn("installed unprivileged container executed offline", script)
-        self.assertIn("installed rootless image persisted across restart", script)
+        self.assertIn("PERSISTENCE_OK", script)
+        self.assertIn("LOCALZET_LOG_FIXTURE", script)
+        self.assertIn("metric_sample(engine.metrics(fixture.id))", script)
         self.assertNotIn("pkill", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
