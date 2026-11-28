@@ -949,7 +949,6 @@ if [[ -z "$window" ]]; then
     gdbus introspect --session --dest com.localzet.Containers --object-path /com/localzet/Containers >&2 || true
     gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers --method org.freedesktop.Application.Activate '{}' >&2 || true
     echo "X11 root properties and tree:" >&2
-    xwininfo -root -tree >&2 || true
     echo "Containers unit status and journal:" >&2
     systemctl --user status localzet-candidate-localzet-containers.service --no-pager >&2 || true
     journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 150 >&2 || true
