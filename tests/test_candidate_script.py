@@ -14,7 +14,7 @@ spec.loader.exec_module(module)
 class CandidateScriptTests(unittest.TestCase):
     def test_full_candidate_assertions_are_present(self):
         script = module.installed_script("complete", True, True, True, True)
-        for marker in ("installed Executive Files package launched", "LOCALZET_CANDIDATE_FILES_CAPTURE_READY",
+        for marker in ("installed Executive Files window was active over a populated user fixture", "LOCALZET_CANDIDATE_FILES_CAPTURE_READY",
                        "LOCALZET_CANDIDATE_STILL_LOCKED", "LOCALZET_CANDIDATE_OFFICE_PNG",
                        "installed native ONLYOFFICE launched", "Localzet-offline-review.docx", "Fixture heading ink"):
             self.assertIn(marker, script)
@@ -22,18 +22,19 @@ class CandidateScriptTests(unittest.TestCase):
 
     def test_installed_files_has_a_separate_real_screen_capture(self):
         script = module.installed_script("complete", native_files=True)
-        self.assertIn("launch_app nautilus /usr/bin/nautilus", script)
+        self.assertIn("launch_app_x11 localzet-candidate-nautilus /usr/bin/nautilus", script)
+        self.assertIn("/usr/bin/nautilus --new-window", script)
         self.assertIn('busctl --user list --no-pager', script)
         self.assertIn("org.gnome.Nautilus", script)
         self.assertIn("LOCALZET_CANDIDATE_FILES_CAPTURE_READY", script)
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn('self.capture("files")', source)
         self.assertIn('files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")', source)
-        self.assertIn("Installed Files screen evidence", source)
+        self.assertIn("Installed Files window evidence", source)
 
     def test_minimal_candidate_is_unchanged(self):
         script = module.installed_script()
-        self.assertNotIn("installed Executive Files package launched", script)
+        self.assertNotIn("installed Executive Files window was active", script)
         self.assertNotIn("LOCALZET_CANDIDATE_OFFICE_GEOMETRY", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
