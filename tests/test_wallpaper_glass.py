@@ -202,5 +202,16 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("panel_y=67", smoke)
 
 
+    def test_visual_smoke_closes_nested_apps_without_closing_mutter(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertNotIn("xdotool key alt+F4", smoke)
+        self.assertNotIn("xdotool key --clearmodifiers alt+F4", smoke)
+        self.assertIn("pgrep -f '/usr/bin/localzet-network'", smoke)
+        self.assertIn("kill \"$pid\"", smoke)
+        self.assertIn("pgrep -x nautilus", smoke)
+        self.assertIn("Network app did not exit", smoke)
+        self.assertIn("Nautilus did not exit", smoke)
+
+
 if __name__ == "__main__":
     unittest.main()
