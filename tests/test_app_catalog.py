@@ -54,6 +54,23 @@ class AppCatalogTests(unittest.TestCase):
             with patch.object(c, "executable", return_value=False):
                 self.assertEqual(c.action(key, frozenset())[0], "website")
 
+    def test_aurora_icon_theme_covers_every_catalog_entry(self):
+        import importlib.util
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        script = Path(__file__).resolve().parents[1] / "scripts/build-aurora-icons.py"
+        spec = importlib.util.spec_from_file_location("build_aurora_icons", script)
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+
+        with TemporaryDirectory(prefix="localzet-aurora-icons-") as directory:
+            theme = builder.build(directory)
+            apps = theme / "scalable" / "apps"
+            for app in c.APPS.values():
+                with self.subTest(icon=app.icon):
+                    self.assertTrue((apps / (app.icon + ".svg")).is_file(), app.icon)
+
     def test_catalog_covers_installed_system_and_media_apps(self):
         for key, path in (("files", "/usr/bin/nautilus"), ("containers", "/usr/bin/localzet-containers"),
                           ("vlc", "/usr/bin/vlc"), ("windows", "/usr/bin/localzet-windows"),

@@ -31,6 +31,8 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("grep -Fq", script)
         self.assertIn("LOCALZET_CANDIDATE_FILES_CAPTURE_READY", script)
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("--setenv=GSK_RENDERER=cairo", source)
+        self.assertIn("--setenv=GTK_A11Y=none", source)
         self.assertIn('self.capture("files")', source)
         self.assertIn('files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")', source)
         self.assertIn("Installed Files window evidence", source)
@@ -133,10 +135,21 @@ class CandidateScriptTests(unittest.TestCase):
     def test_installed_rootless_container_and_persistence_required(self):
         script = module.installed_script("complete", True)
         for marker in ("installed unprivileged container executed offline",
-                       "installed rootless image persisted across restart",
                        "localzet-installed-rootless-fixture:ci", "/usr/bin/busybox",
                        "ROOTLESS_OK", "PERSISTENCE_OK"):
             self.assertIn(marker, script)
+        # Verify the actual restart/persistence sequence, not a log string.
+        stopped = script.index('change("stop")')
+        restarted = script.index('assert change("start") == "rootless подтверждён"', stopped)
+        inspected = script.index('run("image", "inspect", tag)', restarted)
+        persisted = script.index(
+            'run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "PERSISTENCE_OK")',
+            inspected,
+        )
+        self.assertLess(stopped, restarted)
+        self.assertLess(restarted, inspected)
+        self.assertLess(inspected, persisted)
+        self.assertNotIn('run("image", "rm", tag)', script)
         self.assertIn('mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX"', script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
@@ -186,7 +199,9 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn('systemctl --user stop "$unit"', script)
         self.assertIn('pgrep -u localzet-test -f /usr/bin/localzet-containers', script)
         self.assertIn("installed unprivileged container executed offline", script)
-        self.assertIn("installed rootless image persisted across restart", script)
+        self.assertIn('run("image", "inspect", tag)', script)
+        self.assertIn('"PERSISTENCE_OK"', script)
+        self.assertNotIn('run("image", "rm", tag)', script)
         self.assertNotIn("pkill", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
@@ -217,3 +232,60 @@ class CandidateScriptTests(unittest.TestCase):
                     with mock.patch.object(module.subprocess, "run") as run:
                         self.assertFalse(module.ensure_ci_kvm_access(device))
             run.assert_not_called()
+
+    def test_interactive_files_capture_has_ocr_dependency(self):
+        workflow = (ROOT / ".github/workflows/interactive-install-candidate.yml").read_text()
+        self.assertIn("python3-pil tesseract-ocr", workflow)
+        qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', qemu)
+
+    def test_installed_files_capture_preserves_active_window_identity(self):
+        source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("Do not move the pointer", source)
+        self.assertIn('self.capture("files")', source)
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', source)
+        self.assertIn('"localzet visual fixture"', source)
+        self.assertIn('"metrics.csv"', source)
+        self.assertIn('"readme.md"', source)
+        self.assertIn("Installed Files screenshot is not the active populated Nautilus window", source)
+
+    def test_installed_containers_has_a_distinct_live_window_capture(self):
+        script = module.installed_script("complete", True)
+        for marker in (
+            "localzet-candidate-visual-fixture",
+            "LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY",
+            "LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY",
+            "busctl --user call org.freedesktop.DBus",
+            "GetConnectionUnixProcessID",
+            "org.freedesktop.Application.Activate",
+            "installed native Wayland Containers window OCR-verified",
+            "installed rootless fixture is visible",
+        ):
+            self.assertIn(marker, script)
+        self.assertNotIn("xdotool search --onlyvisible --name 'Containers'", script)
+        self.assertNotIn("launch_app_x11 localzet-candidate-localzet-containers", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+        source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn('self.capture("containers-installed")', source)
+        self.assertIn("Installed Containers full-screen evidence", source)
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', source)
+        self.assertIn('"localzet-installed-rootless-fixture:ci"', source)
+        self.assertIn("containers_screen.read_bytes() == office_screen.read_bytes()", source)
+        self.assertNotIn('installed.capture("containers-installed")', source)
+        # Stop any earlier test instance, then require a fresh window only
+        # after the rootless engine and populated fixture are ready.
+        self.assertIn("localzet-network localzet-containers; do", script)
+        stale_check = script.index("Unexpected stale Localzet Containers process before rootless fixture")
+        rootless_test = script.index("installed rootless fixture is visible")
+        app_start = script.index("launch_app localzet-containers /usr/bin/localzet-containers")
+        self.assertLess(stale_check, rootless_test)
+        self.assertLess(rootless_test, app_start)
+        self.assertIn('if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi', script[:app_start])
+        self.assertIn("org.freedesktop.Application.Activate", script[app_start:])
+
+
+    def test_visual_evidence_branch_runs_the_unified_complete_candidate(self):
+        workflow = (ROOT / ".github/workflows/aurora-complete-rc.yml").read_text()
+        self.assertGreaterEqual(workflow.count("github.head_ref == 'fix/aurora-complete-visual-evidence'"), 3)
+        self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", workflow)
+

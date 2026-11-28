@@ -75,7 +75,7 @@ picture-options='zoom'
 
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
-accent-color='blue'
+accent-color='purple'
 icon-theme='Aurora'
 
 [org/gnome/nautilus/icon-view]

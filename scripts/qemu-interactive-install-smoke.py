@@ -254,8 +254,10 @@ class Guest:
         while time.monotonic() < deadline:
             lines = self.serial.read_bytes().splitlines() if self.serial.exists() else []
             if b"LOCALZET_CANDIDATE_FILES_CAPTURE_READY" in lines and not getattr(self, "_files_qmp_captured", False):
-                self.wake_display()
-                time.sleep(2)
+                # The guest already verified the real Nautilus window is active.
+                # Do not move the pointer: focus-follows-mouse could raise a
+                # terminal or another window over Files before the QMP capture.
+                time.sleep(1)
                 self.capture("files")
                 path = self.screen.with_name(f"{self.screen.stem}-files.ppm")
                 geometry_lines = [line for line in lines
@@ -274,7 +276,43 @@ class Guest:
                 print("GNOME Files window visual evidence:", metrics, flush=True)
                 if not evidence_module().meaningful(metrics):
                     raise RuntimeError("GNOME Files window capture is blank or visually insufficient")
+                ocr = subprocess.run(
+                    ["tesseract", str(path), "stdout", "-l", "eng"],
+                    check=True, capture_output=True, text=True, timeout=30,
+                ).stdout.casefold()
+                required = ("localzet visual fixture", "metrics.csv", "readme.md")
+                missing = [token for token in required if token not in ocr]
+                if missing or "localzet-test@" in ocr:
+                    raise RuntimeError(
+                        f"Installed Files screenshot is not the active populated Nautilus window; "
+                        f"missing={missing}, OCR={ocr[:1000]}"
+                    )
+                print("PASS: OCR confirms the actual populated GNOME Files window", flush=True)
                 self._files_qmp_captured = True
+            if b"LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY" in lines and not getattr(self, "_containers_qmp_captured", False):
+                self.wake_display()
+                time.sleep(2)
+                self.capture("containers-installed")
+                path = self.screen.with_name(f"{self.screen.stem}-containers-installed.ppm")
+                metrics = evidence_module().visual_metrics(path, (0, 0, 1280, 800))
+                print("Installed Containers full-screen evidence:", metrics, flush=True)
+                if not evidence_module().meaningful(metrics):
+                    raise RuntimeError("Installed Containers compositor capture is blank or visually insufficient")
+                ocr = subprocess.run(
+                    ["tesseract", str(path), "stdout", "-l", "eng"],
+                    check=True, capture_output=True, text=True, timeout=30,
+                ).stdout.casefold()
+                required = (
+                    "localzet-candidate-visual-fixture",
+                    "localzet-installed-rootless-fixture:ci",
+                    "running",
+                    "compose",
+                )
+                missing = [token for token in required if token not in ocr]
+                if missing:
+                    raise RuntimeError(f"Installed Containers screenshot OCR is missing {missing}: {ocr[:1200]}")
+                print("PASS: OCR confirms the actual populated rootless Containers window", flush=True)
+                self._containers_qmp_captured = True
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
                 self.wake_display()
                 time.sleep(2)
@@ -483,7 +521,8 @@ launch_app_x11() {
     shift 2
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-        systemd-run --user --collect --unit="$unit" --setenv=GDK_BACKEND=x11 "$@"
+        systemd-run --user --collect --unit="$unit" \
+            --setenv=GDK_BACKEND=x11 --setenv=GSK_RENDERER=cairo --setenv=GTK_A11Y=none --setenv=WAYLAND_DISPLAY= --setenv=DISPLAY=:0 "$@"
     for attempt in $(seq 1 45); do
         if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
         sleep 1
@@ -789,8 +828,6 @@ for glyph in launcher browser files terminal settings; do
 done
 launch_app localzet-hardware-manager /usr/bin/localzet-hardware-manager
 test -x /usr/bin/localzet-containers
-launch_app localzet-containers /usr/bin/localzet-containers
-pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
 dpkg-query -W docker.io docker-compose-v2 gir1.2-vte-3.91
 /usr/bin/docker compose version
 for unit in docker.service docker.socket containerd.service; do
@@ -805,14 +842,17 @@ test -f /usr/lib/systemd/user/localzet-rootless-docker.service
 test -s /usr/share/localzet/docker-rootless.json
 # Earlier GUI checks have already verified these test-owned processes.
 # Close only their explicit transient units, not arbitrary user processes.
-# Leave GNOME and the Containers UI running during the engine test.
-for app in ptyxis localzet-settings localzet-windows localzet-connect localzet-apps localzet-ai-workspace vlc qbittorrent localzet-hardware-manager nautilus gnome-control-center localzet-network; do
+# Keep GNOME alive; start Containers after the rootless engine fixture is ready.
+for app in ptyxis localzet-settings localzet-windows localzet-connect localzet-apps localzet-ai-workspace vlc qbittorrent localzet-hardware-manager nautilus gnome-control-center localzet-network localzet-containers; do
     unit="localzet-candidate-$app.service"
     if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user is-active --quiet "$unit"; then
         runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user stop "$unit"
     fi
 done
-pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
+if pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null; then
+    echo "Unexpected stale Localzet Containers process before rootless fixture" >&2
+    exit 2
+fi
 echo "Rootless guest prerequisites:"
 uname -r
 free -m
@@ -836,6 +876,8 @@ from localzet.rootless_docker import change
 from localzet.containers import Engine
 docker = ["/usr/bin/docker", "--host", "unix:///run/user/" + str(os.getuid()) + "/docker.sock"]
 tag = "localzet-installed-rootless-fixture:ci"
+fixture_name = "localzet-candidate-visual-fixture"
+success = False
 def run(*args):
     return subprocess.check_output(docker + list(args), text=True, timeout=150).strip()
 try:
@@ -853,11 +895,14 @@ try:
     assert change("start") == "rootless подтверждён"
     run("image", "inspect", tag)
     assert run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "PERSISTENCE_OK") == "PERSISTENCE_OK"
-    run("image", "rm", tag)
-    assert Engine().inventory() == ()
-    print("PASS: installed rootless image persisted across restart", flush=True)
+    run("run", "-d", "--name", fixture_name, "--network", "none", tag, "/bin/busybox", "sleep", "600")
+    assert fixture_name in run("ps", "--format", "{{.Names}}").splitlines()
+    assert any(fixture_name in row.name for row in Engine().inventory())
+    print("PASS: installed rootless fixture is visible for the Containers UI", flush=True)
+    success = True
 finally:
-    change("stop")
+    if not success:
+        change("stop")
 '; then
     echo "Installed rootless Docker failure diagnostics:"
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -871,10 +916,56 @@ for unit in docker.service docker.socket containerd.service; do
         echo "Rootless test changed system Docker: $unit"; exit 2
     fi
 done
-printf 'PASS: installed Containers launched unprivileged; system daemon disabled\n'
+launch_app localzet-containers /usr/bin/localzet-containers
+cat > /run/localzet-candidate-check/containers-window.sh <<'CONTAINERSWINDOW'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+# GTK4 uses the authenticated GNOME Wayland session. Do not force XWayland:
+# native Wayland surfaces are intentionally absent from the X11 window tree.
+owner_pid=""
+unit_pid=""
+for attempt in $(seq 1 45); do
+    owner_pid="$(busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
+        org.freedesktop.DBus GetConnectionUnixProcessID s com.localzet.Containers 2>/dev/null | awk '{print $2}' || true)"
+    unit_pid="$(systemctl --user show -p MainPID --value localzet-candidate-localzet-containers.service)"
+    if [[ "$owner_pid" =~ ^[1-9][0-9]*$ && "$unit_pid" == "$owner_pid" ]]; then break; fi
+    sleep 1
+done
+[[ "$owner_pid" =~ ^[1-9][0-9]*$ && "$unit_pid" == "$owner_pid" ]]
+ps -p "$owner_pid" -o args= | grep -Fq '/usr/bin/localzet-containers'
+gdbus introspect --session --dest com.localzet.Containers --object-path /com/localzet/Containers |
+    grep -Fq 'org.freedesktop.Application'
+gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers \
+    --method org.freedesktop.Application.Activate '{}' >/dev/null
+sleep 5
+systemctl --user is-active --quiet localzet-candidate-localzet-containers.service
+[[ "$(systemctl --user show -p MainPID --value localzet-candidate-localzet-containers.service)" == "$owner_pid" ]]
+printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY 0 0 1280 800\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n'
+sleep 10
+CONTAINERSWINDOW
+chmod 0755 /run/localzet-candidate-check/containers-window.sh
+sleep 5
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/containers-window.sh
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemctl --user stop localzet-candidate-localzet-containers.service || true
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 -c '
+import os
+import subprocess
+from localzet.rootless_docker import change
+docker = ["/usr/bin/docker", "--host", "unix:///run/user/" + str(os.getuid()) + "/docker.sock"]
+for args in (["rm", "-f", "localzet-candidate-visual-fixture"],
+             ["image", "rm", "localzet-installed-rootless-fixture:ci"]):
+    subprocess.run(docker + list(args), check=False, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, timeout=60)
+change("stop")
+'
+printf 'PASS: installed native Wayland Containers window OCR-verified with a live rootless fixture; system daemon disabled\\n'
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
-        assert "installed Containers launched" in script
+        assert "installed native Wayland Containers window OCR-verified" in script
     if office:
         check = r"""
 test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
@@ -1477,8 +1568,6 @@ def main():
                     raise RuntimeError("Installed GNOME Files window is blank or visually insufficient")
                 print("Installed Files window evidence:", metrics, flush=True)
             installed.capture("desktop-verified")
-            if args.expect_containers:
-                installed.capture("containers-installed")
             if args.expect_office:
                 if args.expect_executive_review:
                     installed.office_document()
@@ -1490,6 +1579,14 @@ def main():
                         raise RuntimeError("Missing distinct GNOME Files or ONLYOFFICE installed desktop screenshot")
                     if files_screen.read_bytes() == office_screen.read_bytes():
                         raise RuntimeError("GNOME Files and ONLYOFFICE screenshots are identical; refusing false visual evidence")
+                if args.expect_containers:
+                    containers_screen = installed.screen.with_name(f"{installed.screen.stem}-containers-installed.ppm")
+                    if not containers_screen.is_file() or containers_screen.stat().st_size == 0:
+                        raise RuntimeError("Missing actual Localzet Containers installed-image screenshot")
+                    if containers_screen.read_bytes() == office_screen.read_bytes():
+                        raise RuntimeError("Containers screenshot is the ONLYOFFICE window; refusing mislabeled evidence")
+                    if args.expect_native_files and containers_screen.read_bytes() == files_screen.read_bytes():
+                        raise RuntimeError("Containers screenshot is the GNOME Files window; refusing mislabeled evidence")
             installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
             if args.expect_executive_review:
                 installed.wait(LOCK_READY, 45)
