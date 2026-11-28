@@ -42,6 +42,11 @@ export function wallpaperGlassAvailable(background, settings, contrast, path) {
     return !!Main.layoutManager.primaryMonitor;
 }
 
+export function hasStageAllocation(actor) {
+    return !!actor && actor.get_stage() !== null && actor.is_mapped() &&
+        actor.get_width() > 0 && actor.get_height() > 0;
+}
+
 export class WallpaperGlass {
     constructor(menu, surface = 'launcher') {
         this._menu = menu;
@@ -49,6 +54,8 @@ export class WallpaperGlass {
         this._effect = null;
         this._effectActor = null;
         this._idle = 0;
+        this._allocationSignals = [];
+        this._allocationTimeout = 0;
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
@@ -90,11 +97,19 @@ export class WallpaperGlass {
     _refresh() {
         if (!this._menu.isOpen ||
             !wallpaperGlassAvailable(this._background, this._interface, this._contrast, this._path)) {
+            this._clearAllocationWait();
             this._restore();
             return;
         }
         if (this._effect)
             return;
+
+        const effectActor = this._menu.actor;
+        if (!hasStageAllocation(effectActor) || !hasStageAllocation(this._menu.box)) {
+            this._waitForAllocation();
+            return;
+        }
+
         try {
             const effect = new Shell.BlurEffect({
                 name: EFFECT_NAME,
@@ -102,20 +117,62 @@ export class WallpaperGlass {
                 brightness: EFFECT_BRIGHTNESS,
                 mode: Shell.BlurMode.BACKGROUND,
             });
-            // Mutter's BACKGROUND blur must live on the outer BoxPointer
-            // actor so it samples the wallpaper behind the complete popup.
-            // Applying it only to menu.box leaves the visible surface sharp.
-            const effectActor = this._menu.actor;
+            // Mutter 50 can silently skip BACKGROUND blur when an effect is
+            // attached before the popup and its content have real allocations.
+            // Wait for both actors; the outer BoxPointer samples the complete
+            // wallpaper region while its child keeps text and controls sharp.
             effectActor.add_effect_with_name(EFFECT_NAME, effect);
             effect.queue_repaint();
             this._effectActor = effectActor;
             this._effect = effect;
-            this._menu.actor.add_style_class_name('localzet-wallpaper-glass');
+            effectActor.add_style_class_name('localzet-wallpaper-glass');
             console.log('Localzet Glass: wallpaper compositor effect active ' + this._surface +
-                ' mode=' + effect.get_mode() + ' radius=' + effect.get_radius());
+                ' mode=' + effect.get_mode() + ' radius=' + effect.get_radius() +
+                ' allocated=' + Math.round(effectActor.get_width()) + 'x' +
+                Math.round(effectActor.get_height()) + ' enabled=' + effect.get_enabled());
         } catch (error) {
             this._restore();
             console.warn('Localzet Glass: opaque fallback ' + this._surface + ': ' + error);
+        }
+    }
+
+    _waitForAllocation() {
+        if (this._allocationSignals.length)
+            return;
+
+        const retry = () => {
+            if (!this._menu.isOpen) {
+                this._clearAllocationWait();
+                return;
+            }
+            if (hasStageAllocation(this._menu.actor) && hasStageAllocation(this._menu.box)) {
+                this._clearAllocationWait();
+                this._refresh();
+            }
+        };
+
+        for (const actor of [this._menu.actor, this._menu.box]) {
+            if (!actor)
+                continue;
+            this._allocationSignals.push([actor, actor.connect('notify::allocation', retry)]);
+        }
+        this._allocationTimeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
+            this._allocationTimeout = 0;
+            this._clearAllocationWait();
+            if (this._menu.isOpen && !this._effect)
+                console.warn('Localzet Glass: allocation timeout; opaque fallback ' + this._surface);
+            return GLib.SOURCE_REMOVE;
+        });
+        retry();
+    }
+
+    _clearAllocationWait() {
+        for (const [actor, id] of this._allocationSignals)
+            actor.disconnect(id);
+        this._allocationSignals = [];
+        if (this._allocationTimeout) {
+            GLib.source_remove(this._allocationTimeout);
+            this._allocationTimeout = 0;
         }
     }
 
@@ -124,6 +181,7 @@ export class WallpaperGlass {
             GLib.source_remove(this._idle);
             this._idle = 0;
         }
+        this._clearAllocationWait();
         this._restore();
     }
 
