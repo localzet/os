@@ -20,7 +20,6 @@ export class LocalzetDock {
         this._materialIdle = 0;
         this._materialRefreshPending = false;
         this._anchorGeometrySource = 0;
-        this._anchorGeometryLogged = false;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -259,15 +258,16 @@ export class LocalzetDock {
 
     _logAnchorBounds() {
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') !== '1' ||
-            this._anchorGeometryLogged || this._anchorGeometrySource)
+            this._anchorGeometrySource)
             return;
+        // The dock can grow after favorites resolve. Re-log the anchor after
+        // every allocation so visual automation never clicks a stale slot.
         this._anchorGeometrySource = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._anchorGeometrySource = 0;
             const [x, y] = this._anchor.get_transformed_position();
             const [w, h] = this._anchor.get_transformed_size();
             if (w <= 0 || h <= 0)
                 return GLib.SOURCE_REMOVE;
-            this._anchorGeometryLogged = true;
             console.log('Localzet Launcher: button=' + [x, y, w, h].map(Math.round).join(','));
             return GLib.SOURCE_REMOVE;
         });

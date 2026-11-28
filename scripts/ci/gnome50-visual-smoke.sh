@@ -133,6 +133,16 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   done
   test -n "$button" || { echo "Launcher anchor geometry unavailable" >&2; exit 1; }
   IFS=, read -r button_x button_y button_w button_h <<< "$button"
+  dock_bounds="$(sed -n 's/.*Localzet Launcher: dock=\([0-9,]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$dock_bounds" || { echo "Dock geometry unavailable" >&2; exit 1; }
+  python3 - "$button" "$dock_bounds" <<'PY' || exit 1
+import sys
+bx, by, bw, bh = map(int, sys.argv[1].split(","))
+dx, dy, dw, dh = map(int, sys.argv[2].split(","))
+if bx < dx or by < dy or bx + bw > dx + dw or by + bh > dy + dh:
+    raise SystemExit("Launcher anchor is outside the current dock; refusing stale-coordinate click")
+print("Current launcher anchor is inside the current dock:", (bx, by, bw, bh))
+PY
   xdotool mousemove --window "$window" "$((button_x + button_w / 2 + 5))" "$((button_y + button_h / 2 + 51))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
@@ -222,7 +232,10 @@ PY
   # deliver an original notification through the session's standard bus.
   grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
   width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
-  xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
+  # Click the center of the actual Quick Settings status group in the panel.
+  panel_x=$((width - 74))
+  panel_y=67
+  xdotool mousemove --window "$window" "$panel_x" "$panel_y" click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Glass: wallpaper compositor effect active quickSettings" "$OUT/gnome-shell.log" || exit 1
@@ -245,7 +258,7 @@ PY
   sleep 3
   notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
   sleep 2
-  xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
+  xdotool mousemove --window "$window" "$((width / 2))" "$panel_y" click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1

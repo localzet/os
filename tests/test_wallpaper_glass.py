@@ -79,12 +79,22 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("Localzet Dock: overview hidden", dock)
         self.assertIn("Localzet Launcher: button=", dock)
 
-    def test_visual_smoke_uses_measured_launcher_button(self):
+    def test_launcher_anchor_geometry_is_remeasured_after_dock_relayout(self):
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        self.assertNotIn("_anchorGeometryLogged", dock)
+        self.assertIn("this._anchor.connect('notify::allocation'", dock)
+        self.assertIn("this._actor.connect('notify::allocation'", dock)
+        self.assertIn("this._logAnchorBounds()", dock)
+
+    def test_visual_smoke_uses_measured_launcher_and_current_panel_geometry(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
         self.assertIn("Escape Escape", smoke)
         self.assertIn("Localzet Launcher: button=", smoke)
+        self.assertIn("Launcher anchor is outside the current dock", smoke)
         self.assertIn("button_w / 2", smoke)
         self.assertIn("button_h / 2", smoke)
+        self.assertIn("panel_x=$((width - 74))", smoke)
+        self.assertIn("panel_y=67", smoke)
 
 
 if __name__ == "__main__":

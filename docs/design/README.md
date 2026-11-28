@@ -118,22 +118,30 @@ screenshots and automated tests are necessary but not sufficient for release.
 
 ### Current glass implementation (visual acceptance pending)
 
-The candidate uses Mutter's `Shell.BlurEffect` in BACKGROUND mode. The
-rounded dock and popup surfaces attach the effect to their actual painted
-actors; they do not use a pre-blurred JPEG or screen/window capture. The
-wallpaper-only guard is limited to the exact approved bundled wallpaper,
-one monitor at scale 1, an unlocked non-greeter session, hidden overview and
-an empty active workspace. High contrast, unsupported layouts, other
-wallpapers and `LOCALZET_DISABLE_GLASS=1` use the opaque fallback.
+The panel uses GNOME Shell's native `Shell.BlurEffect` in BACKGROUND mode.
+The dock, launcher popup and native Quick Settings/date menus now use the same
+Mutter compositor effect; the old pre-blurred `-glass.jpg` derivative has
+been removed. Effects are attached to the actual Shell actors and removed
+again when their owner closes or the display/session state changes.
 
-An effect-construction log is not visual proof. The GNOME 50 devkit must
-measure real spatial-detail reduction in a captured popup and verify that the
-effect is removed when a window appears or the session locks. The current
-software-rendered visual gate has not yet passed; keep this implementation
-experimental until that measurement succeeds. Installed ISO screenshots,
-GPU performance, rounded clipping and HiDPI/multi-monitor behavior remain
-separate acceptance gates. No global redraw hacks or forced transparency on
-third-party windows. See:
+Wallpaper-only glass is deliberately conservative. It is eligible only when
+the exact bundled wallpaper is selected with zoom, there is one monitor at
+scale factor 1, the active workspace has no visible application windows, the
+overview is closed, the session is neither locked nor a greeter, high contrast
+is off, and `LOCALZET_DISABLE_GLASS=1` is not set. A visible window, alternate
+wallpaper, unsupported geometry, accessibility mode or effect error uses an
+opaque Violet surface. No screenshot capture, screen sampling, window-content
+capture or static blur image is used. The compositor therefore samples only
+the wallpaper in the eligible state, never another application's content.
+
+`LOCALZET_EXPERIMENTAL_GLASS=1` is a CI-only switch for a deterministic
+test wallpaper and extra geometry diagnostics; it does not enable the effect.
+Production eligibility is determined by the runtime checks above. The
+software-rendered GNOME 50 devkit verifies effect attachment, optical detail
+reduction, window-created fallback and high-contrast recovery, but cannot
+establish physical-GPU performance, multi-monitor/HiDPI behavior, rounded
+clipping quality or final visual acceptance. The exact installed ISO still
+needs real screenshots and hardware testing. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
 ### Boot branding implementation
@@ -623,3 +631,18 @@ the dock's opaque transition when a real application window opens, and checks
 the high-contrast fallback. This is still a disposable devkit test; the
 installed ISO screenshots and GPU/performance behavior remain separate
 acceptance gates.
+
+
+### Compositor glass correction — 2026-11-28
+
+The first GNOME 50 compositor-glass run (Actions 46096243581) reached a real
+desktop and confirmed the compositor effect on the dock. Its visual workflow
+then failed because the devkit recorded the launcher anchor before the dock
+finished expanding after favorite applications resolved. The later click
+used that stale position and opened a neighboring application instead of the
+launcher. The screenshot is retained as diagnostic evidence, not visual
+acceptance. The follow-up refreshes anchor geometry after each allocation,
+checks that the measured anchor is inside the current dock before clicking,
+and targets the actual Quick Settings/date-menu panel region. The next run
+must pass and its real captures must be inspected; no final glass or Aurora
+visual approval is claimed.
