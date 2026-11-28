@@ -19,6 +19,8 @@ export class LocalzetDock {
         this._glassEffect = null;
         this._materialIdle = 0;
         this._materialRefreshPending = false;
+        this._anchorGeometrySource = 0;
+        this._anchorGeometryLogged = false;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -68,7 +70,7 @@ export class LocalzetDock {
             [this._interface, this._interface.connect('changed::color-scheme', () => this._refreshMaterial())],
             [Main.sessionMode, Main.sessionMode.connect('updated', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
             [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
-            [this._actor, this._actor.connect('notify::allocation', () => this._refreshMaterial())],
+            [this._actor, this._actor.connect('notify::allocation', () => { this._refreshMaterial(); this._logAnchorBounds(); })],
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
                 this._trash.set_child(new St.Icon({
@@ -87,7 +89,7 @@ export class LocalzetDock {
             [Main.overview, Main.overview.connect('showing', () => {
                 this._launcher.close(); this._clearMaterial(); this._actor.hide();
             })],
-            [Main.overview, Main.overview.connect('hidden', () => { this._actor.show(); this._scheduleMaterialRefresh(); this._schedule(); })],
+            [Main.overview, Main.overview.connect('hidden', () => { console.log('Localzet Dock: overview hidden'); this._actor.show(); this._scheduleMaterialRefresh(); this._schedule(); })],
         ];
         // Reserve a full-width bottom strip through Mutter's native workarea.
         // The floating visual actor remains independent and fullscreen-aware.
@@ -247,8 +249,25 @@ export class LocalzetDock {
         this._strut.set_position(monitor.x, y - 6);
         this._strut.set_size(monitor.width, height + 16);
         this._refreshMaterial();
+        this._logAnchorBounds();
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
-            console.log('Localzet Launcher: dock=' + x + ',' + y);
+            console.log('Localzet Launcher: dock=' + x + ',' + y + ',' + width + ',' + height);
+    }
+
+    _logAnchorBounds() {
+        if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') !== '1' ||
+            this._anchorGeometryLogged || this._anchorGeometrySource)
+            return;
+        this._anchorGeometrySource = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._anchorGeometrySource = 0;
+            const [x, y] = this._anchor.get_transformed_position();
+            const [w, h] = this._anchor.get_transformed_size();
+            if (w <= 0 || h <= 0)
+                return GLib.SOURCE_REMOVE;
+            this._anchorGeometryLogged = true;
+            console.log('Localzet Launcher: button=' + [x, y, w, h].map(Math.round).join(','));
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _clearMaterial() {
@@ -299,7 +318,10 @@ export class LocalzetDock {
             GLib.source_remove(this._idle);
         if (this._materialIdle)
             GLib.source_remove(this._materialIdle);
+        if (this._anchorGeometrySource)
+            GLib.source_remove(this._anchorGeometrySource);
         this._materialIdle = 0;
+        this._anchorGeometrySource = 0;
         this._materialRefreshPending = false;
         this._clearMaterial();
         for (const [object, id] of this._connections)
