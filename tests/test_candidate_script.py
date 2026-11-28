@@ -26,7 +26,7 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("LOCALZET_CANDIDATE_FILES_CAPTURE_READY", script)
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn('self.capture("files")', source)
-        self.assertIn('candidate-installed-files.ppm', source)
+        self.assertIn('files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")', source)
         self.assertIn("Installed Files screen evidence", source)
 
     def test_minimal_candidate_is_unchanged(self):
