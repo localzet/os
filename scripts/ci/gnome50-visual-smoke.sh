@@ -77,8 +77,8 @@ for y in range(height):
         r = 30 + int(95 * x / (width - 1))
         g = 24 + int(55 * y / (height - 1))
         b = 88 + int(55 * (width - 1 - x) / (width - 1))
-        detail = 255 if ((x // cell) + (y // cell)) % 2 else 0
-        pixels[x, y] = tuple(int(base * .72 + detail * .28) for base in (r, g, b))
+        detail = ((x // cell) + (y // cell)) % 2
+        pixels[x, y] = (255, 255, 255) if detail else (r, g, b)
 image.save(sys.argv[1])
 PY
   wallpaper="file://$OUT/blur-probe.png"
