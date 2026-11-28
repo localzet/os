@@ -14,10 +14,19 @@ spec.loader.exec_module(module)
 class CandidateScriptTests(unittest.TestCase):
     def test_full_candidate_assertions_are_present(self):
         script = module.installed_script("complete", True, True, True, True)
-        for marker in ("installed Executive Files package launched", "sleep 30", "LOCALZET_CANDIDATE_STILL_LOCKED",
-                       "LOCALZET_CANDIDATE_OFFICE_PNG", "installed native ONLYOFFICE launched", "Localzet-offline-review.docx", "Fixture heading ink"):
+        for marker in ("installed Executive Files package launched", "LOCALZET_CANDIDATE_FILES_CAPTURE_READY",
+                       "LOCALZET_CANDIDATE_STILL_LOCKED", "LOCALZET_CANDIDATE_OFFICE_PNG",
+                       "installed native ONLYOFFICE launched", "Localzet-offline-review.docx", "Fixture heading ink"):
             self.assertIn(marker, script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
+    def test_installed_files_has_a_separate_real_screen_capture(self):
+        script = module.installed_script("complete", native_files=True)
+        self.assertIn("launch_app nautilus /usr/bin/nautilus", script)
+        self.assertIn("LOCALZET_CANDIDATE_FILES_CAPTURE_READY", script)
+        self.assertIn('self.capture("files")', inspect.getsource(module.Guest.wait))
+        self.assertIn('candidate-installed-files.ppm', inspect.getsource(module.main))
+        self.assertIn("Installed Files screen evidence", inspect.getsource(module.main))
 
     def test_minimal_candidate_is_unchanged(self):
         script = module.installed_script()
