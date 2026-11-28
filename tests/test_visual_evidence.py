@@ -47,3 +47,34 @@ class VisualEvidenceTests(unittest.TestCase):
             draw.rectangle((160, 160, 340, 180), fill="#205ea8")
             image.save(path)
             self.assertGreater(module.document_ink(path), 250)
+
+
+    def test_wallpaper_similarity_survives_lock_blur_and_dim(self):
+        try:
+            from PIL import Image, ImageDraw, ImageFilter
+        except ImportError:
+            self.skipTest("Pillow unavailable on source-only runner")
+        with tempfile.TemporaryDirectory() as directory:
+            desktop = Path(directory) / "desktop.png"
+            lock = Path(directory) / "lock.png"
+            wrong = Path(directory) / "wrong.png"
+            image = Image.new("RGB", (1280, 800), "#25334f")
+            draw = ImageDraw.Draw(image)
+            draw.rectangle((0, 390, 1280, 800), fill="#263e36")
+            draw.polygon([(0, 500), (240, 260), (420, 470), (700, 180), (950, 470), (1280, 240), (1280, 800), (0, 800)], fill="#647184")
+            draw.polygon([(240, 260), (320, 340), (420, 470), (310, 390)], fill="#d2d7dc")
+            draw.polygon([(700, 180), (790, 290), (950, 470), (820, 390)], fill="#d8dce2")
+            draw.rectangle((60, 80, 180, 170), fill="#8d7ba8")
+            image.save(desktop)
+            blurred = image.filter(ImageFilter.GaussianBlur(radius=18)).point(lambda value: int(value * 0.48))
+            ImageDraw.Draw(blurred).text((520, 340), "23:27", fill="#e8e4f0", stroke_width=2)
+            blurred.save(lock)
+            gradient = Image.new("RGB", (1280, 800))
+            pixels = gradient.load()
+            for y in range(800):
+                value = int(20 + 40 * y / 800)
+                for x in range(1280):
+                    pixels[x, y] = (value, value + 4, value + 18)
+            gradient.save(wrong)
+            self.assertGreater(module.wallpaper_similarity(desktop, lock), 0.55)
+            self.assertLess(module.wallpaper_similarity(desktop, wrong), 0.55)

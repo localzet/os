@@ -205,6 +205,14 @@ class Guest:
             metrics = evidence.visual_metrics(path, region)
             print(stage, "visual evidence", metrics, flush=True)
             if evidence.meaningful(metrics):
+                if stage == "native-lock":
+                    desktop = self.screen.with_name(f"{self.screen.stem}-desktop-before-console.ppm")
+                    if not desktop.is_file():
+                        raise RuntimeError("Missing pre-lock desktop capture for wallpaper comparison")
+                    similarity = evidence.wallpaper_similarity(desktop, path)
+                    print("native-lock wallpaper similarity:", round(similarity, 4), flush=True)
+                    if similarity < 0.55:
+                        raise RuntimeError(f"Lock screen lost the installed desktop wallpaper (similarity={similarity:.3f})")
                 return
         raise RuntimeError(f"{stage}: blank or insufficient screenshot evidence")
 
@@ -1168,6 +1176,7 @@ cmp /usr/share/doc/localzet-desktop/control-center.BUILD-COMMIT /usr/share/doc/l
 # No unlock bypass, no fake login UI and no password entered on camera.
 test -s /usr/share/backgrounds/localzet/executive-dusk.jpg
 test -s /usr/share/backgrounds/localzet/executive-dusk-glass.jpg
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
 loginctl lock-session "$session"

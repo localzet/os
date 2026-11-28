@@ -68,11 +68,8 @@ picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-options='zoom'
 
-# GNOME reads a separate picture URI for the authenticated lock screen.
-[org/gnome/desktop/screensaver]
-picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
-picture-options='zoom'
-
+# GNOME Shell 50's unlock dialog uses org.gnome.desktop.background.
+# The GDM greeter reads the same schema from its separate dconf profile.
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
 accent-color='purple'
@@ -131,8 +128,10 @@ test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
 test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
 test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet-greeter.png'"
-test "$(chroot "$root" env DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.screensaver picture-uri)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(chroot "$root" env DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(chroot "$root" env DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"

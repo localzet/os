@@ -23,12 +23,16 @@ class LockAppearanceTests(unittest.TestCase):
     def test_desktop_lock_and_gdm_share_the_installed_wallpaper(self):
         rootfs = (ROOT / "packaging/live/customize-rootfs.sh").read_text()
         wallpaper = "file:///usr/share/backgrounds/localzet/executive-dusk.jpg"
-        self.assertIn("[org/gnome/desktop/screensaver]", rootfs)
+        self.assertNotIn("[org/gnome/desktop/screensaver]", rootfs)
         self.assertIn("[org/gnome/desktop/background]", rootfs)
-        self.assertGreaterEqual(rootfs.count(f"picture-uri='{wallpaper}'"), 3)
-        self.assertGreaterEqual(rootfs.count(f"picture-uri-dark='{wallpaper}'"), 2)
-        self.assertIn("gsettings get org.gnome.desktop.screensaver picture-uri", rootfs)
-        self.assertIn("DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri", rootfs)
+        self.assertEqual(rootfs.count(f"picture-uri='{wallpaper}'"), 2)
+        self.assertEqual(rootfs.count(f"picture-uri-dark='{wallpaper}'"), 2)
+        self.assertIn("DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark", rootfs)
+        self.assertIn("DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark", rootfs)
+        branding = (ROOT / "docs/design/NATIVE-BRANDING.md").read_text()
+        self.assertIn("GNOME Shell 50's unlock dialog", branding)
+        self.assertIn("org.gnome.desktop.background", branding)
+        self.assertNotIn("lock screen reads `org.gnome.desktop.screensaver picture-uri`", branding)
 
     def test_packaged_and_enabled(self):
         for path in ("scripts/build-desktop-deb.sh", "packaging/live/customize-rootfs.sh"):

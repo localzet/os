@@ -10,13 +10,22 @@ dconf database ahead of distribution defaults. The build checks the effective
 key. It does not alter authentication or disable password requirements.
 Capture the real GDM screen after installing and rebooting.
 
-GNOME does **not** reuse the desktop picture for every session: the authenticated
-lock screen reads `org.gnome.desktop.screensaver picture-uri`, while the GDM
-greeter reads `org.gnome.desktop.background` from its separate `gdm` dconf
-profile. The rootfs therefore sets all three surfaces to the same installed
-wallpaper and verifies the effective GSettings values after `dconf update`.
-The installed-image review must still inspect the real lock screenshot; a
-correct desktop `picture-uri` alone is not evidence of lock-screen parity.
+GNOME Shell 50's authenticated unlock dialog creates its screen-shield
+`BackgroundManager` without overriding its settings schema. The upstream
+`BackgroundManager` default is `org.gnome.desktop.background`, so the lock
+shield inherits the user's desktop `picture-uri` / `picture-uri-dark`; the
+legacy `org.gnome.desktop.screensaver picture-uri` key is not used by this
+GNOME Shell 50 code path. The GDM greeter remains a separate session and reads
+`org.gnome.desktop.background` from the dedicated `gdm` dconf profile.
+
+The rootfs configures the user desktop/lock background and GDM greeter
+separately. Installed-image acceptance captures the actual locked session and
+compares the low-frequency wallpaper structure with the pre-lock desktop
+capture, masking the clock, top panel and dock. This catches a flat/default
+gradient while allowing GNOME's intentional dim-and-blur effect.
+
+Upstream implementation: [GNOME Shell 50 unlockDialog.js](https://github.com/GNOME/gnome-shell/blob/50.0/js/ui/unlockDialog.js)
+and [background.js](https://github.com/GNOME/gnome-shell/blob/50.0/js/ui/background.js).
 
 The OS exposes `LOGO=localzet-logo` and packages the original logo in hicolor.
 GNOME Control Center 50 upstream reads LOGO **only if** distributor-logo
