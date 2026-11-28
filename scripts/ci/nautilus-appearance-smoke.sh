@@ -122,6 +122,31 @@ assert max(diff) > 3, "List screenshot is still the grid"
 if sys.argv[3] == "dark":
     pixels = Counter(view.getdata())
     assert pixels[(16,9,30)] > 1000 and pixels[(40,24,63)] > 1000
+    # GTK ColumnView headings are dimmed upstream. The Violet overlay must
+    # restore readable metadata rather than merely pass surface-color checks.
+    background = (16, 9, 30)
+    def luminance(rgb):
+        values = []
+        for value in rgb:
+            value = value / 255
+            values.append(value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4)
+        return 0.2126 * values[0] + 0.7152 * values[1] + 0.0722 * values[2]
+    def contrast(foreground, background):
+        first, second = sorted((luminance(foreground), luminance(background)), reverse=True)
+        return (first + 0.05) / (second + 0.05)
+    header_regions = {
+        "Name": (int(w*.22), int(h*.07), int(w*.33), int(h*.14)),
+        "Size": (int(w*.78), int(h*.07), int(w*.86), int(h*.14)),
+        "Modified": (int(w*.86), int(h*.07), int(w*.98), int(h*.14)),
+    }
+    for label, region in header_regions.items():
+        ratios = [contrast(pixel, background) for pixel in view.crop(region).getdata()
+                  if sum(abs(pixel[i] - background[i]) for i in range(3)) >= 45]
+        assert len(ratios) >= 10, (label, len(ratios))
+        ratios.sort()
+        p90 = ratios[int(.90 * (len(ratios) - 1))]
+        print(f"{label} header text 90th-percentile contrast: {p90:.2f}:1")
+        assert p90 >= 4.5, (label, p90)
     # The actual grid has folder glyphs centered around x=280,407,...
     # List icons must occupy multiple vertical rows near the sidebar.
     # Search a broad strip, then cluster contiguous nonempty scan lines.
