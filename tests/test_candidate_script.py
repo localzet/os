@@ -23,6 +23,8 @@ class CandidateScriptTests(unittest.TestCase):
     def test_installed_files_has_a_separate_real_screen_capture(self):
         script = module.installed_script("complete", native_files=True)
         self.assertIn("launch_app_x11 localzet-candidate-nautilus /usr/bin/nautilus", script)
+        self.assertIn("--setenv=GSK_RENDERER=cairo", source)
+        self.assertIn("--setenv=GTK_A11Y=none", source)
         self.assertIn("/usr/bin/nautilus --new-window", script)
         self.assertIn('busctl --user list --no-pager', script)
         self.assertIn("org.gnome.Nautilus", script)
