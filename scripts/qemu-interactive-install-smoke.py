@@ -807,23 +807,31 @@ fi
 test -f /usr/lib/systemd/user/localzet-rootless-docker.service
 test -s /usr/share/localzet/docker-rootless.json
 cleanup_containers() {
+    local failed=0
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-        systemctl --user stop localzet-candidate-localzet-containers.service >/dev/null 2>&1 || true
+        systemctl --user stop localzet-candidate-localzet-containers.service >/dev/null 2>&1 || failed=1
     if runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
         container inspect localzet-ui-fixture >/dev/null 2>&1; then
         runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
-            container rm -f localzet-ui-fixture >/dev/null 2>&1 || true
+            container rm -f localzet-ui-fixture >/dev/null 2>&1 || failed=1
+    fi
+    if runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
+        container inspect localzet-ui-fixture >/dev/null 2>&1; then
+        echo "Rootless UI fixture container survived cleanup" >&2
+        failed=1
     fi
     if runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
         image inspect localzet-installed-rootless-fixture:ci >/dev/null 2>&1; then
         runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
-            image rm localzet-installed-rootless-fixture:ci >/dev/null 2>&1 || true
+            image rm localzet-installed-rootless-fixture:ci >/dev/null 2>&1 || failed=1
     fi
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
         systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src \
         /usr/bin/python3 -c 'from localzet.rootless_docker import change; print(change("stop"))' \
-        >/dev/null 2>&1 || true
+        >/dev/null 2>&1 || failed=1
+    return "$failed"
 }
+trap 'cleanup_containers || true' EXIT
 # The rootless engine is the only engine started by this test. It stays
 # active only while a disposable, unprivileged fixture is visible in the UI.
 if ! runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -833,6 +841,7 @@ from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+import time
 from localzet.containers import Engine, metric_sample
 from localzet.rootless_docker import change
 
@@ -864,7 +873,13 @@ try:
     rows = engine.inventory()
     fixture = next(row for row in rows if row.id == fixture_id and row.name == "localzet-ui-fixture")
     assert fixture.state == "running", fixture
-    logs, truncated = engine.logs(fixture.id)
+    logs = ""
+    truncated = False
+    for attempt in range(10):
+        logs, truncated = engine.logs(fixture.id)
+        if "LOCALZET_LOG_FIXTURE" in logs:
+            break
+        time.sleep(1)
     assert not truncated and "LOCALZET_LOG_FIXTURE" in logs, (logs, truncated)
     sample = metric_sample(engine.metrics(fixture.id))
     assert sample.cpu >= 0 and sample.memory >= 0, sample
