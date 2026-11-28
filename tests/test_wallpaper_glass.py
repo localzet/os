@@ -238,5 +238,15 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn('out/gnome-glass-menu/', workflow)
 
 
+    def test_launcher_geometry_is_refreshed_after_running_network_app(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        network = smoke.index('Localzet Quick Actions: opened com.localzet.Network.desktop')
+        refresh = smoke.index('button="$(sed -n', network)
+        files_click = smoke.index('xdotool windowfocus --sync "$window" mousemove --window "$window" "$((button_x', refresh)
+        self.assertLess(network, refresh)
+        self.assertLess(refresh, files_click)
+        self.assertIn("Re-measured launcher anchor after app launch", smoke)
+
+
 if __name__ == "__main__":
     unittest.main()
