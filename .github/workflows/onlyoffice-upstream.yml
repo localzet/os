@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install isolated provenance verifier
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends curl gnupg dpkg-dev
-      - name: Verify the official signed APT repository and exact source package
+      - name: Verify signed APT provenance and fail-closed source eligibility
         run: |
           bash -n scripts/ci/onlyoffice-apt-provenance.sh
           bash scripts/ci/onlyoffice-apt-provenance.sh
