@@ -231,7 +231,7 @@ export class WallpaperGlass {
                 continue;
             this._allocationSignals.push([actor, actor.connect('notify::allocation', retry)]);
         }
-        this._allocationTimeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3, () => {
+        this._allocationTimeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
             this._allocationTimeout = 0;
             this._clearAllocationWait();
             if (this._menu.isOpen && !this._effect)
