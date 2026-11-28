@@ -72,13 +72,11 @@ image = Image.new("RGB", (width, height))
 pixels = image.load()
 for y in range(height):
     for x in range(width):
-        # A low-frequency blue/violet/orange field survives glass blur.
-        # A 4 px checkerboard rides above it to detect alpha-only tint.
-        r = 30 + int(95 * x / (width - 1))
-        g = 24 + int(55 * y / (height - 1))
-        b = 88 + int(55 * (width - 1 - x) / (width - 1))
+        # Two broad violet/orange fields survive blur; 4 px white squares
+        # test high-frequency suppression independently of alpha-only tint.
+        base = (46, 36, 112) if x < 756 else (230, 120, 35)
         detail = ((x // cell) + (y // cell)) % 2
-        pixels[x, y] = (255, 255, 255) if detail else (r, g, b)
+        pixels[x, y] = (255, 255, 255) if detail else base
 image.save(sys.argv[1])
 PY
   wallpaper="file://$OUT/blur-probe.png"
