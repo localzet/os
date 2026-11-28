@@ -135,7 +135,6 @@ PY
   sleep 2
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
-  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -E "Localzet Glass: panel background effect active allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   # The launcher effect is intentionally attached only after its popup opens.
   # Assert it after the real dock click below, not during startup.
@@ -341,25 +340,8 @@ PY
   xdotool key --clearmodifiers alt+F4 || exit 1
   rm -rf "$HOME/Localzet-visual-review"
   sleep 3
-  # Exercise teardown/re-enable, including the accessibility fallback.
-  gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
-  sleep 2
-  grep -F "Localzet Glass: launcher opaque fallback" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: panel opaque fallback high-contrast" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
-  import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
-  gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
-  gnome-extensions disable localzet-shell@localzet.com || exit 1
-  sleep 2
-  gnome-extensions enable localzet-shell@localzet.com || exit 1
-  sleep 3
-  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
-  test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
-  if grep -F "Extension point conflict" "$OUT/gnome-shell.log"; then exit 1; fi
-  if grep -F "firstIcon.icon is null" "$OUT/gnome-shell.log"; then
-    echo "GNOME overview Dash attempted to size an unresolved application icon" >&2
-    exit 1
-  fi
+  # Verify appindicator and the upstream Qt tray before extension teardown.
+  # The devkit session bus is not queried after reloading the shell extension.
   gnome-extensions list --active | grep -Fx ubuntu-appindicators@ubuntu.com || exit 1
   gdbus call --session --dest org.kde.StatusNotifierWatcher --object-path /StatusNotifierWatcher --method org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierWatcher IsStatusNotifierHostRegistered | grep -F true || exit 1
   # The official Qt client registers its own tray menu. Do not create a second
@@ -379,6 +361,27 @@ PY
   kill "$nectar_pid" 2>/dev/null || true
   wait "$nectar_pid" 2>/dev/null || true
   rm -rf -- "$nectar_data"
+  # Exercise teardown/re-enable, including the accessibility fallback.
+  gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
+  sleep 2
+  grep -F "Localzet Glass: launcher opaque fallback" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: panel opaque fallback high-contrast" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
+  gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
+  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
+  gnome-extensions disable localzet-shell@localzet.com || exit 1
+  sleep 2
+  gnome-extensions enable localzet-shell@localzet.com || exit 1
+  sleep 3
+  # The second initialization log proves re-enable; no D-Bus query follows.
+  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
+  test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
+  if grep -F "Extension point conflict" "$OUT/gnome-shell.log"; then exit 1; fi
+  if grep -F "firstIcon.icon is null" "$OUT/gnome-shell.log"; then
+    echo "GNOME overview Dash attempted to size an unresolved application icon" >&2
+    exit 1
+  fi
   echo "GNOME Shell devkit running with Localzet Shell enabled" > "$OUT/result.txt"
 GNOME_TEST
 rc=$?
