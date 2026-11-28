@@ -321,8 +321,8 @@ PY
   # Opening Ptyxis and the Network workspace adds dock items and changes the
   # centered dock width. Re-read the launcher's live allocation immediately
   # before the Files click; the earlier geometry is intentionally stale now.
-  button="$(sed -n 's/.*Localzet Launcher: button=\\([0-9,]*\\).*/\\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
-  dock_bounds="$(sed -n 's/.*Localzet Launcher: dock=\\([0-9,]*\\).*/\\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  button="$(sed -n 's/.*Localzet Launcher: button=\([0-9,]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  dock_bounds="$(sed -n 's/.*Localzet Launcher: dock=\([0-9,]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
   test -n "$button" && test -n "$dock_bounds" || { echo "Launcher geometry unavailable after app launch" >&2; exit 1; }
   IFS=, read -r button_x button_y button_w button_h <<< "$button"
   python3 - "$button" "$dock_bounds" <<'PY' || exit 1
