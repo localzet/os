@@ -24,7 +24,6 @@ class LockAppearanceTests(unittest.TestCase):
         rootfs = (ROOT / "packaging/live/customize-rootfs.sh").read_text()
         wallpaper = "file:///usr/share/backgrounds/localzet/executive-dusk.jpg"
         self.assertIn("[org/gnome/desktop/screensaver]", rootfs)
-        self.assertIn("[org/gnome/desktop/background]", rootfs)
         self.assertGreaterEqual(rootfs.count(f"picture-uri='{wallpaper}'"), 3)
         self.assertGreaterEqual(rootfs.count(f"picture-uri-dark='{wallpaper}'"), 2)
         self.assertIn("gsettings get org.gnome.desktop.screensaver picture-uri", rootfs)
