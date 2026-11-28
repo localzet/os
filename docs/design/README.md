@@ -118,28 +118,22 @@ screenshots and automated tests are necessary but not sufficient for release.
 
 ### Current glass implementation (visual acceptance pending)
 
-`panel.js` creates GNOME Shell's native `Shell.BlurEffect` in BACKGROUND
-mode by default when the compositor supports it. A failed effect creation
-falls back to the opaque Violet surface; native high-contrast mode and
-`LOCALZET_DISABLE_GLASS=1` also disable the compositor effect.
+The candidate uses Mutter's `Shell.BlurEffect` in BACKGROUND mode. The
+rounded dock and popup surfaces attach the effect to their actual painted
+actors; they do not use a pre-blurred JPEG or screen/window capture. The
+wallpaper-only guard is limited to the exact approved bundled wallpaper,
+one monitor at scale 1, an unlocked non-greeter session, hidden overview and
+an empty active workspace. High contrast, unsupported layouts, other
+wallpapers and `LOCALZET_DISABLE_GLASS=1` use the opaque fallback.
 
-Rounded dock, launcher and native menus use a separate **wallpaper-only**
-material: a pre-blurred derivative of the exact bundled wallpaper, aligned
-to the monitor crop. It is applied only with the matching wallpaper and zoom
-mode, one monitor at scale 1, and no visible windows on the active workspace.
-It never captures or samples windows, passwords, screens or other content.
-The same `LOCALZET_DISABLE_GLASS=1` switch disables this material too; any
-unsupported wallpaper, scale, monitor layout, high-contrast setting or
-visible window uses the opaque fallback. No alpha-only imitation is used.
-
-The GNOME devkit sets `LOCALZET_EXPERIMENTAL_GLASS=1` only for deterministic
-test-wallpaper selection and diagnostic markers; that variable does not
-enable production blur. CI checks the native effect marker, wallpaper detail
-reduction, state transitions and high-contrast fallback. These are not proof
-of physical-GPU performance, multi-monitor/HiDPI behavior or final visual
-acceptance. The exact installed ISO still needs real screenshots and GPU
-testing. Rounded clipping and repaint behavior remain subject to inspection.
-No global redraw hacks or forced transparency on third-party windows. See:
+An effect-construction log is not visual proof. The GNOME 50 devkit must
+measure real spatial-detail reduction in a captured popup and verify that the
+effect is removed when a window appears or the session locks. The current
+software-rendered visual gate has not yet passed; keep this implementation
+experimental until that measurement succeeds. Installed ISO screenshots,
+GPU performance, rounded clipping and HiDPI/multi-monitor behavior remain
+separate acceptance gates. No global redraw hacks or forced transparency on
+third-party windows. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
 ### Boot branding implementation
