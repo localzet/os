@@ -104,8 +104,12 @@ export class WallpaperGlass {
         if (this._effect)
             return;
 
-        const effectActor = this._menu.actor;
-        if (!hasStageAllocation(effectActor) || !hasStageAllocation(this._menu.box)) {
+        // PopupMenu's outer BoxPointer owns the arrow and event surface;
+        // the actual translucent .popup-menu-content is menu.box. Mutter's
+        // BACKGROUND effect must be attached to that content actor or it only
+        // blurs the transparent wrapper while the visible child stays sharp.
+        const effectActor = this._menu.box;
+        if (!hasStageAllocation(this._menu.actor) || !hasStageAllocation(effectActor)) {
             this._waitForAllocation();
             return;
         }
@@ -119,8 +123,8 @@ export class WallpaperGlass {
             });
             // Mutter 50 can silently skip BACKGROUND blur when an effect is
             // attached before the popup and its content have real allocations.
-            // Wait for both actors; the outer BoxPointer samples the complete
-            // wallpaper region while its child keeps text and controls sharp.
+            // Wait for both actors; the content BoxLayout samples the wallpaper
+            // beneath its translucent surface while text and controls stay sharp.
             effectActor.add_effect_with_name(EFFECT_NAME, effect);
             effect.queue_repaint();
             this._effectActor = effectActor;
