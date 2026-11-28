@@ -57,6 +57,14 @@ export class WallpaperGlass {
         this._disposed = false;
         this._allocationSignals = [];
         this._allocationTimeout = 0;
+        // A stage-level sibling is essential: a backdrop effect attached to a
+        // popup child can sample its parent's offscreen framebuffer instead
+        // of the wallpaper. Keep this non-reactive overlay below the UI group.
+        this._backdrop = new St.Widget({
+            style_class: 'localzet-wallpaper-glass-backdrop',
+            reactive: false, can_focus: false, visible: false,
+        });
+        global.stage.insert_child_below(this._backdrop, Main.uiGroup);
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
@@ -100,11 +108,15 @@ export class WallpaperGlass {
             GLib.source_remove(this._allocationTimeout);
             this._allocationTimeout = 0;
         }
-        // The actors are being destroyed, so their effects and signal
-        // connections die with them. Do not remove effects or style classes.
+        // The PopupMenu is being destroyed, but the stage-level backdrop is
+        // ours and must be removed explicitly.
         this._allocationSignals = [];
+        if (this._effect && this._backdrop)
+            this._backdrop.remove_effect(this._effect);
         this._effect = null;
         this._effectActor = null;
+        this._backdrop?.destroy();
+        this._backdrop = null;
     }
 
     _schedule() {
@@ -131,12 +143,25 @@ export class WallpaperGlass {
         if (this._effect)
             return;
 
-        // PopupMenu's outer BoxPointer owns the arrow and event surface;
-        // the actual translucent .popup-menu-content is menu.box. Mutter's
-        // BACKGROUND effect must be attached to that content actor or it only
-        // blurs the transparent wrapper while the visible child stays sharp.
-        const effectActor = this._menu.box;
-        if (!hasStageAllocation(this._menu.actor) || !hasStageAllocation(effectActor)) {
+        // Render the blur in a dedicated stage-level sibling below the UI
+        // group. This guarantees the BACKGROUND effect samples the composed
+        // wallpaper rather than a nested PopupMenu offscreen framebuffer.
+        const target = this._menu.actor;
+        if (!hasStageAllocation(target)) {
+            this._waitForAllocation();
+            return;
+        }
+        const [x, y] = target.get_transformed_position();
+        const [width, height] = target.get_transformed_size();
+        if (width <= 0 || height <= 0) {
+            this._waitForAllocation();
+            return;
+        }
+        const effectActor = this._backdrop;
+        effectActor.set_position(x, y);
+        effectActor.set_size(width, height);
+        effectActor.show();
+        if (!hasStageAllocation(effectActor)) {
             this._waitForAllocation();
             return;
         }
@@ -148,19 +173,12 @@ export class WallpaperGlass {
                 brightness: EFFECT_BRIGHTNESS,
                 mode: Shell.BlurMode.BACKGROUND,
             });
-            // Mutter 50 can silently skip BACKGROUND blur when an effect is
-            // attached before the popup and its content have real allocations.
-            // Wait for both actors; the content BoxLayout samples the wallpaper
-            // beneath its translucent surface while text and controls stay sharp.
             effectActor.add_effect_with_name(EFFECT_NAME, effect);
             effect.queue_repaint();
             this._effectActor = effectActor;
             this._effect = effect;
-            effectActor.add_style_class_name('localzet-wallpaper-glass');
-            // CSS opacity belongs to the popup wrapper/content relationship;
-            // attach the state to the wrapper too so the translucent surface
-            // rule actually matches the visible PopupMenu.box child.
             this._menu.actor.add_style_class_name('localzet-wallpaper-glass');
+            this._menu.box.add_style_class_name('localzet-wallpaper-glass');
             console.log('Localzet Glass: wallpaper compositor effect active ' + this._surface +
                 ' mode=' + effect.get_mode() + ' radius=' + effect.get_radius() +
                 ' allocated=' + Math.round(effectActor.get_width()) + 'x' +
@@ -226,12 +244,13 @@ export class WallpaperGlass {
         if (this._disposed)
             return;
         if (this._effect) {
-            (this._effectActor ?? this._menu.box).remove_effect(this._effect);
+            (this._effectActor ?? this._backdrop)?.remove_effect(this._effect);
             this._effect = null;
             this._effectActor = null;
         }
-        // Both actors carry the state: the wrapper scopes CSS and the content
-        // actor owns the compositor effect. Remove both on every fallback.
+        this._backdrop?.hide();
+        // Both PopupMenu actors carry the state so only the real menu surface
+        // becomes transparent; the stage-level backdrop owns the tinted blur.
         this._menu.actor.remove_style_class_name('localzet-wallpaper-glass');
         this._menu.box.remove_style_class_name('localzet-wallpaper-glass');
     }
@@ -252,6 +271,8 @@ export class WallpaperGlass {
             try { object.disconnect(id); } catch (_) {}
         }
         this._signals = [];
+        this._backdrop?.destroy();
+        this._backdrop = null;
         this._disposed = true;
     }
 }
