@@ -177,17 +177,18 @@ PY
   import -window root "$OUT/aurora-glass-empty.png" || exit 1
   bounds="$(sed -n 's/.*Localzet Launcher: bounds=\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
   test -n "$bounds" || exit 1
-  # Measure suppression of a deterministic 4 px checkerboard. A translucent
-  # tint alone retains about 45% of its contrast; true radius-18 blur must
-  # suppress it below 15%. The sample is inside the blank right pane.
+  # Measure the 4 px checkerboard and the broad violet/orange wallpaper split.
+  # The ROI crosses the split inside the blank main pane, not the opaque sidebar.
+  # A real compositor blur suppresses high-frequency detail while preserving
+  # the low-frequency color field; a solid tint cannot satisfy both gates.
   python3 - "$OUT" "$bounds" <<'PY' > "$OUT/glass-quality.txt" || exit 1
 from PIL import Image, ImageChops, ImageFilter, ImageStat
 from pathlib import Path
 import sys
 out = Path(sys.argv[1])
 x, y, w, h = map(int, sys.argv[2].split(","))
-region = (x + int(w*.48) + 5, y + int(h*.48) + 51,
-          x + int(w*.89) + 5, y + int(h*.77) + 51)
+region = (x + int(w*.30) + 5, y + int(h*.48) + 51,
+          x + int(w*.75) + 5, y + int(h*.77) + 51)
 base = Image.open(out / "aurora-panel-experimental.png").convert("L").crop(region)
 glass = Image.open(out / "aurora-glass-empty.png").convert("L").crop(region)
 def sigma(image):
@@ -205,11 +206,11 @@ low_ratio = glass_low_sigma / base_low_sigma
 print("High-frequency detail ratio:", round(high_ratio, 3))
 print("Low-frequency color retention:", round(low_ratio, 3))
 print("Compositor glass verdict:",
-      "wallpaper-only background blur verified" if high_ratio < .15 and low_ratio > .05
+      "wallpaper-only background blur verified" if high_ratio < .15 and low_ratio > .15
       else "unverified blur; do not promote")
 if high_ratio >= .15:
     raise SystemExit("Shell.BlurEffect BACKGROUND retained checkerboard detail")
-if low_ratio <= .05:
+if low_ratio <= .15:
     raise SystemExit("Glass became an opaque tint; low-frequency wallpaper detail vanished")
 PY
   cat "$OUT/glass-quality.txt"
