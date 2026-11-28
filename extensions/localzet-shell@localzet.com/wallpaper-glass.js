@@ -23,7 +23,7 @@ export function wallpaperGlassAvailable(background, settings, contrast, path) {
     // Every unsupported/accessibility state fails closed to the opaque style.
     if (GLib.getenv('LOCALZET_DISABLE_GLASS') === '1' ||
         contrast.get_boolean('high-contrast') ||
-        Main.sessionMode.isLocked || Main.overview.visible ||
+        Main.sessionMode.isLocked || Main.sessionMode.isGreeter || Main.overview.visible ||
         Main.layoutManager.monitors.length !== 1 ||
         St.ThemeContext.get_for_stage(global.stage).scale_factor !== 1)
         return false;
