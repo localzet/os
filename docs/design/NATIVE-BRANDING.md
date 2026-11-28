@@ -10,6 +10,13 @@ dconf database ahead of distribution defaults. The build checks the effective
 key. It does not alter authentication or disable password requirements.
 Capture the real GDM screen after installing and rebooting.
 
+GNOME uses a separate `org.gnome.desktop.screensaver picture-uri` for the
+authenticated lock screen, while the GDM greeter reads
+`org.gnome.desktop.background` from its dedicated `gdm` dconf profile.
+The installed rootfs sets both to the same Aurora wallpaper and verifies the
+effective values after `dconf update`. The real lock screenshot must still
+be inspected; a correct desktop `picture-uri` alone is not evidence of parity.
+
 The OS exposes `LOGO=localzet-logo` and packages the original logo in hicolor.
 GNOME Control Center 50 upstream reads LOGO **only if** distributor-logo
 build options are absent. Ubuntu may compile absolute logo paths; the
