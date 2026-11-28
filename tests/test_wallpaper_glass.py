@@ -118,6 +118,10 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn('"readme.md"', qemu)
         self.assertIn("Installed Files screenshot is not the active populated Nautilus window", qemu)
 
+    def test_interactive_candidate_installs_ocr_for_files_evidence(self):
+        workflow = (ROOT / ".github/workflows/interactive-install-candidate.yml").read_text()
+        self.assertIn("python3-pil tesseract-ocr", workflow)
+
     def test_tray_bus_probe_precedes_devkit_extension_teardown(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
         self.assertLess(smoke.index("gdbus call --session"), smoke.index("gnome-extensions disable"))
