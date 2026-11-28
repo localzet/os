@@ -306,7 +306,6 @@ export class LocalzetDock {
             object.disconnect(id);
         this._connections = [];
         this._launcher.destroy();
-        this._clearMaterial();
         for (const id of this._rows.keys())
             this._removeRow(id);
         this._strut.destroy();
