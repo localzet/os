@@ -202,15 +202,17 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("panel_y=67", smoke)
 
 
-    def test_visual_smoke_closes_nested_apps_without_closing_mutter(self):
+    def test_wallpaper_only_date_menu_is_captured_before_real_windows(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
-        self.assertNotIn("xdotool key alt+F4", smoke)
-        self.assertNotIn("xdotool key --clearmodifiers alt+F4", smoke)
-        self.assertIn("pgrep -f '/usr/bin/localzet-network'", smoke)
-        self.assertIn("kill \"$pid\"", smoke)
-        self.assertIn("pgrep -x nautilus", smoke)
-        self.assertIn("Network app did not exit", smoke)
-        self.assertIn("Nautilus did not exit", smoke)
+        date_menu = smoke.index('Localzet Glass: wallpaper compositor effect active dateMenu')
+        network = smoke.index('Localzet Quick Actions: opened com.localzet.Network.desktop')
+        files = smoke.index('Localzet Launcher: activated org.gnome.Nautilus.desktop')
+        self.assertLess(date_menu, network)
+        self.assertLess(network, files)
+        self.assertNotIn('network_pids=', smoke)
+        self.assertNotIn('nautilus_pids=', smoke)
+        self.assertNotIn('xdotool key alt+F4', smoke)
+        self.assertNotIn('xdotool key --clearmodifiers alt+F4', smoke)
 
 
 if __name__ == "__main__":
