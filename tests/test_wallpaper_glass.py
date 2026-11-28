@@ -96,6 +96,14 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("low_ratio <= .05", smoke)
         self.assertIn("low-frequency blue/violet/orange field survives glass blur", smoke)
 
+    def test_installed_iso_uses_same_nonopaque_glass_optical_gate(self):
+        qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("ImageChops.difference(base, base_low)", qemu)
+        self.assertIn("ImageChops.difference(glass, glass_low)", qemu)
+        self.assertIn("high_ratio >= .15", qemu)
+        self.assertIn("low_ratio <= .05", qemu)
+        self.assertIn("base = (46, 36, 112) if x < 756 else (230, 120, 35)", qemu)
+
     def test_panel_and_dock_blur_wait_for_mapped_allocation(self):
         dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
         panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
