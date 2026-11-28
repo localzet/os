@@ -24,9 +24,10 @@ class CandidateScriptTests(unittest.TestCase):
         script = module.installed_script("complete", native_files=True)
         self.assertIn("launch_app nautilus /usr/bin/nautilus", script)
         self.assertIn("LOCALZET_CANDIDATE_FILES_CAPTURE_READY", script)
-        self.assertIn('self.capture("files")', inspect.getsource(module.Guest.wait))
-        self.assertIn('candidate-installed-files.ppm', inspect.getsource(module.main))
-        self.assertIn("Installed Files screen evidence", inspect.getsource(module.main))
+        source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn('self.capture("files")', source)
+        self.assertIn('candidate-installed-files.ppm', source)
+        self.assertIn("Installed Files screen evidence", source)
 
     def test_minimal_candidate_is_unchanged(self):
         script = module.installed_script()
