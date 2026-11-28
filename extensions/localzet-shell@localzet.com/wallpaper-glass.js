@@ -166,7 +166,11 @@ export class WallpaperGlass {
         // The backdrop is a sibling of window_group inside uiGroup, so the
         // BACKGROUND effect samples the already-painted desktop wallpaper.
         // It remains below all native chrome and never captures live windows.
-        const target = this._menu.actor;
+        // GNOME 50 Quick Settings can keep PopupMenu.actor at 0x0 while
+        // its visible content box is already mapped and allocated. Use the
+        // actual content actor when available; the shell actor remains the
+        // fallback for menu implementations that allocate it directly.
+        const target = hasStageAllocation(this._menu.box) ? this._menu.box : this._menu.actor;
         if (!hasStageAllocation(target)) {
             this._waitForAllocation();
             return;
@@ -218,9 +222,8 @@ export class WallpaperGlass {
                 this._clearAllocationWait();
                 return;
             }
-            if (hasStageAllocation(this._menu.actor) &&
-                hasStageAllocation(this._menu.box) &&
-                hasStageAllocation(this._backdrop)) {
+            const target = hasStageAllocation(this._menu.box) ? this._menu.box : this._menu.actor;
+            if (hasStageAllocation(target) && hasStageAllocation(this._backdrop)) {
                 this._clearAllocationWait();
                 this._refresh();
             }
