@@ -54,6 +54,8 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn(".localzet-wallpaper-glass-backdrop", stylesheet)
         self.assertIn("background-color: rgba(40, 24, 63, .72)", stylesheet)
         self.assertIn("background-color: transparent", stylesheet)
+        self.assertIn(".localzet-launcher-popup.localzet-wallpaper-glass .popup-menu-content {\n    /* The stage-level backdrop", stylesheet)
+        self.assertIn(".localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {\n    /* The stage-level backdrop", stylesheet)
         self.assertNotIn(".localzet-wallpaper-glass .popup-menu-content {\n    background-color: #28183F", stylesheet)
         self.assertIn("EFFECT_BRIGHTNESS = 0.85", wallpaper)
         self.assertIn("name: EFFECT_NAME", wallpaper)
@@ -100,9 +102,21 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("ImageFilter.GaussianBlur(radius=6)", smoke)
         self.assertIn("ImageChops.difference(base, base_low)", smoke)
         self.assertIn("ImageChops.difference(glass, glass_low)", smoke)
+        self.assertIn("int(w*.30)", smoke)
+        self.assertIn("int(w*.75)", smoke)
         self.assertIn("high_ratio >= .15", smoke)
-        self.assertIn("low_ratio <= .05", smoke)
+        self.assertIn("low_ratio <= .15", smoke)
         self.assertIn("Two broad violet/orange fields survive blur", smoke)
+
+    def test_installed_files_capture_checks_the_active_populated_window(self):
+        qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("Do not move the pointer", qemu)
+        self.assertIn('self.capture("files")', qemu)
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', qemu)
+        self.assertIn('"localzet visual fixture"', qemu)
+        self.assertIn('"metrics.csv"', qemu)
+        self.assertIn('"readme.md"', qemu)
+        self.assertIn("Installed Files screenshot is not the active populated Nautilus window", qemu)
 
     def test_tray_bus_probe_precedes_devkit_extension_teardown(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
@@ -116,8 +130,10 @@ class WallpaperGlassTests(unittest.TestCase):
         qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn("ImageChops.difference(base, base_low)", qemu)
         self.assertIn("ImageChops.difference(glass, glass_low)", qemu)
+        self.assertIn("int(width * .30)", qemu)
+        self.assertIn("int(width * .75)", qemu)
         self.assertIn("high_ratio >= .15", qemu)
-        self.assertIn("low_ratio <= .05", qemu)
+        self.assertIn("low_ratio <= .15", qemu)
         self.assertIn("base = (46, 36, 112) if x < 756 else (230, 120, 35)", qemu)
 
     def test_panel_and_dock_blur_wait_for_mapped_allocation(self):
