@@ -27,6 +27,15 @@ export class LocalzetDock {
         this._actor = new St.BoxLayout({
             style_class: 'localzet-dock', reactive: true, track_hover: true,
         });
+        this._actorDestroyed = false;
+        this._destroyed = false;
+        this._actorDestroyId = this._actor.connect('destroy', () => {
+            this._actorDestroyed = true;
+            this._actor = null;
+            this._glassEffect = null;
+            this._materialActive = false;
+            this._materialRefreshPending = false;
+        });
         this._anchor = new St.Button({
             style_class: 'localzet-dock-button localzet-dock-launcher', can_focus: true, reactive: true,
             track_hover: true, accessible_name: 'Приложения',
@@ -113,7 +122,7 @@ export class LocalzetDock {
     }
 
     _schedule() {
-        if (this._idle)
+        if (this._destroyed || !this._actor || this._actorDestroyed || this._idle)
             return;
         this._idle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._idle = 0;
@@ -123,6 +132,8 @@ export class LocalzetDock {
     }
 
     _scheduleMaterialRefresh(delay = 180) {
+        if (this._destroyed || !this._actor || this._actorDestroyed)
+            return;
         // Never leave a wallpaper effect over a newly created application window.
         this._clearMaterial();
         this._materialRefreshPending = true;
@@ -181,6 +192,8 @@ export class LocalzetDock {
     }
 
     _reconcile() {
+        if (this._destroyed || !this._actor || this._actorDestroyed)
+            return;
         const wanted = new Map();
         const favorites = new Set(this._favorites.get_strv('favorite-apps'));
         for (const id of favorites) {
@@ -231,6 +244,8 @@ export class LocalzetDock {
     }
 
     _place() {
+        if (this._destroyed || !this._actor || this._actorDestroyed || !this._anchor || !this._strut)
+            return;
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
@@ -258,7 +273,7 @@ export class LocalzetDock {
     }
 
     _logAnchorBounds() {
-        if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') !== '1' ||
+        if (this._destroyed || !this._anchor || this._actorDestroyed || GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') !== '1' ||
             this._anchorGeometrySource)
             return;
         // The dock can grow after favorites resolve. Re-log the anchor after
@@ -275,15 +290,27 @@ export class LocalzetDock {
     }
 
     _clearMaterial() {
-        if (this._glassEffect && this._actor)
-            this._actor.remove_effect(this._glassEffect);
+        const actor = this._actorDestroyed ? null : this._actor;
+        if (this._glassEffect && actor) {
+            try {
+                actor.remove_effect(this._glassEffect);
+            } catch (_) {
+                // Parent chrome can destroy the dock before extension teardown.
+            }
+        }
         this._glassEffect = null;
         this._materialActive = false;
-        this._actor?.remove_style_class_name('localzet-dock-wallpaper');
+        if (actor) {
+            try {
+                actor.remove_style_class_name('localzet-dock-wallpaper');
+            } catch (_) {
+                // A disposed Clutter actor must never abort shell teardown.
+            }
+        }
     }
 
     _refreshMaterial() {
-        if (!this._actor || this._materialRefreshPending)
+        if (this._destroyed || !this._actor || this._actorDestroyed || this._materialRefreshPending)
             return;
         const active = wallpaperGlassAvailable(
             this._background, this._interface, this._settings, this._materialPath);
@@ -319,33 +346,46 @@ export class LocalzetDock {
     }
 
     toggleLauncher() {
-        if (this._actor.visible)
+        if (!this._destroyed && this._actor && !this._actorDestroyed && this._actor.visible)
             this._launcher.toggle();
     }
 
     destroy() {
+        if (this._destroyed)
+            return;
+        this._destroyed = true;
         if (this._idle)
             GLib.source_remove(this._idle);
         if (this._materialIdle)
             GLib.source_remove(this._materialIdle);
         if (this._anchorGeometrySource)
             GLib.source_remove(this._anchorGeometrySource);
-        if (this._anchorGeometryId)
-            this._anchor.disconnect(this._anchorGeometryId);
+        if (this._anchorGeometryId && this._anchor) {
+            try { this._anchor.disconnect(this._anchorGeometryId); } catch (_) {}
+        }
+        if (this._actorDestroyId && this._actor) {
+            try { this._actor.disconnect(this._actorDestroyId); } catch (_) {}
+        }
+        this._actorDestroyId = 0;
         this._materialIdle = 0;
         this._anchorGeometrySource = 0;
         this._anchorGeometryId = 0;
         this._materialRefreshPending = false;
         this._clearMaterial();
-        for (const [object, id] of this._connections)
-            object.disconnect(id);
+        for (const [object, id] of this._connections) {
+            try { object.disconnect(id); } catch (_) {}
+        }
         this._connections = [];
         this._launcher.destroy();
         for (const id of this._rows.keys())
             this._removeRow(id);
-        this._strut.destroy();
-        this._strut = null;
-        this._actor.destroy();
-        this._actor = null;
+        if (this._strut) {
+            try { this._strut.destroy(); } catch (_) {}
+            this._strut = null;
+        }
+        if (this._actor) {
+            try { this._actor.destroy(); } catch (_) {}
+            this._actor = null;
+        }
     }
 }
