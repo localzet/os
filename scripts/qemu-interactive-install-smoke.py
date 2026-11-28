@@ -1189,7 +1189,10 @@ for attempt in $(seq 1 45); do
     for hex in $(grep -Eo '0x[0-9a-fA-F]+' <<< "$clients" || true); do
         candidate="$((hex))"
         identity="$(xprop -id "$hex" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null)" || continue
-        grep -Eiq 'org\.gnome\.Nautilus|nautilus|Localzet Visual Fixture' <<< "$identity" || continue
+        grep -Eiq 'org\.gnome\.Nautilus|nautilus' <<< "$identity" || continue
+        # Nautilus may retain Home while opening the requested folder in another tab.
+        title="$(xdotool getwindowname "$candidate" 2>/dev/null)" || continue
+        grep -Fq 'Localzet Visual Fixture' <<< "$title" || continue
         geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
         width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
         height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
@@ -1209,9 +1212,13 @@ for attempt in $(seq 1 45); do
     sleep 1
 done
 if [[ -z "$window" ]]; then
-    echo "No visible, activatable GNOME Files window" >&2
+    echo "No visible, activatable GNOME Files fixture window" >&2
     xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
     xwininfo -root -tree >&2 || true
+    xdotool search --onlyvisible --name '.*' 2>/dev/null | while read -r candidate; do
+        printf 'Window %s: ' "$candidate"
+        xdotool getwindowname "$candidate" 2>/dev/null || true
+    done
     exit 2
 fi
 title="$(xdotool getwindowname "$window")"
