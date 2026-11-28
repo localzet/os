@@ -282,8 +282,20 @@ PY
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-network.png" || exit 1
-  xdotool key alt+F4 || exit 1
-  sleep 3
+  # The nested Mutter DevKit is the only outer X11 window. Alt+F4 therefore
+  # closes the compositor, not the Wayland application. Terminate only the
+  # disposable Network process and wait for its window to disappear.
+  network_pids="$(pgrep -f '/usr/bin/localzet-network' || true)"
+  test -n "$network_pids" || exit 1
+  while IFS= read -r pid; do
+    [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
+  done <<< "$network_pids"
+  for attempt in $(seq 1 15); do
+    if ! pgrep -f '/usr/bin/localzet-network' >/dev/null; then break; fi
+    sleep 1
+  done
+  ! pgrep -f '/usr/bin/localzet-network' >/dev/null || { echo "Network app did not exit" >&2; exit 1; }
+  sleep 1
   notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
   sleep 2
   xdotool mousemove --window "$window" "$((width / 2))" "$panel_y" click 1 || exit 1
@@ -338,7 +350,18 @@ dark = sum(max(p) < 100 for p in patch.getdata())
 if dark < patch.width * patch.height * .65:
     raise SystemExit("Nautilus did not render a dark file-manager surface")
 PY
-  xdotool key --clearmodifiers alt+F4 || exit 1
+  # Close only the test-owned Files process; never send Alt+F4 to the
+  # outer Mutter DevKit window.
+  nautilus_pids="$(pgrep -x nautilus || true)"
+  test -n "$nautilus_pids" || exit 1
+  while IFS= read -r pid; do
+    [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
+  done <<< "$nautilus_pids"
+  for attempt in $(seq 1 15); do
+    if ! pgrep -x nautilus >/dev/null; then break; fi
+    sleep 1
+  done
+  ! pgrep -x nautilus >/dev/null || { echo "Nautilus did not exit" >&2; exit 1; }
   rm -rf "$HOME/Localzet-visual-review"
   sleep 3
   # Verify appindicator and the upstream Qt tray before extension teardown.
