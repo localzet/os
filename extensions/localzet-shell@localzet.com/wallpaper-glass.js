@@ -234,8 +234,21 @@ export class WallpaperGlass {
         this._allocationTimeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
             this._allocationTimeout = 0;
             this._clearAllocationWait();
-            if (this._menu.isOpen && !this._effect)
-                console.warn('Localzet Glass: allocation timeout; opaque fallback ' + this._surface);
+            if (this._menu.isOpen && !this._effect) {
+                const describe = actor => {
+                    if (!actor) return 'missing';
+                    try {
+                        return [actor.get_stage() !== null, actor.is_mapped(),
+                            Math.round(actor.get_width()), Math.round(actor.get_height())].join('/');
+                    } catch (_) {
+                        return 'disposed';
+                    }
+                };
+                console.warn('Localzet Glass: allocation timeout; opaque fallback ' + this._surface +
+                    ' actor=' + describe(this._menu.actor) +
+                    ' box=' + describe(this._menu.box) +
+                    ' backdrop=' + describe(this._backdrop));
+            }
             return GLib.SOURCE_REMOVE;
         });
         retry();
