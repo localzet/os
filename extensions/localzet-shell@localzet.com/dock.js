@@ -5,7 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {AuroraLauncher} from './launcher.js';
-import {wallpaperGlassAvailable, wallpaperPath} from './wallpaper-glass.js';
+import {hasStageAllocation, wallpaperGlassAvailable, wallpaperPath} from './wallpaper-glass.js';
 
 export class LocalzetDock {
     constructor(path) {
@@ -77,6 +77,7 @@ export class LocalzetDock {
                     icon_name: this._settings.get_boolean('high-contrast') ? 'user-trash-symbolic' : 'user-trash',
                     icon_size: 28,
                 }));
+                this._scheduleMaterialRefresh();
                 this._schedule();
             })],
             [this._favorites, this._favorites.connect('changed::favorite-apps', () => this._schedule())],
@@ -287,6 +288,10 @@ export class LocalzetDock {
         const active = wallpaperGlassAvailable(
             this._background, this._interface, this._settings, this._materialPath);
         if (active && !this._glassEffect) {
+            // Mutter 50 can silently skip BACKGROUND effects before the dock
+            // has a mapped, non-zero allocation. notify::allocation retries.
+            if (!hasStageAllocation(this._actor))
+                return;
             try {
                 const effect = new Shell.BlurEffect({
                     name: 'localzet-dock-background-blur',
@@ -300,7 +305,9 @@ export class LocalzetDock {
                 this._actor.add_style_class_name('localzet-dock-wallpaper');
                 this._materialActive = true;
                 console.log('Localzet Dock: material=compositor mode=' + effect.get_mode() +
-                    ' radius=' + effect.get_radius());
+                    ' radius=' + effect.get_radius() + ' allocated=' +
+                    Math.round(this._actor.get_width()) + 'x' +
+                    Math.round(this._actor.get_height()) + ' enabled=' + effect.get_enabled());
             } catch (error) {
                 this._clearMaterial();
                 console.warn('Localzet Dock: opaque fallback: ' + error);
