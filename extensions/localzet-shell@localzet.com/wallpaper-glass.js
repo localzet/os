@@ -191,7 +191,7 @@ export class WallpaperGlass {
 
     _restore() {
         if (this._effect) {
-            (this._effectActor ?? this._menu.actor).remove_effect(this._effect);
+            (this._effectActor ?? this._menu.box).remove_effect(this._effect);
             this._effect = null;
             this._effectActor = null;
         }
