@@ -233,6 +233,16 @@ class CandidateScriptTests(unittest.TestCase):
                         self.assertFalse(module.ensure_ci_kvm_access(device))
             run.assert_not_called()
 
+    def test_installed_files_capture_preserves_active_window_identity(self):
+        source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("Do not move the pointer", source)
+        self.assertIn('self.capture("files")', source)
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', source)
+        self.assertIn('"localzet visual fixture"', source)
+        self.assertIn('"metrics.csv"', source)
+        self.assertIn('"readme.md"', source)
+        self.assertIn("Installed Files screenshot is not the active populated Nautilus window", source)
+
     def test_installed_containers_has_a_distinct_live_window_capture(self):
         script = module.installed_script("complete", True)
         for marker in (
