@@ -217,3 +217,16 @@ class CandidateScriptTests(unittest.TestCase):
                     with mock.patch.object(module.subprocess, "run") as run:
                         self.assertFalse(module.ensure_ci_kvm_access(device))
             run.assert_not_called()
+
+    def test_installed_containers_has_a_distinct_live_window_capture(self):
+        script = module.installed_script("complete", True)
+        for marker in ("localzet-candidate-visual-fixture", "LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY",
+                       "LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY", "Localzet Containers",
+                       "getactivewindow", "xprop -root _NET_CLIENT_LIST", "installed rootless fixture is visible"):
+            self.assertIn(marker, script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+        source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn('self.capture("containers-installed")', source)
+        self.assertIn("Installed Containers window evidence", source)
+        self.assertIn("containers_screen.read_bytes() == office_screen.read_bytes()", source)
+        self.assertNotIn('installed.capture("containers-installed")', source)

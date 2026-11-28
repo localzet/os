@@ -46,9 +46,13 @@ jobs:
           export GDK_BACKEND=x11 GSK_RENDERER=cairo
           export GTK_A11Y=none
           xvfb-run -a -s '-screen 0 1440x900x24' dbus-run-session -- bash -euo pipefail -c '
-            python3 -c "from localzet.app_center import main; raise SystemExit(main())" > out/app-center/gui.log 2>&1 &
+            ADW_DEBUG_COLOR_SCHEME=prefer-dark python3 -c "from localzet.app_center import main; raise SystemExit(main())" > out/app-center/gui-dark.log 2>&1 &
             pid=$!
-            trap "kill $pid 2>/dev/null || true" EXIT
+            cleanup() {
+              kill "$pid" 2>/dev/null || true
+              if [[ -n "${light_pid:-}" ]]; then kill "$light_pid" 2>/dev/null || true; fi
+            }
+            trap cleanup EXIT
             window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet" | head -n 1)"
             test -n "$window"
             sleep 4
@@ -70,16 +74,21 @@ jobs:
             xdotool type Steam
             sleep 1
             import -window "$window" out/app-center/search.png
-            gsettings set org.gnome.desktop.interface color-scheme prefer-light
-            sleep 2
-            import -window "$window" out/app-center/light.png
-            kill -0 "$pid"
+            kill "$pid"
+            wait "$pid" || true
+            ADW_DEBUG_COLOR_SCHEME=prefer-light python3 -c "from localzet.app_center import main; raise SystemExit(main())" > out/app-center/gui-light.log 2>&1 &
+            light_pid=$!
+            light_window="$(timeout 40 xdotool search --sync --onlyvisible --name "Localzet" | head -n 1)"
+            test -n "$light_window"
+            sleep 4
+            kill -0 "$light_pid"
+            import -window "$light_window" out/app-center/light.png
           '
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
           # Validate the actual allocation, not merely width_request. The
-          # dark sidebar is intentionally a distinct continuous graphite area.
+          # Violet sidebar is a distinct continuous native surface.
           with Image.open("out/app-center/system.png") as image:
               rgb = image.convert("RGB")
               y = int(rgb.height * .8)
@@ -88,14 +97,20 @@ jobs:
                           if sum(abs(a-b) for a,b in zip(rgb.getpixel((x,y)), start)) > 12), rgb.width)
               print("Sidebar boundary at", end, "of", rgb.width)
               assert 120 <= end <= rgb.width * .31, "Sidebar consumes too much width"
+          with Image.open("out/app-center/apps.png") as image:
+              dark = image.convert("RGB").getpixel((700, 400))
+              assert sum(dark) < 300, f"Dark appearance was not applied: {dark}"
+          with Image.open("out/app-center/light.png") as image:
+              light = image.convert("RGB").getpixel((700, 400))
+              assert sum(light) > 600, f"Light appearance was not respected: {light}"
           for path in Path('out/app-center').glob('*.png'):
               with Image.open(path) as image:
                   assert image.width >= 500 and image.height >= 400, image.size
                   colors = image.convert('RGB').getcolors(maxcolors=10000000)
                   assert colors is None or len(colors) >= 64, f'Blank screenshot: {path}'
           PY
-          if grep -E 'Traceback|CRITICAL' out/app-center/gui.log; then
-            cat out/app-center/gui.log
+          if grep -E 'Traceback|CRITICAL' out/app-center/gui-dark.log out/app-center/gui-light.log; then
+            cat out/app-center/gui-dark.log out/app-center/gui-light.log
             exit 1
           fi
       - uses: actions/upload-artifact@v4

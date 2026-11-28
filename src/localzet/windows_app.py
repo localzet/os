@@ -35,7 +35,7 @@ def main() -> int:
             self.window = None
 
         def do_activate(self):
-            from localzet.appearance import apply_midnight
+            from localzet.appearance import apply_midnight, palette_css
             if self.window:
                 self.window.present()
                 return
@@ -45,16 +45,16 @@ def main() -> int:
             self.window.set_size_request(700, 460)
             self.window.add_css_class("windows-workspace")
             self.css = Gtk.CssProvider()
-            self.css.load_from_data(b"""
+            self.css.load_from_data(palette_css(b"""
                 .windows-workspace .runtime-sidebar { padding: 12px 8px; border-right: 1px solid alpha(currentColor,.12); }
-                .localzet-midnight .runtime-sidebar { background-color: #343539; }
+                .localzet-midnight .runtime-sidebar { background-color: __SURFACE__; }
                 .windows-workspace .runtime-sidebar button { padding: 8px 10px; border-radius: 6px; }
-                .windows-workspace .runtime-sidebar button.selected { background-color: alpha(currentColor,.12); font-weight: 600; }
+                .windows-workspace .runtime-sidebar button.selected { background-color: __SELECTION__; color: __TEXT__; font-weight: 600; }
                 .windows-workspace .runtime-content { padding: 16px 20px; }
                 .windows-workspace .runtime-heading { font-size: 21px; font-weight: 600; }
                 .windows-workspace .runtime-actions button { border-radius: 6px; min-height: 28px; }
                 .windows-workspace .boxed-list > row { min-height: 44px; border-radius: 6px; }
-            """)
+            """))
             Gtk.StyleContext.add_provider_for_display(self.window.get_display(), self.css,
                                                        Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
             toolbar = Adw.ToolbarView()
