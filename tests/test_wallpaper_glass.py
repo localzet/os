@@ -213,9 +213,9 @@ class WallpaperGlassTests(unittest.TestCase):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
         date_menu = smoke.index('Localzet Glass: wallpaper compositor effect active dateMenu')
         network = smoke.index('Localzet Quick Actions: opened com.localzet.Network.desktop')
-        files = smoke.index('Localzet Launcher: activated org.gnome.Nautilus.desktop')
+        tray = smoke.index('check-nectarlink-tray.py')
         self.assertLess(date_menu, network)
-        self.assertLess(network, files)
+        self.assertLess(network, tray)
         self.assertNotIn('network_pids=', smoke)
         self.assertNotIn('nautilus_pids=', smoke)
         self.assertNotIn('xdotool key alt+F4', smoke)
@@ -238,14 +238,16 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn('out/gnome-glass-menu/', workflow)
 
 
-    def test_launcher_geometry_is_refreshed_after_running_network_app(self):
+    def test_visible_window_disables_dock_glass_before_tray_and_accessibility_fallback(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
-        network = smoke.index('Localzet Quick Actions: opened com.localzet.Network.desktop')
-        refresh = smoke.index('button="$(sed -n', network)
-        files_click = smoke.index('xdotool windowfocus --sync "$window" mousemove --window "$window" "$((button_x', refresh)
-        self.assertLess(network, refresh)
-        self.assertLess(refresh, files_click)
-        self.assertIn("Re-measured launcher anchor after app launch", smoke)
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        network = smoke.index('grep -F "Localzet Quick Actions: opened com.localzet.Network.desktop"')
+        opaque = smoke.index('grep -F "Localzet Dock: material=opaque"', network)
+        tray = smoke.index('check-nectarlink-tray.py', opaque)
+        self.assertLess(network, opaque)
+        self.assertLess(opaque, tray)
+        self.assertIn("Localzet Dock: material=opaque", dock)
+        self.assertNotIn('Localzet Launcher: activated org.gnome.Nautilus.desktop', smoke)
 
 
 if __name__ == "__main__":
