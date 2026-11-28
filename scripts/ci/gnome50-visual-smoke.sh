@@ -144,7 +144,7 @@ PY
   grep -E "Localzet Dock: material=compositor .*allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
-  if [[ "\${LOCALZET_GLASS_MENU_ONLY:-0}" == "1" ]]; then
+  if [[ "${LOCALZET_GLASS_MENU_ONLY:-0}" == "1" ]]; then
     # Isolated fresh session: no application windows, so the wallpaper-only
     # date menu is eligible for real Mutter background blur. Capture and exit
     # immediately; this GNOME 50 devkit closes its outer window after menu input.
