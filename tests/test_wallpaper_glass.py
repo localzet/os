@@ -105,6 +105,7 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertLess(smoke.index("check-nectarlink-tray.py"), smoke.index("gnome-extensions disable"))
         self.assertLess(smoke.index("gnome-extensions list --active | grep -Fx localzet-shell@localzet.com"),
                         smoke.index("gnome-extensions disable"))
+        self.assertEqual(smoke.count("gnome-extensions list --active | grep -Fx localzet-shell@localzet.com"), 1)
 
     def test_installed_iso_uses_same_nonopaque_glass_optical_gate(self):
         qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
