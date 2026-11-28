@@ -506,7 +506,7 @@ launch_app_x11() {
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
         systemd-run --user --collect --unit="$unit" \
-            --setenv=GDK_BACKEND=x11 --setenv=GSK_RENDERER=cairo --setenv=GTK_A11Y=none "$@"
+            --setenv=GDK_BACKEND=x11 --setenv=GSK_RENDERER=cairo --setenv=GTK_A11Y=none --setenv=WAYLAND_DISPLAY= --setenv=DISPLAY=:0 "$@"
     for attempt in $(seq 1 45); do
         if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
         sleep 1
@@ -935,9 +935,21 @@ if [[ -z "$window" ]]; then
     echo "No visible, activatable Localzet Containers window" >&2
     echo "Graphical environment exported by the authenticated user manager:" >&2
     systemctl --user show-environment | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP)=' >&2 || true
+    echo "Containers process environment:" >&2
+    pid="$(pgrep -u "$(id -u)" -f '/usr/bin/localzet-containers' | head -n 1 || true)"
+    if [[ -n "$pid" && -r "/proc/$pid/environ" ]]; then
+        tr '\\0' '\\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|GDK_BACKEND|GSK_RENDERER|GTK_A11Y|XDG_RUNTIME_DIR|DBUS_SESSION_BUS_ADDRESS)=' >&2 || true
+    fi
+    echo "GTK application D-Bus registration:" >&2
+    busctl --user status com.localzet.Containers >&2 || true
+    gdbus introspect --session --dest com.localzet.Containers --object-path /com/localzet/Containers >&2 || true
+    gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers --method org.freedesktop.Application.Activate '{}' >&2 || true
+    echo "X11 root properties and tree:" >&2
+    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
+    xwininfo -root -tree >&2 || true
     echo "Containers unit status and journal:" >&2
     systemctl --user status localzet-candidate-localzet-containers.service --no-pager >&2 || true
-    journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 100 >&2 || true
+    journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 150 >&2 || true
     echo "Visible X11 windows:" >&2
     for candidate in $(xdotool search --onlyvisible --name '.*' 2>/dev/null || true); do
         printf 'window=%s class=%s title=%s\n' "$candidate" \
