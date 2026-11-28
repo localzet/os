@@ -54,6 +54,7 @@ def ensure_ci_kvm_access(device: Path = Path("/dev/kvm")) -> bool:
     print("KVM remains unavailable after ACL refresh; this guest will use TCG", flush=True)
     return False
 LOCK_RECHECK = b"LOCALZET_CANDIDATE_STILL_LOCKED"
+CONTAINERS_CAPTURE_READY = b"LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY"
 
 
 def foreign_fixture_module():
@@ -256,6 +257,28 @@ class Guest:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             lines = self.serial.read_bytes().splitlines() if self.serial.exists() else []
+            if CONTAINERS_CAPTURE_READY in lines and not getattr(self, "_containers_qmp_captured", False):
+                self.wake_display()
+                time.sleep(2)
+                self.capture("containers-window")
+                path = self.screen.with_name(f"{self.screen.stem}-containers-window.ppm")
+                geometry_lines = [line for line in lines
+                                  if line.startswith(b"LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY ")]
+                if len(geometry_lines) != 1:
+                    raise RuntimeError("Missing or duplicate Containers window geometry")
+                values = geometry_lines[0].split()
+                if len(values) != 5:
+                    raise RuntimeError("Invalid Containers window geometry")
+                x, y, width, height = map(int, values[1:])
+                if width < 600 or height < 400:
+                    raise RuntimeError("Containers window is too small for visual acceptance")
+                if not path.is_file() or path.stat().st_size == 0:
+                    raise RuntimeError("Missing Containers compositor capture")
+                metrics = evidence_module().visual_metrics(path, (x, y, width, height))
+                print("Containers window visual evidence:", metrics, flush=True)
+                if not evidence_module().meaningful(metrics):
+                    raise RuntimeError("Containers window capture is blank or visually insufficient")
+                self._containers_qmp_captured = True
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
                 return
@@ -454,6 +477,19 @@ launch_app() {
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
         systemd-run --user --collect --unit="localzet-candidate-$app" "/usr/bin/$app"
+    for attempt in $(seq 1 45); do
+        if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
+        sleep 1
+    done
+    echo "Application did not launch: $app"
+    return 1
+}
+launch_app_x11() {
+    local app="$1" pattern="$2"
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemd-run --user --collect --unit="localzet-candidate-$app" \
+        --setenv=GDK_BACKEND=x11 "/usr/bin/$app"
     for attempt in $(seq 1 45); do
         if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
         sleep 1
@@ -758,9 +794,6 @@ for glyph in launcher browser files terminal settings; do
     test -s "/usr/share/gnome-shell/extensions/localzet-shell@localzet.com/icons/$glyph.svg"
 done
 launch_app localzet-hardware-manager /usr/bin/localzet-hardware-manager
-test -x /usr/bin/localzet-containers
-launch_app localzet-containers /usr/bin/localzet-containers
-pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
 dpkg-query -W docker.io docker-compose-v2 gir1.2-vte-3.91
 /usr/bin/docker compose version
 for unit in docker.service docker.socket containerd.service; do
@@ -773,28 +806,26 @@ if id -nG localzet-test | tr ' ' '\n' | grep -Fxq docker; then
 fi
 test -f /usr/lib/systemd/user/localzet-rootless-docker.service
 test -s /usr/share/localzet/docker-rootless.json
-# Earlier GUI checks have already verified these test-owned processes.
-# Close only their explicit transient units, not arbitrary user processes.
-# Leave GNOME and the Containers UI running during the engine test.
-for app in ptyxis localzet-settings localzet-windows localzet-connect localzet-apps localzet-ai-workspace vlc qbittorrent localzet-hardware-manager nautilus gnome-control-center localzet-network; do
-    unit="localzet-candidate-$app.service"
-    if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user is-active --quiet "$unit"; then
-        runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user stop "$unit"
+cleanup_containers() {
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemctl --user stop localzet-candidate-localzet-containers.service >/dev/null 2>&1 || true
+    if runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
+        container inspect localzet-ui-fixture >/dev/null 2>&1; then
+        runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
+            container rm -f localzet-ui-fixture >/dev/null 2>&1 || true
     fi
-done
-pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
-echo "Rootless guest prerequisites:"
-uname -r
-free -m
-df -h "$home"
-cat /proc/loadavg
-systemd-detect-virt || true
-dpkg-query -W rootlesskit uidmap slirp4netns fuse-overlayfs docker.io busybox-static
-/usr/bin/busybox true
-grep -E '^(localzet-test|1000):' /etc/subuid /etc/subgid || true
-for key in kernel.unprivileged_userns_clone kernel.apparmor_restrict_unprivileged_userns user.max_user_namespaces; do
-    sysctl "$key" || true
-done
+    if runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
+        image inspect localzet-installed-rootless-fixture:ci >/dev/null 2>&1; then
+        runuser -u localzet-test -- /usr/bin/docker --host "unix:///run/user/$uid/docker.sock" \
+            image rm localzet-installed-rootless-fixture:ci >/dev/null 2>&1 || true
+    fi
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src \
+        /usr/bin/python3 -c 'from localzet.rootless_docker import change; print(change("stop"))' \
+        >/dev/null 2>&1 || true
+}
+# The rootless engine is the only engine started by this test. It stays
+# active only while a disposable, unprivileged fixture is visible in the UI.
 if ! runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemd-run --user --wait --pipe --collect --setenv=PYTHONPATH=/opt/localzet-os/src /usr/bin/python3 -c '
 import os
@@ -802,16 +833,20 @@ from pathlib import Path
 import subprocess
 import tarfile
 import tempfile
+from localzet.containers import Engine, metric_sample
 from localzet.rootless_docker import change
-from localzet.containers import Engine
+
 docker = ["/usr/bin/docker", "--host", "unix:///run/user/" + str(os.getuid()) + "/docker.sock"]
 tag = "localzet-installed-rootless-fixture:ci"
 def run(*args):
     return subprocess.check_output(docker + list(args), text=True, timeout=150).strip()
+
+keep_running = False
 try:
     assert change("start") == "rootless подтверждён"
-    assert Engine().inventory() == ()
-    print("PASS: installed managed rootless Docker responded to real inventory", flush=True)
+    engine = Engine()
+    assert engine.inventory() == ()
+    print("PASS: installed managed rootless Docker returned a real empty inventory", flush=True)
     with tempfile.TemporaryDirectory(prefix=".localzet-rootless-ci-", dir=Path.home()) as directory:
         archive = Path(directory) / "fixture.tar"
         with tarfile.open(archive, "w") as output:
@@ -823,11 +858,21 @@ try:
     assert change("start") == "rootless подтверждён"
     run("image", "inspect", tag)
     assert run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "PERSISTENCE_OK") == "PERSISTENCE_OK"
-    run("image", "rm", tag)
-    assert Engine().inventory() == ()
-    print("PASS: installed rootless image persisted across restart", flush=True)
+    fixture_id = run("run", "--detach", "--name", "localzet-ui-fixture", "--network", "none",
+                     tag, "/bin/busybox", "sh", "-c",
+                     "echo LOCALZET_LOG_FIXTURE; while true; do sleep 1; done")
+    rows = engine.inventory()
+    fixture = next(row for row in rows if row.id == fixture_id and row.name == "localzet-ui-fixture")
+    assert fixture.state == "running", fixture
+    logs, truncated = engine.logs(fixture.id)
+    assert not truncated and "LOCALZET_LOG_FIXTURE" in logs, (logs, truncated)
+    sample = metric_sample(engine.metrics(fixture.id))
+    assert sample.cpu >= 0 and sample.memory >= 0, sample
+    print("PASS: installed rootless inventory, bounded logs and live metrics snapshots", flush=True)
+    keep_running = True
 finally:
-    change("stop")
+    if not keep_running:
+        change("stop")
 '; then
     echo "Installed rootless Docker failure diagnostics:"
     runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -836,15 +881,60 @@ finally:
     lsmod || true
     exit 2
 fi
-for unit in docker.service docker.socket containerd.service; do
-    if systemctl is-enabled --quiet "$unit" || systemctl is-active --quiet "$unit"; then
-        echo "Rootless test changed system Docker: $unit"; exit 2
-    fi
+launch_app_x11 localzet-containers /usr/bin/localzet-containers
+containers_window=""
+for attempt in $(seq 1 45); do
+    clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)"
+    for hex in $(grep -Eo '0x[0-9a-fA-F]+' <<< "$clients" || true); do
+        candidate="$((hex))"
+        identity="$(xprop -id "$hex" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null)" || continue
+        grep -Eiq 'localzet-containers|com\.localzet\.Containers|Localzet Containers' <<< "$identity" || continue
+        geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
+        width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+        height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+        [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
+        (( width >= 600 && height >= 400 )) || continue
+        timeout 2 xdotool windowactivate "$candidate" || continue
+        for poll in $(seq 1 5); do
+            if [[ "$(xdotool getactivewindow 2>/dev/null || true)" == "$candidate" ]]; then
+                containers_window="$candidate"
+                break
+            fi
+            sleep 0.2
+        done
+        [[ -n "$containers_window" ]] && break
+    done
+    [[ -n "$containers_window" ]] && break
+    sleep 1
 done
-printf 'PASS: installed Containers launched unprivileged; system daemon disabled\n'
+if [[ -z "$containers_window" ]]; then
+    echo "No visible, activatable Localzet Containers GTK window" >&2
+    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
+    xwininfo -root -tree >&2 || true
+    exit 2
+fi
+geometry="$(xdotool getwindowgeometry --shell "$containers_window")"
+x="$(sed -n 's/^X=//p' <<< "$geometry")"
+y="$(sed -n 's/^Y=//p' <<< "$geometry")"
+width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+[[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ && "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
+(( width >= 600 && height >= 400 ))
+test "$(xdotool getactivewindow)" = "$containers_window"
+printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
+printf 'LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n'
+sleep 8
+cleanup_containers
+trap - EXIT
+if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemctl --user is-active --quiet localzet-rootless-docker.service; then
+    echo "Rootless Docker service remained active after its disposable GUI fixture"
+    exit 2
+fi
+printf 'PASS: installed Containers window displayed a live rootless fixture and closed cleanly\n'
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
-        assert "installed Containers launched" in script
+        assert "installed Containers window displayed a live rootless fixture" in script
     if office:
         check = r"""
 test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
@@ -1351,13 +1441,20 @@ def main():
                 raise
             installed.capture("desktop-verified")
             if args.expect_containers:
-                installed.capture("containers-installed")
+                containers_capture = installed.screen.with_name("candidate-installed-containers-window.ppm")
+                if not containers_capture.is_file() or containers_capture.stat().st_size == 0:
+                    raise RuntimeError("Missing actual installed Containers window screenshot")
             if args.expect_office:
                 if args.expect_executive_review:
                     installed.office_document()
-                    installed.capture("office-installed")
-                else:
-                    installed.capture("office-installed")
+                installed.capture("office-installed")
+                if args.expect_containers:
+                    containers_capture = installed.screen.with_name("candidate-installed-containers-window.ppm")
+                    office_capture = installed.screen.with_name("candidate-installed-office-installed.ppm")
+                    if not containers_capture.is_file() or not office_capture.is_file():
+                        raise RuntimeError("Missing distinct Containers or ONLYOFFICE installed screenshot")
+                    if containers_capture.read_bytes() == office_capture.read_bytes():
+                        raise RuntimeError("Containers and ONLYOFFICE screenshots are identical; refusing false visual evidence")
             installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
             if args.expect_executive_review:
                 installed.wait(LOCK_READY, 45)
