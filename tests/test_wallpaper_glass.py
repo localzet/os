@@ -221,5 +221,15 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", workflow)
 
 
+    def test_date_menu_glass_runs_in_an_isolated_fresh_session(self):
+        script = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        workflow = (ROOT / ".github/workflows/gnome-visual-smoke.yml").read_text()
+        self.assertIn('if [[ "${LOCALZET_GLASS_MENU_ONLY:-0}" == "1" ]]', script)
+        self.assertIn('aurora-date-menu.png', script)
+        self.assertIn('LOCALZET_GLASS_MENU_ONLY: "1"', workflow)
+        self.assertIn('LOCALZET_GNOME_SMOKE_OUT: out/gnome-glass-menu', workflow)
+        self.assertIn('out/gnome-glass-menu/', workflow)
+
+
 if __name__ == "__main__":
     unittest.main()
