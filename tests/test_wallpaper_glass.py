@@ -94,7 +94,7 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("ImageChops.difference(glass, glass_low)", smoke)
         self.assertIn("high_ratio >= .15", smoke)
         self.assertIn("low_ratio <= .05", smoke)
-        self.assertIn("low-frequency blue/violet/orange field survives glass blur", smoke)
+        self.assertIn("Two broad violet/orange fields survive blur", smoke)
 
     def test_installed_iso_uses_same_nonopaque_glass_optical_gate(self):
         qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
