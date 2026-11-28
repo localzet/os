@@ -52,25 +52,25 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertNotIn("background-image", wallpaper)
         self.assertNotIn("executive-dusk-glass.jpg", wallpaper)
         self.assertIn("add_effect_with_name", wallpaper)
-        self.assertIn("const effectActor = this._menu.actor", wallpaper)
+        self.assertIn("const effectActor = this._menu.box", wallpaper)
         self.assertIn("hasStageAllocation(effectActor)", wallpaper)
-        self.assertIn("hasStageAllocation(this._menu.box)", wallpaper)
-        self.assertNotIn("this._menu.box.add_effect", wallpaper)
+        self.assertIn("hasStageAllocation(this._menu.actor)", wallpaper)
+        self.assertNotIn("this._menu.actor.add_effect", wallpaper)
         self.assertIn("effect.queue_repaint()", wallpaper)
         self.assertIn("effect.get_mode()", wallpaper)
         self.assertIn("add_effect_with_name", dock)
         self.assertIn("effect.queue_repaint()", dock)
         self.assertIn("effect.get_mode()", dock)
 
-    def test_launcher_blur_is_attached_to_the_outer_popup_actor(self):
+    def test_launcher_blur_is_attached_to_the_visible_popup_content_actor(self):
         source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
-        self.assertIn("const effectActor = this._menu.actor", source)
-        self.assertIn("hasStageAllocation(this._menu.box)", source)
-        self.assertNotIn("this._menu.box.add_effect", source)
+        self.assertIn("const effectActor = this._menu.box", source)
+        self.assertIn("hasStageAllocation(this._menu.actor)", source)
+        self.assertNotIn("this._menu.actor.add_effect", source)
         self.assertIn("effectActor.add_effect_with_name(EFFECT_NAME, effect)", source)
         self.assertIn("actor.connect('notify::allocation', retry)", source)
         self.assertIn("GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3", source)
-        self.assertIn("(this._effectActor ?? this._menu.actor).remove_effect", source)
+        self.assertIn("(this._effectActor ?? this._menu.box).remove_effect", source)
 
     def test_panel_and_dock_blur_wait_for_mapped_allocation(self):
         dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
