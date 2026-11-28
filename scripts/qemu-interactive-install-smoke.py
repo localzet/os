@@ -1480,9 +1480,9 @@ def main():
                 installed.capture("post-install-window")
                 if args.expect_native_files:
                     files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")
-                    office_screen = installed.screen.with_name(f"{installed.screen.stem}-office-compositor.ppm")
+                    office_screen = installed.screen.with_name(f"{installed.screen.stem}-post-install-window.ppm")
                     if not files_screen.is_file() or not office_screen.is_file():
-                        raise RuntimeError("Missing distinct GNOME Files or ONLYOFFICE compositor screenshot")
+                        raise RuntimeError("Missing distinct GNOME Files or ONLYOFFICE installed desktop screenshot")
                     if files_screen.read_bytes() == office_screen.read_bytes():
                         raise RuntimeError("GNOME Files and ONLYOFFICE screenshots are identical; refusing false visual evidence")
             installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
