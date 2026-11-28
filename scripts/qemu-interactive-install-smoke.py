@@ -319,22 +319,29 @@ class Guest:
                     raise RuntimeError("Installed launcher is too small for optical acceptance")
                 if not path.is_file() or not base_path.is_file():
                     raise RuntimeError("Missing installed compositor glass screenshots")
-                from PIL import Image
-                from statistics import pstdev
+                from PIL import Image, ImageChops, ImageFilter, ImageStat
                 region = (x + int(width * .48), y + int(height * .48),
                           x + int(width * .89), y + int(height * .77))
                 with Image.open(base_path) as base_source, Image.open(path) as glass_source:
                     base = base_source.convert("L").crop(region)
                     glass = glass_source.convert("L").crop(region)
-                    base_contrast = pstdev(list(base.getdata()))
-                    glass_contrast = pstdev(list(glass.getdata()))
-                if base_contrast < 60:
-                    raise RuntimeError("Installed wallpaper checkerboard is not visible")
-                ratio = glass_contrast / base_contrast
-                print("Installed QEMU compositor glass checkerboard contrast ratio:",
-                      round(ratio, 3), flush=True)
-                if ratio >= .15:
-                    raise RuntimeError("Installed Shell.BlurEffect BACKGROUND did not suppress the checkerboard below 15%")
+                base_low = base.filter(ImageFilter.GaussianBlur(radius=6))
+                glass_low = glass.filter(ImageFilter.GaussianBlur(radius=6))
+                base_high = ImageChops.difference(base, base_low)
+                glass_high = ImageChops.difference(glass, glass_low)
+                sigma = lambda image: ImageStat.Stat(image).stddev[0]
+                base_high_sigma, glass_high_sigma = sigma(base_high), sigma(glass_high)
+                base_low_sigma, glass_low_sigma = sigma(base_low), sigma(glass_low)
+                if base_high_sigma < 10 or base_low_sigma < 10:
+                    raise RuntimeError("Installed wallpaper probe lacks independent high- and low-frequency detail")
+                high_ratio = glass_high_sigma / base_high_sigma
+                low_ratio = glass_low_sigma / base_low_sigma
+                print("Installed QEMU glass high-frequency ratio:", round(high_ratio, 3),
+                      "low-frequency retention:", round(low_ratio, 3), flush=True)
+                if high_ratio >= .15:
+                    raise RuntimeError("Installed Shell.BlurEffect BACKGROUND retained checkerboard detail")
+                if low_ratio <= .05:
+                    raise RuntimeError("Installed glass is opaque; low-frequency wallpaper detail vanished")
                 self._glass_qmp_captured = True
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
@@ -1463,8 +1470,9 @@ def main():
     pixels = probe.load()
     for y in range(900):
         for x in range(1440):
-            value = 255 if ((x // 4) + (y // 4)) % 2 else 0
-            pixels[x, y] = (value, value, value)
+            base = (46, 36, 112) if x < 756 else (230, 120, 35)
+            detail = ((x // 4) + (y // 4)) % 2
+            pixels[x, y] = (255, 255, 255) if detail else base
     probe.save(args.glass_fixture, format="JPEG", quality=100, subsampling=0)
     args.fixture = args.fixture.resolve(strict=True)
     if not args.fixture.is_file():
