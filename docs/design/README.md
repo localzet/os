@@ -120,9 +120,9 @@ screenshots and automated tests are necessary but not sufficient for release.
 
 The panel uses GNOME Shell's native `Shell.BlurEffect` in BACKGROUND mode.
 The dock and native Quick Settings/date menus use the same Mutter compositor
-effect. The launcher currently attaches the effect to the outer PopupMenu
-BoxPointer actor; the exact effective attachment point remains under optical
-verification. The old pre-blurred `-glass.jpg` derivative has been removed.
+effect. The launcher and native menus attach the effect to the visible
+`PopupMenu.box` content actor, not the transparent outer BoxPointer wrapper.
+The wrapper is retained only for arrow geometry and event handling. The old pre-blurred `-glass.jpg` derivative has been removed.
 Effects are removed again when their owner closes or the display/session
 state changes.
 
@@ -665,3 +665,14 @@ failure. The EGL diagnostic did confirm Mesa llvmpipe OpenGL 4.5. The test
 allowlist now accepts exactly the approved design wallpaper and this
 CI-only probe filename, still only when `LOCALZET_EXPERIMENTAL_GLASS=1`.
 Rerun the optical test unchanged; do not lower its 15% threshold.
+
+
+### Popup content blur attachment correction — 2026-11-28
+
+The first optical run confirmed that attaching `Shell.BlurEffect BACKGROUND`
+to the outer PopupMenu BoxPointer did not blur the visible child surface. The
+effect now attaches to `menu.box` (`.popup-menu-content`) after both the
+wrapper and content have mapped allocations. The wrapper retains the
+wallpaper-only state class and arrow geometry; the content actor owns the
+actual translucent surface. The unchanged 15% checkerboard threshold must
+pass before the effect is considered verified.
