@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -7,6 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class WallpaperGlassTests(unittest.TestCase):
+    def test_extension_metadata_has_a_non_null_dbus_url(self):
+        metadata = json.loads((ROOT / "extensions/localzet-shell@localzet.com/metadata.json").read_text())
+        self.assertEqual(metadata.get("url"), "https://github.com/localzet/os")
+
     def test_generator_creates_only_the_4k_wallpaper(self):
         try:
             from PIL import Image, ImageDraw
