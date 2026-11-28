@@ -282,3 +282,10 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertLess(rootless_test, app_start)
         self.assertIn('if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi', script[:app_start])
         self.assertIn("org.freedesktop.Application.Activate", script[app_start:])
+
+
+    def test_visual_evidence_branch_runs_the_unified_complete_candidate(self):
+        workflow = (ROOT / ".github/workflows/aurora-complete-rc.yml").read_text()
+        self.assertEqual(workflow.count("github.head_ref == 'fix/aurora-complete-visual-evidence'"), 3)
+        self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", workflow)
+
