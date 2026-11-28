@@ -910,7 +910,7 @@ for attempt in $(seq 1 45); do
     for candidate in $(xdotool search --onlyvisible --name 'Containers' 2>/dev/null || true); do
         identity="$(xdotool getwindowclassname "$candidate" 2>/dev/null || true)"
         title="$(xdotool getwindowname "$candidate" 2>/dev/null || true)"
-        grep -Eiq 'localzet.*containers|com\\.localzet\\.Containers' <<< "$identity" || continue
+        grep -Eiq 'localzet.*containers|com\.localzet\.Containers' <<< "$identity" || continue
         grep -Fq 'Containers' <<< "$title" || continue
         geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
         width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
@@ -939,7 +939,7 @@ if [[ -z "$window" ]]; then
     journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 100 >&2 || true
     echo "Visible X11 windows:" >&2
     for candidate in $(xdotool search --onlyvisible --name '.*' 2>/dev/null || true); do
-        printf 'window=%s class=%s title=%s\\n' "$candidate" \
+        printf 'window=%s class=%s title=%s\n' "$candidate" \
             "$(xdotool getwindowclassname "$candidate" 2>/dev/null || true)" \
             "$(xdotool getwindowname "$candidate" 2>/dev/null || true)" >&2
     done
@@ -948,7 +948,7 @@ fi
 title="$(xdotool getwindowname "$window")"
 grep -Fq 'Containers' <<< "$title"
 identity="$(xdotool getwindowclassname "$window")"
-grep -Eiq 'localzet.*containers|com\\.localzet\\.Containers' <<< "$identity"
+grep -Eiq 'localzet.*containers|com\.localzet\.Containers' <<< "$identity"
 geometry="$(xdotool getwindowgeometry --shell "$window")"
 x="$(sed -n 's/^X=//p' <<< "$geometry")"
 y="$(sed -n 's/^Y=//p' <<< "$geometry")"
@@ -957,7 +957,7 @@ height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
 [[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ && "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
 (( width >= 900 && height >= 540 ))
 test "$(xdotool getactivewindow)" = "$window"
-printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY %s %s %s %s\\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\\n' "$x" "$y" "$width" "$height"
+printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY %s %s %s %s\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n' "$x" "$y" "$width" "$height"
 sleep 10
 CONTAINERSWINDOW
 chmod 0755 /run/localzet-candidate-check/containers-window.sh
