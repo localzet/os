@@ -81,6 +81,8 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("const effectActor = this._backdrop", source)
         self.assertIn("Main.uiGroup.insert_child_above(this._backdrop, global.window_group)", source)
         self.assertIn("hasStageAllocation(this._menu.actor)", source)
+        self.assertIn("hasStageAllocation(this._menu.box) ? this._menu.box : this._menu.actor", source)
+        self.assertIn("hasStageAllocation(target) && hasStageAllocation(this._backdrop)", source)
         self.assertNotIn("this._menu.actor.add_effect", source)
         self.assertIn("effectActor.add_effect_with_name(EFFECT_NAME, effect)", source)
         self.assertIn("effectActor.set_position(x, y)", source)
