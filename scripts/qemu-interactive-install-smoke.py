@@ -975,7 +975,7 @@ change("stop")
 printf 'PASS: installed Containers window captured with a live rootless fixture; system daemon disabled\n'
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
-        assert "installed Containers launched" in script
+        assert "installed Containers window captured" in script
     if office:
         check = r"""
 test "$(dpkg-query -W -f='${Version}' onlyoffice-desktopeditors)" = 10.0.0-169
