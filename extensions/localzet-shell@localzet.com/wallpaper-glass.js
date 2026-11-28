@@ -198,13 +198,15 @@ export class WallpaperGlass {
                 this._clearAllocationWait();
                 return;
             }
-            if (hasStageAllocation(this._menu.actor) && hasStageAllocation(this._menu.box)) {
+            if (hasStageAllocation(this._menu.actor) &&
+                hasStageAllocation(this._menu.box) &&
+                hasStageAllocation(this._backdrop)) {
                 this._clearAllocationWait();
                 this._refresh();
             }
         };
 
-        for (const actor of [this._menu.actor, this._menu.box]) {
+        for (const actor of [this._menu.actor, this._menu.box, this._backdrop]) {
             if (!actor)
                 continue;
             this._allocationSignals.push([actor, actor.connect('notify::allocation', retry)]);
