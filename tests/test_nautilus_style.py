@@ -41,3 +41,9 @@ class NautilusStyleTests(unittest.TestCase):
             self.assertNotIn(old_graphite, self.overlay)
         self.assertIn("background-color: #6436B5", self.overlay)
         self.assertIn("outline: 2px solid #FF7E00", self.overlay)
+
+    def test_list_header_metadata_remains_accessible(self):
+        self.assertIn("columnview > header", self.overlay)
+        self.assertIn("columnview > header *", self.overlay)
+        self.assertIn("columnview > listview > row .dim-label", self.overlay)
+        self.assertIn("opacity: 1", self.overlay)
