@@ -65,8 +65,11 @@ export class AuroraPanel {
         const quickSettings = this._panel.statusArea.quickSettings;
         if (quickSettings && Main.sessionMode.allowSettings && !Main.sessionMode.isLocked)
             this._quickActions = new ExecutiveQuickActions(quickSettings);
-        if (this._settings.get_boolean('high-contrast'))
+        if (this._settings.get_boolean('high-contrast')) {
+            if (this._glassEnabled)
+                console.log('Localzet Glass: panel opaque fallback high-contrast');
             return; // Respect native GNOME high-contrast styling.
+        }
         this._panel.add_style_class_name(BASE);
         this._installNavigation();
         // Style only real upstream menus, leaving their input, authentication,
