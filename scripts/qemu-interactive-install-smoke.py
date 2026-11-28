@@ -907,9 +907,9 @@ cat > /run/localzet-candidate-check/containers-window.sh <<'CONTAINERSWINDOW'
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
 # Explicitly activate the registered GTK application on the authenticated session bus.
-busctl --user status com.localzet.Containers >/dev/null
+busctl --user status com.localzet.Containers >/dev/null 2>&1 || true
 gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers \
-    --method org.freedesktop.Application.Activate '{}' >/dev/null
+    --method org.freedesktop.Application.Activate '{}' >/dev/null 2>&1 || true
 window=""
 for attempt in $(seq 1 45); do
     for candidate in $(xdotool search --onlyvisible --name 'Containers' 2>/dev/null || true); do
@@ -942,14 +942,13 @@ if [[ -z "$window" ]]; then
     echo "Containers process environment:" >&2
     pid="$(pgrep -u "$(id -u)" -f '/usr/bin/localzet-containers' | head -n 1 || true)"
     if [[ -n "$pid" && -r "/proc/$pid/environ" ]]; then
-        tr '\\0' '\\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|GDK_BACKEND|GSK_RENDERER|GTK_A11Y|XDG_RUNTIME_DIR|DBUS_SESSION_BUS_ADDRESS)=' >&2 || true
+        tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|GDK_BACKEND|GSK_RENDERER|GTK_A11Y|XDG_RUNTIME_DIR|DBUS_SESSION_BUS_ADDRESS)=' >&2 || true
     fi
     echo "GTK application D-Bus registration:" >&2
     busctl --user status com.localzet.Containers >&2 || true
     gdbus introspect --session --dest com.localzet.Containers --object-path /com/localzet/Containers >&2 || true
     gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers --method org.freedesktop.Application.Activate '{}' >&2 || true
     echo "X11 root properties and tree:" >&2
-    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
     xwininfo -root -tree >&2 || true
     echo "Containers unit status and journal:" >&2
     systemctl --user status localzet-candidate-localzet-containers.service --no-pager >&2 || true
