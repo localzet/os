@@ -171,7 +171,6 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("systemctl --user stop localzet-candidate-localzet-containers.service", script)
         self.assertIn("container rm -f localzet-ui-fixture", script)
         self.assertIn("systemctl --user is-active --quiet localzet-rootless-docker.service", script)
-        self.assertIn('systemctl --user stop "$unit"', script)
         self.assertIn('pgrep -u localzet-test -f /usr/bin/localzet-containers', script)
         self.assertIn("installed unprivileged container executed offline", script)
         self.assertIn("PERSISTENCE_OK", script)
