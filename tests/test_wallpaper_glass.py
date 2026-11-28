@@ -59,7 +59,7 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertNotIn("executive-dusk-glass.jpg", wallpaper)
         self.assertIn("add_effect_with_name", wallpaper)
         self.assertIn("const effectActor = this._backdrop", wallpaper)
-        self.assertIn("global.stage.insert_child_below(this._backdrop, Main.uiGroup)", wallpaper)
+        self.assertIn("Main.uiGroup.insert_child_above(this._backdrop, global.window_group)", wallpaper)
         self.assertIn("hasStageAllocation(effectActor)", wallpaper)
         self.assertIn("hasStageAllocation(this._menu.actor)", wallpaper)
         self.assertNotIn("this._menu.actor.add_effect", wallpaper)
@@ -72,7 +72,7 @@ class WallpaperGlassTests(unittest.TestCase):
     def test_launcher_blur_is_attached_to_the_visible_popup_content_actor(self):
         source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
         self.assertIn("const effectActor = this._backdrop", source)
-        self.assertIn("global.stage.insert_child_below(this._backdrop, Main.uiGroup)", source)
+        self.assertIn("Main.uiGroup.insert_child_above(this._backdrop, global.window_group)", source)
         self.assertIn("hasStageAllocation(this._menu.actor)", source)
         self.assertNotIn("this._menu.actor.add_effect", source)
         self.assertIn("effectActor.add_effect_with_name(EFFECT_NAME, effect)", source)
