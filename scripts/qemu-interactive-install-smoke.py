@@ -257,8 +257,10 @@ class Guest:
         while time.monotonic() < deadline:
             lines = self.serial.read_bytes().splitlines() if self.serial.exists() else []
             if b"LOCALZET_CANDIDATE_FILES_CAPTURE_READY" in lines and not getattr(self, "_files_qmp_captured", False):
-                self.wake_display()
-                time.sleep(2)
+                # The guest already verified the real Nautilus window is active.
+                # Do not move the pointer: focus-follows-mouse could raise another
+                # window over Files before the QMP capture.
+                time.sleep(1)
                 self.capture("files")
                 path = self.screen.with_name(f"{self.screen.stem}-files.ppm")
                 geometry_lines = [line for line in lines
@@ -277,6 +279,18 @@ class Guest:
                 print("GNOME Files window visual evidence:", metrics, flush=True)
                 if not evidence_module().meaningful(metrics):
                     raise RuntimeError("GNOME Files window capture is blank or visually insufficient")
+                ocr = subprocess.run(
+                    ["tesseract", str(path), "stdout", "-l", "eng"],
+                    check=True, capture_output=True, text=True, timeout=30,
+                ).stdout.casefold()
+                required = ("localzet visual fixture", "metrics.csv", "readme.md")
+                missing = [token for token in required if token not in ocr]
+                if missing or "localzet-test@" in ocr:
+                    raise RuntimeError(
+                        f"Installed Files screenshot is not the active populated Nautilus window; "
+                        f"missing={missing}, OCR={ocr[:1000]}"
+                    )
+                print("PASS: OCR confirms the actual populated GNOME Files window", flush=True)
                 self._files_qmp_captured = True
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
                 self.wake_display()
@@ -320,8 +334,8 @@ class Guest:
                 if not path.is_file() or not base_path.is_file():
                     raise RuntimeError("Missing installed compositor glass screenshots")
                 from PIL import Image, ImageChops, ImageFilter, ImageStat
-                region = (x + int(width * .48), y + int(height * .48),
-                          x + int(width * .89), y + int(height * .77))
+                region = (x + int(width * .30), y + int(height * .48),
+                          x + int(width * .75), y + int(height * .77))
                 with Image.open(base_path) as base_source, Image.open(path) as glass_source:
                     base = base_source.convert("L").crop(region)
                     glass = glass_source.convert("L").crop(region)
@@ -340,7 +354,7 @@ class Guest:
                       "low-frequency retention:", round(low_ratio, 3), flush=True)
                 if high_ratio >= .15:
                     raise RuntimeError("Installed Shell.BlurEffect BACKGROUND retained checkerboard detail")
-                if low_ratio <= .05:
+                if low_ratio <= .15:
                     raise RuntimeError("Installed glass is opaque; low-frequency wallpaper detail vanished")
                 self._glass_qmp_captured = True
             if marker in lines:
