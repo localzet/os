@@ -133,10 +133,21 @@ class CandidateScriptTests(unittest.TestCase):
     def test_installed_rootless_container_and_persistence_required(self):
         script = module.installed_script("complete", True)
         for marker in ("installed unprivileged container executed offline",
-                       "installed rootless image persisted across restart",
                        "localzet-installed-rootless-fixture:ci", "/usr/bin/busybox",
                        "ROOTLESS_OK", "PERSISTENCE_OK"):
             self.assertIn(marker, script)
+        # Verify the actual restart/persistence sequence, not a log string.
+        stopped = script.index('change("stop")')
+        restarted = script.index('assert change("start") == "rootless подтверждён"', stopped)
+        inspected = script.index('run("image", "inspect", tag)', restarted)
+        persisted = script.index(
+            'run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "PERSISTENCE_OK")',
+            inspected,
+        )
+        self.assertLess(stopped, restarted)
+        self.assertLess(restarted, inspected)
+        self.assertLess(inspected, persisted)
+        self.assertNotIn('run("image", "rm", tag)', script)
         self.assertIn('mktemp -d "$HOME/.localzet-wine-ci.XXXXXXXX"', script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
@@ -186,7 +197,9 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn('systemctl --user stop "$unit"', script)
         self.assertIn('pgrep -u localzet-test -f /usr/bin/localzet-containers', script)
         self.assertIn("installed unprivileged container executed offline", script)
-        self.assertIn("installed rootless image persisted across restart", script)
+        self.assertIn('run("image", "inspect", tag)', script)
+        self.assertIn('"PERSISTENCE_OK"', script)
+        self.assertNotIn('run("image", "rm", tag)', script)
         self.assertNotIn("pkill", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
