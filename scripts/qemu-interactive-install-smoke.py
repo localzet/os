@@ -552,7 +552,14 @@ launch_app() {
         if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
         sleep 1
     done
-    echo "Application did not launch: $app"
+    echo "Application did not launch: $app" >&2
+    unit="localzet-candidate-$app.service"
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemctl --user status "$unit" --no-pager -l >&2 || true
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        journalctl --user -u "$unit" --no-pager -n 100 -o cat >&2 || true
     return 1
 }
 launch_app_x11() {
