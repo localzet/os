@@ -1503,7 +1503,7 @@ if __name__ == "__main__":
     fi
     [[ -n "$x11_display" && -n "$x11_authority" && -r "$x11_authority" ]] || {
         echo "Could not resolve authenticated Xwayland DISPLAY/XAUTHORITY" >&2
-        echo "gnome-shell pid=$shell_pid xwayland pid=${xwayland_pid:-none} display=${x11_display:-empty}" >&2
+        echo "gnome-shell pid=$shell_pid xwayland pid=$xwayland_pid display=$x11_display" >&2
         return 2
     }
     echo "Using authenticated Xwayland display $x11_display"
