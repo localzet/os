@@ -5,7 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {AuroraLauncher} from './launcher.js';
-import {wallpaperMaterial, wallpaperPath} from './wallpaper-glass.js';
+import {hasStageAllocation, wallpaperGlassAvailable, wallpaperPath} from './wallpaper-glass.js';
 
 export class LocalzetDock {
     constructor(path) {
@@ -16,6 +16,10 @@ export class LocalzetDock {
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._materialPath = wallpaperPath();
         this._materialActive = false;
+        this._glassEffect = null;
+        this._materialIdle = 0;
+        this._materialRefreshPending = false;
+        this._anchorGeometrySource = 0;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -23,11 +27,21 @@ export class LocalzetDock {
         this._actor = new St.BoxLayout({
             style_class: 'localzet-dock', reactive: true, track_hover: true,
         });
+        this._actorDestroyed = false;
+        this._destroyed = false;
+        this._actorDestroyId = this._actor.connect('destroy', () => {
+            this._actorDestroyed = true;
+            this._actor = null;
+            this._glassEffect = null;
+            this._materialActive = false;
+            this._materialRefreshPending = false;
+        });
         this._anchor = new St.Button({
             style_class: 'localzet-dock-button localzet-dock-launcher', can_focus: true, reactive: true,
             track_hover: true, accessible_name: 'Приложения',
         });
         this._anchor.set_child(this._launcherIcon());
+        this._anchorGeometryId = this._anchor.connect('notify::allocation', () => this._logAnchorBounds());
         this._actor.add_child(this._anchor);
         this._divider = new St.Widget({style_class: 'localzet-dock-divider', y_align: Clutter.ActorAlign.CENTER});
         this._actor.add_child(this._divider);
@@ -63,27 +77,29 @@ export class LocalzetDock {
         this._connections = [
             [this._background, this._background.connect('changed', () => this._refreshMaterial())],
             [this._interface, this._interface.connect('changed::color-scheme', () => this._refreshMaterial())],
-            [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => this._schedule())],
-            [this._actor, this._actor.connect('notify::allocation', () => this._refreshMaterial())],
+            [Main.sessionMode, Main.sessionMode.connect('updated', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [global.workspace_manager, global.workspace_manager.connect('active-workspace-changed', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [this._actor, this._actor.connect('notify::allocation', () => { this._refreshMaterial(); this._logAnchorBounds(); })],
             [this._settings, this._settings.connect('changed::high-contrast', () => {
                 this._anchor.set_child(this._launcherIcon());
                 this._trash.set_child(new St.Icon({
                     icon_name: this._settings.get_boolean('high-contrast') ? 'user-trash-symbolic' : 'user-trash',
                     icon_size: 28,
                 }));
+                this._scheduleMaterialRefresh();
                 this._schedule();
             })],
             [this._favorites, this._favorites.connect('changed::favorite-apps', () => this._schedule())],
             [this._appSystem, this._appSystem.connect('installed-changed', () => this._schedule())],
             [this._appSystem, this._appSystem.connect('app-state-changed', () => this._schedule())],
             [this._tracker, this._tracker.connect('notify::focus-app', () => this._schedule())],
-            [global.display, global.display.connect('notify::focus-window', () => this._schedule())],
-            [global.display, global.display.connect('window-created', () => this._schedule())],
-            [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => this._place())],
+            [global.display, global.display.connect('notify::focus-window', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [global.display, global.display.connect('window-created', () => { this._scheduleMaterialRefresh(); this._schedule(); })],
+            [Main.layoutManager, Main.layoutManager.connect('monitors-changed', () => { this._scheduleMaterialRefresh(); this._place(); })],
             [Main.overview, Main.overview.connect('showing', () => {
-                this._launcher.close(); this._actor.hide();
+                this._launcher.close(); this._clearMaterial(); this._actor.hide();
             })],
-            [Main.overview, Main.overview.connect('hidden', () => { this._actor.show(); this._schedule(); })],
+            [Main.overview, Main.overview.connect('hidden', () => { console.log('Localzet Dock: overview hidden'); this._actor.show(); this._scheduleMaterialRefresh(); this._schedule(); })],
         ];
         // Reserve a full-width bottom strip through Mutter's native workarea.
         // The floating visual actor remains independent and fullscreen-aware.
@@ -93,6 +109,8 @@ export class LocalzetDock {
         this._reconcile();
         if (Main.overview.visible)
             this._actor.hide();
+        else
+            console.log('Localzet Dock: overview hidden');
     }
 
     _launcherIcon() {
@@ -104,11 +122,27 @@ export class LocalzetDock {
     }
 
     _schedule() {
-        if (this._idle)
+        if (this._destroyed || !this._actor || this._actorDestroyed || this._idle)
             return;
         this._idle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._idle = 0;
             this._reconcile();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _scheduleMaterialRefresh(delay = 180) {
+        if (this._destroyed || !this._actor || this._actorDestroyed)
+            return;
+        // Never leave a wallpaper effect over a newly created application window.
+        this._clearMaterial();
+        this._materialRefreshPending = true;
+        if (this._materialIdle)
+            GLib.source_remove(this._materialIdle);
+        this._materialIdle = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            this._materialIdle = 0;
+            this._materialRefreshPending = false;
+            this._refreshMaterial();
             return GLib.SOURCE_REMOVE;
         });
     }
@@ -152,12 +186,16 @@ export class LocalzetDock {
 
     _removeRow(id) {
         const row = this._rows.get(id);
-        row.app.disconnect(row.windowsId);
-        row.button.destroy();
+        if (!row)
+            return;
+        try { row.app.disconnect(row.windowsId); } catch (_) {}
+        try { row.button.destroy(); } catch (_) {}
         this._rows.delete(id);
     }
 
     _reconcile() {
+        if (this._destroyed || !this._actor || this._actorDestroyed)
+            return;
         const wanted = new Map();
         const favorites = new Set(this._favorites.get_strv('favorite-apps'));
         for (const id of favorites) {
@@ -208,6 +246,8 @@ export class LocalzetDock {
     }
 
     _place() {
+        if (this._destroyed || !this._actor || this._actorDestroyed || !this._anchor || !this._strut)
+            return;
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor)
             return;
@@ -229,41 +269,128 @@ export class LocalzetDock {
         this._strut.set_position(monitor.x, y - 6);
         this._strut.set_size(monitor.width, height + 16);
         this._refreshMaterial();
+        this._logAnchorBounds();
         if (GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1')
-            console.log('Localzet Launcher: dock=' + x + ',' + y);
+            console.log('Localzet Launcher: dock=' + x + ',' + y + ',' + width + ',' + height);
+    }
+
+    _logAnchorBounds() {
+        if (this._destroyed || !this._anchor || this._actorDestroyed || GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') !== '1' ||
+            this._anchorGeometrySource)
+            return;
+        // The dock can grow after favorites resolve. Re-log the anchor after
+        // every allocation so visual automation never clicks a stale slot.
+        this._anchorGeometrySource = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._anchorGeometrySource = 0;
+            const [x, y] = this._anchor.get_transformed_position();
+            const [w, h] = this._anchor.get_transformed_size();
+            if (w <= 0 || h <= 0)
+                return GLib.SOURCE_REMOVE;
+            console.log('Localzet Launcher: button=' + [x, y, w, h].map(Math.round).join(','));
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _clearMaterial() {
+        const wasActive = !!this._glassEffect || this._materialActive;
+        const actor = this._actorDestroyed ? null : this._actor;
+        if (this._glassEffect && actor) {
+            try {
+                actor.remove_effect(this._glassEffect);
+            } catch (_) {
+                // Parent chrome can destroy the dock before extension teardown.
+            }
+        }
+        this._glassEffect = null;
+        this._materialActive = false;
+        if (actor) {
+            try {
+                actor.remove_style_class_name('localzet-dock-wallpaper');
+            } catch (_) {
+                // A disposed Clutter actor must never abort shell teardown.
+            }
+        }
+        if (wasActive)
+            console.log('Localzet Dock: material=opaque');
     }
 
     _refreshMaterial() {
-        if (!this._actor)
+        if (this._destroyed || !this._actor || this._actorDestroyed || this._materialRefreshPending)
             return;
-        const style = wallpaperMaterial(this._actor, this._background, this._interface, this._settings, this._materialPath);
-        const active = !!style;
-        if (this._actor.get_style() !== style)
-            this._actor.set_style(style);
-        if (active !== this._materialActive) {
-            this._actor[active ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-wallpaper');
-            this._materialActive = active;
-            console.log('Localzet Dock: material=' + (active ? 'wallpaper' : 'opaque'));
+        const active = wallpaperGlassAvailable(
+            this._background, this._interface, this._settings, this._materialPath);
+        if (active && !this._glassEffect) {
+            // Mutter 50 can silently skip BACKGROUND effects before the dock
+            // has a mapped, non-zero allocation. notify::allocation retries.
+            if (!hasStageAllocation(this._actor))
+                return;
+            try {
+                const effect = new Shell.BlurEffect({
+                    name: 'localzet-dock-background-blur',
+                    radius: 28,
+                    brightness: 0.85,
+                    mode: Shell.BlurMode.BACKGROUND,
+                });
+                this._actor.add_effect_with_name('localzet-dock-background-blur', effect);
+                effect.queue_repaint();
+                this._glassEffect = effect;
+                this._actor.add_style_class_name('localzet-dock-wallpaper');
+                this._materialActive = true;
+                console.log('Localzet Dock: material=compositor mode=' + effect.get_mode() +
+                    ' radius=' + effect.get_radius() + ' allocated=' +
+                    Math.round(this._actor.get_width()) + 'x' +
+                    Math.round(this._actor.get_height()) + ' enabled=' + effect.get_enabled());
+            } catch (error) {
+                this._clearMaterial();
+                console.warn('Localzet Dock: opaque fallback: ' + error);
+            }
+        } else if (!active && (this._glassEffect || this._materialActive)) {
+            this._clearMaterial();
+            console.log('Localzet Dock: material=opaque');
         }
     }
 
     toggleLauncher() {
-        if (this._actor.visible)
+        if (!this._destroyed && this._actor && !this._actorDestroyed && this._actor.visible)
             this._launcher.toggle();
     }
 
     destroy() {
+        if (this._destroyed)
+            return;
+        this._destroyed = true;
         if (this._idle)
             GLib.source_remove(this._idle);
-        for (const [object, id] of this._connections)
-            object.disconnect(id);
+        if (this._materialIdle)
+            GLib.source_remove(this._materialIdle);
+        if (this._anchorGeometrySource)
+            GLib.source_remove(this._anchorGeometrySource);
+        if (this._anchorGeometryId && this._anchor) {
+            try { this._anchor.disconnect(this._anchorGeometryId); } catch (_) {}
+        }
+        if (this._actorDestroyId && this._actor) {
+            try { this._actor.disconnect(this._actorDestroyId); } catch (_) {}
+        }
+        this._actorDestroyId = 0;
+        this._materialIdle = 0;
+        this._anchorGeometrySource = 0;
+        this._anchorGeometryId = 0;
+        this._materialRefreshPending = false;
+        this._clearMaterial();
+        for (const [object, id] of this._connections) {
+            try { object.disconnect(id); } catch (_) {}
+        }
         this._connections = [];
         this._launcher.destroy();
         for (const id of this._rows.keys())
             this._removeRow(id);
-        this._strut.destroy();
-        this._strut = null;
-        this._actor.destroy();
-        this._actor = null;
+        if (this._strut) {
+            try { this._strut.destroy(); } catch (_) {}
+            this._strut = null;
+        }
+        if (this._actor) {
+            try { this._actor.destroy(); } catch (_) {}
+            this._actor = null;
+        }
     }
 }

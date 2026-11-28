@@ -6,7 +6,7 @@ import Clutter from 'gi://Clutter';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {ExecutiveQuickActions} from './quick-actions.js';
-import {WallpaperGlass} from './wallpaper-glass.js';
+import {hasStageAllocation, WallpaperGlass} from './wallpaper-glass.js';
 
 const BASE = 'localzet-panel';
 const GLASS = 'localzet-panel-glass';
@@ -28,6 +28,10 @@ export class AuroraPanel {
         this._settings = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
         this._contrastId = this._settings.connect('changed::high-contrast', () => this._refresh());
         this._glassEnabled = GLib.getenv('LOCALZET_DISABLE_GLASS') !== '1';
+        this._allocationId = this._panel.connect('notify::allocation', () => {
+            if (!this._effect && this._glassEnabled && !this._settings.get_boolean('high-contrast'))
+                this._installPanelBlur();
+        });
         try {
             this._refresh();
         } catch (error) {
@@ -61,8 +65,11 @@ export class AuroraPanel {
         const quickSettings = this._panel.statusArea.quickSettings;
         if (quickSettings && Main.sessionMode.allowSettings && !Main.sessionMode.isLocked)
             this._quickActions = new ExecutiveQuickActions(quickSettings);
-        if (this._settings.get_boolean('high-contrast'))
+        if (this._settings.get_boolean('high-contrast')) {
+            if (this._glassEnabled)
+                console.log('Localzet Glass: panel opaque fallback high-contrast');
             return; // Respect native GNOME high-contrast styling.
+        }
         this._panel.add_style_class_name(BASE);
         this._installNavigation();
         // Style only real upstream menus, leaving their input, authentication,
@@ -83,18 +90,29 @@ export class AuroraPanel {
             console.log('Localzet Surfaces: native menus=' + this._surfaces.length);
         if (!this._glassEnabled)
             return;
+        this._installPanelBlur();
+    }
+
+    _installPanelBlur() {
+        if (!this._glassEnabled || this._effect ||
+            this._settings.get_boolean('high-contrast') ||
+            !hasStageAllocation(this._panel))
+            return;
+
         try {
             const effect = new Shell.BlurEffect({
-                radius: 18,
+                radius: 28,
                 brightness: 0.85,
                 mode: Shell.BlurMode.BACKGROUND,
             });
             this._panel.add_effect_with_name(EFFECT, effect);
+            effect.queue_repaint();
             this._effect = effect;
             this._panel.add_style_class_name(GLASS);
-            console.log('Localzet Glass: panel background effect active');
+            console.log('Localzet Glass: panel background effect active allocated=' +
+                Math.round(this._panel.get_width()) + 'x' +
+                Math.round(this._panel.get_height()) + ' enabled=' + effect.get_enabled());
         } catch (error) {
-            // The opaque fallback retains the native menu styles.
             if (this._effect) {
                 this._panel.remove_effect(this._effect);
                 this._effect = null;
@@ -144,6 +162,7 @@ export class AuroraPanel {
 
     destroy() {
         this._settings.disconnect(this._contrastId);
+        this._panel.disconnect(this._allocationId);
         this._clear();
         this._panel = null;
         this._settings = null;

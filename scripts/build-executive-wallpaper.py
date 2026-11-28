@@ -11,7 +11,7 @@ import tempfile
 
 
 def render(source, output):
-    from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+    from PIL import Image, ImageOps, ImageEnhance
     with Image.open(source) as original:
         if original.width < 1920 or original.height < 1080:
             raise ValueError("Wallpaper source resolution below Full HD")
@@ -38,14 +38,10 @@ def render(source, output):
                             light.resize(image.size, Image.Resampling.BICUBIC))
     image = Image.composite(Image.new("RGB", image.size, "#10091E"), image,
                             shadow.resize(image.size, Image.Resampling.BICUBIC))
-    # Preblur in image space, with sufficient radius at 4K. The derivative
-    # is tinted here, not by translucent CSS over an unblurred desktop.
-    glass = image.resize((960, 540), Image.Resampling.LANCZOS).filter(
-        ImageFilter.GaussianBlur(14)).resize(image.size, Image.Resampling.BICUBIC)
-    glass = Image.blend(glass, Image.new("RGB", image.size, "#28183F"), .62)
+    # Glass is a live Mutter Shell.BlurEffect BACKGROUND surface. Do not
+    # ship a static pre-blurred wallpaper derivative as a compositor substitute.
     output = Path(output)
     save_jpeg(image, output)
-    save_jpeg(glass, output.with_name(output.stem + "-glass.jpg"))
 
 
 def save_jpeg(image, output):

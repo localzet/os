@@ -1,34 +1,254 @@
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
 class WallpaperGlassTests(unittest.TestCase):
-    def test_generator_creates_real_blurred_derivative(self):
+    def test_extension_metadata_has_a_non_null_dbus_url(self):
+        metadata = json.loads((ROOT / "extensions/localzet-shell@localzet.com/metadata.json").read_text())
+        self.assertEqual(metadata.get("url"), "https://github.com/localzet/os")
+
+    def test_generator_creates_only_the_4k_wallpaper(self):
         try:
-            from PIL import Image, ImageChops, ImageStat
+            from PIL import Image, ImageDraw
         except ImportError:
             self.skipTest("Pillow unavailable in source-only checks")
-        spec = importlib.util.spec_from_file_location("executive_wallpaper", ROOT / "scripts/build-executive-wallpaper.py")
+        spec = importlib.util.spec_from_file_location(
+            "executive_wallpaper", ROOT / "scripts/build-executive-wallpaper.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source.png"
             pattern = Image.new("RGB", (1920, 1080))
-            from PIL import ImageDraw
             draw = ImageDraw.Draw(pattern)
             for x in range(0, 1920, 32):
-                draw.rectangle((x, 0, x+15, 1080), fill="white")
+                draw.rectangle((x, 0, x + 15, 1080), fill="white")
             pattern.save(source)
             output = root / "executive-dusk.jpg"
             module.render(source, output)
-            with Image.open(output) as original, Image.open(root / "executive-dusk-glass.jpg") as blurred:
+            with Image.open(output) as original:
                 self.assertEqual(original.size, (3840, 2160))
-                self.assertEqual(blurred.size, original.size)
-                def edge(im):
-                    gray = im.convert("L")
-                    return ImageStat.Stat(ImageChops.difference(gray.crop((0,0,3800,2160)), gray.crop((4,0,3804,2160)))).mean[0]
-                self.assertLess(edge(blurred), edge(original) * .2)
+            self.assertFalse(root.joinpath("executive-dusk-glass.jpg").exists())
+
+    def test_experimental_wallpaper_allowlist_accepts_only_design_and_probe_assets(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("executive-dusk\\.jpg|blur-probe\\.png", source)
+        self.assertIn("LOCALZET_EXPERIMENTAL_GLASS", source)
+        self.assertIn("LOCALZET_TEST_WALLPAPER", source)
+
+    def test_runtime_uses_real_mutter_background_blur(self):
+        wallpaper = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        for source in (wallpaper, dock):
+            self.assertIn("new Shell.BlurEffect", source)
+            self.assertIn("Shell.BlurMode.BACKGROUND", source)
+            self.assertIn("add_effect_with_name", source)
+        self.assertIn("EFFECT_RADIUS = 28", wallpaper)
+        stylesheet = (ROOT / "extensions/localzet-shell@localzet.com/stylesheet.css").read_text()
+        self.assertIn(".localzet-wallpaper-glass .popup-menu-content", stylesheet)
+        self.assertIn(".localzet-wallpaper-glass-backdrop", stylesheet)
+        self.assertIn("background-color: rgba(40, 24, 63, .72)", stylesheet)
+        self.assertIn("background-color: transparent", stylesheet)
+        self.assertIn(".localzet-launcher-popup.localzet-wallpaper-glass .popup-menu-content {\n    /* The stage-level backdrop", stylesheet)
+        self.assertIn(".localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {\n    /* The stage-level backdrop", stylesheet)
+        self.assertNotIn(".localzet-wallpaper-glass .popup-menu-content {\n    background-color: #28183F", stylesheet)
+        self.assertIn("EFFECT_BRIGHTNESS = 0.85", wallpaper)
+        self.assertIn("name: EFFECT_NAME", wallpaper)
+        self.assertIn("radius: 28", dock)
+        self.assertIn("brightness: 0.85", dock)
+        self.assertIn("name: 'localzet-dock-background-blur'", dock)
+        self.assertNotIn("background-image", wallpaper)
+        self.assertNotIn("executive-dusk-glass.jpg", wallpaper)
+        self.assertIn("add_effect_with_name", wallpaper)
+        self.assertIn("const effectActor = this._backdrop", wallpaper)
+        self.assertIn("Main.uiGroup.insert_child_above(this._backdrop, global.window_group)", wallpaper)
+        self.assertIn("hasStageAllocation(effectActor)", wallpaper)
+        self.assertIn("const target = hasStageAllocation(this._menu.box) ? this._menu.box : this._menu.actor", wallpaper)
+        self.assertIn("hasStageAllocation(target)", wallpaper)
+        self.assertNotIn("this._menu.actor.add_effect", wallpaper)
+        self.assertIn("effect.queue_repaint()", wallpaper)
+        self.assertIn("effect.get_mode()", wallpaper)
+        self.assertIn("add_effect_with_name", dock)
+        self.assertIn("effect.queue_repaint()", dock)
+        self.assertIn("effect.get_mode()", dock)
+
+    def test_launcher_blur_is_attached_to_the_visible_popup_content_actor(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("const effectActor = this._backdrop", source)
+        self.assertIn("Main.uiGroup.insert_child_above(this._backdrop, global.window_group)", source)
+        self.assertIn("const target = hasStageAllocation(this._menu.box) ? this._menu.box : this._menu.actor", source)
+        self.assertIn("hasStageAllocation(target)", source)
+        self.assertIn("hasStageAllocation(this._menu.box) ? this._menu.box : this._menu.actor", source)
+        self.assertIn("hasStageAllocation(target) && hasStageAllocation(this._backdrop)", source)
+        self.assertNotIn("this._menu.actor.add_effect", source)
+        self.assertIn("effectActor.add_effect_with_name(EFFECT_NAME, effect)", source)
+        self.assertIn("effectActor.set_position(x, y)", source)
+        self.assertIn("effectActor.set_size(width, height)", source)
+        self.assertIn("this._menu.actor.add_style_class_name('localzet-wallpaper-glass')", source)
+        self.assertIn("this._menu.box.add_style_class_name('localzet-wallpaper-glass')", source)
+        self.assertIn("this._menu.actor.remove_style_class_name('localzet-wallpaper-glass')", source)
+        self.assertIn("this._menu.box.remove_style_class_name('localzet-wallpaper-glass')", source)
+        self.assertIn("actor.connect('notify::allocation', retry)", source)
+        self.assertIn("GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10", source)
+        self.assertIn("(this._effectActor ?? this._backdrop)?.remove_effect", source)
+        self.assertIn("this._backdrop?.destroy()", source)
+        self.assertIn("this._backdrop.connect('destroy'", source)
+        self.assertIn("this._backdrop = null", source)
+        self.assertIn("never touches a disposed", source)
+
+    def test_visual_smoke_proves_blur_and_preserves_low_frequency_wallpaper(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertIn("ImageFilter.GaussianBlur(radius=6)", smoke)
+        self.assertIn("ImageChops.difference(base, base_low)", smoke)
+        self.assertIn("ImageChops.difference(glass, glass_low)", smoke)
+        self.assertIn("int(w*.30)", smoke)
+        self.assertIn("int(w*.75)", smoke)
+        self.assertIn("high_ratio >= .15", smoke)
+        self.assertIn("low_ratio <= .15", smoke)
+        self.assertIn("Two broad violet/orange fields survive blur", smoke)
+
+    def test_installed_files_capture_checks_the_active_populated_window(self):
+        qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("Do not move the pointer", qemu)
+        self.assertIn('self.capture("files")', qemu)
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', qemu)
+        self.assertIn('"localzet visual fixture"', qemu)
+        self.assertIn('"metrics.csv"', qemu)
+        self.assertIn('"readme.md"', qemu)
+        self.assertIn("Installed Files screenshot is not the active populated Nautilus window", qemu)
+
+    def test_interactive_candidate_installs_ocr_for_files_evidence(self):
+        workflow = (ROOT / ".github/workflows/interactive-install-candidate.yml").read_text()
+        self.assertIn("python3-pil tesseract-ocr", workflow)
+
+    def test_tray_bus_probe_precedes_devkit_extension_teardown(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertLess(smoke.index("gdbus call --session"), smoke.index("gnome-extensions disable"))
+        self.assertLess(smoke.index("check-nectarlink-tray.py"), smoke.index("gnome-extensions disable"))
+        self.assertLess(smoke.index("gnome-extensions list --active | grep -Fx localzet-shell@localzet.com"),
+                        smoke.index("gnome-extensions disable"))
+        self.assertEqual(smoke.count("gnome-extensions list --active | grep -Fx localzet-shell@localzet.com"), 1)
+
+    def test_installed_iso_uses_same_nonopaque_glass_optical_gate(self):
+        qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn("ImageChops.difference(base, base_low)", qemu)
+        self.assertIn("ImageChops.difference(glass, glass_low)", qemu)
+        self.assertIn("int(width * .30)", qemu)
+        self.assertIn("int(width * .75)", qemu)
+        self.assertIn("high_ratio >= .15", qemu)
+        self.assertIn("low_ratio <= .15", qemu)
+        self.assertIn("base = (46, 36, 112) if x < 756 else (230, 120, 35)", qemu)
+
+    def test_panel_and_dock_blur_wait_for_mapped_allocation(self):
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        panel = (ROOT / "extensions/localzet-shell@localzet.com/panel.js").read_text()
+        self.assertIn("hasStageAllocation(this._actor)", dock)
+        self.assertIn("hasStageAllocation(this._panel)", panel)
+        self.assertIn("this._panel.connect('notify::allocation'", panel)
+        self.assertIn("this._scheduleMaterialRefresh()", dock)
+        self.assertIn("panel opaque fallback high-contrast", panel)
+
+    def test_accessibility_and_performance_fallbacks_remain(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        for required in (
+            "LOCALZET_DISABLE_GLASS",
+            "high-contrast",
+            "Main.sessionMode.isLocked",
+            "Main.sessionMode.isGreeter",
+            "watch(Main.sessionMode, 'updated')",
+            "Main.overview.visible",
+            "monitors.length !== 1",
+            "scale_factor !== 1",
+            "list_windows()",
+        ):
+            self.assertIn(required, source)
+
+
+    def test_dock_fails_closed_before_rechecking_window_state(self):
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        self.assertIn("Main.sessionMode.connect('updated'", dock)
+        self.assertIn("this._scheduleMaterialRefresh()", dock)
+        self.assertIn("this._materialRefreshPending", dock)
+        self.assertIn("this._clearMaterial()", dock)
+        self.assertIn("global.display.connect('window-created'", dock)
+        self.assertIn("Localzet Dock: overview hidden", dock)
+        self.assertIn("Localzet Launcher: button=", dock)
+
+    def test_launcher_anchor_geometry_is_remeasured_after_dock_relayout(self):
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        self.assertNotIn("_anchorGeometryLogged", dock)
+        self.assertIn("this._anchor.connect('notify::allocation'", dock)
+        self.assertIn("this._actor.connect('notify::allocation'", dock)
+        self.assertIn("this._logAnchorBounds()", dock)
+
+    def test_popup_disposal_guards_against_actor_use_after_free(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("menu.actor.connect('destroy'", source)
+        self.assertIn("menu.box.connect('destroy'", source)
+        self.assertIn("_dispose()", source)
+        self.assertIn("if (this._disposed)", source)
+        self.assertIn("this._effect = null", source)
+        self.assertIn("this._effectActor = null", source)
+
+    def test_visual_smoke_uses_measured_launcher_and_current_panel_geometry(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertIn("Escape Escape", smoke)
+        self.assertIn("Localzet Launcher: button=", smoke)
+        self.assertIn("Launcher anchor is outside the current dock", smoke)
+        self.assertIn("button_w / 2", smoke)
+        self.assertIn("button_h / 2", smoke)
+        self.assertIn("panel_x=$((width - 20))", smoke)
+        self.assertNotIn("panel_x=$((width - 74))", smoke)
+        self.assertIn("panel_y=67", smoke)
+        self.assertIn("for attempt in $(seq 1 12)", smoke)
+        self.assertIn("Quick Settings compositor blur did not attach", smoke)
+
+
+    def test_wallpaper_only_date_menu_is_captured_before_real_windows(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        date_menu = smoke.index('Localzet Glass: wallpaper compositor effect active dateMenu')
+        network = smoke.index('Localzet Quick Actions: opened com.localzet.Network.desktop')
+        tray = smoke.index('check-nectarlink-tray.py')
+        self.assertLess(date_menu, network)
+        self.assertLess(network, tray)
+        self.assertNotIn('network_pids=', smoke)
+        self.assertNotIn('nautilus_pids=', smoke)
+        self.assertNotIn('xdotool key alt+F4', smoke)
+        self.assertNotIn('xdotool key --clearmodifiers alt+F4', smoke)
+
+
+    def test_compositor_branch_runs_the_unified_installed_candidate(self):
+        workflow = (ROOT / ".github/workflows/aurora-complete-rc.yml").read_text()
+        self.assertEqual(workflow.count("github.head_ref == 'design/aurora-compositor-glass-rc'"), 3)
+        self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", workflow)
+
+
+    def test_date_menu_glass_runs_in_an_isolated_fresh_session(self):
+        script = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        workflow = (ROOT / ".github/workflows/gnome-visual-smoke.yml").read_text()
+        self.assertIn('if [[ "${LOCALZET_GLASS_MENU_ONLY:-0}" == "1" ]]', script)
+        self.assertIn('aurora-date-menu.png', script)
+        self.assertIn('LOCALZET_GLASS_MENU_ONLY: "1"', workflow)
+        self.assertIn('LOCALZET_GNOME_SMOKE_OUT: out/gnome-glass-menu', workflow)
+        self.assertIn('out/gnome-glass-menu/', workflow)
+
+
+    def test_visible_window_disables_dock_glass_before_tray_and_accessibility_fallback(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        network = smoke.index('grep -F "Localzet Quick Actions: opened com.localzet.Network.desktop"')
+        opaque = smoke.index('grep -F "Localzet Dock: material=opaque"', network)
+        tray = smoke.index('check-nectarlink-tray.py', opaque)
+        self.assertLess(network, opaque)
+        self.assertLess(opaque, tray)
+        self.assertIn("Localzet Dock: material=opaque", dock)
+        self.assertNotIn('Localzet Launcher: activated org.gnome.Nautilus.desktop', smoke)
+
+
+if __name__ == "__main__":
+    unittest.main()
