@@ -118,6 +118,15 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("this._actor.connect('notify::allocation'", dock)
         self.assertIn("this._logAnchorBounds()", dock)
 
+    def test_popup_disposal_guards_against_actor_use_after_free(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("menu.actor.connect('destroy'", source)
+        self.assertIn("menu.box.connect('destroy'", source)
+        self.assertIn("_dispose()", source)
+        self.assertIn("if (this._disposed)", source)
+        self.assertIn("this._effect = null", source)
+        self.assertIn("this._effectActor = null", source)
+
     def test_visual_smoke_uses_measured_launcher_and_current_panel_geometry(self):
         smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
         self.assertIn("Escape Escape", smoke)
