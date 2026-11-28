@@ -43,7 +43,7 @@ export OUT
 eglinfo -p surfaceless -B > "$OUT/eglinfo-surfaceless.txt" 2>&1 || true
 set +e
 dbus-run-session -- bash -s <<'GNOME_TEST'
-  set -u
+  set -ux
   # Mutter devkit displays the nested desktop through PipeWire.
   pipewire > "$OUT/pipewire.log" 2>&1 &
   pipewire_pid=$!
