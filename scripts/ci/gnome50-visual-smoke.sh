@@ -256,13 +256,24 @@ PY
   material="$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed -n 's/.*material=\([^ ]*\).*/\1/p')"
   test "$material" = compositor || { echo "Expected compositor dock material, got: $material" >&2; exit 1; }
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
-  # The panel is still the real GNOME panel. Exercise the real menus and
-  # deliver an original notification through the session's standard bus.
+  # Verify wallpaper-only date-menu glass before any application window is
+  # open. Once a real app window appears, every glass surface must fall back.
   grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
   width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
-  # Click the center of the actual Quick Settings status group in the panel.
   panel_x=$((width - 74))
   panel_y=67
+  notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
+  sleep 2
+  xdotool mousemove --window "$window" "$((width / 2))" "$panel_y" click 1 || exit 1
+  sleep 3
+  grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1
+  import -window root "$OUT/aurora-notifications.png" || exit 1
+  xdotool key Escape || exit 1
+  sleep 2
+  # Quick Settings and the Network app are exercised after the wallpaper-only
+  # menu gate. Keep the real app open; do not terminate a nested Wayland client
+  # or send global key chords to the outer Mutter DevKit window.
   xdotool mousemove --window "$window" "$panel_x" "$panel_y" click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
@@ -282,29 +293,6 @@ PY
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
   import -window root "$OUT/aurora-network.png" || exit 1
-  # The nested Mutter DevKit is the only outer X11 window. Alt+F4 therefore
-  # closes the compositor, not the Wayland application. Terminate only the
-  # disposable Network process and wait for its window to disappear.
-  network_pids="$(pgrep -f '/usr/bin/localzet-network' || true)"
-  test -n "$network_pids" || exit 1
-  while IFS= read -r pid; do
-    [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
-  done <<< "$network_pids"
-  for attempt in $(seq 1 15); do
-    if ! pgrep -f '/usr/bin/localzet-network' >/dev/null; then break; fi
-    sleep 1
-  done
-  ! pgrep -f '/usr/bin/localzet-network' >/dev/null || { echo "Network app did not exit" >&2; exit 1; }
-  sleep 1
-  notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
-  sleep 2
-  xdotool mousemove --window "$window" "$((width / 2))" "$panel_y" click 1 || exit 1
-  sleep 3
-  grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1
-  import -window root "$OUT/aurora-notifications.png" || exit 1
-  xdotool key Escape || exit 1
-  sleep 2
   xdotool windowfocus --sync "$window" key super+a || exit 1
   sleep 5
   import -window root "$OUT/aurora-app-grid.png" || exit 1
@@ -350,19 +338,8 @@ dark = sum(max(p) < 100 for p in patch.getdata())
 if dark < patch.width * patch.height * .65:
     raise SystemExit("Nautilus did not render a dark file-manager surface")
 PY
-  # Close only the test-owned Files process; never send Alt+F4 to the
-  # outer Mutter DevKit window.
-  nautilus_pids="$(pgrep -x nautilus || true)"
-  test -n "$nautilus_pids" || exit 1
-  while IFS= read -r pid; do
-    [[ "$pid" =~ ^[0-9]+$ ]] && kill "$pid" 2>/dev/null || true
-  done <<< "$nautilus_pids"
-  for attempt in $(seq 1 15); do
-    if ! pgrep -x nautilus >/dev/null; then break; fi
-    sleep 1
-  done
-  ! pgrep -x nautilus >/dev/null || { echo "Nautilus did not exit" >&2; exit 1; }
-  rm -rf "$HOME/Localzet-visual-review"
+  # Keep the verified Files window visible through tray and accessibility checks.
+  # The disposable fixture is removed after the nested session has exited.
   sleep 3
   # Verify appindicator and the upstream Qt tray before extension teardown.
   # The devkit session bus is not queried after reloading the shell extension.
