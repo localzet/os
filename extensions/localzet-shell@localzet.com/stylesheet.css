@@ -280,11 +280,15 @@
 .localzet-dock-trash StIcon { color: #B9A5D5; }
 .localzet-dock-high-contrast .localzet-dock-trash StIcon { color: #ffffff; }
 
-/* The active Shell.BlurEffect BACKGROUND samples the wallpaper beneath
- * this translucent content surface. Without the effect, the parent retains
- * the opaque Violet fallback above. */
-.localzet-wallpaper-glass .popup-menu-content {
+/* A dedicated stage-level actor owns the tinted backdrop. Popup content
+ * stays transparent so the sampled wallpaper remains visible beneath it. */
+.localzet-wallpaper-glass-backdrop {
     background-color: rgba(40, 24, 63, .72);
+    border-radius: 12px;
+    box-shadow: none;
+}
+.localzet-wallpaper-glass .popup-menu-content {
+    background-color: transparent;
     border-radius: 12px;
     border: 1px solid rgba(155, 114, 242, .22);
     box-shadow: none;
