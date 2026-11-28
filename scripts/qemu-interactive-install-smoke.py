@@ -253,6 +253,11 @@ class Guest:
                 return
             # Capture the compositor output while the guest is still displaying
             # the document, independently of the XWayland drawable capture.
+            if b"LOCALZET_CANDIDATE_FILES_CAPTURE_READY" in lines and not getattr(self, "_files_qmp_captured", False):
+                self.wake_display()
+                time.sleep(2)
+                self.capture("files")
+                self._files_qmp_captured = True
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
                 self.wake_display()
                 time.sleep(2)
@@ -1129,6 +1134,10 @@ for package in nautilus nautilus-data libnautilus-extension4; do
 done
 test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
 launch_app nautilus /usr/bin/nautilus
+# Capture the real installed GNOME Files window before later Office tests can
+# cover it. The host QMP capture is kept as a separate installed-image artifact.
+printf '\nLOCALZET_CANDIDATE_FILES_CAPTURE_READY\n'
+sleep 10
 printf '\nPASS: installed Executive Files package launched\n'
 """
         marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
@@ -1340,6 +1349,14 @@ def main():
                         if image.startswith(b"\x89PNG\r\n\x1a\n"):
                             installed.screen.with_name("candidate-installed-office-failed.png").write_bytes(image)
                 raise
+            if args.expect_native_files:
+                files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")
+                if not files_screen.is_file():
+                    raise RuntimeError("Missing installed GNOME Files screenshot")
+                metrics = evidence_module().visual_metrics(files_screen)
+                if not evidence_module().meaningful(metrics):
+                    raise RuntimeError("Installed GNOME Files screenshot is blank")
+                print("Installed Files screen evidence:", metrics, flush=True)
             installed.capture("desktop-verified")
             if args.expect_containers:
                 installed.capture("containers-installed")
