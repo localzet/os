@@ -30,7 +30,7 @@ class LockAppearanceTests(unittest.TestCase):
         self.assertIn("DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark", rootfs)
         self.assertIn("DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark", rootfs)
         branding = (ROOT / "docs/design/NATIVE-BRANDING.md").read_text()
-        self.assertIn("GNOME Shell 50's unlock dialog", branding)
+        self.assertIn("GNOME Shell 50's authenticated unlock dialog", branding)
         self.assertIn("org.gnome.desktop.background", branding)
         self.assertNotIn("lock screen reads `org.gnome.desktop.screensaver picture-uri`", branding)
 
