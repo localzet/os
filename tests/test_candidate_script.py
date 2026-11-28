@@ -168,7 +168,9 @@ class CandidateScriptTests(unittest.TestCase):
     def test_rootless_engine_releases_only_prior_test_units(self):
         script = module.installed_script("complete", True)
         self.assertIn('--unit="localzet-candidate-$app"', script)
-        self.assertIn('systemctl --user stop "localzet-candidate-$app.service"', script)
+        self.assertIn("systemctl --user stop localzet-candidate-localzet-containers.service", script)
+        self.assertIn("container rm -f localzet-ui-fixture", script)
+        self.assertIn("systemctl --user is-active --quiet localzet-rootless-docker.service", script)
         self.assertIn('systemctl --user stop "$unit"', script)
         self.assertIn('pgrep -u localzet-test -f /usr/bin/localzet-containers', script)
         self.assertIn("installed unprivileged container executed offline", script)
