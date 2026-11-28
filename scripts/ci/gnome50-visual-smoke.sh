@@ -318,6 +318,21 @@ PY
   # Capture the real GTK file manager with the shipped icon theme.
   # Use a disposable directory, not a user's actual files.
   mkdir -p "$HOME/Localzet-visual-review"/{Documents,Projects,Downloads}
+  # Opening Ptyxis and the Network workspace adds dock items and changes the
+  # centered dock width. Re-read the launcher's live allocation immediately
+  # before the Files click; the earlier geometry is intentionally stale now.
+  button="$(sed -n 's/.*Localzet Launcher: button=\\([0-9,]*\\).*/\\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  dock_bounds="$(sed -n 's/.*Localzet Launcher: dock=\\([0-9,]*\\).*/\\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$button" && test -n "$dock_bounds" || { echo "Launcher geometry unavailable after app launch" >&2; exit 1; }
+  IFS=, read -r button_x button_y button_w button_h <<< "$button"
+  python3 - "$button" "$dock_bounds" <<'PY' || exit 1
+import sys
+bx, by, bw, bh = map(int, sys.argv[1].split(","))
+dx, dy, dw, dh = map(int, sys.argv[2].split(","))
+if bx < dx or by < dy or bx + bw > dx + dw or by + bh > dy + dh:
+    raise SystemExit("Launcher anchor is outside the current dock; refusing stale-coordinate click")
+print("Re-measured launcher anchor after app launch:", (bx, by, bw, bh))
+PY
   # Launch through the nested shell, not the outer Xvfb DISPLAY inherited
   # by this script (the previous test opened Nautilus outside the devkit).
   xdotool windowfocus --sync "$window" mousemove --window "$window" "$((button_x + button_w / 2 + 5))" "$((button_y + button_h / 2 + 51))" click 1 || exit 1
