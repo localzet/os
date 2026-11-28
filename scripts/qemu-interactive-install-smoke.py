@@ -869,7 +869,7 @@ try:
     assert run("run", "--rm", "--network", "none", tag, "/bin/busybox", "echo", "PERSISTENCE_OK") == "PERSISTENCE_OK"
     fixture_id = run("run", "--detach", "--name", "localzet-ui-fixture", "--network", "none",
                      tag, "/bin/busybox", "sh", "-c",
-                     "echo LOCALZET_LOG_FIXTURE; while true; do sleep 1; done")
+                     "echo LOCALZET_LOG_FIXTURE; while true; do /bin/busybox sleep 1; done")
     rows = engine.inventory()
     fixture = next(row for row in rows if row.id == fixture_id and row.name == "localzet-ui-fixture")
     assert fixture.state == "running", fixture
