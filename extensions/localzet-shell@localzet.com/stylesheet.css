@@ -1,5 +1,5 @@
-/* Aurora Professional foundation. Opaque, readable fallback until genuine
- * compositor glass is implemented and measured; not an alpha-only fake. */
+/* Aurora Professional: Shell.BlurEffect BACKGROUND provides true compositor glass.
+ * These opaque styles remain the accessible/performance fallback. */
 .localzet-dock {
     padding: 3px 8px;
     spacing: 4px;
@@ -9,6 +9,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.26);
 }
 .localzet-dock.localzet-dock-wallpaper {
+    background-color: rgba(40, 24, 63, .78);
     box-shadow: none;
     border-color: rgba(155, 114, 242, .22);
 }
@@ -50,6 +51,10 @@
     border-radius: 12px;
     padding: 0;
     box-shadow: 0 6px 16px rgba(0,0,0,.36);
+}
+.localzet-launcher-popup.localzet-wallpaper-glass .popup-menu-content {
+    background-color: rgba(40, 24, 63, .78);
+    box-shadow: none;
 }
 .localzet-launcher { spacing: 9px; padding: 10px; color: #F4EEFF; }
 .localzet-launcher-heading { spacing: 8px; padding: 2px 4px 4px; }
@@ -108,6 +113,7 @@
     box-shadow: 0 4px 14px rgba(0,0,0,.28);
 }
 .localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {
+    background-color: rgba(40, 24, 63, .78);
     box-shadow: none;
     border: 1px solid rgba(155,114,242,.22);
 }
@@ -260,15 +266,6 @@
 .localzet-launcher-search:focus { box-shadow: inset 0 0 0 1px #9B72F2; }
 .localzet-launcher-search { border-color: #34234F; }
 
-/* Experimental true backdrop sampling, not an alpha-only imitation. The
- * square footprint matches the actual compositor effect's rectangular clip. */
-.localzet-launcher-glass .popup-menu-content {
-    background-color: rgba(40, 24, 63, 0.72);
-    border-radius: 0;
-    border: 1px solid rgba(155, 114, 242, 0.22);
-    box-shadow: none;
-}
-.localzet-launcher-glass .localzet-launcher-search { background-color: rgba(40, 24, 63, .88); }
 .localzet-launcher-contrast .popup-menu-content { background-color: #000000; border: 2px solid #ffffff; }
 .localzet-launcher-contrast .localzet-launcher,
 .localzet-launcher-contrast .localzet-launcher-label,
@@ -283,16 +280,13 @@
 .localzet-dock-trash StIcon { color: #B9A5D5; }
 .localzet-dock-high-contrast .localzet-dock-trash StIcon { color: #ffffff; }
 
-/* Preblurred and tinted wallpaper, aligned to the monitor's exact zoom crop.
- * St paints the background inside its native rounded border. Opaque when
- * other windows, another wallpaper, scaling or high contrast are present. */
+/* The active Shell.BlurEffect BACKGROUND samples the wallpaper beneath
+ * this translucent content surface. Without the effect, the parent retains
+ * the opaque Violet fallback above. */
 .localzet-wallpaper-glass .popup-menu-content {
-    background-color: #28183F;
+    background-color: rgba(40, 24, 63, .72);
     border-radius: 12px;
     border: 1px solid rgba(155, 114, 242, .22);
-    /* St's offscreen shadow around an image-backed menu produced a dark
-     * rectangular halo in the real devkit capture. Keep the rounded border,
-     * but do not draw that shadow until the renderer is verified. */
     box-shadow: none;
 }
 .localzet-wallpaper-glass.popup-menu-boxpointer {
