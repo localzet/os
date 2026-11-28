@@ -270,16 +270,14 @@ class Guest:
                 if not evidence_module().meaningful(metrics):
                     raise RuntimeError("GNOME Files window capture is blank or visually insufficient")
                 self._files_qmp_captured = True
-            if marker in lines:
-                print(f"PASS: {marker.decode()}", flush=True)
-                return
-            # Capture the compositor output while the guest is still displaying
-            # the document, independently of the XWayland drawable capture.
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
                 self.wake_display()
                 time.sleep(2)
                 self.capture("office-compositor")
                 self._office_qmp_captured = True
+            if marker in lines:
+                print(f"PASS: {marker.decode()}", flush=True)
+                return
             if any(line.startswith(FAIL) for line in lines) or self.process.poll() is not None:
                 break
             time.sleep(1)
@@ -1160,7 +1158,7 @@ exit 1""" + script[last:]
     if native_files:
         check = r"""
 for package in nautilus nautilus-data libnautilus-extension4; do
-    [[ "$(dpkg-query -W -f='\${Version}' "$package")" == *+localzet1 ]]
+    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet1 ]]
 done
 test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
 files_fixture="$home/Localzet Visual Fixture"
