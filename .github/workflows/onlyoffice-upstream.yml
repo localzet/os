@@ -7,6 +7,7 @@ on:
       - 'scripts/fetch-onlyoffice.py'
       - 'scripts/ci/onlyoffice-*.sh'
       - 'tests/test_onlyoffice_manifest.py'
+      - 'tests/test_onlyoffice_apt_provenance.py'
       - '.github/workflows/onlyoffice-upstream.yml'
 permissions:
   contents: read
@@ -17,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify manifest and downloader
-        run: python3 -m unittest discover -s tests -p test_onlyoffice_manifest.py -v
+        run: python3 -m unittest discover -s tests -p 'test_onlyoffice_*.py' -v
       - name: Install Ubuntu runtime test dependencies
         run: |
           sudo apt-get update
@@ -29,4 +30,22 @@ jobs:
         with:
           name: onlyoffice-review-evidence
           path: out/onlyoffice-review/
+          retention-days: 7
+
+  apt-provenance:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated provenance verifier
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends curl gnupg dpkg-dev
+      - name: Verify the official signed APT repository and exact source package
+        run: |
+          bash -n scripts/ci/onlyoffice-apt-provenance.sh
+          bash scripts/ci/onlyoffice-apt-provenance.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: onlyoffice-apt-provenance-evidence
+          path: out/onlyoffice-apt-provenance/
           retention-days: 7
