@@ -66,7 +66,8 @@ class VisualEvidenceTests(unittest.TestCase):
             draw.polygon([(700, 180), (790, 290), (950, 470), (820, 390)], fill="#d8dce2")
             draw.rectangle((60, 80, 180, 170), fill="#8d7ba8")
             image.save(desktop)
-            blurred = image.filter(ImageFilter.GaussianBlur(radius=18)).point(lambda value: int(value * 0.48))
+            # Mirror GNOME Shell 50's actual unlockDialog.js compositor values.
+            blurred = image.filter(ImageFilter.GaussianBlur(radius=90)).point(lambda value: int(value * 0.65))
             ImageDraw.Draw(blurred).text((520, 340), "23:27", fill="#e8e4f0", stroke_width=2)
             blurred.save(lock)
             gradient = Image.new("RGB", (1280, 800))

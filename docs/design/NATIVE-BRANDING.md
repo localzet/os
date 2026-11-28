@@ -20,9 +20,12 @@ GNOME Shell 50 code path. The GDM greeter remains a separate session and reads
 
 The rootfs configures the user desktop/lock background and GDM greeter
 separately. Installed-image acceptance captures the actual locked session and
-compares the low-frequency wallpaper structure with the pre-lock desktop
-capture, masking the clock, top panel and dock. This catches a flat/default
-gradient while allowing GNOME's intentional dim-and-blur effect.
+compares the wallpaper structure with the pre-lock desktop capture, masking
+the clock, top panel and dock. GNOME Shell 50 applies `BLUR_RADIUS = 90` and
+`BLUR_BRIGHTNESS = 0.65`; CI mirrors those upstream compositor values before
+comparing the images. The deliberately strong blur can look like a smooth
+gradient, so a lower-radius comparison would incorrectly reject a valid lock
+screen.
 
 Upstream implementation: [GNOME Shell 50 unlockDialog.js](https://github.com/GNOME/gnome-shell/blob/50.0/js/ui/unlockDialog.js)
 and [background.js](https://github.com/GNOME/gnome-shell/blob/50.0/js/ui/background.js).

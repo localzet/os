@@ -43,35 +43,52 @@ def document_ink(path: Path):
                and b > g+35 and g > r+25 for r,g,b in page.getdata())
 
 
-def wallpaper_similarity(reference_path: Path, candidate_path: Path) -> float:
-    """Compare wallpaper edge structure across desktop and blurred lock captures.
 
-    GNOME intentionally dims and blurs the lock-screen shield. Compare the
-    low-pass luminance gradients, ignoring the top panel, centered clock/date
-    and bottom dock. A flat/default gradient has no matching two-dimensional scene.
+def wallpaper_similarity(reference_path: Path, candidate_path: Path) -> float:
+    """Compare the expected GNOME 50 lock blur with the installed lock capture.
+
+    GNOME Shell 50's unlockDialog.js applies BLUR_RADIUS=90 and
+    BLUR_BRIGHTNESS=0.65 to a BackgroundManager sourced from
+    org.gnome.desktop.background. The reference is therefore transformed by
+    the real compositor constants before comparison; the observed lock image
+    receives only a small denoise pass. This avoids treating the intentional
+    90px blur as a missing wallpaper while still rejecting the default flat
+    gradient. Clock/date and dock regions are excluded.
     """
-    from PIL import Image, ImageFilter
+    from PIL import Image, ImageEnhance, ImageFilter
+
     with Image.open(reference_path) as source:
         reference = source.convert("RGB")
     with Image.open(candidate_path) as source:
         candidate = source.convert("RGB")
     if reference.size != candidate.size or reference.width < 640 or reference.height < 400:
         raise ValueError("Desktop and lock captures must have the same usable display size")
-    radius = max(6, min(reference.size) * 0.015)
+
+    # The installed-image QEMU capture is 1280x800 at scale factor 1.
+    # Preserve the physical blur radius if the capture resolution changes.
+    scale = reference.height / 800.0
+    expected = reference.filter(ImageFilter.GaussianBlur(radius=90 * scale))
+    expected = ImageEnhance.Brightness(expected).enhance(0.65)
+    observed = candidate.filter(ImageFilter.GaussianBlur(radius=max(2, 5 * scale)))
     size = (64, 40)
-    def luminance(image):
-        return image.filter(ImageFilter.GaussianBlur(radius=radius)).resize(size, Image.Resampling.LANCZOS).convert("L")
-    a = luminance(reference)
-    b = luminance(candidate)
+    a = expected.resize(size, Image.Resampling.LANCZOS).convert("L")
+    b = observed.resize(size, Image.Resampling.LANCZOS).convert("L")
+
     # Central differences, aligned to 38x62 for both derivative directions.
-    ax = [[(a.getpixel((x+1,y)) - a.getpixel((x-1,y))) / 2 for x in range(1,63)] for y in range(40)]
-    bx = [[(b.getpixel((x+1,y)) - b.getpixel((x-1,y))) / 2 for x in range(1,63)] for y in range(40)]
-    ay = [[(a.getpixel((x,y+1)) - a.getpixel((x,y-1))) / 2 for x in range(64)] for y in range(1,39)]
-    by = [[(b.getpixel((x,y+1)) - b.getpixel((x,y-1))) / 2 for x in range(64)] for y in range(1,39)]
-    mask = [[not (y < 1 or (10 <= y < 24 and 17 <= x < 46) or (31 <= y < 37 and 17 <= x < 46))
+    ax = [[(a.getpixel((x+1, y)) - a.getpixel((x-1, y))) / 2
+           for x in range(1, 63)] for y in range(40)]
+    bx = [[(b.getpixel((x+1, y)) - b.getpixel((x-1, y))) / 2
+           for x in range(1, 63)] for y in range(40)]
+    ay = [[(a.getpixel((x, y+1)) - a.getpixel((x, y-1))) / 2
+           for x in range(64)] for y in range(1, 39)]
+    by = [[(b.getpixel((x, y+1)) - b.getpixel((x, y-1))) / 2
+           for x in range(64)] for y in range(1, 39)]
+    mask = [[not (y < 1 or (10 <= y < 24 and 17 <= x < 46)
+                  or (31 <= y < 37 and 17 <= x < 46))
              for x in range(62)] for y in range(38)]
     correlations = []
-    for left, right in ((ax[1:-1], bx[1:-1]), ([row[1:-1] for row in ay], [row[1:-1] for row in by])):
+    for left, right in ((ax[1:-1], bx[1:-1]),
+                        ([row[1:-1] for row in ay], [row[1:-1] for row in by])):
         x_values = [left[y][x] for y in range(38) for x in range(62) if mask[y][x]]
         y_values = [right[y][x] for y in range(38) for x in range(62) if mask[y][x]]
         mean_x, mean_y = sum(x_values) / len(x_values), sum(y_values) / len(y_values)
