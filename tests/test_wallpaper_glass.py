@@ -76,6 +76,15 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("this._materialRefreshPending", dock)
         self.assertIn("this._clearMaterial()", dock)
         self.assertIn("global.display.connect('window-created'", dock)
+        self.assertIn("Localzet Dock: overview hidden", dock)
+        self.assertIn("Localzet Launcher: button=", dock)
+
+    def test_visual_smoke_uses_measured_launcher_button(self):
+        smoke = (ROOT / "scripts/ci/gnome50-visual-smoke.sh").read_text()
+        self.assertIn("Escape Escape", smoke)
+        self.assertIn("Localzet Launcher: button=", smoke)
+        self.assertIn("button_w / 2", smoke)
+        self.assertIn("button_h / 2", smoke)
 
 
 if __name__ == "__main__":
