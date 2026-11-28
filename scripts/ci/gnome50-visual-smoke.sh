@@ -279,9 +279,20 @@ PY
   panel_x=$((width - 20))
   panel_y=67
   xdotool mousemove --window "$window" "$panel_x" "$panel_y" click 1 || exit 1
-  sleep 3
+  sleep 1
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper compositor effect active quickSettings" "$OUT/gnome-shell.log" || exit 1
+  # Mutter 50 may map the native popover after its open-state signal. Wait for
+  # the actual background effect, while retaining a bounded fail-closed gate.
+  for attempt in $(seq 1 12); do
+    if grep -Fq "Localzet Glass: wallpaper compositor effect active quickSettings" "$OUT/gnome-shell.log"; then break; fi
+    if grep -Fq "Localzet Glass: allocation timeout; opaque fallback quickSettings" "$OUT/gnome-shell.log"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Glass: wallpaper compositor effect active quickSettings" "$OUT/gnome-shell.log" || {
+    echo "Quick Settings compositor blur did not attach after mapped allocation" >&2
+    tail -n 40 "$OUT/gnome-shell.log"
+    exit 1
+  }
   grep -F "Localzet Quick Actions: items=2" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-quick-settings.png" || exit 1
   action="$(sed -n 's/.*Localzet Quick Actions: bounds=com.localzet.Network.desktop:\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
