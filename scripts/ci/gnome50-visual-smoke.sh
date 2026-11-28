@@ -240,7 +240,7 @@ PY
   pkill -x ptyxis || true
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[1-9][0-9]* focused=0$" || exit 1
-  material="$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed -n 's/.*material=\\([^ ]*\\).*/\\1/p')"
+  material="$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed -n 's/.*material=\([^ ]*\).*/\1/p')"
   test "$material" = compositor || { echo "Expected compositor dock material, got: $material" >&2; exit 1; }
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   # The panel is still the real GNOME panel. Exercise the real menus and
