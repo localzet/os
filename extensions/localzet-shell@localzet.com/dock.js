@@ -33,6 +33,7 @@ export class LocalzetDock {
             track_hover: true, accessible_name: 'Приложения',
         });
         this._anchor.set_child(this._launcherIcon());
+        this._anchorGeometryId = this._anchor.connect('notify::allocation', () => this._logAnchorBounds());
         this._actor.add_child(this._anchor);
         this._divider = new St.Widget({style_class: 'localzet-dock-divider', y_align: Clutter.ActorAlign.CENTER});
         this._actor.add_child(this._divider);
@@ -322,8 +323,11 @@ export class LocalzetDock {
             GLib.source_remove(this._materialIdle);
         if (this._anchorGeometrySource)
             GLib.source_remove(this._anchorGeometrySource);
+        if (this._anchorGeometryId)
+            this._anchor.disconnect(this._anchorGeometryId);
         this._materialIdle = 0;
         this._anchorGeometrySource = 0;
+        this._anchorGeometryId = 0;
         this._materialRefreshPending = false;
         this._clearMaterial();
         for (const [object, id] of this._connections)
