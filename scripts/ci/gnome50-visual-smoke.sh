@@ -66,14 +66,19 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   python3 - "$OUT/blur-probe.png" <<'PY' || exit 1
 from PIL import Image
 import sys
-size = (1440, 900)
+width, height = 1440, 900
 cell = 4
-image = Image.new("RGB", size)
+image = Image.new("RGB", (width, height))
 pixels = image.load()
-for y in range(size[1]):
-    for x in range(size[0]):
-        value = 255 if ((x // cell) + (y // cell)) % 2 else 0
-        pixels[x, y] = (value, value, value)
+for y in range(height):
+    for x in range(width):
+        # A low-frequency blue/violet/orange field survives glass blur.
+        # A 4 px checkerboard rides above it to detect alpha-only tint.
+        r = 30 + int(95 * x / (width - 1))
+        g = 24 + int(55 * y / (height - 1))
+        b = 88 + int(55 * (width - 1 - x) / (width - 1))
+        detail = 255 if ((x // cell) + (y // cell)) % 2 else 0
+        pixels[x, y] = tuple(int(base * .72 + detail * .28) for base in (r, g, b))
 image.save(sys.argv[1])
 PY
   wallpaper="file://$OUT/blur-probe.png"
@@ -179,9 +184,8 @@ PY
   # tint alone retains about 45% of its contrast; true radius-18 blur must
   # suppress it below 15%. The sample is inside the blank right pane.
   python3 - "$OUT" "$bounds" <<'PY' > "$OUT/glass-quality.txt" || exit 1
-from PIL import Image
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 from pathlib import Path
-from statistics import pstdev
 import sys
 out = Path(sys.argv[1])
 x, y, w, h = map(int, sys.argv[2].split(","))
@@ -189,16 +193,27 @@ region = (x + int(w*.48) + 5, y + int(h*.48) + 51,
           x + int(w*.89) + 5, y + int(h*.77) + 51)
 base = Image.open(out / "aurora-panel-experimental.png").convert("L").crop(region)
 glass = Image.open(out / "aurora-glass-empty.png").convert("L").crop(region)
-base_contrast = pstdev(list(base.getdata()))
-glass_contrast = pstdev(list(glass.getdata()))
-if base_contrast < 60:
-    raise SystemExit("Checkerboard probe is not visible in the base capture")
-ratio = glass_contrast / base_contrast
-print("Checkerboard contrast ratio:", round(ratio, 3))
-print("Compositor glass verdict:", "wallpaper-only background blur verified" if ratio < .15
+def sigma(image):
+    return ImageStat.Stat(image).stddev[0]
+base_low = base.filter(ImageFilter.GaussianBlur(radius=6))
+glass_low = glass.filter(ImageFilter.GaussianBlur(radius=6))
+base_high = ImageChops.difference(base, base_low)
+glass_high = ImageChops.difference(glass, glass_low)
+base_high_sigma, glass_high_sigma = sigma(base_high), sigma(glass_high)
+base_low_sigma, glass_low_sigma = sigma(base_low), sigma(glass_low)
+if base_high_sigma < 10 or base_low_sigma < 10:
+    raise SystemExit("Blur fixture lacks independent high- and low-frequency detail")
+high_ratio = glass_high_sigma / base_high_sigma
+low_ratio = glass_low_sigma / base_low_sigma
+print("High-frequency detail ratio:", round(high_ratio, 3))
+print("Low-frequency color retention:", round(low_ratio, 3))
+print("Compositor glass verdict:",
+      "wallpaper-only background blur verified" if high_ratio < .15 and low_ratio > .05
       else "unverified blur; do not promote")
-if ratio >= .15:
-    raise SystemExit("Shell.BlurEffect BACKGROUND did not suppress the checkerboard below 15%")
+if high_ratio >= .15:
+    raise SystemExit("Shell.BlurEffect BACKGROUND retained checkerboard detail")
+if low_ratio <= .05:
+    raise SystemExit("Glass became an opaque tint; low-frequency wallpaper detail vanished")
 PY
   cat "$OUT/glass-quality.txt"
   xdotool key --clearmodifiers ctrl+a || exit 1
