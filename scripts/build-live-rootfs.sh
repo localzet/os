@@ -63,6 +63,14 @@ fi
 if [[ "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]]; then
     packages+=",docker.io,docker-compose-v2,gir1.2-vte-3.91,openssh-client,uidmap,slirp4netns,fuse-overlayfs,rootlesskit,busybox-static"
 fi
+# X11 window discovery is required only by the disposable installed-Containers
+# screenshot test. Never add these diagnostic tools to a normal product image.
+if [[ "${LOCALZET_CONTAINERS_WINDOW_TEST:-0}" == 1 ]]; then
+    [[ "${LOCALZET_DISPOSABLE_VM:-0}" == 1 && "${LOCALZET_EXPERIMENTAL_CONTAINERS:-0}" == 1 ]] || {
+        echo "Containers window-test tools are restricted to disposable Containers CI" >&2; exit 2;
+    }
+    packages+=",xdotool,x11-utils"
+fi
 # Only signed Ubuntu archive packages are included by this experimental
 # profile path. Never execute an upstream URL or silently mark it complete.
 if [[ -n "${LOCALZET_ARCHIVE_PROFILE:-}" ]]; then

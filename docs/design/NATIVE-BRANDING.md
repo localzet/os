@@ -10,6 +10,26 @@ dconf database ahead of distribution defaults. The build checks the effective
 key. It does not alter authentication or disable password requirements.
 Capture the real GDM screen after installing and rebooting.
 
+GNOME Shell 50's authenticated unlock dialog creates its screen-shield
+`BackgroundManager` without overriding its settings schema. The upstream
+`BackgroundManager` default is `org.gnome.desktop.background`, so the lock
+shield inherits the user's desktop `picture-uri` / `picture-uri-dark`; the
+legacy `org.gnome.desktop.screensaver picture-uri` key is not used by this
+GNOME Shell 50 code path. The GDM greeter remains a separate session and reads
+`org.gnome.desktop.background` from the dedicated `gdm` dconf profile.
+
+The rootfs configures the user desktop/lock background and GDM greeter
+separately. Installed-image acceptance captures the actual locked session and
+compares the wallpaper structure with the pre-lock desktop capture, masking
+the clock, top panel and dock. GNOME Shell 50 applies `BLUR_RADIUS = 90` and
+`BLUR_BRIGHTNESS = 0.65`; CI mirrors those upstream compositor values before
+comparing the images. The deliberately strong blur can look like a smooth
+gradient, so a lower-radius comparison would incorrectly reject a valid lock
+screen.
+
+Upstream implementation: [GNOME Shell 50 unlockDialog.js](https://github.com/GNOME/gnome-shell/blob/50.0/js/ui/unlockDialog.js)
+and [background.js](https://github.com/GNOME/gnome-shell/blob/50.0/js/ui/background.js).
+
 The OS exposes `LOGO=localzet-logo` and packages the original logo in hicolor.
 GNOME Control Center 50 upstream reads LOGO **only if** distributor-logo
 build options are absent. Ubuntu may compile absolute logo paths; the

@@ -68,9 +68,11 @@ picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-options='zoom'
 
+# GNOME Shell 50's unlock dialog uses org.gnome.desktop.background.
+# The GDM greeter reads the same schema from its separate dconf profile.
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
-accent-color='blue'
+accent-color='purple'
 icon-theme='Aurora'
 
 [org/gnome/nautilus/icon-view]
@@ -113,6 +115,12 @@ mkdir -p "$root/etc/dconf/db/localzet-gdm.d"
 cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 [org/gnome/login-screen]
 logo='/usr/share/localzet/brand/localzet-greeter.png'
+
+# The greeter has its own dconf profile; do not inherit Ubuntu's gradient.
+[org/gnome/desktop/background]
+picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
+picture-options='zoom'
 EOF
 test -s "$root/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg"
 test -s "$root/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg"
@@ -120,6 +128,10 @@ test -s "$root/usr/share/backgrounds/localzet/executive-dusk.jpg"
 test -f "$root/usr/share/doc/budgie-wallpapers-resolute/copyright"
 chroot "$root" dconf update
 test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.login-screen logo)" = "'/usr/share/localzet/brand/localzet-greeter.png'"
+test "$(chroot "$root" env DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(chroot "$root" env DCONF_PROFILE=user GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
+test "$(chroot "$root" env DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test -f "$root/usr/share/icons/hicolor/scalable/apps/localzet-logo.svg"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.py" "$root/usr/lib/localzet/localzet-live-ready.py"
 install -D -m 0644 "$LOCALZET_REPO/packaging/live/localzet-live-ready.service" "$root/usr/lib/systemd/system/localzet-live-ready.service"
