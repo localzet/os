@@ -102,10 +102,10 @@ export class WallpaperGlass {
                 brightness: EFFECT_BRIGHTNESS,
                 mode: Shell.BlurMode.BACKGROUND,
             });
-            // PopupMenu.actor is a BoxPointer wrapper. Its actual translucent
-            // surface is menu.box; attaching the background effect there makes
-            // the sampled rectangle match the painted surface exactly.
-            const effectActor = this._menu.box ?? this._menu.actor;
+            // Mutter's BACKGROUND blur must live on the outer BoxPointer
+            // actor so it samples the wallpaper behind the complete popup.
+            // Applying it only to menu.box leaves the visible surface sharp.
+            const effectActor = this._menu.actor;
             effectActor.add_effect_with_name(EFFECT_NAME, effect);
             effect.queue_repaint();
             this._effectActor = effectActor;
@@ -129,7 +129,7 @@ export class WallpaperGlass {
 
     _restore() {
         if (this._effect) {
-            (this._effectActor ?? this._menu.box ?? this._menu.actor).remove_effect(this._effect);
+            (this._effectActor ?? this._menu.actor).remove_effect(this._effect);
             this._effect = null;
             this._effectActor = null;
         }

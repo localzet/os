@@ -119,10 +119,12 @@ screenshots and automated tests are necessary but not sufficient for release.
 ### Current glass implementation (visual acceptance pending)
 
 The panel uses GNOME Shell's native `Shell.BlurEffect` in BACKGROUND mode.
-The dock, launcher popup and native Quick Settings/date menus now use the same
-Mutter compositor effect; the old pre-blurred `-glass.jpg` derivative has
-been removed. Effects are attached to the actual Shell actors and removed
-again when their owner closes or the display/session state changes.
+The dock and native Quick Settings/date menus use the same Mutter compositor
+effect. The launcher attaches the effect to the outer PopupMenu BoxPointer
+actor, not only its inner content box: the first optical run showed that the
+inner-only attachment left the visible backdrop sharp. The old pre-blurred
+`-glass.jpg` derivative has been removed. Effects are removed again when
+their owner closes or the display/session state changes.
 
 Wallpaper-only glass is deliberately conservative. It is eligible only when
 the exact bundled wallpaper is selected with zoom, there is one monitor at
@@ -646,3 +648,16 @@ checks that the measured anchor is inside the current dock before clicking,
 and targets the actual Quick Settings/date-menu panel region. The next run
 must pass and its real captures must be inspected; no final glass or Aurora
 visual approval is claimed.
+
+
+### Compositor blur optical correction — 2026-11-28
+
+The follow-up GNOME 50 run (Actions 46097123389) confirmed that the launcher
+anchor is now remeasured after the dock expands and the real popup opens.
+However, its measured tint-normalized detail ratio was 0.998, so the launcher
+backdrop remained effectively sharp despite the effect marker. Inspection
+identified the effect on the inner `menu.box` as the wrong attachment point.
+Move the Mutter BACKGROUND effect to the outer PopupMenu actor, retain the
+existing optical threshold, and rerun the real screenshot test. This is a
+measured failure, not a visual pass; the opaque fallback and hardware review
+remain mandatory.

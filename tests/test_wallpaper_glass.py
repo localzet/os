@@ -46,12 +46,20 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertNotIn("background-image", wallpaper)
         self.assertNotIn("executive-dusk-glass.jpg", wallpaper)
         self.assertIn("add_effect_with_name", wallpaper)
-        self.assertIn("this._menu.box ?? this._menu.actor", wallpaper)
+        self.assertIn("const effectActor = this._menu.actor", wallpaper)
+        self.assertNotIn("this._menu.box", wallpaper)
         self.assertIn("effect.queue_repaint()", wallpaper)
         self.assertIn("effect.get_mode()", wallpaper)
         self.assertIn("add_effect_with_name", dock)
         self.assertIn("effect.queue_repaint()", dock)
         self.assertIn("effect.get_mode()", dock)
+
+    def test_launcher_blur_is_attached_to_the_outer_popup_actor(self):
+        source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
+        self.assertIn("const effectActor = this._menu.actor", source)
+        self.assertNotIn("this._menu.box", source)
+        self.assertIn("effectActor.add_effect_with_name(EFFECT_NAME, effect)", source)
+        self.assertIn("(this._effectActor ?? this._menu.actor).remove_effect", source)
 
     def test_accessibility_and_performance_fallbacks_remain(self):
         source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
