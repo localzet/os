@@ -133,13 +133,13 @@ PY
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
-  grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Glass: panel background effect active allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   # The launcher effect is intentionally attached only after its popup opens.
   # Assert it after the real dock click below, not during startup.
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   test -s extensions/localzet-shell@localzet.com/icons/launcher.svg || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
-  grep -F "Localzet Dock: material=compositor" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Dock: material=compositor .*allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
@@ -166,7 +166,7 @@ PY
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=4" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper compositor effect active launcher" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Glass: wallpaper compositor effect active launcher .*allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   # Capture a blank catalogue for a reproducible optical comparison.
   xdotool type --clearmodifiers localzet-no-such-app-1739 || exit 1
@@ -325,6 +325,8 @@ PY
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
   sleep 2
   grep -F "Localzet Glass: launcher opaque fallback" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: panel opaque fallback high-contrast" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
   gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
   gnome-extensions disable localzet-shell@localzet.com || exit 1
