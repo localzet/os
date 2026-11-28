@@ -604,3 +604,28 @@ approved violet; Localzet GTK and Shell components use the exact token values.
 Orange remains reserved for primary actions and meaningful focus. This
 restoration does not change functional acceptance gates or claim final visual
 approval; fresh installed-image captures and owner review remain required.
+
+
+### True compositor glass — Mutter background blur (2026-11-28)
+
+The current Aurora implementation uses GNOME/Mutter's actual
+\`Shell.BlurEffect\` with \`Shell.BlurMode.BACKGROUND\` (radius 18, brightness
+0.85) on the panel, dock, launcher and native Quick Settings/date menus. This
+is a compositor effect, not a pre-blurred wallpaper JPEG, CSS alpha alone or
+a screenshot/window-capture pipeline. The static \`executive-dusk-glass.jpg\`
+derivative has been removed; only the 4K licensed wallpaper is generated.
+
+Dock, launcher and native menus enable wallpaper-only blur only when the
+approved Localzet wallpaper is active, the desktop is empty, the session is
+unlocked, the overview is hidden, one monitor is present and the scale factor
+is 1. Any visible window, alternate wallpaper, unsupported scale/layout,
+high contrast or \`LOCALZET_DISABLE_GLASS=1\` removes the effect and restores the
+opaque surface. The real GNOME panel retains its native background blur.
+No window contents, passwords or screen pixels are captured by Localzet code.
+
+The GNOME 50 devkit gate now requires the real compositor effect markers,
+measures spatial detail reduction in the actual launcher screenshot, verifies
+the dock's opaque transition when a real application window opens, and checks
+the high-contrast fallback. This is still a disposable devkit test; the
+installed ISO screenshots and GPU/performance behavior remain separate
+acceptance gates.

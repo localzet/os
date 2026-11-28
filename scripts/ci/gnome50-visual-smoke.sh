@@ -108,11 +108,11 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: launcher wallpaper candidate" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active launcher" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   test -s extensions/localzet-shell@localzet.com/icons/launcher.svg || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
-  grep -F "Localzet Dock: material=wallpaper" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: material=compositor" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
@@ -124,7 +124,7 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=4" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper material active" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active launcher" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   # Capture a blank catalogue for a reproducible optical comparison.
   xdotool type --clearmodifiers localzet-no-such-app-1739 || exit 1
@@ -158,10 +158,10 @@ def detail(values, width):
                  if (i+1)%width)
 ratio = detail(b, glass.width)/max(.001, detail(a, base.width)*abs(slope))
 print("Tint-normalized horizontal detail ratio:", round(ratio, 3))
-print("Wallpaper-only visual verdict:", "detail-reduction candidate" if ratio < .65
+print("Compositor glass verdict:", "wallpaper-only background blur verified" if ratio < .65
       else "unverified blur; do not promote")
 if ratio >= .65:
-    raise SystemExit("Wallpaper material has insufficient optical detail reduction")
+    raise SystemExit("Shell.BlurEffect BACKGROUND has insufficient optical detail reduction")
 PY
   cat "$OUT/glass-quality.txt"
   xdotool key --clearmodifiers ctrl+a || exit 1
@@ -203,7 +203,7 @@ PY
   pkill -x ptyxis || true
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[1-9][0-9]* focused=0$" || exit 1
-  test "$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed 's/.*material=//')" = wallpaper || exit 1
+  test "$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed 's/.*material=//')" = compositor || exit 1
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   # The panel is still the real GNOME panel. Exercise the real menus and
   # deliver an original notification through the session's standard bus.
@@ -212,7 +212,7 @@ PY
   xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper material active quickSettings" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active quickSettings" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Quick Actions: items=2" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-quick-settings.png" || exit 1
   action="$(sed -n 's/.*Localzet Quick Actions: bounds=com.localzet.Network.desktop:\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
@@ -235,7 +235,7 @@ PY
   xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper material active dateMenu" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-notifications.png" || exit 1
   xdotool key Escape || exit 1
   sleep 2

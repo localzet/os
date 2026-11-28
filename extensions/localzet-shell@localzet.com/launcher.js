@@ -46,7 +46,6 @@ export class AuroraLauncher {
         Main.uiGroup.add_child(this._menu.actor);
         this._menu.actor.hide();
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
-        this._glass = null;
         this._glassExperimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
         this._contrastId = this._contrast.connect('changed::high-contrast', () => this._refreshMaterial());
         this._refreshMaterial();
@@ -166,21 +165,11 @@ export class AuroraLauncher {
     }
 
     _refreshMaterial() {
-        if (this._glass) {
-            this._menu.actor.remove_effect(this._glass);
-            this._glass = null;
-        }
-        this._menu.actor.remove_style_class_name('localzet-launcher-glass');
         const highContrast = this._contrast.get_boolean('high-contrast');
         this._menu.actor[highContrast ? 'add_style_class_name' : 'remove_style_class_name']('localzet-launcher-contrast');
-        if (highContrast || !this._glassExperimental) {
-            if (this._glassExperimental)
-                console.log('Localzet Glass: launcher opaque fallback');
-            return;
-        }
-        // Do not enable the failed dynamic effect. WallpaperGlass provides
-        // a separately identified, clipped static material on empty desktops.
-        console.log('Localzet Glass: launcher wallpaper candidate');
+        if (highContrast || GLib.getenv('LOCALZET_DISABLE_GLASS') === '1')
+            console.log('Localzet Glass: launcher opaque fallback');
+        // WallpaperGlass owns the real Shell.BlurEffect BACKGROUND lifecycle.
     }
 
     _activate(app) {
@@ -293,10 +282,6 @@ export class AuroraLauncher {
             GLib.source_remove(this._geometrySource);
         this._geometrySource = 0;
         this._contrast.disconnect(this._contrastId);
-        if (this._glass) {
-            this._menu.actor.remove_effect(this._glass);
-            this._glass = null;
-        }
         this._appSystem.disconnect(this._appsId);
         this._favorites.disconnect(this._favoritesId);
         this._menu.disconnect(this._openId);

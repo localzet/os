@@ -5,7 +5,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {AuroraLauncher} from './launcher.js';
-import {wallpaperMaterial, wallpaperPath} from './wallpaper-glass.js';
+import {wallpaperGlassAvailable, wallpaperPath} from './wallpaper-glass.js';
 
 export class LocalzetDock {
     constructor(path) {
@@ -16,6 +16,7 @@ export class LocalzetDock {
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._materialPath = wallpaperPath();
         this._materialActive = false;
+        this._glassEffect = null;
         this._appSystem = Shell.AppSystem.get_default();
         this._tracker = Shell.WindowTracker.get_default();
         this._rows = new Map();
@@ -236,14 +237,32 @@ export class LocalzetDock {
     _refreshMaterial() {
         if (!this._actor)
             return;
-        const style = wallpaperMaterial(this._actor, this._background, this._interface, this._settings, this._materialPath);
-        const active = !!style;
-        if (this._actor.get_style() !== style)
-            this._actor.set_style(style);
-        if (active !== this._materialActive) {
-            this._actor[active ? 'add_style_class_name' : 'remove_style_class_name']('localzet-dock-wallpaper');
-            this._materialActive = active;
-            console.log('Localzet Dock: material=' + (active ? 'wallpaper' : 'opaque'));
+        const active = wallpaperGlassAvailable(
+            this._background, this._interface, this._settings, this._materialPath);
+        if (active && !this._glassEffect) {
+            try {
+                const effect = new Shell.BlurEffect({
+                    radius: 18,
+                    brightness: 0.85,
+                    mode: Shell.BlurMode.BACKGROUND,
+                });
+                this._actor.add_effect_with_name('localzet-dock-background-blur', effect);
+                this._glassEffect = effect;
+                this._actor.add_style_class_name('localzet-dock-wallpaper');
+                this._materialActive = true;
+                console.log('Localzet Dock: material=compositor');
+            } catch (error) {
+                this._actor.remove_style_class_name('localzet-dock-wallpaper');
+                this._materialActive = false;
+                console.warn('Localzet Dock: opaque fallback: ' + error);
+            }
+        } else if (!active && (this._glassEffect || this._materialActive)) {
+            if (this._glassEffect)
+                this._actor.remove_effect(this._glassEffect);
+            this._glassEffect = null;
+            this._actor.remove_style_class_name('localzet-dock-wallpaper');
+            this._materialActive = false;
+            console.log('Localzet Dock: material=opaque');
         }
     }
 
@@ -259,6 +278,10 @@ export class LocalzetDock {
             object.disconnect(id);
         this._connections = [];
         this._launcher.destroy();
+        if (this._glassEffect) {
+            this._actor.remove_effect(this._glassEffect);
+            this._glassEffect = null;
+        }
         for (const id of this._rows.keys())
             this._removeRow(id);
         this._strut.destroy();
