@@ -68,7 +68,7 @@ picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-options='zoom'
 
-# GNOME reads a separate picture URI for the authenticated lock screen.
+# The authenticated lock screen has a separate picture URI.
 [org/gnome/desktop/screensaver]
 picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-options='zoom'
@@ -119,7 +119,7 @@ cat > "$root/etc/dconf/db/localzet-gdm.d/00-brand" <<'EOF'
 [org/gnome/login-screen]
 logo='/usr/share/localzet/brand/localzet-greeter.png'
 
-# The greeter has its own dconf profile; do not inherit Ubuntu's gradient.
+# GDM uses its own dconf profile; do not inherit Ubuntu's gradient.
 [org/gnome/desktop/background]
 picture-uri='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
 picture-uri-dark='file:///usr/share/backgrounds/localzet/executive-dusk.jpg'
