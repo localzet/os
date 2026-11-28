@@ -23,6 +23,8 @@ export DISPLAY=:99
 export XDG_SESSION_TYPE=wayland
 export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
+# Force Cogl through the Mesa GL3 path instead of a no-op/surfaceless fallback.
+export COGL_DRIVER=gl3
 export GDK_BACKEND=x11
 export GTK_A11Y=none
 # Test-only override inherited by the isolated D-Bus activation services too.
@@ -37,7 +39,8 @@ xvfb_pid=$!
 trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
 export OUT
-export LOCALZET_TEST_WALLPAPER="$OUT/executive-dusk.jpg"
+# Record the software EGL implementation used by the nested compositor.
+eglinfo -p surfaceless -B > "$OUT/eglinfo-surfaceless.txt" 2>&1 || true
 set +e
 dbus-run-session -- bash -s <<'GNOME_TEST'
   set -u
@@ -53,12 +56,28 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   # while a newly created app icon is unresolved (firstIcon.icon is null).
   gsettings set org.gnome.shell disable-user-extensions false || exit 1
   gsettings set org.gnome.shell enabled-extensions "['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']" || exit 1
-  # Use the actual shipped wallpaper and approved Aurora appearance from the
-  # first frame; the devkit's default blue test background is not Aurora.
+  # Keep the canonical landscape artwork in the evidence bundle as a design
+  # asset; the checkerboard below is used only for the optical test.
   test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
   test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
   python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
-  wallpaper="file://$OUT/executive-dusk.jpg"
+  # A high-frequency checkerboard is a test fixture, not a design/reference
+  # image. It distinguishes real BACKGROUND blur from a translucent tint.
+  python3 - "$OUT/blur-probe.png" <<'PY' || exit 1
+from PIL import Image
+import sys
+size = (1440, 900)
+cell = 4
+image = Image.new("RGB", size)
+pixels = image.load()
+for y in range(size[1]):
+    for x in range(size[0]):
+        value = 255 if ((x // cell) + (y // cell)) % 2 else 0
+        pixels[x, y] = (value, value, value)
+image.save(sys.argv[1])
+PY
+  wallpaper="file://$OUT/blur-probe.png"
+  export LOCALZET_TEST_WALLPAPER="$OUT/blur-probe.png"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-options zoom || exit 1
@@ -102,29 +121,52 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
     echo "No nested compositor window" >&2
     exit 1
   fi
-  xdotool windowfocus --sync "$window" key Escape || exit 1
-  sleep 3
+  xdotool windowfocus --sync "$window" || exit 1
+  # The first Escape clears the overview search; the second closes Overview.
+  xdotool key --clearmodifiers Escape Escape || exit 1
+  for attempt in $(seq 1 10); do
+    if grep -Fq "Localzet Dock: overview hidden" "$OUT/gnome-shell.log"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Dock: overview hidden" "$OUT/gnome-shell.log" || { echo "Overview did not close" >&2; exit 1; }
+  sleep 2
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
-  grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: launcher wallpaper candidate" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Glass: panel background effect active allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
+  # The launcher effect is intentionally attached only after its popup opens.
+  # Assert it after the real dock click below, not during startup.
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   test -s extensions/localzet-shell@localzet.com/icons/launcher.svg || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
-  grep -F "Localzet Dock: material=wallpaper" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Dock: material=compositor .*allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
   # dock position reported by the extension, not fixed monitor coordinates.
-  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
-  test -n "$dock" || exit 1
-  IFS=, read -r dock_x dock_y <<< "$dock"
-  xdotool mousemove --window "$window" "$((dock_x + 27))" "$((dock_y + 72))" click 1 || exit 1
+  button=""
+  for attempt in $(seq 1 10); do
+    button="$(sed -n 's/.*Localzet Launcher: button=\([0-9,]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+    [[ -n "$button" ]] && break
+    sleep 1
+  done
+  test -n "$button" || { echo "Launcher anchor geometry unavailable" >&2; exit 1; }
+  IFS=, read -r button_x button_y button_w button_h <<< "$button"
+  dock_bounds="$(sed -n 's/.*Localzet Launcher: dock=\([0-9,]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+  test -n "$dock_bounds" || { echo "Dock geometry unavailable" >&2; exit 1; }
+  python3 - "$button" "$dock_bounds" <<'PY' || exit 1
+import sys
+bx, by, bw, bh = map(int, sys.argv[1].split(","))
+dx, dy, dw, dh = map(int, sys.argv[2].split(","))
+if bx < dx or by < dy or bx + bw > dx + dw or by + bh > dy + dh:
+    raise SystemExit("Launcher anchor is outside the current dock; refusing stale-coordinate click")
+print("Current launcher anchor is inside the current dock:", (bx, by, bw, bh))
+PY
+  xdotool mousemove --window "$window" "$((button_x + button_w / 2 + 5))" "$((button_y + button_h / 2 + 51))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=4" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper material active" "$OUT/gnome-shell.log" || exit 1
+  grep -E "Localzet Glass: wallpaper compositor effect active launcher .*allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-launcher.png" || exit 1
   # Capture a blank catalogue for a reproducible optical comparison.
   xdotool type --clearmodifiers localzet-no-such-app-1739 || exit 1
@@ -133,35 +175,30 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   import -window root "$OUT/aurora-glass-empty.png" || exit 1
   bounds="$(sed -n 's/.*Localzet Launcher: bounds=\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
   test -n "$bounds" || exit 1
-  # Compare spatial detail to the original screen, not darkness alone.
-  # Mutter devkit screenshot content is offset by its outer window frame.
+  # Measure suppression of a deterministic 4 px checkerboard. A translucent
+  # tint alone retains about 45% of its contrast; true radius-18 blur must
+  # suppress it below 15%. The sample is inside the blank right pane.
   python3 - "$OUT" "$bounds" <<'PY' > "$OUT/glass-quality.txt" || exit 1
 from PIL import Image
 from pathlib import Path
-from statistics import fmean
+from statistics import pstdev
 import sys
 out = Path(sys.argv[1])
 x, y, w, h = map(int, sys.argv[2].split(","))
-# Blank right pane, well inside the rectangular menu, away from text.
 region = (x + int(w*.48) + 5, y + int(h*.48) + 51,
           x + int(w*.89) + 5, y + int(h*.77) + 51)
 base = Image.open(out / "aurora-panel-experimental.png").convert("L").crop(region)
 glass = Image.open(out / "aurora-glass-empty.png").convert("L").crop(region)
-a, b = list(base.getdata()), list(glass.getdata())
-ma, mb = fmean(a), fmean(b)
-variance = sum((v-ma)**2 for v in a)
-if variance <= 0:
-    raise SystemExit("Insufficient wallpaper detail in sample")
-slope = sum((u-ma)*(v-mb) for u,v in zip(a,b))/variance
-def detail(values, width):
-    return fmean(abs(values[i+1]-values[i]) for i in range(len(values)-1)
-                 if (i+1)%width)
-ratio = detail(b, glass.width)/max(.001, detail(a, base.width)*abs(slope))
-print("Tint-normalized horizontal detail ratio:", round(ratio, 3))
-print("Wallpaper-only visual verdict:", "detail-reduction candidate" if ratio < .65
+base_contrast = pstdev(list(base.getdata()))
+glass_contrast = pstdev(list(glass.getdata()))
+if base_contrast < 60:
+    raise SystemExit("Checkerboard probe is not visible in the base capture")
+ratio = glass_contrast / base_contrast
+print("Checkerboard contrast ratio:", round(ratio, 3))
+print("Compositor glass verdict:", "wallpaper-only background blur verified" if ratio < .15
       else "unverified blur; do not promote")
-if ratio >= .65:
-    raise SystemExit("Wallpaper material has insufficient optical detail reduction")
+if ratio >= .15:
+    raise SystemExit("Shell.BlurEffect BACKGROUND did not suppress the checkerboard below 15%")
 PY
   cat "$OUT/glass-quality.txt"
   xdotool key --clearmodifiers ctrl+a || exit 1
@@ -179,8 +216,8 @@ PY
     sleep 1
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
-  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
-  import -window root "$OUT/aurora-dock-running.png" || exit 1
+  # Ptyxis process state alone is not proof of a mapped window. The actual
+  # opaque transition is asserted below after Nautilus has a real window.
   # Verify the built-in XTerm palette using actual ANSI background swatches.
   # Black pixels alone would also match the compositor's outer background.
   xdotool type --clearmodifiers --delay 1 "printf '\\033[41m        \\033[42m        \\033[43m        \\033[44m        \\033[45m        \\033[46m        \\033[0m\\n'" || exit 1
@@ -203,16 +240,20 @@ PY
   pkill -x ptyxis || true
   sleep 5
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=0 items=[1-9][0-9]* focused=0$" || exit 1
-  test "$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed 's/.*material=//')" = wallpaper || exit 1
+  material="$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed -n 's/.*material=\\([^ ]*\\).*/\\1/p')"
+  test "$material" = compositor || { echo "Expected compositor dock material, got: $material" >&2; exit 1; }
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   # The panel is still the real GNOME panel. Exercise the real menus and
   # deliver an original notification through the session's standard bus.
   grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
   width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
-  xdotool mousemove --window "$window" "$((width - 44))" 58 click 1 || exit 1
+  # Click the center of the actual Quick Settings status group in the panel.
+  panel_x=$((width - 74))
+  panel_y=67
+  xdotool mousemove --window "$window" "$panel_x" "$panel_y" click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper material active quickSettings" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active quickSettings" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Quick Actions: items=2" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-quick-settings.png" || exit 1
   action="$(sed -n 's/.*Localzet Quick Actions: bounds=com.localzet.Network.desktop:\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
@@ -232,10 +273,10 @@ PY
   sleep 3
   notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
   sleep 2
-  xdotool mousemove --window "$window" "$((width / 2))" 58 click 1 || exit 1
+  xdotool mousemove --window "$window" "$((width / 2))" "$panel_y" click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper material active dateMenu" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-notifications.png" || exit 1
   xdotool key Escape || exit 1
   sleep 2
@@ -251,9 +292,7 @@ PY
   mkdir -p "$HOME/Localzet-visual-review"/{Documents,Projects,Downloads}
   # Launch through the nested shell, not the outer Xvfb DISPLAY inherited
   # by this script (the previous test opened Nautilus outside the devkit).
-  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
-  IFS=, read -r dock_x dock_y <<< "$dock"
-  xdotool windowfocus --sync "$window" mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  xdotool windowfocus --sync "$window" mousemove --window "$window" "$((button_x + button_w / 2 + 5))" "$((button_y + button_h / 2 + 51))" click 1 || exit 1
   sleep 2
   xdotool type --clearmodifiers nautilus || exit 1
   sleep 2
@@ -265,6 +304,12 @@ PY
   grep -F "Localzet Launcher: activated org.gnome.Nautilus.desktop" "$OUT/gnome-shell.log" || exit 1
   pgrep -x nautilus || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  # Require the real Nautilus window to make the wallpaper-only dock opaque.
+  for attempt in $(seq 1 30); do
+    if grep -Fq "Localzet Dock: material=opaque" "$OUT/gnome-shell.log"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
   xdotool key --clearmodifiers ctrl+l || exit 1
   xdotool type --clearmodifiers "$HOME/Localzet-visual-review" || exit 1
   xdotool key Return || exit 1
@@ -287,6 +332,8 @@ PY
   gsettings set org.gnome.desktop.a11y.interface high-contrast true || exit 1
   sleep 2
   grep -F "Localzet Glass: launcher opaque fallback" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Glass: panel opaque fallback high-contrast" "$OUT/gnome-shell.log" || exit 1
+  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-high-contrast.png" || exit 1
   gsettings set org.gnome.desktop.a11y.interface high-contrast false || exit 1
   gnome-extensions disable localzet-shell@localzet.com || exit 1
