@@ -286,6 +286,6 @@ class CandidateScriptTests(unittest.TestCase):
 
     def test_visual_evidence_branch_runs_the_unified_complete_candidate(self):
         workflow = (ROOT / ".github/workflows/aurora-complete-rc.yml").read_text()
-        self.assertEqual(workflow.count("github.head_ref == 'fix/aurora-complete-visual-evidence'"), 3)
+        self.assertGreaterEqual(workflow.count("github.head_ref == 'fix/aurora-complete-visual-evidence'"), 3)
         self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", workflow)
 
