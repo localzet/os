@@ -54,6 +54,8 @@ def ensure_ci_kvm_access(device: Path = Path("/dev/kvm")) -> bool:
     print("KVM remains unavailable after ACL refresh; this guest will use TCG", flush=True)
     return False
 LOCK_RECHECK = b"LOCALZET_CANDIDATE_STILL_LOCKED"
+GLASS_BASE_READY = b"LOCALZET_CANDIDATE_GLASS_BASE_READY"
+GLASS_READY = b"LOCALZET_CANDIDATE_GLASS_CAPTURE_READY"
 
 
 def foreign_fixture_module():
@@ -103,6 +105,7 @@ class Guest:
             "-device", "nvme,drive=target,serial=LZ_TEST_NVME",
             "-fw_cfg", f"name=opt/localzet/test,file={script}",
             "-fw_cfg", f"name=opt/localzet/fixture,file={args.fixture}",
+            "-fw_cfg", f"name=opt/localzet/glass-probe,file={args.glass_fixture}",
         ]
         if not live and args.fixture32 is not None:
             command += ["-fw_cfg", f"name=opt/localzet/fixture32,file={args.fixture32}",
@@ -280,6 +283,59 @@ class Guest:
                 time.sleep(2)
                 self.capture("office-compositor")
                 self._office_qmp_captured = True
+            if GLASS_BASE_READY in lines and not getattr(self, "_glass_base_captured", False):
+                self.wake_display()
+                time.sleep(2)
+                self.capture("glass-base")
+                base_path = self.screen.with_name(f"{self.screen.stem}-glass-base.ppm")
+                if not base_path.is_file() or base_path.stat().st_size == 0:
+                    raise RuntimeError("Missing installed-session glass baseline")
+                from PIL import Image
+                with Image.open(base_path) as base_image:
+                    width, height = base_image.size
+                if width < 600 or height < 400:
+                    raise RuntimeError("Installed-session glass baseline is too small")
+                # The installed 1280x800 panel places the Localzet launcher
+                # button at this stable, visible point; scale to QMP absolute
+                # coordinates instead of assuming a fixed guest resolution.
+                self.click(round(124 / (width - 1) * 32767),
+                           round(16 / (height - 1) * 32767))
+                self._glass_base_captured = True
+            if GLASS_READY in lines and not getattr(self, "_glass_qmp_captured", False):
+                self.wake_display()
+                time.sleep(2)
+                self.capture("glass-compositor")
+                path = self.screen.with_name(f"{self.screen.stem}-glass-compositor.ppm")
+                base_path = self.screen.with_name(f"{self.screen.stem}-glass-base.ppm")
+                geometry_lines = [line for line in lines
+                                  if line.startswith(b"LOCALZET_CANDIDATE_GLASS_GEOMETRY ")]
+                if len(geometry_lines) != 1:
+                    raise RuntimeError("Missing or duplicate installed glass geometry")
+                values = geometry_lines[0].split()
+                if len(values) != 5:
+                    raise RuntimeError("Invalid installed glass geometry")
+                x, y, width, height = map(int, values[1:])
+                if width < 400 or height < 300:
+                    raise RuntimeError("Installed launcher is too small for optical acceptance")
+                if not path.is_file() or not base_path.is_file():
+                    raise RuntimeError("Missing installed compositor glass screenshots")
+                from PIL import Image
+                from statistics import pstdev
+                region = (x + int(width * .48), y + int(height * .48),
+                          x + int(width * .89), y + int(height * .77))
+                with Image.open(base_path) as base_source, Image.open(path) as glass_source:
+                    base = base_source.convert("L").crop(region)
+                    glass = glass_source.convert("L").crop(region)
+                    base_contrast = pstdev(list(base.getdata()))
+                    glass_contrast = pstdev(list(glass.getdata()))
+                if base_contrast < 60:
+                    raise RuntimeError("Installed wallpaper checkerboard is not visible")
+                ratio = glass_contrast / base_contrast
+                print("Installed QEMU compositor glass checkerboard contrast ratio:",
+                      round(ratio, 3), flush=True)
+                if ratio >= .15:
+                    raise RuntimeError("Installed Shell.BlurEffect BACKGROUND did not suppress the checkerboard below 15%")
+                self._glass_qmp_captured = True
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
                 return
@@ -1310,6 +1366,54 @@ if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
     exit 2
 fi
 journalctl -b "_UID=$uid" --no-pager -o cat | grep -F "Localzet Lock: visual stylesheet active"
+# Verify actual Mutter BACKGROUND blur in the installed Wayland session.
+# Only this disposable QEMU rootfs is modified; the branded wallpaper is restored
+# before the lock-screen test and before the guest is shut down.
+glass_probe=/sys/firmware/qemu_fw_cfg/by_name/opt/localzet/glass-probe/raw
+test -s "$glass_probe"
+wallpaper=/usr/share/backgrounds/localzet/executive-dusk.jpg
+wallpaper_backup=/run/localzet-candidate-check/executive-dusk.original
+cp -- "$wallpaper" "$wallpaper_backup"
+gsettings_user() {
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings "$@"
+}
+restore_glass_wallpaper() {
+    install -o root -g root -m 0644 "$wallpaper_backup" "$wallpaper"
+    gsettings_user set org.gnome.desktop.background picture-uri 'file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+    gsettings_user set org.gnome.desktop.background picture-uri-dark 'file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+    sleep 1
+    gsettings_user set org.gnome.desktop.background picture-uri "file://$wallpaper"
+    gsettings_user set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
+}
+trap restore_glass_wallpaper EXIT
+for app in nautilus localzet-containers localzet-settings localzet-windows localzet-connect ptyxis gnome-control-center; do
+    runuser -u localzet-test -- pkill -u "$uid" -x "$app" 2>/dev/null || true
+done
+runuser -u localzet-test -- pkill -u "$uid" -f 'onlyoffice-desktopeditors|DesktopEditors' 2>/dev/null || true
+install -o root -g root -m 0644 "$glass_probe" "$wallpaper"
+gsettings_user set org.gnome.desktop.background picture-uri 'file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+gsettings_user set org.gnome.desktop.background picture-uri-dark 'file:///usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg'
+sleep 1
+gsettings_user set org.gnome.desktop.background picture-uri "file://$wallpaper"
+gsettings_user set org.gnome.desktop.background picture-uri-dark "file://$wallpaper"
+test "$(gsettings_user get org.gnome.desktop.background picture-uri-dark)" = "'file://$wallpaper'"
+test "$(gsettings_user get org.gnome.desktop.background picture-options)" = "'zoom'"
+sleep 3
+printf '\\nLOCALZET_CANDIDATE_GLASS_BASE_READY\\n'
+# The QMP host captures the untouched checkerboard and clicks the real panel
+# navigation item. The launcher then must report a mapped Mutter blur effect.
+sleep 12
+journal="$(journalctl -b "_UID=$uid" --no-pager -o cat)"
+bounds="$(sed -n 's/.*Localzet Launcher: bounds=\\([0-9,]*\\).*/\\1/p' <<< "$journal" | tail -n 1)"
+test -n "$bounds"
+grep -F "Localzet Glass: wallpaper compositor effect active launcher mode=1" <<< "$journal"
+printf 'LOCALZET_CANDIDATE_GLASS_GEOMETRY %s\\n' "$bounds"
+printf '\\nLOCALZET_CANDIDATE_GLASS_CAPTURE_READY\\n'
+sleep 10
+restore_glass_wallpaper
+trap - EXIT
+
 printf '\nLOCALZET_CANDIDATE_LOCKED\n'
 # Keep the validation session alive for the host to wake the display.
 sleep 25
@@ -1352,6 +1456,15 @@ def main():
         setattr(args, name, path)
     args.logs = args.logs.resolve()
     args.logs.mkdir(parents=True, exist_ok=False)
+    from PIL import Image
+    args.glass_fixture = args.logs / "glass-probe.png"
+    probe = Image.new("RGB", (1440, 900))
+    pixels = probe.load()
+    for y in range(900):
+        for x in range(1440):
+            value = 255 if ((x // 4) + (y // 4)) % 2 else 0
+            pixels[x, y] = (value, value, value)
+    probe.save(args.glass_fixture, format="PNG")
     args.fixture = args.fixture.resolve(strict=True)
     if not args.fixture.is_file():
         parser.error("fixture must be a regular file")
@@ -1492,6 +1605,7 @@ def main():
                         raise RuntimeError("GNOME Files and ONLYOFFICE screenshots are identical; refusing false visual evidence")
             installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
             if args.expect_executive_review:
+                installed.wait(GLASS_READY, 60)
                 installed.wait(LOCK_READY, 45)
                 installed.visual_capture("native-lock", wake=True)
                 installed.wait(LOCK_RECHECK, 45)
