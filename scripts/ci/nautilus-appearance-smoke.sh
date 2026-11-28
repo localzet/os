@@ -90,8 +90,8 @@ with Image.open(sys.argv[1]) as im:
     im = im.convert("RGB")
     pixels = Counter(im.getdata())
     assert im.width >= 800 and im.height >= 500, im.size
-    counts = [pixels[tuple(bytes.fromhex(c))] for c in ("202124", "343539", "303136")]
-    print(sys.argv[2], "Executive palette pixels:", counts)
+    counts = [pixels[tuple(bytes.fromhex(c))] for c in ("10091E", "28183F", "34234F")]
+    print(sys.argv[2], "Aurora Violet × Ember palette pixels:", counts)
     if sys.argv[2] == "dark":
         assert all(n > 1000 for n in counts), counts
     else:
@@ -121,7 +121,7 @@ print("Grid/list content mean absolute RGB difference:", diff)
 assert max(diff) > 3, "List screenshot is still the grid"
 if sys.argv[3] == "dark":
     pixels = Counter(view.getdata())
-    assert pixels[(32,33,36)] > 1000 and pixels[(52,53,57)] > 1000
+    assert pixels[(16,9,30)] > 1000 and pixels[(40,24,63)] > 1000
     # The actual grid has folder glyphs centered around x=280,407,...
     # List icons must occupy multiple vertical rows near the sidebar.
     # Search a broad strip, then cluster contiguous nonempty scan lines.
