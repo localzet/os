@@ -185,19 +185,24 @@ class Guest:
         ]})
         time.sleep(1)
 
-    def wake_display(self):
-        # Pointer motion only; no clicks, keys, password or unlock request.
+    def wake_display(self, reveal_lock=False):
+        # Pointer motion only for normal captures. A locked GNOME session may
+        # power down the virtual output even with idle blanking disabled; a
+        # harmless modifier key wakes the greeter without typing a character,
+        # submitting a password or unlocking the session.
         self.qmp("input-send-event", {"events": [
             {"type": "abs", "data": {"axis": "x", "value": 16384}},
             {"type": "abs", "data": {"axis": "y", "value": 16384}},
         ]})
+        if reveal_lock:
+            self.key("shift")
 
     def visual_capture(self, stage, region=None, wake=False, attempts=8):
         evidence = evidence_module()
         path = self.screen.with_name(f"{self.screen.stem}-{stage}.ppm")
         for attempt in range(attempts):
             if wake:
-                self.wake_display()
+                self.wake_display(reveal_lock=True)
             time.sleep(2)
             self.capture(stage)
             if not path.is_file():
