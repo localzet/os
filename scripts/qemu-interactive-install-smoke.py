@@ -280,22 +280,24 @@ class Guest:
                 time.sleep(2)
                 self.capture("containers-installed")
                 path = self.screen.with_name(f"{self.screen.stem}-containers-installed.ppm")
-                geometry_lines = [line for line in lines
-                                  if line.startswith(b"LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY ")]
-                if len(geometry_lines) != 1:
-                    raise RuntimeError("Missing or duplicate Localzet Containers window geometry")
-                values = geometry_lines[0].split()
-                if len(values) != 5:
-                    raise RuntimeError("Invalid Localzet Containers window geometry")
-                x, y, width, height = map(int, values[1:])
-                if width < 900 or height < 540:
-                    raise RuntimeError("Localzet Containers window is too small for installed-image evidence")
-                if not path.is_file() or path.stat().st_size == 0:
-                    raise RuntimeError("Missing Localzet Containers compositor capture")
-                metrics = evidence_module().visual_metrics(path, (x, y, width, height))
-                print("Installed Containers window evidence:", metrics, flush=True)
+                metrics = evidence_module().visual_metrics(path, (0, 0, 1280, 800))
+                print("Installed Containers full-screen evidence:", metrics, flush=True)
                 if not evidence_module().meaningful(metrics):
-                    raise RuntimeError("Installed Containers window capture is blank or visually insufficient")
+                    raise RuntimeError("Installed Containers compositor capture is blank or visually insufficient")
+                ocr = subprocess.run(
+                    ["tesseract", str(path), "stdout", "-l", "eng"],
+                    check=True, capture_output=True, text=True, timeout=30,
+                ).stdout.casefold()
+                required = (
+                    "localzet-candidate-visual-fixture",
+                    "localzet-installed-rootless-fixture:ci",
+                    "running",
+                    "compose",
+                )
+                missing = [token for token in required if token not in ocr]
+                if missing:
+                    raise RuntimeError(f"Installed Containers screenshot OCR is missing {missing}: {ocr[:1200]}")
+                print("PASS: OCR confirms the actual populated rootless Containers window", flush=True)
                 self._containers_qmp_captured = True
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
                 self.wake_display()
@@ -900,85 +902,38 @@ for unit in docker.service docker.socket containerd.service; do
         echo "Rootless test changed system Docker: $unit"; exit 2
     fi
 done
-launch_app_x11 localzet-candidate-localzet-containers /usr/bin/localzet-containers \
-    /usr/bin/localzet-containers
+launch_app localzet-containers /usr/bin/localzet-containers
 cat > /run/localzet-candidate-check/containers-window.sh <<'CONTAINERSWINDOW'
 #!/bin/bash
 set -Eeuo pipefail
 [[ $EUID != 0 ]]
-# Explicitly activate the registered GTK application on the authenticated session bus.
-busctl --user status com.localzet.Containers >/dev/null 2>&1 || true
-gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers \
-    --method org.freedesktop.Application.Activate '{}' >/dev/null 2>&1 || true
-window=""
+# GTK4 uses the authenticated GNOME Wayland session. Do not force XWayland:
+# native Wayland surfaces are intentionally absent from the X11 window tree.
+owner_pid=""
+unit_pid=""
 for attempt in $(seq 1 45); do
-    for candidate in $(xdotool search --onlyvisible --name 'Containers' 2>/dev/null || true); do
-        identity="$(xdotool getwindowclassname "$candidate" 2>/dev/null || true)"
-        title="$(xdotool getwindowname "$candidate" 2>/dev/null || true)"
-        grep -Eiq 'localzet.*containers|com\.localzet\.Containers' <<< "$identity" || continue
-        grep -Fq 'Containers' <<< "$title" || continue
-        geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
-        width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
-        height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
-        [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
-        (( width >= 900 && height >= 540 )) || continue
-        timeout 2 xdotool windowactivate "$candidate" || continue
-        for poll in $(seq 1 5); do
-            if [[ "$(xdotool getactivewindow 2>/dev/null || true)" == "$candidate" ]]; then
-                window="$candidate"
-                break
-            fi
-            sleep 0.2
-        done
-        [[ -n "$window" ]] && break
-    done
-    [[ -n "$window" ]] && break
+    owner_pid="$(busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
+        org.freedesktop.DBus GetConnectionUnixProcessID s com.localzet.Containers 2>/dev/null | awk '{print $2}' || true)"
+    unit_pid="$(systemctl --user show -p MainPID --value localzet-candidate-localzet-containers.service)"
+    if [[ "$owner_pid" =~ ^[1-9][0-9]*$ && "$unit_pid" == "$owner_pid" ]]; then break; fi
     sleep 1
 done
-if [[ -z "$window" ]]; then
-    echo "No visible, activatable Localzet Containers window" >&2
-    echo "Graphical environment exported by the authenticated user manager:" >&2
-    systemctl --user show-environment | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|XDG_SESSION_TYPE|XDG_CURRENT_DESKTOP)=' >&2 || true
-    echo "Containers process environment:" >&2
-    pid="$(pgrep -u "$(id -u)" -f '/usr/bin/localzet-containers' | head -n 1 || true)"
-    if [[ -n "$pid" && -r "/proc/$pid/environ" ]]; then
-        tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY|GDK_BACKEND|GSK_RENDERER|GTK_A11Y|XDG_RUNTIME_DIR|DBUS_SESSION_BUS_ADDRESS)=' >&2 || true
-    fi
-    echo "GTK application D-Bus registration:" >&2
-    busctl --user status com.localzet.Containers >&2 || true
-    gdbus introspect --session --dest com.localzet.Containers --object-path /com/localzet/Containers >&2 || true
-    gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers --method org.freedesktop.Application.Activate '{}' >&2 || true
-    echo "X11 root properties and tree:" >&2
-    echo "Containers unit status and journal:" >&2
-    systemctl --user status localzet-candidate-localzet-containers.service --no-pager >&2 || true
-    journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 150 >&2 || true
-    echo "Visible X11 windows:" >&2
-    for candidate in $(xdotool search --onlyvisible --name '.*' 2>/dev/null || true); do
-        printf 'window=%s class=%s title=%s\n' "$candidate" \
-            "$(xdotool getwindowclassname "$candidate" 2>/dev/null || true)" \
-            "$(xdotool getwindowname "$candidate" 2>/dev/null || true)" >&2
-    done
-    exit 2
-fi
-title="$(xdotool getwindowname "$window")"
-grep -Fq 'Containers' <<< "$title"
-identity="$(xdotool getwindowclassname "$window")"
-grep -Eiq 'localzet.*containers|com\.localzet\.Containers' <<< "$identity"
-geometry="$(xdotool getwindowgeometry --shell "$window")"
-x="$(sed -n 's/^X=//p' <<< "$geometry")"
-y="$(sed -n 's/^Y=//p' <<< "$geometry")"
-width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
-height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
-[[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ && "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
-(( width >= 900 && height >= 540 ))
-test "$(xdotool getactivewindow)" = "$window"
-printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY %s %s %s %s\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n' "$x" "$y" "$width" "$height"
+[[ "$owner_pid" =~ ^[1-9][0-9]*$ && "$unit_pid" == "$owner_pid" ]]
+ps -p "$owner_pid" -o args= | grep -Fq '/usr/bin/localzet-containers'
+gdbus introspect --session --dest com.localzet.Containers --object-path /com/localzet/Containers |
+    grep -Fq 'org.freedesktop.Application'
+gdbus call --session --dest com.localzet.Containers --object-path /com/localzet/Containers \
+    --method org.freedesktop.Application.Activate '{}' >/dev/null
+sleep 5
+systemctl --user is-active --quiet localzet-candidate-localzet-containers.service
+[[ "$(systemctl --user show -p MainPID --value localzet-candidate-localzet-containers.service)" == "$owner_pid" ]]
+printf 'LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY 0 0 1280 800\nLOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY\n'
 sleep 10
 CONTAINERSWINDOW
 chmod 0755 /run/localzet-candidate-check/containers-window.sh
 sleep 5
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
-    systemd-run --user --wait --pipe --collect --setenv=DISPLAY=:0 --setenv=GDK_BACKEND=x11 --setenv=WAYLAND_DISPLAY= /bin/bash /run/localzet-candidate-check/containers-window.sh
+    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/containers-window.sh
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
     systemctl --user stop localzet-candidate-localzet-containers.service || true
 runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
@@ -993,7 +948,7 @@ for args in (["rm", "-f", "localzet-candidate-visual-fixture"],
                    stderr=subprocess.DEVNULL, timeout=60)
 change("stop")
 '
-printf 'PASS: installed Containers window captured with a live rootless fixture; system daemon disabled\n'
+printf 'PASS: installed native Wayland Containers window OCR-verified with a live rootless fixture; system daemon disabled\\n'
 """
         script = script.replace("printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'", check + "printf '\\nLOCALZET_CANDIDATE_DESKTOP\\n'")
         assert "installed Containers window captured" in script

@@ -96,7 +96,7 @@ jobs:
         id: assemble
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools gdisk dosfstools e2fsprogs qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 wixl python3-pil
+          sudo apt-get install -y curl mmdebstrap ubuntu-keyring squashfs-tools xorriso grub-common grub-pc-bin grub-efi-amd64-bin mtools gdisk dosfstools e2fsprogs qemu-system-x86 ovmf acl gcc-mingw-w64-x86-64 gcc-mingw-w64-i686 wixl python3-pil tesseract-ocr
           if test -c /dev/kvm; then sudo setfacl -m "u:$(id -un):rw" /dev/kvm; fi
           mkdir -p dist
           preload=()
