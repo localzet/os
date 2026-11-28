@@ -101,7 +101,7 @@ def describe(data: dict) -> str:
                      f'{controller["vendor"]}:{controller["device"]} · '
                      f'драйвер {controller["driver"] or "не привязан"}')
         if controller["intel_raid_or_vmd"]:
-            lines.append("  Возможен Intel RST/VMD: не переключайте режим в BIOS/UEFI без резервной копии и проверенного плана восстановления Windows.")
+            lines.append("  Обнаружен Intel RAID/VMD (возможен RST/VMD): не переключайте режим в BIOS/UEFI без резервной копии и проверенного плана восстановления Windows.")
     return "\n".join(lines) or "Накопители и контроллеры не обнаружены."
 
 
