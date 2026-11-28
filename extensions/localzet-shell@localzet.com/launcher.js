@@ -46,7 +46,6 @@ export class AuroraLauncher {
         Main.uiGroup.add_child(this._menu.actor);
         this._menu.actor.hide();
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
-        this._glassExperimental = GLib.getenv('LOCALZET_EXPERIMENTAL_GLASS') === '1';
         this._contrastId = this._contrast.connect('changed::high-contrast', () => this._refreshMaterial());
         this._refreshMaterial();
         this._wallpaperGlass = new WallpaperGlass(this._menu);
@@ -140,7 +139,8 @@ export class AuroraLauncher {
                 global.stage.set_key_focus(this._entry.clutter_text);
                 console.log('Localzet Launcher: opened');
                 // Report geometry after the menu allocation/animation.
-                if (this._glassExperimental && !this._geometrySource)
+                // Geometry contains no user data and is also required by the installed-session optical smoke.
+                if (!this._geometrySource)
                     this._geometrySource = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 450, () => {
                         this._geometrySource = 0;
                         if (this._menu?.isOpen) {
