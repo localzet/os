@@ -233,6 +233,12 @@ class CandidateScriptTests(unittest.TestCase):
                         self.assertFalse(module.ensure_ci_kvm_access(device))
             run.assert_not_called()
 
+    def test_interactive_files_capture_has_ocr_dependency(self):
+        workflow = (ROOT / ".github/workflows/interactive-install-candidate.yml").read_text()
+        self.assertIn("python3-pil tesseract-ocr", workflow)
+        qemu = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
+        self.assertIn('["tesseract", str(path), "stdout", "-l", "eng"]', qemu)
+
     def test_installed_files_capture_preserves_active_window_identity(self):
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn("Do not move the pointer", source)
