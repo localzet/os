@@ -102,8 +102,15 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
     echo "No nested compositor window" >&2
     exit 1
   fi
-  xdotool windowfocus --sync "$window" key Escape || exit 1
-  sleep 3
+  xdotool windowfocus --sync "$window" || exit 1
+  # The first Escape clears the overview search; the second closes Overview.
+  xdotool key --clearmodifiers Escape Escape || exit 1
+  for attempt in $(seq 1 10); do
+    if grep -Fq "Localzet Dock: overview hidden" "$OUT/gnome-shell.log"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Dock: overview hidden" "$OUT/gnome-shell.log" || { echo "Overview did not close" >&2; exit 1; }
+  sleep 2
   gnome-extensions list --enabled > "$OUT/enabled.txt"
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
@@ -118,10 +125,15 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
   # Devkit window content starts under its title bar; use the actual
   # dock position reported by the extension, not fixed monitor coordinates.
-  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
-  test -n "$dock" || exit 1
-  IFS=, read -r dock_x dock_y <<< "$dock"
-  xdotool mousemove --window "$window" "$((dock_x + 27))" "$((dock_y + 72))" click 1 || exit 1
+  button=""
+  for attempt in $(seq 1 10); do
+    button="$(sed -n 's/.*Localzet Launcher: button=\([0-9,]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
+    [[ -n "$button" ]] && break
+    sleep 1
+  done
+  test -n "$button" || { echo "Launcher anchor geometry unavailable" >&2; exit 1; }
+  IFS=, read -r button_x button_y button_w button_h <<< "$button"
+  xdotool mousemove --window "$window" "$((button_x + button_w / 2 + 5))" "$((button_y + button_h / 2 + 51))" click 1 || exit 1
   sleep 3
   grep -F "Localzet Launcher: opened" "$OUT/gnome-shell.log" || exit 1
   grep -F "Localzet Launcher: columns=4 rows=4" "$OUT/gnome-shell.log" || exit 1
@@ -252,9 +264,7 @@ PY
   mkdir -p "$HOME/Localzet-visual-review"/{Documents,Projects,Downloads}
   # Launch through the nested shell, not the outer Xvfb DISPLAY inherited
   # by this script (the previous test opened Nautilus outside the devkit).
-  dock="$(sed -n 's/.*Localzet Launcher: dock=\([0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
-  IFS=, read -r dock_x dock_y <<< "$dock"
-  xdotool windowfocus --sync "$window" mousemove --window "$window" "$((dock_x + 33))" "$((dock_y + 75))" click 1 || exit 1
+  xdotool windowfocus --sync "$window" mousemove --window "$window" "$((button_x + button_w / 2 + 5))" "$((button_y + button_h / 2 + 51))" click 1 || exit 1
   sleep 2
   xdotool type --clearmodifiers nautilus || exit 1
   sleep 2
