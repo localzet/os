@@ -10,6 +10,22 @@ from localzet.installer.preflight import read_lsblk, inspect_disk
 EFI_TYPE = "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
 
 
+def classify_controller(pci_class: str, driver: str | None) -> str:
+    """Classify a PCI storage controller without probing or changing firmware."""
+    code = pci_class.lower()
+    if driver == "vmd":
+        return "Intel VMD"
+    if code.startswith("0x0104"):
+        return "RAID"
+    if code.startswith("0x0106"):
+        return "AHCI/SATA"
+    if code.startswith("0x0108"):
+        return "NVMe"
+    if code.startswith("0x0107"):
+        return "SAS"
+    return "Storage controller"
+
+
 def storage_controllers(root: Path = Path("/sys/bus/pci/devices")) -> list[dict]:
     result = []
     for device in sorted(root.glob("*")):
@@ -21,10 +37,17 @@ def storage_controllers(root: Path = Path("/sys/bus/pci/devices")) -> list[dict]
         except OSError:
             continue
         if cls.startswith("0x01") or driver == "vmd":
-            result.append({"pci": device.name, "class": cls, "vendor": vendor,
-                           "device": identifier, "driver": driver,
-                           "intel_raid_or_vmd": vendor == "0x8086" and
-                           (cls.startswith("0x0104") or driver == "vmd")})
+            intel_raid_or_vmd = vendor == "0x8086" and (
+                cls.startswith("0x0104") or driver == "vmd")
+            result.append({
+                "pci": device.name,
+                "class": cls,
+                "vendor": vendor,
+                "device": identifier,
+                "driver": driver,
+                "type": classify_controller(cls, driver),
+                "intel_raid_or_vmd": intel_raid_or_vmd,
+            })
     return result
 
 
@@ -73,11 +96,12 @@ def describe(data: dict) -> str:
                          " (существующая загрузка требует сохранения)")
     if not data["internal_disks_visible"]:
         lines.append("Ядро не обнаружило внутренних накопителей.")
-        if data["intel_rst_possible"]:
-            lines.append("Обнаружен Intel RAID/VMD. Не отключайте RST без подготовки Windows.")
     for controller in data["controllers"]:
-        lines.append(f'PCI {controller["pci"]} · {controller["vendor"]}:{controller["device"]} · '
+        lines.append(f'PCI {controller["pci"]} · {controller["type"]} · '
+                     f'{controller["vendor"]}:{controller["device"]} · '
                      f'драйвер {controller["driver"] or "не привязан"}')
+        if controller["intel_raid_or_vmd"]:
+            lines.append("  Возможен Intel RST/VMD: не переключайте режим в BIOS/UEFI без резервной копии и проверенного плана восстановления Windows.")
     return "\n".join(lines) or "Накопители и контроллеры не обнаружены."
 
 
