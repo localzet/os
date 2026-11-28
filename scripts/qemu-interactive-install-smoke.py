@@ -1134,6 +1134,18 @@ for package in nautilus nautilus-data libnautilus-extension4; do
 done
 test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
 launch_app nautilus /usr/bin/nautilus
+nautilus_bus=0
+for attempt in $(seq 1 45); do
+    if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        busctl --user list --no-pager | awk '$1 == "org.gnome.Nautilus" { found = 1 } END { exit !found }'; then
+        nautilus_bus=1
+        break
+    fi
+    sleep 1
+done
+[[ "$nautilus_bus" == 1 ]]
+printf 'PASS: Nautilus D-Bus owner present in authenticated session\n'
 # Capture the real installed GNOME Files window before later Office tests can
 # cover it. The host QMP capture is kept as a separate installed-image artifact.
 printf '\nLOCALZET_CANDIDATE_FILES_CAPTURE_READY\n'
