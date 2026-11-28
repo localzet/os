@@ -215,5 +215,11 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertNotIn('xdotool key --clearmodifiers alt+F4', smoke)
 
 
+    def test_compositor_branch_runs_the_unified_installed_candidate(self):
+        workflow = (ROOT / ".github/workflows/aurora-complete-rc.yml").read_text()
+        self.assertEqual(workflow.count("github.head_ref == 'design/aurora-compositor-glass-rc'"), 3)
+        self.assertIn("github.base_ref == 'integration/aurora-professional-candidate'", workflow)
+
+
 if __name__ == "__main__":
     unittest.main()
