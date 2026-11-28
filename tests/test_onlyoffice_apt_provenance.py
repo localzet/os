@@ -23,6 +23,17 @@ class OnlyOfficeAptProvenanceTests(unittest.TestCase):
         self.assertIn("DSC_VERSION", script)
         self.assertIn("source_dsc_sha256", script)
 
+    def test_missing_source_index_is_a_successful_fail_closed_audit(self):
+        script = (ROOT / "scripts/ci/onlyoffice-apt-provenance.sh").read_text()
+        self.assertIn("block_expected", script)
+        self.assertIn("Skipping acquire of configured file 'main/source/Sources'", script)
+        self.assertIn('"authenticated": status == "verified"', script)
+        binary_check = script.index('[[ "$BINARY_SHA" == "$EXPECTED_BINARY_SHA" ]]')
+        blocked = script.index('block_expected "The signed ONLYOFFICE InRelease has no main/source/Sources index')
+        source_download = script.index('apt_private source "$SOURCE_PACKAGE=$SOURCE_VERSION"')
+        self.assertLess(binary_check, blocked)
+        self.assertLess(blocked, source_download)
+
     def test_no_global_or_unauthenticated_apt_trust(self):
         script = (ROOT / "scripts/ci/onlyoffice-apt-provenance.sh").read_text().lower()
         for forbidden in ("trusted=yes", "allow-unauthenticated=true", "apt-key add",
