@@ -46,7 +46,12 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertNotIn("background-image", wallpaper)
         self.assertNotIn("executive-dusk-glass.jpg", wallpaper)
         self.assertIn("add_effect_with_name", wallpaper)
+        self.assertIn("this._menu.box ?? this._menu.actor", wallpaper)
+        self.assertIn("effect.queue_repaint()", wallpaper)
+        self.assertIn("effect.get_mode()", wallpaper)
         self.assertIn("add_effect_with_name", dock)
+        self.assertIn("effect.queue_repaint()", dock)
+        self.assertIn("effect.get_mode()", dock)
 
     def test_accessibility_and_performance_fallbacks_remain(self):
         source = (ROOT / "extensions/localzet-shell@localzet.com/wallpaper-glass.js").read_text()
@@ -54,12 +59,23 @@ class WallpaperGlassTests(unittest.TestCase):
             "LOCALZET_DISABLE_GLASS",
             "high-contrast",
             "Main.sessionMode.isLocked",
+            "Main.sessionMode.isGreeter",
+            "watch(Main.sessionMode, 'updated')",
             "Main.overview.visible",
             "monitors.length !== 1",
             "scale_factor !== 1",
             "list_windows()",
         ):
             self.assertIn(required, source)
+
+
+    def test_dock_fails_closed_before_rechecking_window_state(self):
+        dock = (ROOT / "extensions/localzet-shell@localzet.com/dock.js").read_text()
+        self.assertIn("Main.sessionMode.connect('updated'", dock)
+        self.assertIn("this._scheduleMaterialRefresh()", dock)
+        self.assertIn("this._materialRefreshPending", dock)
+        self.assertIn("this._clearMaterial()", dock)
+        self.assertIn("global.display.connect('window-created'", dock)
 
 
 if __name__ == "__main__":
