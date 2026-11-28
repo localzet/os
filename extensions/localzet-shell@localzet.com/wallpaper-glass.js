@@ -95,6 +95,7 @@ export class WallpaperGlass {
             return;
         try {
             const effect = new Shell.BlurEffect({
+                name: EFFECT_NAME,
                 radius: EFFECT_RADIUS,
                 brightness: EFFECT_BRIGHTNESS,
                 mode: Shell.BlurMode.BACKGROUND,

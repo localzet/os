@@ -242,6 +242,7 @@ export class LocalzetDock {
         if (active && !this._glassEffect) {
             try {
                 const effect = new Shell.BlurEffect({
+                    name: 'localzet-dock-background-blur',
                     radius: 18,
                     brightness: 0.85,
                     mode: Shell.BlurMode.BACKGROUND,
