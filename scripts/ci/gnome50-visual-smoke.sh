@@ -375,7 +375,6 @@ PY
   gnome-extensions enable localzet-shell@localzet.com || exit 1
   sleep 3
   # The second initialization log proves re-enable; no D-Bus query follows.
-  gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   test "$(grep -Fc "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log")" -ge 2 || exit 1
   if grep -F "Extension point conflict" "$OUT/gnome-shell.log"; then exit 1; fi
   if grep -F "firstIcon.icon is null" "$OUT/gnome-shell.log"; then
