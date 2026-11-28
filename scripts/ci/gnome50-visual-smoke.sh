@@ -23,6 +23,8 @@ export DISPLAY=:99
 export XDG_SESSION_TYPE=wayland
 export LIBGL_ALWAYS_SOFTWARE=1
 export GALLIUM_DRIVER=llvmpipe
+# Force Cogl through the Mesa GL3 path instead of a no-op/surfaceless fallback.
+export COGL_DRIVER=gl3
 export GDK_BACKEND=x11
 export GTK_A11Y=none
 # Test-only override inherited by the isolated D-Bus activation services too.
@@ -37,6 +39,8 @@ xvfb_pid=$!
 trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
 export OUT
+# Record the software EGL implementation used by the nested compositor.
+eglinfo --display surfaceless > "$OUT/eglinfo-surfaced.txt" 2>&1 || true
 export LOCALZET_TEST_WALLPAPER="$OUT/executive-dusk.jpg"
 set +e
 dbus-run-session -- bash -s <<'GNOME_TEST'

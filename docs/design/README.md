@@ -120,11 +120,11 @@ screenshots and automated tests are necessary but not sufficient for release.
 
 The panel uses GNOME Shell's native `Shell.BlurEffect` in BACKGROUND mode.
 The dock and native Quick Settings/date menus use the same Mutter compositor
-effect. The launcher attaches the effect to the outer PopupMenu BoxPointer
-actor, not only its inner content box: the first optical run showed that the
-inner-only attachment left the visible backdrop sharp. The old pre-blurred
-`-glass.jpg` derivative has been removed. Effects are removed again when
-their owner closes or the display/session state changes.
+effect. The launcher currently attaches the effect to the outer PopupMenu
+BoxPointer actor; the exact effective attachment point remains under optical
+verification. The old pre-blurred `-glass.jpg` derivative has been removed.
+Effects are removed again when their owner closes or the display/session
+state changes.
 
 Wallpaper-only glass is deliberately conservative. It is eligible only when
 the exact bundled wallpaper is selected with zoom, there is one monitor at
@@ -652,12 +652,13 @@ visual approval is claimed.
 
 ### Compositor blur optical correction — 2026-11-28
 
-The follow-up GNOME 50 run (Actions 46097123389) confirmed that the launcher
-anchor is now remeasured after the dock expands and the real popup opens.
-However, its measured tint-normalized detail ratio was 0.998, so the launcher
-backdrop remained effectively sharp despite the effect marker. Inspection
-identified the effect on the inner `menu.box` as the wrong attachment point.
-Move the Mutter BACKGROUND effect to the outer PopupMenu actor, retain the
-existing optical threshold, and rerun the real screenshot test. This is a
-measured failure, not a visual pass; the opaque fallback and hardware review
-remain mandatory.
+The follow-up GNOME 50 runs (Actions 46097123389 and 46097516557) confirmed
+that the launcher anchor is remeasured after the dock expands and the real
+popup opens. The tint-normalized detail ratio remained 0.998 even after moving
+the effect to the outer PopupMenu actor. The runner reports a surfaceless
+renderer without a GPU, so the effect may be falling back inside Mutter's
+framebuffer path; this is not yet proven. The next run forces Cogl's GL3
+driver with Mesa llvmpipe and captures EGL diagnostics. Keep the optical
+threshold unchanged. If the software path still cannot render the effect,
+the CI must remain non-passing until a GPU-capable test verifies it. The
+opaque fallback and physical hardware review remain mandatory.
