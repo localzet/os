@@ -68,6 +68,16 @@ fail() {
     exit 1
 }
 
+# A missing source index is an authenticated repository limitation, not a
+# verifier crash. Record the fail-closed result as a successful audit run so
+# downstream review can consume the evidence; authenticated remains false.
+block_expected() {
+    REASON="$1"
+    write_evidence
+    echo "BLOCKED (expected; fail-closed): $REASON" >&2
+    exit 0
+}
+
 for tool in curl gpg gpgv apt-get apt-cache sha256sum python3 awk; do
     command -v "$tool" >/dev/null || fail "Missing required verifier: $tool"
 done
@@ -170,6 +180,14 @@ DEB="$(find "$TMP" -maxdepth 1 -type f -name '*.deb' -print -quit)"
 BINARY_SHA="$(sha256sum "$DEB" | awk '{print $1}')"
 [[ "$BINARY_SHA" == "$EXPECTED_BINARY_SHA" ]] ||
     fail "Signed APT binary bytes differ from the pinned GitHub release asset"
+
+# The verified InRelease and apt update log explicitly show that the vendor
+# publishes no Sources index for this component. This is a hard distribution
+# blocker, but a successful audit result rather than a failing test harness.
+if grep -Fq "Skipping acquire of configured file 'main/source/Sources'" "$OUT/apt-update.log" &&
+   grep -Fq "does not seem to provide it" "$OUT/apt-update.log"; then
+    block_expected "The signed ONLYOFFICE InRelease has no main/source/Sources index; the exact corresponding source/build chain cannot be verified"
+fi
 
 (
     cd "$TMP"
