@@ -57,14 +57,24 @@ export class WallpaperGlass {
         this._disposed = false;
         this._allocationSignals = [];
         this._allocationTimeout = 0;
-        // A stage-level sibling is essential: a backdrop effect attached to a
-        // popup child can sample its parent's offscreen framebuffer instead
-        // of the wallpaper. Keep this non-reactive overlay below the UI group.
+        // The desktop wallpaper lives inside global.window_group, itself a
+        // child of Main.uiGroup. A stage sibling below uiGroup is behind the
+        // wallpaper and can only tint it. Put this non-reactive backdrop just
+        // above window_group, but below the native panel, dock and popup chrome.
         this._backdrop = new St.Widget({
             style_class: 'localzet-wallpaper-glass-backdrop',
             reactive: false, can_focus: false, visible: false,
         });
-        global.stage.insert_child_below(this._backdrop, Main.uiGroup);
+        this._stackingSupported = !!Main.uiGroup &&
+            global.window_group.get_parent() === Main.uiGroup;
+        if (this._stackingSupported) {
+            Main.uiGroup.insert_child_above(this._backdrop, global.window_group);
+            console.log('Localzet Glass: backdrop layer=uiGroup-above-window_group');
+        } else {
+            this._backdrop.destroy();
+            this._backdrop = null;
+            console.warn('Localzet Glass: opaque fallback; unsupported GNOME stage hierarchy');
+        }
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         this._contrast = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
@@ -134,7 +144,7 @@ export class WallpaperGlass {
     }
 
     _refresh() {
-        if (this._disposed || !this._menu.isOpen ||
+        if (this._disposed || !this._backdrop || !this._stackingSupported || !this._menu.isOpen ||
             !wallpaperGlassAvailable(this._background, this._interface, this._contrast, this._path)) {
             this._clearAllocationWait();
             this._restore();
@@ -143,9 +153,9 @@ export class WallpaperGlass {
         if (this._effect)
             return;
 
-        // Render the blur in a dedicated stage-level sibling below the UI
-        // group. This guarantees the BACKGROUND effect samples the composed
-        // wallpaper rather than a nested PopupMenu offscreen framebuffer.
+        // The backdrop is a sibling of window_group inside uiGroup, so the
+        // BACKGROUND effect samples the already-painted desktop wallpaper.
+        // It remains below all native chrome and never captures live windows.
         const target = this._menu.actor;
         if (!hasStageAllocation(target)) {
             this._waitForAllocation();
