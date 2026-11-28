@@ -198,7 +198,8 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("Launcher anchor is outside the current dock", smoke)
         self.assertIn("button_w / 2", smoke)
         self.assertIn("button_h / 2", smoke)
-        self.assertIn("panel_x=$((width - 74))", smoke)
+        self.assertIn("panel_x=$((width - 20))", smoke)
+        self.assertNotIn("panel_x=$((width - 74))", smoke)
         self.assertIn("panel_y=67", smoke)
 
 
