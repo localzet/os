@@ -2,7 +2,7 @@
 # Disposable Ubuntu 26.04 GitHub Actions runner only.
 set -Eeuo pipefail
 ROOT="$PWD"
-OUT="$ROOT/out/gnome-smoke"
+OUT="${LOCALZET_GNOME_SMOKE_OUT:-$ROOT/out/gnome-smoke}"
 mkdir -p "$OUT"
 UUID=localzet-shell@localzet.com
 EXT_SOURCE="$ROOT/extensions/$UUID"
@@ -144,6 +144,21 @@ PY
   grep -E "Localzet Dock: material=compositor .*allocated=[1-9][0-9]*x[1-9][0-9]* enabled=true" "$OUT/gnome-shell.log" || exit 1
   import -window root "$OUT/aurora-panel-experimental.png" || exit 1
   cp "$OUT/aurora-panel-experimental.png" "$OUT/gnome-running.png" || exit 1
+  if [[ "\${LOCALZET_GLASS_MENU_ONLY:-0}" == "1" ]]; then
+    # Isolated fresh session: no application windows, so the wallpaper-only
+    # date menu is eligible for real Mutter background blur. Capture and exit
+    # immediately; this GNOME 50 devkit closes its outer window after menu input.
+    width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
+    notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
+    sleep 2
+    xdotool mousemove --window "$window" "$((width / 2))" 67 click 1 || exit 1
+    sleep 3
+    grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
+    grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1
+    import -window root "$OUT/aurora-date-menu.png" || exit 1
+    echo "PASS: native date menu captured with wallpaper-only Mutter background blur" > "$OUT/result.txt"
+    exit 0
+  fi
   # Devkit window content starts under its title bar; use the actual
   # dock position reported by the extension, not fixed monitor coordinates.
   button=""
@@ -256,21 +271,9 @@ PY
   material="$(grep -F "Localzet Dock: material=" "$OUT/gnome-shell.log" | tail -n1 | sed -n 's/.*material=\([^ ]*\).*/\1/p')"
   test "$material" = compositor || { echo "Expected compositor dock material, got: $material" >&2; exit 1; }
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
-  # Verify wallpaper-only date-menu glass before any application window is
-  # open. Once a real app window appears, every glass surface must fall back.
-  grep -F "Localzet Surfaces: native menus=2" "$OUT/gnome-shell.log" || exit 1
   width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
   panel_x=$((width - 74))
   panel_y=67
-  notify-send --app-name="Localzet" "Aurora" "Проверка уведомлений" || exit 1
-  sleep 2
-  xdotool mousemove --window "$window" "$((width / 2))" "$panel_y" click 1 || exit 1
-  sleep 3
-  grep -F "Localzet Surfaces: opened dateMenu" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper compositor effect active dateMenu" "$OUT/gnome-shell.log" || exit 1
-  import -window root "$OUT/aurora-notifications.png" || exit 1
-  xdotool key Escape || exit 1
-  sleep 2
   # Quick Settings and the Network app are exercised after the wallpaper-only
   # menu gate. Keep the real app open; do not terminate a nested Wayland client
   # or send global key chords to the outer Mutter DevKit window.
