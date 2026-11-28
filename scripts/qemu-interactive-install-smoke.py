@@ -896,6 +896,9 @@ finally:
     lsmod || true
     exit 2
 fi
+for tool in xdotool xprop xwininfo; do
+    command -v "$tool" >/dev/null || { echo "Missing disposable X11 window-discovery tool: $tool" >&2; exit 2; }
+done
 launch_app_x11 localzet-containers /usr/bin/localzet-containers
 containers_window=""
 for attempt in $(seq 1 45); do
@@ -926,6 +929,10 @@ if [[ -z "$containers_window" ]]; then
     echo "No visible, activatable Localzet Containers GTK window" >&2
     xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
     xwininfo -root -tree >&2 || true
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \\
+        systemctl --user status localzet-candidate-localzet-containers.service --no-pager >&2 || true
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \\
+        journalctl --user -u localzet-candidate-localzet-containers.service --no-pager -n 100 >&2 || true
     exit 2
 fi
 geometry="$(xdotool getwindowgeometry --shell "$containers_window")"
