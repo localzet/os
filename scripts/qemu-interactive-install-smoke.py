@@ -1149,7 +1149,8 @@ printf 'PASS: Nautilus D-Bus owner present in authenticated session\n'
 # Capture the real installed GNOME Files window before later Office tests can
 # cover it. The host QMP capture is kept as a separate installed-image artifact.
 printf '\nLOCALZET_CANDIDATE_FILES_CAPTURE_READY\n'
-sleep 10
+# Keep the authenticated Files window foregrounded while host QMP captures it.
+sleep 12
 printf '\nPASS: installed Executive Files package launched\n'
 """
         marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
