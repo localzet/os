@@ -243,3 +243,12 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("Installed Containers window evidence", source)
         self.assertIn("containers_screen.read_bytes() == office_screen.read_bytes()", source)
         self.assertNotIn('installed.capture("containers-installed")', source)
+        # Stop any earlier test instance, then require a fresh window only
+        # after the rootless engine and populated fixture are ready.
+        self.assertIn("localzet-network localzet-containers; do", script)
+        stale_check = script.index("Unexpected stale Localzet Containers process before rootless fixture")
+        rootless_test = script.index("Installed rootless fixture is visible", script.index("def installed_script")) if "Installed rootless fixture is visible" in script else script.index("installed rootless fixture is visible")
+        app_start = script.index("systemd-run --user --collect --unit=localzet-candidate-localzet-containers.service")
+        self.assertLess(stale_check, rootless_test)
+        self.assertLess(rootless_test, app_start)
+        self.assertIn("pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null", script[app_start:])

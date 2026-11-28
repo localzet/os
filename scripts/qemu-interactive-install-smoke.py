@@ -826,13 +826,16 @@ test -s /usr/share/localzet/docker-rootless.json
 # Earlier GUI checks have already verified these test-owned processes.
 # Close only their explicit transient units, not arbitrary user processes.
 # Keep GNOME alive; start Containers after the rootless engine fixture is ready.
-for app in ptyxis localzet-settings localzet-windows localzet-connect localzet-apps localzet-ai-workspace vlc qbittorrent localzet-hardware-manager nautilus gnome-control-center localzet-network; do
+for app in ptyxis localzet-settings localzet-windows localzet-connect localzet-apps localzet-ai-workspace vlc qbittorrent localzet-hardware-manager nautilus gnome-control-center localzet-network localzet-containers; do
     unit="localzet-candidate-$app.service"
     if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user is-active --quiet "$unit"; then
         runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" systemctl --user stop "$unit"
     fi
 done
-pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null
+if pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null; then
+    echo "Unexpected stale Localzet Containers process before rootless fixture" >&2
+    exit 2
+fi
 echo "Rootless guest prerequisites:"
 uname -r
 free -m
