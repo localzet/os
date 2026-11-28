@@ -108,7 +108,8 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   grep -Fxq localzet-shell@localzet.com "$OUT/enabled.txt" || { echo "Not enabled" >&2; exit 1; }
   gnome-extensions list --active | grep -Fx localzet-shell@localzet.com || exit 1
   grep -F "Localzet Glass: panel background effect active" "$OUT/gnome-shell.log" || exit 1
-  grep -F "Localzet Glass: wallpaper compositor effect active launcher" "$OUT/gnome-shell.log" || exit 1
+  # The launcher effect is intentionally attached only after its popup opens.
+  # Assert it after the real dock click below, not during startup.
   grep -F "Localzet Panel: executive navigation ready" "$OUT/gnome-shell.log" || exit 1
   test -s extensions/localzet-shell@localzet.com/icons/launcher.svg || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "items=5 " || exit 1
