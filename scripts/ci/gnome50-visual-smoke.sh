@@ -216,8 +216,8 @@ PY
     sleep 1
   done
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
-  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
-  import -window root "$OUT/aurora-dock-running.png" || exit 1
+  # Ptyxis process state alone is not proof of a mapped window. The actual
+  # opaque transition is asserted below after Nautilus has a real window.
   # Verify the built-in XTerm palette using actual ANSI background swatches.
   # Black pixels alone would also match the compositor's outer background.
   xdotool type --clearmodifiers --delay 1 "printf '\\033[41m        \\033[42m        \\033[43m        \\033[44m        \\033[45m        \\033[46m        \\033[0m\\n'" || exit 1
@@ -303,6 +303,12 @@ PY
   grep -F "Localzet Launcher: activated org.gnome.Nautilus.desktop" "$OUT/gnome-shell.log" || exit 1
   pgrep -x nautilus || exit 1
   grep -F "Localzet Dock: running=" "$OUT/gnome-shell.log" | tail -n 1 | grep -E "running=[1-9][0-9]* items=[1-9][0-9]* focused=1$" || exit 1
+  # Require the real Nautilus window to make the wallpaper-only dock opaque.
+  for attempt in $(seq 1 30); do
+    if grep -Fq "Localzet Dock: material=opaque" "$OUT/gnome-shell.log"; then break; fi
+    sleep 1
+  done
+  grep -F "Localzet Dock: material=opaque" "$OUT/gnome-shell.log" || exit 1
   xdotool key --clearmodifiers ctrl+l || exit 1
   xdotool type --clearmodifiers "$HOME/Localzet-visual-review" || exit 1
   xdotool key Return || exit 1
