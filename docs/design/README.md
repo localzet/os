@@ -116,29 +116,32 @@ Track changes to exact design and scope in pull requests. Any change of
 brand colors or major navigation requires owner review. Engineering
 screenshots and automated tests are necessary but not sufficient for release.
 
-### Current glass implementation (visual acceptance pending)
+### Current glass implementation (optical acceptance pending)
 
-`panel.js` creates GNOME Shell's native `Shell.BlurEffect` in BACKGROUND
-mode by default when the compositor supports it. A failed effect creation
-falls back to the opaque Violet surface; native high-contrast mode and
-`LOCALZET_DISABLE_GLASS=1` also disable the compositor effect.
+The current candidate replaces the pre-blurred wallpaper derivative with
+GNOME Shell's native `Shell.BlurEffect` in `Shell.BlurMode.BACKGROUND` on
+the panel, dock, launcher and native Quick Settings/date menus. The
+experimental profile uses radius 28 and brightness 0.85. The effect is a
+Mutter/Clutter compositor effect; it is not CSS alpha alone, a wallpaper
+snapshot, a screenshot pipeline or a static blurred JPEG.
 
-Rounded dock, launcher and native menus use a separate **wallpaper-only**
-material: a pre-blurred derivative of the exact bundled wallpaper, aligned
-to the monitor crop. It is applied only with the matching wallpaper and zoom
-mode, one monitor at scale 1, and no visible windows on the active workspace.
-It never captures or samples windows, passwords, screens or other content.
-The same `LOCALZET_DISABLE_GLASS=1` switch disables this material too; any
-unsupported wallpaper, scale, monitor layout, high-contrast setting or
-visible window uses the opaque fallback. No alpha-only imitation is used.
+Wallpaper-only surfaces (dock, launcher and native menus) are eligible only
+with the exact bundled Aurora wallpaper in zoom mode, one monitor at scale
+factor 1, an empty active workspace, a visible unlocked user session, and no
+overview or high-contrast mode. The panel retains its native background
+effect. `LOCALZET_DISABLE_GLASS=1`, unsupported geometry, missing allocations,
+effect errors and accessibility/performance fallback restore opaque Violet
+surfaces. Effects are removed on state changes and actor disposal. No window
+contents, passwords or screen pixels are captured by Localzet code.
 
-The GNOME devkit sets `LOCALZET_EXPERIMENTAL_GLASS=1` only for deterministic
-test-wallpaper selection and diagnostic markers; that variable does not
-enable production blur. CI checks the native effect marker, wallpaper detail
-reduction, state transitions and high-contrast fallback. These are not proof
-of physical-GPU performance, multi-monitor/HiDPI behavior or final visual
-acceptance. The exact installed ISO still needs real screenshots and GPU
-testing. Rounded clipping and repaint behavior remain subject to inspection.
+The GNOME 50 devkit uses a 4 px checkerboard probe and requires its measured
+contrast ratio to fall below 0.15; effect attachment and `enabled=true` are
+not sufficient. The previous radius-18 run measured 0.219 and failed. This
+candidate tests radius 28; until the unchanged optical gate passes and the
+actual captures are inspected, glass remains experimental and must not be
+described as visually accepted. The devkit uses Mesa llvmpipe and cannot prove
+physical-GPU performance, multi-monitor/HiDPI behavior, rounded clipping or
+repaint quality. The exact installed ISO and real hardware still need testing.
 No global redraw hacks or forced transparency on third-party windows. See:
 https://gnome.pages.gitlab.gnome.org/gnome-shell/shell/class.BlurEffect.html
 
