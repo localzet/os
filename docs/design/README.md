@@ -650,15 +650,18 @@ must pass and its real captures must be inspected; no final glass or Aurora
 visual approval is claimed.
 
 
+
+
 ### Compositor blur optical correction — 2026-11-28
 
-The follow-up GNOME 50 runs (Actions 46097123389 and 46097516557) confirmed
-that the launcher anchor is remeasured after the dock expands and the real
-popup opens. The tint-normalized detail ratio remained 0.998 even after moving
-the effect to the outer PopupMenu actor. The runner reports a surfaceless
-renderer without a GPU, so the effect may be falling back inside Mutter's
-framebuffer path; this is not yet proven. The next run forces Cogl's GL3
-driver with Mesa llvmpipe and captures EGL diagnostics. Keep the optical
-threshold unchanged. If the software path still cannot render the effect,
-the CI must remain non-passing until a GPU-capable test verifies it. The
-opaque fallback and physical hardware review remain mandatory.
+The natural-wallpaper metric in Actions 46097123389, 46097516557 and
+46098017327 returned 0.998 even though the captured crop visibly softened.
+Its covariance normalization was not a reliable discriminator between blur
+and tint. The replacement probe is a deterministic 4 px checkerboard and
+measures contrast in the same blank menu region; a translucent overlay alone
+retains roughly 45% of the pattern, while a radius-18 blur must reduce it
+below 15%. The probe is a CI fixture, not a design/reference image. Cogl is
+forced through GL3 with Mesa llvmpipe and EGL diagnostics are retained. Do
+not lower the threshold. If the probe still fails, the CI must remain
+non-passing until the compositor path is corrected or a GPU-capable test
+proves it. The opaque fallback and physical hardware review remain mandatory.

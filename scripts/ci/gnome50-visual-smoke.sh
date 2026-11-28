@@ -40,7 +40,7 @@ trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT
 sleep 3
 export OUT
 # Record the software EGL implementation used by the nested compositor.
-eglinfo --display surfaceless > "$OUT/eglinfo-surfaced.txt" 2>&1 || true
+eglinfo -p surfaceless -B > "$OUT/eglinfo-surfaceless.txt" 2>&1 || true
 export LOCALZET_TEST_WALLPAPER="$OUT/executive-dusk.jpg"
 set +e
 dbus-run-session -- bash -s <<'GNOME_TEST'
@@ -57,12 +57,22 @@ dbus-run-session -- bash -s <<'GNOME_TEST'
   # while a newly created app icon is unresolved (firstIcon.icon is null).
   gsettings set org.gnome.shell disable-user-extensions false || exit 1
   gsettings set org.gnome.shell enabled-extensions "['localzet-shell@localzet.com', 'ubuntu-appindicators@ubuntu.com']" || exit 1
-  # Use the actual shipped wallpaper and approved Aurora appearance from the
-  # first frame; the devkit's default blue test background is not Aurora.
-  test -s "/usr/share/backgrounds/budgie/mt_shuksan_by_ezspain.jpg" || exit 1
-  test -s "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" || exit 1
-  python3 "$PWD/scripts/build-executive-wallpaper.py" "/usr/share/backgrounds/budgie/mont_blanc_from_arpy_lake_by_puffettacicciottella.jpg" "$OUT/executive-dusk.jpg" || exit 1
-  wallpaper="file://$OUT/executive-dusk.jpg"
+  # A high-frequency checkerboard is a test fixture, not a design/reference
+  # image. It distinguishes real BACKGROUND blur from a translucent tint.
+  python3 - "$OUT/blur-probe.png" <<'PY' || exit 1
+from PIL import Image
+import sys
+size = (1440, 900)
+cell = 4
+image = Image.new("RGB", size)
+pixels = image.load()
+for y in range(size[1]):
+    for x in range(size[0]):
+        value = 255 if ((x // cell) + (y // cell)) % 2 else 0
+        pixels[x, y] = (value, value, value)
+image.save(sys.argv[1])
+PY
+  wallpaper="file://$OUT/blur-probe.png"
   gsettings set org.gnome.desktop.background picture-uri "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-uri-dark "$wallpaper" || exit 1
   gsettings set org.gnome.desktop.background picture-options zoom || exit 1
@@ -160,35 +170,30 @@ PY
   import -window root "$OUT/aurora-glass-empty.png" || exit 1
   bounds="$(sed -n 's/.*Localzet Launcher: bounds=\([0-9]*,[0-9]*,[0-9]*,[0-9]*\).*/\1/p' "$OUT/gnome-shell.log" | tail -n 1)"
   test -n "$bounds" || exit 1
-  # Compare spatial detail to the original screen, not darkness alone.
-  # Mutter devkit screenshot content is offset by its outer window frame.
+  # Measure suppression of a deterministic 4 px checkerboard. A translucent
+  # tint alone retains about 45% of its contrast; true radius-18 blur must
+  # suppress it below 15%. The sample is inside the blank right pane.
   python3 - "$OUT" "$bounds" <<'PY' > "$OUT/glass-quality.txt" || exit 1
 from PIL import Image
 from pathlib import Path
-from statistics import fmean
+from statistics import pstdev
 import sys
 out = Path(sys.argv[1])
 x, y, w, h = map(int, sys.argv[2].split(","))
-# Blank right pane, well inside the rectangular menu, away from text.
 region = (x + int(w*.48) + 5, y + int(h*.48) + 51,
           x + int(w*.89) + 5, y + int(h*.77) + 51)
 base = Image.open(out / "aurora-panel-experimental.png").convert("L").crop(region)
 glass = Image.open(out / "aurora-glass-empty.png").convert("L").crop(region)
-a, b = list(base.getdata()), list(glass.getdata())
-ma, mb = fmean(a), fmean(b)
-variance = sum((v-ma)**2 for v in a)
-if variance <= 0:
-    raise SystemExit("Insufficient wallpaper detail in sample")
-slope = sum((u-ma)*(v-mb) for u,v in zip(a,b))/variance
-def detail(values, width):
-    return fmean(abs(values[i+1]-values[i]) for i in range(len(values)-1)
-                 if (i+1)%width)
-ratio = detail(b, glass.width)/max(.001, detail(a, base.width)*abs(slope))
-print("Tint-normalized horizontal detail ratio:", round(ratio, 3))
-print("Compositor glass verdict:", "wallpaper-only background blur verified" if ratio < .65
+base_contrast = pstdev(list(base.getdata()))
+glass_contrast = pstdev(list(glass.getdata()))
+if base_contrast < 60:
+    raise SystemExit("Checkerboard probe is not visible in the base capture")
+ratio = glass_contrast / base_contrast
+print("Checkerboard contrast ratio:", round(ratio, 3))
+print("Compositor glass verdict:", "wallpaper-only background blur verified" if ratio < .15
       else "unverified blur; do not promote")
-if ratio >= .65:
-    raise SystemExit("Shell.BlurEffect BACKGROUND has insufficient optical detail reduction")
+if ratio >= .15:
+    raise SystemExit("Shell.BlurEffect BACKGROUND did not suppress the checkerboard below 15%")
 PY
   cat "$OUT/glass-quality.txt"
   xdotool key --clearmodifiers ctrl+a || exit 1
