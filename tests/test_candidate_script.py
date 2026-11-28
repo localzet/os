@@ -165,6 +165,19 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertNotIn("! systemctl is-enabled --quiet usernet-helper.service", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
 
+    def test_containers_window_tools_are_disposable_only(self):
+        build = (ROOT / "scripts/build-live-rootfs.sh").read_text()
+        workflow = (ROOT / ".github/workflows/containers-installed.yml").read_text()
+        self.assertIn('LOCALZET_CONTAINERS_WINDOW_TEST', build)
+        self.assertIn('packages+=",xdotool,x11-utils"', build)
+        self.assertIn('LOCALZET_DISPOSABLE_VM', build)
+        self.assertIn('LOCALZET_CONTAINERS_WINDOW_TEST=1', workflow)
+        script = module.installed_script("complete", True)
+        for tool in ("xdotool", "xprop", "xwininfo"):
+            self.assertIn(f"command -v {tool}", script)
+        self.assertIn("journalctl --user -u localzet-candidate-localzet-containers.service", script)
+        subprocess.run(["bash", "-n"], input=script, text=True, check=True)
+
     def test_rootless_engine_releases_only_prior_test_units(self):
         script = module.installed_script("complete", True)
         self.assertIn('--unit="localzet-candidate-$app"', script)
