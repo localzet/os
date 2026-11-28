@@ -20,6 +20,15 @@ class LockAppearanceTests(unittest.TestCase):
         self.assertIn("high-contrast", source)
         self.assertIn("unload_stylesheet", source)
         self.assertNotIn("screenShield", source)
+    def test_desktop_lock_and_gdm_share_the_installed_wallpaper(self):
+        rootfs = (ROOT / "packaging/live/customize-rootfs.sh").read_text()
+        wallpaper = "file:///usr/share/backgrounds/localzet/executive-dusk.jpg"
+        self.assertIn("[org/gnome/desktop/screensaver]", rootfs)
+        self.assertGreaterEqual(rootfs.count(f"picture-uri='{wallpaper}'"), 3)
+        self.assertGreaterEqual(rootfs.count(f"picture-uri-dark='{wallpaper}'"), 2)
+        self.assertIn("gsettings get org.gnome.desktop.screensaver picture-uri", rootfs)
+        self.assertIn("DCONF_PROFILE=gdm GSETTINGS_BACKEND=dconf gsettings get org.gnome.desktop.background picture-uri", rootfs)
+
     def test_packaged_and_enabled(self):
         for path in ("scripts/build-desktop-deb.sh", "packaging/live/customize-rootfs.sh"):
             self.assertIn("localzet-lock@localzet.com", (ROOT / path).read_text())
