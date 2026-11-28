@@ -53,7 +53,8 @@
     box-shadow: 0 6px 16px rgba(0,0,0,.36);
 }
 .localzet-launcher-popup.localzet-wallpaper-glass .popup-menu-content {
-    background-color: rgba(40, 24, 63, .78);
+    /* The stage-level backdrop is the only tinted layer; avoid double opacity. */
+    background-color: transparent;
     box-shadow: none;
 }
 .localzet-launcher { spacing: 9px; padding: 10px; color: #F4EEFF; }
@@ -113,7 +114,8 @@
     box-shadow: 0 4px 14px rgba(0,0,0,.28);
 }
 .localzet-system-surface.localzet-wallpaper-glass .popup-menu-content {
-    background-color: rgba(40, 24, 63, .78);
+    /* The stage-level backdrop is the only tinted layer; avoid double opacity. */
+    background-color: transparent;
     box-shadow: none;
     border: 1px solid rgba(155,114,242,.22);
 }
