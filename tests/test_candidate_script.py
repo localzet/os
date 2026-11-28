@@ -235,8 +235,11 @@ class CandidateScriptTests(unittest.TestCase):
         script = module.installed_script("complete", True)
         for marker in ("localzet-candidate-visual-fixture", "LOCALZET_CANDIDATE_CONTAINERS_CAPTURE_READY",
                        "LOCALZET_CANDIDATE_CONTAINERS_GEOMETRY", "Localzet Containers",
-                       "getactivewindow", "xprop -root _NET_CLIENT_LIST", "installed rootless fixture is visible"):
+                       "getactivewindow", "xdotool search --onlyvisible --name 'Containers'",
+                       "getwindowclassname", "installed rootless fixture is visible"):
             self.assertIn(marker, script)
+        self.assertNotIn("xprop -root _NET_CLIENT_LIST", script)
+        self.assertNotIn("xwininfo -root -tree", script)
         subprocess.run(["bash", "-n"], input=script, text=True, check=True)
         source = (ROOT / "scripts/qemu-interactive-install-smoke.py").read_text()
         self.assertIn('self.capture("containers-installed")', source)
@@ -248,7 +251,7 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertIn("localzet-network localzet-containers; do", script)
         stale_check = script.index("Unexpected stale Localzet Containers process before rootless fixture")
         rootless_test = script.index("Installed rootless fixture is visible", script.index("def installed_script")) if "Installed rootless fixture is visible" in script else script.index("installed rootless fixture is visible")
-        app_start = script.index("systemd-run --user --collect --unit=localzet-candidate-localzet-containers.service")
+        app_start = script.index("launch_app_x11 localzet-candidate-localzet-containers")
         self.assertLess(stale_check, rootless_test)
         self.assertLess(rootless_test, app_start)
-        self.assertIn("pgrep -u localzet-test -f /usr/bin/localzet-containers >/dev/null", script[app_start:])
+        self.assertIn("pgrep -u localzet-test -f /usr/bin/localzet-containers", script[app_start:])
