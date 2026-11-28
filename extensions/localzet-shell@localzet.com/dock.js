@@ -186,8 +186,10 @@ export class LocalzetDock {
 
     _removeRow(id) {
         const row = this._rows.get(id);
-        row.app.disconnect(row.windowsId);
-        row.button.destroy();
+        if (!row)
+            return;
+        try { row.app.disconnect(row.windowsId); } catch (_) {}
+        try { row.button.destroy(); } catch (_) {}
         this._rows.delete(id);
     }
 
@@ -290,6 +292,7 @@ export class LocalzetDock {
     }
 
     _clearMaterial() {
+        const wasActive = !!this._glassEffect || this._materialActive;
         const actor = this._actorDestroyed ? null : this._actor;
         if (this._glassEffect && actor) {
             try {
@@ -307,6 +310,8 @@ export class LocalzetDock {
                 // A disposed Clutter actor must never abort shell teardown.
             }
         }
+        if (wasActive)
+            console.log('Localzet Dock: material=opaque');
     }
 
     _refreshMaterial() {
