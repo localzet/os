@@ -47,6 +47,7 @@ export class WallpaperGlass {
         this._menu = menu;
         this._surface = surface;
         this._effect = null;
+        this._effectActor = null;
         this._idle = 0;
         this._background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         this._interface = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
@@ -65,6 +66,7 @@ export class WallpaperGlass {
         watch(global.workspace_manager, 'active-workspace-changed');
         watch(Main.overview, 'showing');
         watch(Main.overview, 'hidden');
+        watch(Main.sessionMode, 'updated');
         this._open = menu.connect('open-state-changed', (_menu, open) => {
             if (open)
                 this._schedule();
@@ -100,10 +102,17 @@ export class WallpaperGlass {
                 brightness: EFFECT_BRIGHTNESS,
                 mode: Shell.BlurMode.BACKGROUND,
             });
-            this._menu.actor.add_effect_with_name(EFFECT_NAME, effect);
+            // PopupMenu.actor is a BoxPointer wrapper. Its actual translucent
+            // surface is menu.box; attaching the background effect there makes
+            // the sampled rectangle match the painted surface exactly.
+            const effectActor = this._menu.box ?? this._menu.actor;
+            effectActor.add_effect_with_name(EFFECT_NAME, effect);
+            effect.queue_repaint();
+            this._effectActor = effectActor;
             this._effect = effect;
             this._menu.actor.add_style_class_name('localzet-wallpaper-glass');
-            console.log('Localzet Glass: wallpaper compositor effect active ' + this._surface);
+            console.log('Localzet Glass: wallpaper compositor effect active ' + this._surface +
+                ' mode=' + effect.get_mode() + ' radius=' + effect.get_radius());
         } catch (error) {
             this._restore();
             console.warn('Localzet Glass: opaque fallback ' + this._surface + ': ' + error);
@@ -120,8 +129,9 @@ export class WallpaperGlass {
 
     _restore() {
         if (this._effect) {
-            this._menu.actor.remove_effect(this._effect);
+            (this._effectActor ?? this._menu.box ?? this._menu.actor).remove_effect(this._effect);
             this._effect = null;
+            this._effectActor = null;
         }
         this._menu.actor.remove_style_class_name('localzet-wallpaper-glass');
     }
