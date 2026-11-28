@@ -51,11 +51,19 @@ jobs:
       - name: Launch GNOME 50 and capture actual screen
         timeout-minutes: 7
         run: bash scripts/ci/gnome50-visual-smoke.sh
+      - name: Verify native date-menu compositor glass in a fresh session
+        timeout-minutes: 7
+        env:
+          LOCALZET_GLASS_MENU_ONLY: "1"
+          LOCALZET_GNOME_SMOKE_OUT: out/gnome-glass-menu
+        run: bash scripts/ci/gnome50-visual-smoke.sh
       - name: Upload screenshot and runtime logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gnome50-devkit-screenshot-and-logs
-          path: out/gnome-smoke/
+          path: |
+            out/gnome-smoke/
+            out/gnome-glass-menu/
           if-no-files-found: ignore
           retention-days: 7
