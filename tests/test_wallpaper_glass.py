@@ -90,7 +90,7 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("this._menu.actor.remove_style_class_name('localzet-wallpaper-glass')", source)
         self.assertIn("this._menu.box.remove_style_class_name('localzet-wallpaper-glass')", source)
         self.assertIn("actor.connect('notify::allocation', retry)", source)
-        self.assertIn("GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 3", source)
+        self.assertIn("GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10", source)
         self.assertIn("(this._effectActor ?? this._backdrop)?.remove_effect", source)
         self.assertIn("this._backdrop?.destroy()", source)
         self.assertIn("this._backdrop.connect('destroy'", source)
@@ -201,6 +201,8 @@ class WallpaperGlassTests(unittest.TestCase):
         self.assertIn("panel_x=$((width - 20))", smoke)
         self.assertNotIn("panel_x=$((width - 74))", smoke)
         self.assertIn("panel_y=67", smoke)
+        self.assertIn("for attempt in $(seq 1 12)", smoke)
+        self.assertIn("Quick Settings compositor blur did not attach", smoke)
 
 
     def test_wallpaper_only_date_menu_is_captured_before_real_windows(self):
