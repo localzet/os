@@ -272,11 +272,12 @@ PY
   test "$material" = compositor || { echo "Expected compositor dock material, got: $material" >&2; exit 1; }
   import -window root "$OUT/aurora-dock-idle.png" || exit 1
   width=$(xdotool getwindowgeometry --shell "$window" | sed -n 's/^WIDTH=//p')
-  panel_x=$((width - 74))
+  # The rightmost system control is Quick Settings. width-74 hits the orange
+  # screen-cast indicator in the Mutter devkit and disconnects its EIS monitor.
+  # Keep the real app open; do not terminate a nested Wayland client or send
+  # global key chords to the outer Mutter DevKit window.
+  panel_x=$((width - 20))
   panel_y=67
-  # Quick Settings and the Network app are exercised after the wallpaper-only
-  # menu gate. Keep the real app open; do not terminate a nested Wayland client
-  # or send global key chords to the outer Mutter DevKit window.
   xdotool mousemove --window "$window" "$panel_x" "$panel_y" click 1 || exit 1
   sleep 3
   grep -F "Localzet Surfaces: opened quickSettings" "$OUT/gnome-shell.log" || exit 1
