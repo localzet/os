@@ -256,3 +256,4 @@ class CandidateScriptTests(unittest.TestCase):
         self.assertLess(rootless_test, app_start)
         self.assertIn('if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi', script[:app_start])
         self.assertIn("launch_app_x11 localzet-candidate-localzet-containers", script[app_start:])
+        self.assertIn("com\\.localzet\\.Containers", script[app_start:])
