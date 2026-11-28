@@ -248,16 +248,33 @@ class Guest:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             lines = self.serial.read_bytes().splitlines() if self.serial.exists() else []
+            if b"LOCALZET_CANDIDATE_FILES_CAPTURE_READY" in lines and not getattr(self, "_files_qmp_captured", False):
+                self.wake_display()
+                time.sleep(2)
+                self.capture("files")
+                path = self.screen.with_name(f"{self.screen.stem}-files.ppm")
+                geometry_lines = [line for line in lines
+                                  if line.startswith(b"LOCALZET_CANDIDATE_FILES_GEOMETRY ")]
+                if len(geometry_lines) != 1:
+                    raise RuntimeError("Missing or duplicate GNOME Files window geometry")
+                values = geometry_lines[0].split()
+                if len(values) != 5:
+                    raise RuntimeError("Invalid GNOME Files window geometry")
+                x, y, width, height = map(int, values[1:])
+                if width < 600 or height < 400:
+                    raise RuntimeError("GNOME Files window is too small for visual acceptance")
+                if not path.is_file() or path.stat().st_size == 0:
+                    raise RuntimeError("Missing GNOME Files compositor capture")
+                metrics = evidence_module().visual_metrics(path, (x, y, width, height))
+                print("GNOME Files window visual evidence:", metrics, flush=True)
+                if not evidence_module().meaningful(metrics):
+                    raise RuntimeError("GNOME Files window capture is blank or visually insufficient")
+                self._files_qmp_captured = True
             if marker in lines:
                 print(f"PASS: {marker.decode()}", flush=True)
                 return
             # Capture the compositor output while the guest is still displaying
             # the document, independently of the XWayland drawable capture.
-            if b"LOCALZET_CANDIDATE_FILES_CAPTURE_READY" in lines and not getattr(self, "_files_qmp_captured", False):
-                self.wake_display()
-                time.sleep(2)
-                self.capture("files")
-                self._files_qmp_captured = True
             if b"LOCALZET_CANDIDATE_OFFICE_CAPTURE_READY" in lines and not getattr(self, "_office_qmp_captured", False):
                 self.wake_display()
                 time.sleep(2)
@@ -456,6 +473,19 @@ launch_app() {
         sleep 1
     done
     echo "Application did not launch: $app"
+    return 1
+}
+launch_app_x11() {
+    local unit="$1" pattern="$2"
+    shift 2
+    runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        systemd-run --user --collect --unit="$unit" --setenv=GDK_BACKEND=x11 "$@"
+    for attempt in $(seq 1 45); do
+        if pgrep -u localzet-test -f "$pattern" >/dev/null; then return 0; fi
+        sleep 1
+    done
+    echo "X11 application did not launch: $unit"
     return 1
 }
 home="$(getent passwd localzet-test | cut -d: -f6)"
@@ -1130,10 +1160,16 @@ exit 1""" + script[last:]
     if native_files:
         check = r"""
 for package in nautilus nautilus-data libnautilus-extension4; do
-    [[ "$(dpkg-query -W -f='${Version}' "$package")" == *+localzet1 ]]
+    [[ "$(dpkg-query -W -f='\${Version}' "$package")" == *+localzet1 ]]
 done
 test -s /usr/share/doc/localzet-desktop/nautilus.BUILD-COMMIT
-launch_app nautilus /usr/bin/nautilus
+files_fixture="$home/Localzet Visual Fixture"
+install -d -o localzet-test -g localzet-test "$files_fixture"
+printf 'Aurora Professional installed Files visual fixture\n' > "$files_fixture/README.md"
+printf 'metric,value\ncpu,17\nmemory,42\n' > "$files_fixture/metrics.csv"
+runuser -u localzet-test -- pkill -x nautilus >/dev/null 2>&1 || true
+launch_app_x11 localzet-candidate-nautilus /usr/bin/nautilus \
+    /usr/bin/nautilus --new-window "$files_fixture"
 nautilus_bus=0
 for attempt in $(seq 1 45); do
     if runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
@@ -1145,19 +1181,69 @@ for attempt in $(seq 1 45); do
     sleep 1
 done
 [[ "$nautilus_bus" == 1 ]]
-printf 'PASS: Nautilus D-Bus owner present in authenticated session\n'
-# Capture the real installed GNOME Files window before later Office tests can
-# cover it. The host QMP capture is kept as a separate installed-image artifact.
-printf '\nLOCALZET_CANDIDATE_FILES_CAPTURE_READY\n'
-# Keep the authenticated Files window foregrounded while host QMP captures it.
+cat > /run/localzet-candidate-check/files-window.sh <<'FILESWINDOW'
+#!/bin/bash
+set -Eeuo pipefail
+[[ $EUID != 0 ]]
+window=""
+for attempt in $(seq 1 45); do
+    clients="$(xprop -root _NET_CLIENT_LIST 2>/dev/null || true)"
+    for hex in $(grep -Eo '0x[0-9a-fA-F]+' <<< "$clients" || true); do
+        candidate="$((hex))"
+        identity="$(xprop -id "$hex" WM_CLASS _NET_WM_NAME WM_NAME 2>/dev/null)" || continue
+        grep -Eiq 'org\.gnome\.Nautilus|nautilus|Localzet Visual Fixture' <<< "$identity" || continue
+        geometry="$(xdotool getwindowgeometry --shell "$candidate" 2>/dev/null)" || continue
+        width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+        height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+        [[ "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]] || continue
+        (( width >= 600 && height >= 400 )) || continue
+        timeout 2 xdotool windowactivate "$candidate" || continue
+        for poll in $(seq 1 5); do
+            if [[ "$(xdotool getactivewindow 2>/dev/null || true)" == "$candidate" ]]; then
+                window="$candidate"
+                break
+            fi
+            sleep 0.2
+        done
+        [[ -n "$window" ]] && break
+    done
+    [[ -n "$window" ]] && break
+    sleep 1
+done
+if [[ -z "$window" ]]; then
+    echo "No visible, activatable GNOME Files window" >&2
+    xprop -root _NET_CLIENT_LIST _NET_ACTIVE_WINDOW >&2 || true
+    xwininfo -root -tree >&2 || true
+    exit 2
+fi
+title="$(xdotool getwindowname "$window")"
+grep -Fq 'Localzet Visual Fixture' <<< "$title"
+geometry="$(xdotool getwindowgeometry --shell "$window")"
+x="$(sed -n 's/^X=//p' <<< "$geometry")"
+y="$(sed -n 's/^Y=//p' <<< "$geometry")"
+width="$(sed -n 's/^WIDTH=//p' <<< "$geometry")"
+height="$(sed -n 's/^HEIGHT=//p' <<< "$geometry")"
+[[ "$x" =~ ^-?[0-9]+$ && "$y" =~ ^-?[0-9]+$ && "$width" =~ ^[0-9]+$ && "$height" =~ ^[0-9]+$ ]]
+(( width >= 600 && height >= 400 ))
+test "$(xdotool getactivewindow)" = "$window"
+printf 'LOCALZET_CANDIDATE_FILES_GEOMETRY %s %s %s %s\n' "$x" "$y" "$width" "$height"
+printf 'LOCALZET_CANDIDATE_FILES_TITLE %s\n' "$title"
+printf 'LOCALZET_CANDIDATE_FILES_CAPTURE_READY\n'
 sleep 12
-printf '\nPASS: installed Executive Files package launched\n'
+FILESWINDOW
+chmod 0755 /run/localzet-candidate-check/files-window.sh
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+    systemd-run --user --wait --pipe --collect /bin/bash /run/localzet-candidate-check/files-window.sh
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" nautilus --quit || true
+printf 'PASS: installed Executive Files window was active over a populated user fixture\n'
 """
         marker = r"printf '\nLOCALZET_CANDIDATE_FIXTURE_COPY\n'"
         if script.count(marker) != 1:
             raise ValueError("Missing or duplicated installed Files insertion marker")
         script = script.replace(marker, check + marker)
-        assert "installed Executive Files package launched" in script
+        assert "installed Executive Files window was active" in script
     if branded_control_center:
         check = r"""
 for package in gnome-control-center gnome-control-center-data; do
@@ -1192,6 +1278,11 @@ test -s /usr/share/backgrounds/localzet/executive-dusk.jpg
 test -s /usr/share/backgrounds/localzet/executive-dusk-glass.jpg
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.background picture-uri-dark)" = "'file:///usr/share/backgrounds/localzet/executive-dusk.jpg'"
 test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.interface color-scheme)" = "'prefer-dark'"
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.desktop.session idle-delay 0
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.desktop.screensaver idle-activation-enabled false
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.settings-daemon.plugins.power idle-dim false
+runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0
+test "$(runuser -u localzet-test -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" gsettings get org.gnome.desktop.session idle-delay)" = "uint32 0"
 loginctl lock-session "$session"
 for attempt in $(seq 1 30); do
     [[ "$(loginctl show-session "$session" -p LockedHint --value)" == yes ]] && break
@@ -1364,21 +1455,31 @@ def main():
                 raise
             if args.expect_native_files:
                 files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")
-                if not files_screen.is_file():
+                if not files_screen.is_file() or files_screen.stat().st_size == 0:
                     raise RuntimeError("Missing installed GNOME Files screenshot")
-                metrics = evidence_module().visual_metrics(files_screen)
+                geometry_lines = [line for line in installed.serial.read_bytes().splitlines()
+                                  if line.startswith(b"LOCALZET_CANDIDATE_FILES_GEOMETRY ")]
+                if len(geometry_lines) != 1:
+                    raise RuntimeError("Missing or duplicate GNOME Files geometry receipt")
+                x, y, width, height = map(int, geometry_lines[0].split()[1:])
+                metrics = evidence_module().visual_metrics(files_screen, (x, y, width, height))
                 if not evidence_module().meaningful(metrics):
-                    raise RuntimeError("Installed GNOME Files screenshot is blank")
-                print("Installed Files screen evidence:", metrics, flush=True)
+                    raise RuntimeError("Installed GNOME Files window is blank or visually insufficient")
+                print("Installed Files window evidence:", metrics, flush=True)
             installed.capture("desktop-verified")
             if args.expect_containers:
                 installed.capture("containers-installed")
             if args.expect_office:
                 if args.expect_executive_review:
                     installed.office_document()
-                    installed.capture("office-installed")
-                else:
-                    installed.capture("office-installed")
+                installed.capture("post-install-window")
+                if args.expect_native_files:
+                    files_screen = installed.screen.with_name(f"{installed.screen.stem}-files.ppm")
+                    office_screen = installed.screen.with_name(f"{installed.screen.stem}-office-compositor.ppm")
+                    if not files_screen.is_file() or not office_screen.is_file():
+                        raise RuntimeError("Missing distinct GNOME Files or ONLYOFFICE compositor screenshot")
+                    if files_screen.read_bytes() == office_screen.read_bytes():
+                        raise RuntimeError("GNOME Files and ONLYOFFICE screenshots are identical; refusing false visual evidence")
             installed.wait(WINE_READY, 900 if args.fixture32 is not None else 360)
             if args.expect_executive_review:
                 installed.wait(LOCK_READY, 45)
