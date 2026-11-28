@@ -1,54 +1,71 @@
-/* Localzet Executive: only the native Files window, never a global GTK theme.
- * Soft graphite, inspired by the owner's Ubuntu screenshot. Preserve native
- * light/high-contrast modes, accent and normal GTK accessibility states.
+/* Localzet Executive: Aurora Professional application-local Files overlay.
+ * Violet surfaces and selection, Ember only for primary action/focus.
+ * Preserve upstream light mode, high contrast, keyboard and accessibility.
+ * Never install this as a global GTK theme.
  */
 @media (prefers-color-scheme: dark) and (prefers-contrast: no-preference) {
   window.nautilus-window {
-    --window-bg-color: #202124;
-    --window-fg-color: #f0f0f2;
-    --view-bg-color: #202124;
-    --view-fg-color: #f0f0f2;
-    --headerbar-bg-color: #202124;
-    --headerbar-fg-color: #f0f0f2;
-    --headerbar-backdrop-color: #202124;
-    --sidebar-bg-color: #343539;
-    --sidebar-fg-color: #e6e6e9;
-    --sidebar-backdrop-color: #343539;
-    --sidebar-border-color: #414247;
-    --card-bg-color: #2f3034;
-    --card-fg-color: #f0f0f2;
-    --border-color: #424349;
+    --window-bg-color: #10091E;
+    --window-fg-color: #F4EEFF;
+    --view-bg-color: #10091E;
+    --view-fg-color: #F4EEFF;
+    --headerbar-bg-color: #1A1028;
+    --headerbar-fg-color: #F4EEFF;
+    --headerbar-backdrop-color: #1A1028;
+    --sidebar-bg-color: #28183F;
+    --sidebar-fg-color: #F4EEFF;
+    --sidebar-backdrop-color: #28183F;
+    --sidebar-border-color: rgba(155, 114, 242, .18);
+    --card-bg-color: #34234F;
+    --card-fg-color: #F4EEFF;
+    --border-color: rgba(155, 114, 242, .18);
+    --accent-bg-color: #6436B5;
+    --accent-fg-color: #F4EEFF;
+    --accent-color: #9B72F2;
+    --text-secondary-color: #B9A5D5;
     background-color: var(--view-bg-color);
     color: var(--view-fg-color);
   }
   window.nautilus-window headerbar {
-    background-color: var(--headerbar-bg-color);
-    color: var(--headerbar-fg-color);
-    border-bottom: none;
+    background-color: #1A1028;
+    color: #F4EEFF;
+    border-bottom: 1px solid rgba(155, 114, 242, .12);
     box-shadow: none;
   }
   window.nautilus-window placessidebar {
-    background-color: var(--sidebar-bg-color);
-    color: var(--sidebar-fg-color);
+    background-color: #28183F;
+    color: #F4EEFF;
+  }
+  window.nautilus-window .dim-label,
+  window.nautilus-window placessidebar .dim-label {
+    color: #B9A5D5;
   }
   window.nautilus-window placessidebar .navigation-sidebar {
     background-color: transparent;
     padding: 6px;
   }
   window.nautilus-window placessidebar .navigation-sidebar > row {
-    border-radius: 8px;
+    border-radius: 6px;
     margin: 1px 0;
   }
   window.nautilus-window placessidebar .navigation-sidebar > row:selected {
-    background-color: color-mix(in srgb, var(--accent-bg-color) 12%, #45464b);
-    color: #ffffff;
+    background-color: #6436B5;
+    color: #F4EEFF;
+  }
+  window.nautilus-window placessidebar .navigation-sidebar > row:focus-visible {
+    outline: 2px solid #FF7E00;
+    outline-offset: -2px;
   }
   window.nautilus-window .nautilus-pathbar {
-    background-color: #303136;
-    border: none;
-    border-radius: 9px;
+    background-color: #34234F;
+    color: #F4EEFF;
+    border: 1px solid rgba(155, 114, 242, .12);
+    border-radius: 8px;
   }
-  window.nautilus-window .nautilus-path-button { border-radius: 7px; }
+  window.nautilus-window .nautilus-path-button {
+    border-radius: 6px;
+    color: #F4EEFF;
+  }
   window.nautilus-window .nautilus-grid-view gridview {
     padding: 18px;
     border-spacing: 6px;
@@ -56,11 +73,33 @@
   window.nautilus-window .nautilus-grid-view gridview > child,
   window.nautilus-window .nautilus-grid-view .nautilus-view-cell,
   window.nautilus-window .nautilus-list-view columnview > listview > row {
-    border-radius: 9px;
+    border-radius: 6px;
   }
   window.nautilus-window .nautilus-grid-view gridview > child:selected,
   window.nautilus-window .nautilus-list-view columnview > listview > row:selected {
-    background-color: color-mix(in srgb, var(--accent-bg-color) 9%, #3b3c40);
+    background-color: #6436B5;
+    color: #F4EEFF;
   }
-  window.nautilus-window .floating-bar { border-radius: 9px; }
+  /* GTK dims ColumnView headings by default; keep metadata readable. */
+  window.nautilus-window .nautilus-list-view columnview > header,
+  window.nautilus-window .nautilus-list-view columnview > header *,
+  window.nautilus-window .nautilus-list-view columnview > listview > row .dim-label {
+    color: #B9A5D5;
+    opacity: 1;
+  }
+  window.nautilus-window .nautilus-grid-view gridview > child:focus-visible,
+  window.nautilus-window .nautilus-list-view columnview > listview > row:focus-visible {
+    outline: 2px solid #FF7E00;
+    outline-offset: -2px;
+  }
+  window.nautilus-window .floating-bar {
+    background-color: #34234F;
+    color: #F4EEFF;
+    border: 1px solid rgba(155, 114, 242, .18);
+    border-radius: 8px;
+  }
+  window.nautilus-window button.suggested-action {
+    background-color: #FF7E00;
+    color: #10091E;
+  }
 }

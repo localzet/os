@@ -601,3 +601,15 @@ secondary text `#B9A5D5`. Native GTK, Shell, lock, GRUB and Plymouth
 must derive their active appearance from these tokens. This restoration does
 not change functional acceptance gates or claim final visual approval; fresh
 installed-image captures and owner review remain required.
+
+
+### Native Files Violet × Ember alignment — 2026-11-28
+
+The installed/devkit review still showed the intermediate graphite Files
+palette after the 2026-11-27 restoration. The scoped Nautilus overlay now
+uses the canonical token values: deep violet background, violet sidebar and
+elevated pathbar, deep-violet selection, Ember keyboard focus and primary
+actions. It remains limited to dark mode with normal contrast; light and
+high-contrast modes retain upstream styling. The package must be rebuilt from
+the signed Ubuntu source and actual grid/list screenshots rechecked before
+this correction is considered accepted.
