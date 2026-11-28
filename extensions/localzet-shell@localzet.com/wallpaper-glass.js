@@ -65,6 +65,16 @@ export class WallpaperGlass {
             style_class: 'localzet-wallpaper-glass-backdrop',
             reactive: false, can_focus: false, visible: false,
         });
+        // Main.uiGroup owns this actor and can destroy it before PopupMenu's
+        // destroy signal during session teardown. Clear the JS reference from
+        // the actor's own destroy signal so _dispose never touches a disposed
+        // Clutter object.
+        this._backdropDestroyId = this._backdrop.connect('destroy', () => {
+            this._backdrop = null;
+            this._effect = null;
+            this._effectActor = null;
+            this._backdropDestroyId = 0;
+        });
         this._stackingSupported = !!Main.uiGroup &&
             global.window_group.get_parent() === Main.uiGroup;
         if (this._stackingSupported) {
